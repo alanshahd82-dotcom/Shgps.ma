@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #0F2044;
+    --accent: #00D97E;
+    --warning: #FF9500;
+    --danger: #FF3B30;
+    --bg: #F0F4F8;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+  }
+
+  body {
+    font-family: 'Cairo', 'Inter', system-ui, sans-serif;
+    background: #F0F4F8;
+    color: #0F2044;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  [dir="ltr"] body {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent text-primary-500 font-semibold px-6 py-3 rounded-xl
+           hover:bg-accent-300 active:scale-95 transition-all duration-200 shadow-lg;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-primary-500 border border-primary-200 font-semibold px-6 py-3 rounded-xl
+           hover:bg-primary-50 active:scale-95 transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-white font-semibold px-6 py-3 rounded-xl
+           hover:bg-red-600 active:scale-95 transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-4;
+  }
+
+  .input-field {
+    @apply w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3
+           focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
+           text-primary-500 placeholder-gray-400 transition-all duration-200;
+  }
+
+  .badge-online {
+    @apply inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .badge-offline {
+    @apply inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center gap-1 bg-orange-50 text-orange-600 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+/* Leaflet overrides */
+.leaflet-container {
+  font-family: 'Cairo', 'Inter', sans-serif !important;
+  border-radius: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important;
+}
+
+/* Mobile screen scroll */
+.mobile-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mobile-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Page transition */
+.page-enter {
+  animation: slideInRight 0.25s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Pulse for live tracking */
+@keyframes liveRipple {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.live-dot {
+  position: relative;
+  display: inline-block;
+}
+
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: liveRipple 1.5s ease-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #00D97E 0%, #00B366 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Admin sidebar */
+.admin-sidebar-item {
+  @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer text-slate-500;
+}
+
+.admin-sidebar-item:hover {
+  @apply bg-primary-50 text-primary-500;
+}
+
+.admin-sidebar-item.active {
+  @apply bg-primary-500 text-white;
+}
+
+/* Stats card */
+.stat-card {
+  @apply bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200;
+}
+
+/* Device marker custom */
+.device-marker-car {
+  background: #0F2044;
+  border: 2px solid #00D97E;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.device-marker-bike {
+  background: #FF9500;
+  border: 2px solid white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
