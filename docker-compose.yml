@@ -1,0 +1,66 @@
+version: '3.8'
+
+    services:
+    # ── PostgreSQL
+    postgres:
+      image: postgres:16-alpine
+      environment:
+        POSTGRES_DB:       shgps
+        POSTGRES_USER:     shgps
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      restart: unless-stopped
+      networks: [shgps]
+
+    # ── Traccar GPS Server (supports Wanway / GT06 / GS900)
+    traccar:
+      image: traccar/traccar:ubuntu
+      ports:
+        - "5023:5023"   # Wanway protocol — point GS900 here
+        - "5001:5001"   # GT06 fallback
+      volumes:
+        - traccar_data:/opt/traccar/data
+        - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+      restart: unless-stopped
+      networks: [shgps]
+
+    # ── Node.js Backend
+    backend:
+      build: ./backend
+      environment:
+        PORT:                     3001
+        DATABASE_URL:             postgresql://shgps:${DB_PASSWORD}@postgres:5432/shgps
+        JWT_SECRET:               ${JWT_SECRET}
+        TRACCAR_URL:              http://traccar:8082
+        TRACCAR_ADMIN_EMAIL:      ${TRACCAR_ADMIN_EMAIL}
+        TRACCAR_ADMIN_PASSWORD:   ${TRACCAR_ADMIN_PASSWORD}
+        FRONTEND_URL:             https://${DOMAIN}
+        NODE_ENV:                 production
+      depends_on: [postgres, traccar]
+      restart: unless-stopped
+      networks: [shgps]
+
+    # ── Nginx (serves frontend + proxies API)
+    nginx:
+      image: nginx:alpine
+      ports:
+        - "80:80"
+        - "443:443"
+      volumes:
+        - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        - ./dist:/usr/share/nginx/html:ro
+        - letsencrypt:/etc/letsencrypt
+      depends_on: [backend]
+      restart: unless-stopped
+      networks: [shgps]
+
+    volumes:
+    postgres_data:
+    traccar_data:
+    letsencrypt:
+
+    networks:
+    shgps:
+      driver: bridge
+    
