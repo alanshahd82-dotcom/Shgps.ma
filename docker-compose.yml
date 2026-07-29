@@ -35,22 +35,19 @@ services:
       TRACCAR_URL:              http://traccar:8082
       TRACCAR_ADMIN_EMAIL:      ${TRACCAR_ADMIN_EMAIL}
       TRACCAR_ADMIN_PASSWORD:   ${TRACCAR_ADMIN_PASSWORD}
-      FRONTEND_URL:             https://${DOMAIN}
+      FRONTEND_URL:             http://${DOMAIN}
       NODE_ENV:                 production
     depends_on: [postgres, traccar]
     restart: unless-stopped
     networks: [shgps]
 
-  # ── Nginx (serves frontend + proxies API)
+  # ── Nginx (builds React app + serves frontend + proxies API)
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./dist:/usr/share/nginx/html:ro
-      - letsencrypt:/etc/letsencrypt
     depends_on: [backend]
     restart: unless-stopped
     networks: [shgps]
