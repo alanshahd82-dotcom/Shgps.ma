@@ -27,10 +27,10 @@ app.use('/api/map',     mapRouter)
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', version: '1.0.0' }))
 
-// ─── HTTP server ───────────────────────────────────────────────────────────────
+// --- HTTP server ---------------------------------------------------------------
 const server = createServer(app)
 
-// ─── WebSocket server (frontend clients) ──────────────────────────────────────
+// --- WebSocket server (frontend clients) ---------------------------------------
 const wss = new WebSocketServer({ server, path: '/api/socket' })
 const frontendClients = new Set()
 
@@ -39,33 +39,62 @@ wss.on('connection', (ws, req) => {
     const url   = new URL(req.url, 'http://localhost')
     const token = url.searchParams.get('token')
     if (!token) { ws.close(1008, 'Unauthorized'); return }
-    jwt.verify(token, config.jwtSecret)   // throws if invalid
+    jwt.verify(token, config.jwtSecret)
   } catch {
     ws.close(1008, 'Invalid token')
     return
   }
 
   frontendClients.add(ws)
-  console.log(`[WS] Frontend client connected — total: ${frontendClients.size}`)
+  console.log('[WS] Frontend client connected — total: ' + frontendClients.size)
 
   ws.on('close', () => {
     frontendClients.delete(ws)
-    console.log(`[WS] Frontend client disconnected — total: ${frontendClients.size}`)
+    console.log('[WS] Frontend client disconnected — total: ' + frontendClients.size)
   })
 
   ws.on('error', (err) => console.error('[WS] Frontend client error:', err.message))
 })
 
-// ─── Traccar WebSocket bridge ──────────────────────────────────────────────────
-function connectTraccar() {
-  const wsUrl = config.traccar.url
-    .replace(/^https?:\/\//, (m) => (m.startsWith('https') ? 'wss://' : 'ws://'))
-  const auth = Buffer.from(
-    `${config.traccar.email}:${config.traccar.password}`
-  ).toString('base64')
+// --- Traccar WebSocket bridge --------------------------------------------------
+async function connectTraccar() {
+  const baseUrl = config.traccar.url  // e.g. http://traccar:8082
+  const wsUrl   = baseUrl.replace(/^http:///, 'ws://').replace(/^https:///, 'wss://')
 
-  const traccarWs = new WebSocket(`${wsUrl}/api/socket`, {
-    headers: { Authorization: `Basic ${auth}` },
+  // Step 1: Obtain a Traccar session cookie via REST login (Basic Auth headers
+  //         are NOT supported by Traccar for WebSocket upgrades).
+  let sessionCookie = ''
+  try {
+    const params = new URLSearchParams()
+    params.append('email',    config.traccar.email)
+    params.append('password', config.traccar.password)
+
+    const loginRes = await fetch(baseUrl + '/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    })
+
+    if (!loginRes.ok) {
+      console.error('[Traccar WS] Login failed:', loginRes.status, await loginRes.text())
+      setTimeout(connectTraccar, 10000)
+      return
+    }
+
+    const setCookie = loginRes.headers.get('set-cookie')
+    if (setCookie) {
+      sessionCookie = setCookie.split(';')[0]  // JSESSIONID=<value>
+    }
+    console.log('[Traccar WS] Session established')
+  } catch (err) {
+    console.error('[Traccar WS] Login error:', err.message)
+    setTimeout(connectTraccar, 10000)
+    return
+  }
+
+  // Step 2: Connect WebSocket using the session cookie
+  const traccarWs = new WebSocket(wsUrl + '/api/socket', {
+    headers: { Cookie: sessionCookie },
   })
 
   traccarWs.on('open', () => {
@@ -74,16 +103,13 @@ function connectTraccar() {
 
   traccarWs.on('message', (data) => {
     const msg = data.toString()
-    // Forward every Traccar update to all authenticated frontend clients
     for (const client of frontendClients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(msg)
-      }
+      if (client.readyState === WebSocket.OPEN) client.send(msg)
     }
   })
 
   traccarWs.on('close', () => {
-    console.log('[Traccar WS] Disconnected — reconnecting in 5 s…')
+    console.log('[Traccar WS] Disconnected — reconnecting in 5 s...')
     setTimeout(connectTraccar, 5000)
   })
 
@@ -92,10 +118,9 @@ function connectTraccar() {
   })
 }
 
-// ─── Start ─────────────────────────────────────────────────────────────────────
+// --- Start --------------------------------------------------------------------
 server.listen(PORT, () => {
-  console.log(`🚀 SHGPS Backend running on port ${PORT}`)
-  // Start Traccar bridge only when credentials are configured
+  console.log('SHGPS Backend running on port ' + PORT)
   if (config.traccar.email && config.traccar.password) {
     connectTraccar()
   } else {
