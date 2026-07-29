@@ -1,12 +1,11 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bell, ChevronRight, Wifi, WifiOff, Zap } from 'lucide-react'
+import { Bell, ChevronRight, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
-import Carousel from '../../components/Carousel'
 import MapView from '../../components/MapView'
 import Logo from '../../components/Logo'
 
@@ -14,29 +13,23 @@ function DeviceCard({ device, onClick, lang }) {
   const isOnline = device.status === 'online'
   return (
     <motion.div
-      className="flex items-center gap-3 bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 cursor-pointer active:scale-98"
+      className="flex items-center gap-3 bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 cursor-pointer"
       onClick={onClick}
       whileTap={{ scale: 0.98 }}
     >
-      {/* Icon */}
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${isOnline ? 'bg-primary-50' : 'bg-gray-100'}`}>
         {device.type === 'car' ? '🚗' : device.type === 'bike' ? '🏍️' : '🚚'}
       </div>
-
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-primary-500 text-sm truncate">{device.name}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className={`text-xs font-medium ${isOnline ? 'text-emerald-500' : 'text-slate-400'}`}>
-            ● {isOnline ? t(lang, 'online') : t(lang, 'offline')}
+          <span className="text-xs font-medium" style={{ color: isOnline ? '#1DBF73' : '#94A3B8' }}>
+            {isOnline ? <Wifi size={10} className="inline mr-1" /> : <WifiOff size={10} className="inline mr-1" />}
+            {isOnline ? t(lang, 'online') : t(lang, 'offline')}
           </span>
-          {isOnline && (
-            <span className="text-xs text-slate-400">{device.speed} {t(lang, 'kmh')}</span>
-          )}
+          {isOnline && <span className="text-xs text-slate-400">{device.speed} {t(lang, 'kmh')}</span>}
         </div>
       </div>
-
-      {/* Right */}
       <div className="flex flex-col items-end gap-1">
         {device.battery != null && (
           <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
@@ -52,97 +45,84 @@ function DeviceCard({ device, onClick, lang }) {
 export default function ClientHome() {
   const navigate = useNavigate()
   const { clientAuth, devices, unreadCount, lang } = useApp()
-  // Use all devices returned by API (already filtered per user by backend)
-  const clientDevices = devices
-  const onlineDevices = clientDevices.filter(d => d.status === 'online')
+  const onlineDevices = devices.filter(d => d.status === 'online')
 
   return (
     <MobileFrame>
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
-        <div
-          className="flex-shrink-0 pt-14 pb-4 px-4"
-          style={{ background: 'linear-gradient(160deg, #0F2044 0%, #162d5e 100%)' }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <Logo size="sm" white />
-            <button
-              onClick={() => navigate('/client/alerts')}
-              className="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
-            >
+        <div className="flex-shrink-0 pt-14 px-5 pb-5" style={{ background: 'linear-gradient(160deg,#0B1F3A 0%,#0d2a50 100%)' }}>
+          <div className="flex items-center justify-between mb-5">
+            <Logo size="sm" />
+            <button onClick={() => navigate('/client/alerts')} className="relative w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
               <Bell size={18} className="text-white" />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: '#FF3B30' }}>
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </button>
           </div>
-          <p className="text-white/60 text-xs">{t(lang, 'welcome')}،</p>
-          <p className="text-white font-bold text-lg mt-0.5">{clientAuth?.name || ''} 👋</p>
+          <p className="text-white/60 text-sm">{t(lang, 'welcome')},</p>
+          <p className="text-white text-xl font-bold">{clientAuth?.name || '—'}</p>
 
           {/* Quick stats */}
-          <div className="flex gap-3 mt-3">
-            <div className="flex-1 bg-white/10 rounded-2xl px-3 py-2.5">
-              <p className="text-white/60 text-[10px] font-medium">{t(lang, 'devices')}</p>
-              <p className="text-white font-bold text-xl">{clientDevices.length}</p>
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="bg-white/10 rounded-2xl px-4 py-3 text-center">
+              <p className="text-2xl font-black text-white">{devices.length}</p>
+              <p className="text-white/60 text-xs">{t(lang, 'totalDevices') || 'إجمالي الأجهزة'}</p>
             </div>
-            <div className="flex-1 bg-white/10 rounded-2xl px-3 py-2.5">
-              <p className="text-emerald-300 text-[10px] font-medium flex items-center gap-1"><Wifi size={10} />{t(lang, 'online')}</p>
-              <p className="text-white font-bold text-xl">{onlineDevices.length}</p>
-            </div>
-            <div className="flex-1 bg-white/10 rounded-2xl px-3 py-2.5">
-              <p className="text-white/60 text-[10px] font-medium flex items-center gap-1"><Zap size={10} />{t(lang, 'todayAlerts')}</p>
-              <p className="text-white font-bold text-xl">{unreadCount}</p>
+            <div className="bg-white/10 rounded-2xl px-4 py-3 text-center">
+              <p className="text-2xl font-black" style={{ color: '#1DBF73' }}>{onlineDevices.length}</p>
+              <p className="text-white/60 text-xs">{t(lang, 'onlineDevices') || 'متصلة'}</p>
             </div>
           </div>
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto mobile-scroll pb-20">
-          {/* Carousel */}
-          <Carousel />
-
-          {/* Live Map */}
-          <div className="mx-3 mb-3">
-            <div className="flex items-center justify-between mb-2 px-1">
-              <p className="font-bold text-primary-500 text-sm">{t(lang, 'liveMap')}</p>
-              <span className="flex items-center gap-1 text-xs text-emerald-500 font-semibold">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                LIVE
-              </span>
+        <div className="flex-1 overflow-y-auto mobile-scroll pb-24 px-4 pt-4 space-y-4">
+          {/* Live map */}
+          {devices.length > 0 && (
+            <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
+                <p className="font-bold text-primary-500 text-sm">{t(lang, 'liveMap')}</p>
+                <span className="text-xs font-medium" style={{ color: '#1DBF73' }}>● live</span>
+              </div>
+              <div className="h-40">
+                <MapView devices={onlineDevices.length > 0 ? onlineDevices : devices} height="100%" />
+              </div>
             </div>
-            <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100" style={{ height: 180 }}>
-              <MapView height="100%" zoom={11} />
-            </div>
-          </div>
+          )}
 
           {/* Devices list */}
-          <div className="mx-3 mb-3">
-            <div className="flex items-center justify-between mb-2 px-1">
+          <div>
+            <div className="flex items-center justify-between mb-3">
               <p className="font-bold text-primary-500 text-sm">{t(lang, 'myDevices')}</p>
-              <button
-                onClick={() => navigate('/client/devices')}
-                className="text-xs text-accent font-semibold flex items-center gap-0.5"
-              >
-                {t(lang, 'viewAll')} <ChevronRight size={12} />
+              <button onClick={() => navigate('/client/devices')} className="text-xs font-semibold" style={{ color: '#1DBF73' }}>
+                {t(lang, 'viewAll')}
               </button>
             </div>
-            <div className="space-y-2">
-              {clientDevices.slice(0, 3).map(device => (
-                <DeviceCard
-                  key={device.id}
-                  device={device}
-                  lang={lang}
-                  onClick={() => navigate(`/client/device/${device.id}`)}
-                />
-              ))}
-              {clientDevices.length === 0 && (
-                <div className="text-center py-8 text-slate-400 text-sm">
-                  {lang === 'ar' ? 'لا توجد أجهزة مسجلة' : 'Aucun appareil enregistré'}
-                </div>
-              )}
-            </div>
+
+            {devices.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+                <p className="text-4xl mb-3">📡</p>
+                <p className="text-gray-400 text-sm">{lang === 'ar' ? 'لا توجد أجهزة مسجلة' : 'Aucun appareil enregistré'}</p>
+                <button
+                  onClick={() => navigate('/client/add-device')}
+                  className="mt-3 text-sm font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: '#1DBF73' }}>
+                  {t(lang, 'addDevice')}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {devices.slice(0, 5).map((device, i) => (
+                  <motion.div key={device.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                    <DeviceCard device={device} lang={lang} onClick={() => navigate(`/client/device/${device.id}`)} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

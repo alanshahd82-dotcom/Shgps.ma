@@ -4,12 +4,15 @@ import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import jwt from 'jsonwebtoken'
-import { authRouter }    from './routes/auth.js'
-import { devicesRouter } from './routes/devices.js'
-import { clientsRouter } from './routes/clients.js'
-import { alertsRouter }  from './routes/alerts.js'
-import { mapRouter }     from './routes/map.js'
-import { config }        from './config.js'
+import { authRouter }          from './routes/auth.js'
+import { devicesRouter }       from './routes/devices.js'
+import { clientsRouter }       from './routes/clients.js'
+import { alertsRouter }        from './routes/alerts.js'
+import { mapRouter }           from './routes/map.js'
+import { statsRouter }         from './routes/stats.js'
+import { subscriptionsRouter } from './routes/subscriptions.js'
+import { adminRouter }         from './routes/admin.js'
+import { config }              from './config.js'
 
 dotenv.config()
 
@@ -19,13 +22,17 @@ const PORT = process.env.PORT || 3001
 app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }))
 app.use(express.json())
 
-app.use('/api/auth',    authRouter)
-app.use('/api/devices', devicesRouter)
-app.use('/api/clients', clientsRouter)
-app.use('/api/alerts',  alertsRouter)
-app.use('/api/map',     mapRouter)
+app.use('/api/auth',              authRouter)
+app.use('/api/devices',           devicesRouter)
+app.use('/api/clients',           clientsRouter)
+app.use('/api/alerts',            alertsRouter)
+app.use('/api/map',               mapRouter)
+app.use('/api/stats',             statsRouter)
+app.use('/api/subscription',      subscriptionsRouter)
+app.use('/api/admin/subscriptions', subscriptionsRouter)
+app.use('/api/admin',             adminRouter)
 
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', version: '1.0.0' }))
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', version: '2.0.0', app: 'Athar GPS' }))
 
 // --- HTTP server ---------------------------------------------------------------
 const server = createServer(app)
@@ -46,126 +53,62 @@ wss.on('connection', (ws, req) => {
   }
 
   frontendClients.add(ws)
-  console.log('[WS] Frontend client connected — total: ' + frontendClients.size)
 
-  ws.on('close', () => {
-    frontendClients.delete(ws)
-    console.log('[WS] Frontend client disconnected — total: ' + frontendClients.size)
-  })
-
-  ws.on('error', (err) => console.error('[WS] Frontend client error:', err.message))
+  ws.on('close', () => frontendClients.delete(ws))
+  ws.on('error', (err) => console.error('[WS] Frontend error:', err.message))
 })
 
 // --- Traccar WebSocket bridge --------------------------------------------------
-// Traccar 6.x auth flow:
-//   1. Try to register admin user (POST /api/users) — succeeds only if no users exist yet
-//   2. Login via POST /api/session (form data) — returns JSESSIONID cookie + user token
-//   3. Open WebSocket with ?token=<value> or Cookie header
 async function ensureTraccarAdmin(baseUrl) {
   try {
-    const body = new URLSearchParams({
-      name: 'Admin',
-      email: config.traccar.email,
-      password: config.traccar.password,
-      administrator: 'true',
-    })
     const res = await fetch(baseUrl + '/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: 'Admin',
-        email: config.traccar.email,
-        password: config.traccar.password,
-        administrator: true,
+        name: 'Admin', email: config.traccar.email,
+        password: config.traccar.password, administrator: true,
       }),
     })
-    if (res.ok) {
-      console.log('[Traccar WS] Admin user created successfully')
-    } else if (res.status === 400 || res.status === 409) {
-      console.log('[Traccar WS] Admin user already exists')
-    } else {
-      console.log('[Traccar WS] User creation response:', res.status)
-    }
-  } catch (err) {
-    console.warn('[Traccar WS] User creation skipped:', err.message)
-  }
+    if (res.ok) console.log('[Traccar WS] Admin user created')
+    else console.log('[Traccar WS] Admin user already exists')
+  } catch (err) { console.warn('[Traccar WS] User creation skipped:', err.message) }
 }
 
 async function connectTraccar() {
   const baseUrl = config.traccar.url
-  const wsBase  = baseUrl.startsWith('https://')
-    ? baseUrl.replace('https://', 'wss://')
-    : baseUrl.replace('http://', 'ws://')
+  const wsBase  = baseUrl.startsWith('https://') ? baseUrl.replace('https://', 'wss://') : baseUrl.replace('http://', 'ws://')
 
-  // Step 1: ensure admin user exists
   await ensureTraccarAdmin(baseUrl)
 
-  // Step 2: POST /api/session with form data (Traccar 6.x)
   let sessionCookie = ''
   let userToken = ''
   try {
-    const formBody = 'email=' + encodeURIComponent(config.traccar.email)
-                   + '&password=' + encodeURIComponent(config.traccar.password)
+    const formBody = `email=${encodeURIComponent(config.traccar.email)}&password=${encodeURIComponent(config.traccar.password)}`
     const res = await fetch(baseUrl + '/api/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: formBody,
     })
-    if (!res.ok) {
-      console.error('[Traccar WS] Session POST failed:', res.status)
-      setTimeout(connectTraccar, 10000)
-      return
-    }
+    if (!res.ok) { console.error('[Traccar WS] Session POST failed:', res.status); setTimeout(connectTraccar, 10000); return }
     const setCookie = res.headers.get('set-cookie') || ''
-    sessionCookie = setCookie.split(';')[0]   // "JSESSIONID=abc123"
+    sessionCookie = setCookie.split(';')[0]
     const user = await res.json()
     userToken = user.token || ''
-    console.log('[Traccar WS] Session OK — user:', user.email,
-                '— token:', !!userToken, '— cookie:', !!sessionCookie)
-  } catch (err) {
-    console.error('[Traccar WS] Session error:', err.message)
-    setTimeout(connectTraccar, 10000)
-    return
-  }
+  } catch (err) { console.error('[Traccar WS] Session error:', err.message); setTimeout(connectTraccar, 10000); return }
 
-  // Step 3: open WebSocket with token (preferred) or session cookie
-  const socketUrl = userToken
-    ? wsBase + '/api/socket?token=' + userToken
-    : wsBase + '/api/socket'
-
-  const wsOpts = (!userToken && sessionCookie)
-    ? { headers: { Cookie: sessionCookie } }
-    : {}
-
+  const socketUrl = userToken ? wsBase + '/api/socket?token=' + userToken : wsBase + '/api/socket'
+  const wsOpts = (!userToken && sessionCookie) ? { headers: { Cookie: sessionCookie } } : {}
   const traccarWs = new WebSocket(socketUrl, wsOpts)
 
-  traccarWs.on('open', () => {
-    console.log('[Traccar WS] Connected to', wsBase)
-  })
-
-  traccarWs.on('message', (data) => {
-    const msg = data.toString()
-    for (const client of frontendClients) {
-      if (client.readyState === WebSocket.OPEN) client.send(msg)
-    }
-  })
-
-  traccarWs.on('close', () => {
-    console.log('[Traccar WS] Disconnected — reconnecting in 5 s...')
-    setTimeout(connectTraccar, 5000)
-  })
-
-  traccarWs.on('error', (err) => {
-    console.error('[Traccar WS] Error:', err.message)
-  })
+  traccarWs.on('open',    ()    => console.log('[Traccar WS] Connected'))
+  traccarWs.on('message', (data) => { for (const c of frontendClients) { if (c.readyState === WebSocket.OPEN) c.send(data.toString()) } })
+  traccarWs.on('close',   ()    => { console.log('[Traccar WS] Disconnected — reconnecting…'); setTimeout(connectTraccar, 5000) })
+  traccarWs.on('error',   (err) => console.error('[Traccar WS] Error:', err.message))
 }
 
 // --- Start --------------------------------------------------------------------
 server.listen(PORT, () => {
-  console.log('SHGPS Backend running on port ' + PORT)
-  if (config.traccar.email && config.traccar.password) {
-    connectTraccar()
-  } else {
-    console.warn('[Traccar WS] No credentials — bridge disabled')
-  }
+  console.log('Athar GPS Backend running on port ' + PORT)
+  if (config.traccar.email && config.traccar.password) connectTraccar()
+  else console.warn('[Traccar WS] No credentials — bridge disabled')
 })

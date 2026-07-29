@@ -1,39 +1,31 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, Cpu, Wifi, Bell, TrendingUp, Activity } from 'lucide-react'
+import { Users, Cpu, Wifi, Bell, TrendingUp, Activity, Clock, AlertTriangle } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
+import { api } from '../../api/index.js'
 import AdminLayout from './AdminLayout'
-import MapView from '../../components/MapView'
-import { revenueData } from '../../data/mockData'
 
 function StatCard({ icon: Icon, label, value, sub, color, delay }) {
   const colors = {
-    blue:   { bg: 'from-primary-500 to-primary-600',   icon: 'bg-white/20', text: 'text-white' },
-    green:  { bg: 'from-emerald-500 to-accent',        icon: 'bg-white/20', text: 'text-white' },
-    orange: { bg: 'from-orange-400 to-orange-500',     icon: 'bg-white/20', text: 'text-white' },
-    red:    { bg: 'from-red-400 to-red-500',           icon: 'bg-white/20', text: 'text-white' },
-    purple: { bg: 'from-purple-500 to-purple-600',     icon: 'bg-white/20', text: 'text-white' },
-    teal:   { bg: 'from-teal-500 to-teal-600',         icon: 'bg-white/20', text: 'text-white' },
+    blue:   { bg: 'from-blue-600 to-primary-500' },
+    green:  { bg: 'from-emerald-500 to-teal-600' },
+    orange: { bg: 'from-orange-400 to-orange-500' },
+    red:    { bg: 'from-red-400 to-red-500' },
+    purple: { bg: 'from-purple-500 to-purple-600' },
+    teal:   { bg: 'from-teal-500 to-teal-600' },
   }
   const c = colors[color] || colors.blue
-
   return (
-    <motion.div
-      className={`rounded-2xl p-5 bg-gradient-to-br ${c.bg} shadow-lg`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: delay * 0.08 }}
-    >
+    <motion.div className={`rounded-2xl p-5 bg-gradient-to-br ${c.bg} shadow-lg`}
+      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: delay * 0.08 }}>
       <div className="flex items-start justify-between mb-4">
-        <div className={`w-10 h-10 rounded-xl ${c.icon} flex items-center justify-center`}>
+        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
           <Icon size={20} className="text-white" />
         </div>
-        {sub && (
-          <span className="text-white/70 text-xs font-medium bg-white/10 px-2 py-1 rounded-lg">{sub}</span>
-        )}
+        {sub && <span className="text-white/70 text-xs font-medium bg-white/10 px-2 py-1 rounded-lg">{sub}</span>}
       </div>
       <p className="text-3xl font-black text-white mb-1">{value}</p>
       <p className="text-white/70 text-xs font-medium">{label}</p>
@@ -60,148 +52,109 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { devices, clientList, alertsList, lang } = useApp()
+  const [stats,   setStats]   = useState(null)
+  const [revenue, setRevenue] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Compute real stats from live data
+  useEffect(() => {
+    Promise.all([api.admin.stats(), api.admin.revenue()])
+      .then(([s, r]) => { setStats(s); setRevenue(r) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
   const online  = devices.filter(d => d.status === 'online').length
   const offline = devices.filter(d => d.status !== 'online').length
-  const unread  = alertsList.filter(a => !a.read).length
 
   const deviceStatusData = [
-    { name: lang === 'ar' ? 'متصل'      : 'En ligne',     value: online,  color: '#00D97E' },
-    { name: lang === 'ar' ? 'غير متصل' : 'Hors ligne',   value: offline, color: '#94A3B8' },
+    { name: lang === 'ar' ? 'متصل' : 'En ligne',    value: online,  color: '#1DBF73' },
+    { name: lang === 'ar' ? 'غير متصل' : 'Hors ligne', value: offline, color: '#94A3B8' },
   ]
+
+  const s = stats || {}
 
   return (
     <AdminLayout>
       <div className="p-6 max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-primary-500">{t(lang, 'adminDashboard')}</h1>
-            <p className="text-slate-400 text-sm mt-0.5">
-              {new Date().toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
+            <p className="text-slate-400 text-sm mt-0.5">Athar GPS</p>
           </div>
-          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-2 rounded-xl">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-xs font-semibold">
-              {lang === 'ar' ? 'النظام يعمل بشكل طبيعي' : 'Système opérationnel'}
-            </span>
-          </div>
-        </div>
-
-        {/* Stats grid — real data */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard icon={Users}    label={t(lang, 'totalClients')}  value={clientList.length} color="blue"   delay={0} />
-          <StatCard icon={Cpu}      label={t(lang, 'totalDevices')}  value={devices.length}    color="purple" delay={1} />
-          <StatCard icon={Wifi}     label={t(lang, 'onlineDevices')} value={online}            sub="LIVE"     color="green"  delay={2} />
-          <StatCard icon={Bell}     label={t(lang, 'todayAlerts')}   value={unread}            color="orange" delay={3} />
-        </div>
-
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          {/* Revenue chart (historical — kept as reference data) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-primary-500">{t(lang, 'revenueChart')}</h3>
-                <p className="text-2xl font-black text-primary-500 mt-1">
-                  {revenueData[revenueData.length - 1]?.revenue?.toLocaleString() ?? '—'}
-                  {' '}<span className="text-sm font-normal text-slate-400">{t(lang, 'drh')}</span>
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1.5 rounded-xl">
-                <TrendingUp size={13} />
-                +15%
-              </div>
-            </div>
-            <ResponsiveContainer width="100%" height={160}>
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#0F2044" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#0F2044" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="revenue" stroke="#0F2044" strokeWidth={2} fill="url(#revGrad)" name="revenue" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Device status pie — real data */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <h3 className="font-bold text-primary-500 mb-4">{t(lang, 'deviceStatus')}</h3>
-            <div className="flex justify-center">
-              <PieChart width={160} height={160}>
-                <Pie data={deviceStatusData} cx={75} cy={75} innerRadius={45} outerRadius={70} dataKey="value" stroke="none">
-                  {deviceStatusData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </div>
-            <div className="space-y-2 mt-2">
-              {deviceStatusData.map((item, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ background: item.color }} />
-                    <span className="text-xs font-medium text-slate-500">{item.name}</span>
-                  </div>
-                  <span className="text-xs font-bold text-primary-500">{item.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Map + Recent alerts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Global map */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-primary-500">{t(lang, 'globalMap')}</h3>
-              <button
-                onClick={() => navigate('/admin/map')}
-                className="text-xs text-accent font-semibold"
-              >
-                {lang === 'ar' ? 'عرض كامل' : 'Vue complète'} →
-              </button>
-            </div>
-            <div style={{ height: 280 }}>
-              <MapView showAllDevices zoom={5} height="100%" />
-            </div>
-          </div>
-
-          {/* Recent alerts */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-primary-500">{t(lang, 'allAlerts')}</h3>
-              <button onClick={() => navigate('/admin/alerts')} className="text-xs text-accent font-semibold">
-                {lang === 'ar' ? 'الكل' : 'Tout'} →
-              </button>
-            </div>
-            <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
-              {alertsList.length === 0 && (
-                <div className="px-4 py-6 text-center text-slate-400 text-xs">
-                  {lang === 'ar' ? 'لا توجد تنبيهات' : 'Aucune alerte'}
+          {(s.expiringIn7Days > 0 || s.unactivatedDevices > 0) && (
+            <div className="flex gap-2">
+              {s.expiringIn7Days > 0 && (
+                <button onClick={() => navigate('/admin/subscriptions?status=expiring')}
+                  className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-xs font-semibold text-orange-600">
+                  <Clock size={12} />
+                  {s.expiringIn7Days} {t(lang, 'expiringIn7Days')}
+                </button>
+              )}
+              {s.unactivatedDevices > 0 && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs font-semibold text-red-600">
+                  <AlertTriangle size={12} />
+                  {s.unactivatedDevices} {t(lang, 'unactivatedDevices')}
                 </div>
               )}
-              {alertsList.slice(0, 5).map(alert => (
-                <div key={alert.id} className="px-4 py-3 flex items-start gap-3">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                    alert.severity === 'danger'  ? 'bg-red-500' :
-                    alert.severity === 'warning' ? 'bg-orange-400' : 'bg-blue-400'
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-primary-500 truncate">{alert.deviceName}</p>
-                    <p className="text-[10px] text-slate-400 leading-relaxed truncate">{alert.message}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <StatCard icon={Users}      label={t(lang, 'totalClients')}  value={s.totalClients      ?? clientList.length} color="blue"   delay={0} />
+          <StatCard icon={Cpu}        label={t(lang, 'totalDevices')}  value={s.totalDevices      ?? devices.length}    color="purple" delay={1} />
+          <StatCard icon={Wifi}       label={t(lang, 'onlineDevices')} value={s.onlineDevices     ?? online}            color="green"  delay={2} sub="live" />
+          <StatCard icon={Bell}       label={t(lang, 'todayAlerts')}   value={s.todayAlerts       ?? alertsList.length} color="orange" delay={3} />
+          <StatCard icon={TrendingUp} label={t(lang, 'monthlyRevenue')} value={`${s.monthlyRevenue ?? 0} DH`}           color="teal"   delay={4} />
+          <StatCard icon={Activity}   label={t(lang, 'offlineDevices')} value={s.offlineDevices   ?? offline}           color="red"    delay={5} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Revenue chart */}
+          <div className="md:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-primary-500 mb-4">{t(lang, 'monthlyRevenue')}</h3>
+            {revenue.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-gray-300 text-sm">
+                {loading ? t(lang, 'loading') : (lang === 'ar' ? 'لا توجد بيانات إيرادات بعد' : 'Aucune donnée de revenus')}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={revenue}>
+                  <defs>
+                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#1DBF73" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#1DBF73" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="revenue" name="revenue" stroke="#1DBF73" strokeWidth={2} fill="url(#revGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Device status pie */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-primary-500 mb-4">{t(lang, 'devices')}</h3>
+            <ResponsiveContainer width="100%" height={160}>
+              <PieChart>
+                <Pie data={deviceStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value">
+                  {deviceStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="space-y-2 mt-2">
+              {deviceStatusData.map((d, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                    <span className="text-xs text-gray-500">{d.name}</span>
                   </div>
-                  {!alert.read && (
-                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full mt-1.5 flex-shrink-0" />
-                  )}
+                  <span className="text-xs font-bold text-primary-500">{d.value}</span>
                 </div>
               ))}
             </div>

@@ -1,76 +1,86 @@
 import { config } from '../config.js'
 
-const base = () => config.traccar.url
-const auth = () => 'Basic ' + Buffer.from(`${config.traccar.email}:${config.traccar.password}`).toString('base64')
+const BASE = config.traccar.url
+const AUTH = Buffer.from(`${config.traccar.email}:${config.traccar.password}`).toString('base64')
 
-async function call(path, opts = {}) {
-  const res = await fetch(`${base()}${path}`, {
-    ...opts,
-    headers: { Authorization: auth(), 'Content-Type': 'application/json', ...opts.headers },
+async function req(path, options = {}) {
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Basic ${AUTH}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
   })
-  if (!res.ok) throw new Error(`Traccar ${res.status}: ${await res.text()}`)
+  if (!res.ok) throw new Error(`Traccar ${path} → HTTP ${res.status}`)
   if (res.status === 204) return null
   return res.json()
 }
 
-export const getAllPositions  = ()            => call('/api/positions')
-export const getAllDevices    = ()            => call('/api/devices')
-export const getDevicesByUser = (uid)        => call(`/api/devices?userId=${uid}`)
-export const createDevice     = (name, imei) => call('/api/devices', { method:'POST', body: JSON.stringify({ name, uniqueId: imei }) })
-export const deleteDevice     = (id)         => call(`/api/devices/${id}`, { method:'DELETE' })
-export const createUser = (name, email, pw) =>
-  call('/api/users', { method:'POST', body: JSON.stringify({ name, email, password: pw, deviceLimit:100, administrator:false }) })
-export const deleteUser  = (id) => call(`/api/users/${id}`,  { method:'DELETE' })
-export const linkDevice   = (userId, deviceId) => call('/api/permissions', { method:'POST',   body: JSON.stringify({ userId, deviceId }) })
-export const unlinkDevice = (userId, deviceId) => call('/api/permissions', { method:'DELETE', body: JSON.stringify({ userId, deviceId }) })
-export const getHistory = (deviceId, from, to) => {
-  const p = new URLSearchParams({
-    deviceId,
-    from: from || new Date(Date.now()-86400000).toISOString(),
-    to:   to   || new Date().toISOString(),
-  })
-  return call(`/api/reports/route?${p}`)
+// ─── Devices ───────────────────────────────────────────────────────────────
+
+export async function getAllDevices() {
+  return req('/api/devices')
 }
 
-// ─── المرحلة 1: إصلاح إرسال الأمر (إضافة attributes) ──────────
-export const sendCommand = (deviceId, type) =>
-  call('/api/commands/send', { method:'POST', body: JSON.stringify({ deviceId, type, attributes: {} }) })
+export async function createDevice({ name, imei, protocol = 'GT06' }) {
+  return req('/api/devices', {
+    method: 'POST',
+    body: JSON.stringify({ name, uniqueId: imei }),
+  })
+}
 
-// ─── المرحلة 2 (Draft): دوال السياج الجغرافي ──────────────────
-//
-// Traccar يستخدم صيغة WKT لتعريف المنطقة:
-//   CIRCLE (longitude latitude, radius)
-//   ملاحظة: الترتيب هو longitude أولاً ثم latitude
-//
-// createGeofence: ينشئ سياجاً جغرافياً في Traccar ويعيد الكائن مع ID
-export const createGeofence = (name, lat, lng, radius) =>
-  call('/api/geofences', {
+// ─── Positions ─────────────────────────────────────────────────────────────
+
+export async function getAllPositions() {
+  return req('/api/positions')
+}
+
+export async function getHistory(traccarId, from, to) {
+  if (!traccarId) return []
+  const f = from || new Date(Date.now() - 24 * 3600000).toISOString()
+  const t = to   || new Date().toISOString()
+  return req(`/api/positions?deviceId=${traccarId}&from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`)
+}
+
+// ─── Trips ─────────────────────────────────────────────────────────────────
+
+export async function getTrips(traccarId, from, to) {
+  if (!traccarId) return []
+  const f = from || new Date(Date.now() - 30 * 24 * 3600000).toISOString()
+  const t = to   || new Date().toISOString()
+  try {
+    return await req(`/api/reports/trips?deviceId=${traccarId}&from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`)
+  } catch { return [] }
+}
+
+// ─── Commands ──────────────────────────────────────────────────────────────
+
+export async function sendCommand(traccarId, type) {
+  if (!traccarId) throw new Error('No Traccar device ID')
+  return req('/api/commands/send', {
     method: 'POST',
     body: JSON.stringify({
-      name,
-      area: `CIRCLE (${lng} ${lat}, ${radius})`,  // WKT: lng أولاً ثم lat
+      deviceId: traccarId,
+      type,
       attributes: {},
     }),
   })
+}
 
-// getGeofencesByDevice: يجلب السياجات المرتبطة بجهاز معين
-export const getGeofencesByDevice = (deviceId) =>
-  call(`/api/geofences?deviceId=${deviceId}`)
+// ─── Geofences ─────────────────────────────────────────────────────────────
 
-// deleteGeofence: يحذف سياجاً جغرافياً بالـ ID
-export const deleteGeofence = (geofenceId) =>
-  call(`/api/geofences/${geofenceId}`, { method: 'DELETE' })
-
-// linkGeofenceToDevice: يربط السياج بالجهاز عبر جدول الصلاحيات
-export const linkGeofenceToDevice = (deviceId, geofenceId) =>
-  call('/api/permissions', {
+export async function createGeofence(traccarId, { lat, lng, radius = 500, name = 'Geofence' }) {
+  if (!traccarId) throw new Error('No Traccar device ID')
+  const area = `CIRCLE (${lat} ${lng}, ${radius})`
+  const gf = await req('/api/geofences', {
     method: 'POST',
-    body: JSON.stringify({ deviceId, geofenceId }),
+    body: JSON.stringify({ name, area }),
   })
-
-// unlinkGeofenceFromDevice: يفك ربط السياج عن الجهاز
-export const unlinkGeofenceFromDevice = (deviceId, geofenceId) =>
-  call('/api/permissions', {
-    method: 'DELETE',
-    body: JSON.stringify({ deviceId, geofenceId }),
+  // Link geofence to device
+  await req('/api/permissions', {
+    method: 'POST',
+    body: JSON.stringify({ deviceId: traccarId, geofenceId: gf.id }),
   })
+  return gf
+}
