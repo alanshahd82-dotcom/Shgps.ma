@@ -1,6 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { carouselSlides } from '../data/mockData'
+
+// Static promotional slides — no mockData dependency
+const carouselSlides = [
+  {
+    bg: 'linear-gradient(135deg,#0B1F3A 0%,#0d2a50 100%)',
+    accent: '#1DBF73',
+    icon: '📡',
+    title: 'تتبع مباشر على مدار الساعة',
+    subtitle: 'راقب مركباتك في الوقت الفعلي من أي مكان',
+    cta: 'اكتشف',
+  },
+  {
+    bg: 'linear-gradient(135deg,#006644 0%,#008855 100%)',
+    accent: '#fff',
+    icon: '🔔',
+    title: 'تنبيهات فورية',
+    subtitle: 'استقبل إشعارات السرعة والجيوفنس والبطارية فوراً',
+    cta: 'فعّل',
+  },
+  {
+    bg: 'linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)',
+    accent: '#1DBF73',
+    icon: '📊',
+    title: 'تقارير تفصيلية',
+    subtitle: 'سجل كامل للرحلات والمسافات والإحصاءات',
+    cta: 'عرض',
+  },
+]
 
 export default function Carousel() {
   const [current, setCurrent] = useState(0)
@@ -52,7 +79,7 @@ export default function Carousel() {
           {/* CTA */}
           <button
             className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl"
-            style={{ background: slide.accent, color: slide.bg.includes('006644') ? 'white' : '#0F2044' }}
+            style={{ background: slide.accent, color: '#0B1F3A' }}
           >
             {slide.cta}
           </button>

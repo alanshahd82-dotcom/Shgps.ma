@@ -1,31 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Signal, Gauge, Navigation } from 'lucide-react'
+import { ChevronLeft, Zap, ZapOff, Navigation, Loader2 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
+import { api } from '../../api/index'
 import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
 import MapView from '../../components/MapView'
 import ConfirmModal from '../../components/ConfirmModal'
-
-function StatBadge({ label, value, icon: Icon, color = 'primary' }) {
-  const colors = {
-    primary: 'bg-primary-50 text-primary-500',
-    green: 'bg-emerald-50 text-emerald-600',
-    orange: 'bg-orange-50 text-orange-500',
-    red: 'bg-red-50 text-red-500',
-  }
-  return (
-    <div className={`rounded-2xl p-3 ${colors[color]}`}>
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon size={13} />
-        <span className="text-[10px] font-medium opacity-70">{label}</span>
-      </div>
-      <p className="text-base font-bold">{value}</p>
-    </div>
-  )
-}
 
 export default function DeviceDetail() {
   const { id } = useParams()
@@ -39,6 +22,81 @@ export default function DeviceDetail() {
   const [geofenceCenter, setGeofenceCenter] = useState(null)
   const [geofenceRadius] = useState(500)
   const [engineSuccess, setEngineSuccess] = useState(null)
+  const [engineError, setEngineError] = useState(null)
+
+  // Trips state
+  const [trips, setTrips] = useState([])
+  const [tripsLoading, setTripsLoading] = useState(false)
+  const [tripsError, setTripsError] = useState(null)
+  const [tripFilter, setTripFilter] = useState('week') // today / week / month / custom
+  const [tripFrom, setTripFrom] = useState('')
+  const [tripTo, setTripTo] = useState('')
+
+  // Geofence saving state
+  const [geoSaving, setGeoSaving] = useState(false)
+  const [geoSaved, setGeoSaved] = useState(false)
+  const [geoError, setGeoError] = useState(null)
+
+  // Load existing geofence from device data
+  useEffect(() => {
+    if (device?.geofence) {
+      setGeofenceCenter([device.geofence.lat, device.geofence.lng])
+      setShowGeofence(true)
+    }
+  }, [device?.id])
+
+  // Fetch trips when tab opens
+  useEffect(() => {
+    if (activeTab !== 'trips' || !id) return
+    fetchTrips()
+  }, [activeTab, id, tripFilter])
+
+  const fetchTrips = async () => {
+    setTripsLoading(true)
+    setTripsError(null)
+    try {
+      const now = new Date()
+      let from, to = now.toISOString()
+      if (tripFilter === 'today') {
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+      } else if (tripFilter === 'week') {
+        from = new Date(Date.now() - 7 * 24 * 3600000).toISOString()
+      } else if (tripFilter === 'month') {
+        from = new Date(Date.now() - 30 * 24 * 3600000).toISOString()
+      } else if (tripFilter === 'custom' && tripFrom && tripTo) {
+        from = new Date(tripFrom).toISOString()
+        to   = new Date(tripTo + 'T23:59:59').toISOString()
+      } else {
+        from = new Date(Date.now() - 7 * 24 * 3600000).toISOString()
+      }
+      const data = await api.stats.trips({ deviceId: id, from, to })
+      setTrips(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setTripsError(err.message)
+    } finally {
+      setTripsLoading(false)
+    }
+  }
+
+  const handleSaveGeofence = async () => {
+    if (!geofenceCenter) return
+    setGeoSaving(true)
+    setGeoError(null)
+    try {
+      await api.devices.saveGeofence(id, {
+        lat: geofenceCenter[0],
+        lng: geofenceCenter[1],
+        radius: geofenceRadius,
+        name: lang === 'ar' ? `جيوفنس - ${device.name}` : `Geofence - ${device.name}`,
+      })
+      setGeoSaved(true)
+      setTimeout(() => setGeoSaved(false), 3000)
+    } catch (err) {
+      setGeoError(err.message)
+    } finally {
+      setGeoSaving(false)
+    }
+  }
 
   if (!device) {
     return (
@@ -52,11 +110,17 @@ export default function DeviceDetail() {
 
   const isOnline = device.status === 'online'
 
-  const handleEngineToggle = () => {
-    toggleEngine(device.id)
+  const handleEngineToggle = async () => {
     setShowEngineModal(false)
-    setEngineSuccess(device.engineOn ? t(lang, 'engineCutSuccess') : t(lang, 'engineStartSuccess'))
-    setTimeout(() => setEngineSuccess(null), 3000)
+    setEngineError(null)
+    try {
+      await toggleEngine(device.id)
+      setEngineSuccess(device.engineOn ? t(lang, 'engineCutSuccess') : t(lang, 'engineStartSuccess'))
+      setTimeout(() => setEngineSuccess(null), 3000)
+    } catch (err) {
+      setEngineError(err.message)
+      setTimeout(() => setEngineError(null), 4000)
+    }
   }
 
   const handleMapClick = (e) => {
@@ -66,8 +130,14 @@ export default function DeviceDetail() {
   }
 
   const formatDate = (iso) => {
-    const d = new Date(iso)
-    return d.toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    if (!iso) return '—'
+    return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  const formatDuration = (mins) => {
+    if (!mins) return '0 min'
+    if (mins < 60) return `${mins} min`
+    return `${Math.floor(mins / 60)}h ${mins % 60}min`
   }
 
   return (
@@ -76,7 +146,7 @@ export default function DeviceDetail() {
         {/* Header */}
         <div
           className="flex-shrink-0 pt-14 px-4 pb-4"
-          style={{ background: 'linear-gradient(160deg, #0F2044 0%, #162d5e 100%)' }}
+          style={{ background: 'linear-gradient(160deg, #0B1F3A 0%, #162d5e 100%)' }}
         >
           <div className="flex items-center gap-3 mb-3">
             <button
@@ -97,10 +167,10 @@ export default function DeviceDetail() {
           {/* Quick stats */}
           <div className="grid grid-cols-4 gap-2">
             {[
-              { label: t(lang, 'speed'), val: `${device.speed}`, unit: t(lang, 'kmh'), icon: '⚡' },
-              { label: t(lang, 'battery'), val: `${device.battery}`, unit: '%', icon: '🔋' },
-              { label: t(lang, 'signal'), val: `${device.signal}`, unit: '/4', icon: '📶' },
-              { label: t(lang, 'fuel'), val: `${device.fuel}`, unit: '%', icon: '⛽' },
+              { label: t(lang, 'speed'), val: `${device.speed ?? 0}`, unit: t(lang, 'kmh'), icon: '⚡' },
+              { label: t(lang, 'battery'), val: `${device.battery ?? '—'}`, unit: device.battery != null ? '%' : '', icon: '🔋' },
+              { label: t(lang, 'signal'), val: `${device.signal ?? '—'}`, unit: device.signal != null ? '/4' : '', icon: '📶' },
+              { label: t(lang, 'fuel'), val: `${device.fuel ?? '—'}`, unit: device.fuel != null ? '%' : '', icon: '⛽' },
             ].map(s => (
               <div key={s.label} className="bg-white/10 rounded-xl p-2 text-center">
                 <div className="text-base">{s.icon}</div>
@@ -137,25 +207,24 @@ export default function DeviceDetail() {
 
         {/* Content */}
         <div className="flex-1 overflow-hidden relative">
+
           {/* MAP TAB */}
           {activeTab === 'map' && (
             <div className="h-full relative">
               <MapView deviceId={device.id} height="100%" zoom={15} />
-              {/* Live indicator */}
               <div className="absolute top-3 left-3 glass rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm z-20">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                 <span className="text-xs font-semibold text-primary-500">{t(lang, 'liveTracking')}</span>
               </div>
-              {/* Speed HUD */}
               {isOnline && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 glass rounded-2xl px-5 py-3 shadow-lg z-20 flex items-center gap-4">
                   <div className="text-center">
-                    <p className="text-2xl font-black text-primary-500">{device.speed}</p>
+                    <p className="text-2xl font-black text-primary-500">{device.speed ?? 0}</p>
                     <p className="text-[10px] text-slate-400">{t(lang, 'kmh')}</p>
                   </div>
                   <div className="w-px h-10 bg-gray-200" />
                   <div className="text-center">
-                    <p className="text-sm font-bold text-primary-500">{(device.totalDistance / 1000).toFixed(1)}</p>
+                    <p className="text-sm font-bold text-primary-500">{((device.totalDistance || 0) / 1000).toFixed(1)}</p>
                     <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'ألف كم' : 'Mille km'}</p>
                   </div>
                 </div>
@@ -165,47 +234,93 @@ export default function DeviceDetail() {
 
           {/* TRIPS TAB */}
           {activeTab === 'trips' && (
-            <div className="h-full overflow-y-auto mobile-scroll pb-20 p-4 space-y-3">
-              {device.trips.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                  <Navigation size={32} className="mb-2 opacity-30" />
-                  <p className="text-sm">{t(lang, 'noData')}</p>
+            <div className="h-full flex flex-col">
+              {/* Filter bar */}
+              <div className="bg-white border-b border-gray-100 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
+                {[
+                  { key: 'today', label: lang === 'ar' ? 'اليوم' : "Auj." },
+                  { key: 'week',  label: lang === 'ar' ? 'أسبوع' : 'Semaine' },
+                  { key: 'month', label: lang === 'ar' ? 'شهر' : 'Mois' },
+                  { key: 'custom', label: lang === 'ar' ? 'مخصص' : 'Perso.' },
+                ].map(f => (
+                  <button key={f.key} onClick={() => setTripFilter(f.key)}
+                    className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-xl font-semibold transition-all ${
+                      tripFilter === f.key ? 'bg-primary-500 text-white' : 'bg-gray-100 text-slate-500'
+                    }`}
+                  >{f.label}</button>
+                ))}
+              </div>
+
+              {/* Custom date inputs */}
+              {tripFilter === 'custom' && (
+                <div className="bg-white border-b border-gray-100 px-4 py-2 flex gap-2 flex-shrink-0">
+                  <input type="date" value={tripFrom} onChange={e => setTripFrom(e.target.value)}
+                    className="flex-1 text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-primary-400" />
+                  <input type="date" value={tripTo} onChange={e => setTripTo(e.target.value)}
+                    className="flex-1 text-xs border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-primary-400" />
+                  <button onClick={fetchTrips}
+                    className="text-xs bg-primary-500 text-white px-3 py-2 rounded-xl font-semibold">
+                    {lang === 'ar' ? 'بحث' : 'OK'}
+                  </button>
                 </div>
-              ) : device.trips.map((trip, i) => (
-                <motion.div
-                  key={trip.id}
-                  className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-primary-500 bg-primary-50 px-2 py-1 rounded-lg">{formatDate(trip.date)}</span>
-                    <span className="text-xs text-slate-400">{trip.start} — {trip.end}</span>
+              )}
+
+              {/* Trip list */}
+              <div className="flex-1 overflow-y-auto mobile-scroll pb-20 p-4 space-y-3">
+                {tripsLoading ? (
+                  <div className="flex items-center justify-center h-40">
+                    <Loader2 size={28} className="animate-spin text-primary-300" />
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="flex flex-col items-center mt-1">
-                      <div className="w-2 h-2 rounded-full bg-accent" />
-                      <div className="w-0.5 h-8 bg-gray-200 my-0.5" />
-                      <div className="w-2 h-2 rounded-full bg-primary-500" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div>
-                        <p className="text-[10px] text-slate-400">{t(lang, 'from')}</p>
-                        <p className="text-xs font-semibold text-primary-500">{trip.from}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400">{t(lang, 'to')}</p>
-                        <p className="text-xs font-semibold text-primary-500">{trip.to}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-base font-bold text-primary-500">{trip.distance}</p>
-                      <p className="text-[10px] text-slate-400">{t(lang, 'km')}</p>
-                    </div>
+                ) : tripsError ? (
+                  <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                    <Navigation size={32} className="mb-2 opacity-30" />
+                    <p className="text-xs text-red-400">{tripsError}</p>
+                    <button onClick={fetchTrips} className="mt-2 text-xs text-primary-500 font-semibold">
+                      {lang === 'ar' ? 'إعادة المحاولة' : 'Réessayer'}
+                    </button>
                   </div>
-                </motion.div>
-              ))}
+                ) : trips.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                    <Navigation size={32} className="mb-2 opacity-30" />
+                    <p className="text-sm">{t(lang, 'noData')}</p>
+                  </div>
+                ) : trips.map((trip, i) => (
+                  <motion.div
+                    key={trip.id}
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-primary-500 bg-primary-50 px-2 py-1 rounded-lg">
+                        {formatDate(trip.startTime)}
+                      </span>
+                      <span className="text-xs text-slate-400">{formatDuration(trip.duration)}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2">
+                      <div className="flex flex-col items-center">
+                        <div className="w-2 h-2 rounded-full" style={{ background: '#1DBF73' }} />
+                        <div className="w-0.5 h-8 bg-gray-200 my-0.5" />
+                        <div className="w-2 h-2 rounded-full bg-primary-500" />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <p className="text-xs text-slate-500">
+                          {new Date(trip.startTime).toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {new Date(trip.endTime).toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-bold text-primary-500">{trip.distance}</p>
+                        <p className="text-[10px] text-slate-400">{t(lang, 'km')}</p>
+                        <p className="text-[10px] text-emerald-500 mt-0.5">⚡ {trip.averageSpeed} {t(lang, 'kmh')}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -215,7 +330,7 @@ export default function DeviceDetail() {
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 text-center">
                 <div className={`w-24 h-24 rounded-full mx-auto flex items-center justify-center mb-4 ${
                   device.engineOn
-                    ? 'bg-gradient-to-br from-emerald-400 to-accent shadow-lg shadow-emerald-200'
+                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-200'
                     : 'bg-gradient-to-br from-gray-200 to-gray-300'
                 }`}>
                   {device.engineOn
@@ -236,31 +351,11 @@ export default function DeviceDetail() {
                   className={`w-full py-4 rounded-2xl font-bold text-sm transition-all active:scale-95 ${
                     device.engineOn
                       ? 'bg-red-500 text-white hover:bg-red-600'
-                      : 'bg-gradient-to-r from-accent to-emerald-500 text-primary-500'
+                      : 'bg-gradient-to-r from-emerald-400 to-emerald-600 text-white'
                   }`}
                 >
                   {device.engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')}
                 </button>
-              </div>
-
-              {/* Status log */}
-              <div className="mt-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <p className="text-xs font-semibold text-slate-400 mb-3">
-                  {lang === 'ar' ? 'سجل التحكم' : 'Journal de contrôle'}
-                </p>
-                {[
-                  { time: '10:45', action: lang === 'ar' ? 'تشغيل المحرك' : 'Démarrage moteur', by: lang === 'ar' ? 'المستخدم' : 'Utilisateur' },
-                  { time: '08:00', action: lang === 'ar' ? 'تشغيل المحرك' : 'Démarrage moteur', by: lang === 'ar' ? 'المستخدم' : 'Utilisateur' },
-                  { time: '07:55', action: lang === 'ar' ? 'إيقاف المحرك' : 'Arrêt moteur', by: lang === 'ar' ? 'الأدمن' : 'Admin' },
-                ].map((log, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <div>
-                      <p className="text-xs font-medium text-primary-500">{log.action}</p>
-                      <p className="text-[10px] text-slate-400">{log.by}</p>
-                    </div>
-                    <span className="text-[10px] text-slate-400">{log.time}</span>
-                  </div>
-                ))}
               </div>
             </div>
           )}
@@ -283,9 +378,14 @@ export default function DeviceDetail() {
                     <p className="text-xs font-semibold text-primary-500">📍 {t(lang, 'geofenceDesc')}</p>
                   </div>
                 )}
-                {showGeofence && (
-                  <div className="absolute inset-x-4 top-3 bg-accent/90 rounded-2xl px-4 py-2.5 text-center z-20">
-                    <p className="text-xs font-bold text-primary-500">✅ {t(lang, 'geofenceActive')}</p>
+                {geoSaved && (
+                  <div className="absolute inset-x-4 top-3 bg-emerald-500/90 rounded-2xl px-4 py-2.5 text-center z-20">
+                    <p className="text-xs font-bold text-white">✅ {lang === 'ar' ? 'تم حفظ الجيوفنس بنجاح' : 'Géofence sauvegardé'}</p>
+                  </div>
+                )}
+                {geoError && (
+                  <div className="absolute inset-x-4 top-3 bg-red-500/90 rounded-2xl px-4 py-2.5 text-center z-20">
+                    <p className="text-xs font-bold text-white">❌ {geoError}</p>
                   </div>
                 )}
               </div>
@@ -304,6 +404,16 @@ export default function DeviceDetail() {
                   >
                     {showGeofence ? t(lang, 'deactivateGeofence') : t(lang, 'activateGeofence')}
                   </button>
+                  {geofenceCenter && (
+                    <button
+                      onClick={handleSaveGeofence}
+                      disabled={geoSaving}
+                      className="flex-1 py-3 rounded-2xl text-sm font-bold transition-all bg-emerald-500 text-white disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      {geoSaving ? <Loader2 size={16} className="animate-spin" /> : null}
+                      {lang === 'ar' ? 'حفظ' : 'Enregistrer'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -322,17 +432,19 @@ export default function DeviceDetail() {
           danger={device.engineOn}
         />
 
-        {/* Success toast */}
+        {/* Toast messages */}
         <AnimatePresence>
           {engineSuccess && (
             <motion.div
-              className="absolute bottom-24 inset-x-4 bg-primary-500 text-white rounded-2xl px-4 py-3 text-center text-sm font-semibold shadow-xl z-50"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              ✅ {engineSuccess}
-            </motion.div>
+              className="absolute bottom-24 inset-x-4 bg-emerald-500 text-white rounded-2xl px-4 py-3 text-center text-sm font-semibold shadow-xl z-50"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            >✅ {engineSuccess}</motion.div>
+          )}
+          {engineError && (
+            <motion.div
+              className="absolute bottom-24 inset-x-4 bg-red-500 text-white rounded-2xl px-4 py-3 text-center text-sm font-semibold shadow-xl z-50"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            >❌ {engineError}</motion.div>
           )}
         </AnimatePresence>
 

@@ -64,7 +64,7 @@ export default function SplashScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          Shgps<span className="text-accent">.ma</span>
+          Athar <span className="text-accent">GPS</span>
         </motion.h1>
 
         <motion.p

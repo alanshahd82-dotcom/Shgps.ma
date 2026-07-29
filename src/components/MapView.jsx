@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
@@ -65,13 +65,6 @@ export default function MapView({
       ? [displayDevices[0].lat, displayDevices[0].lng]
       : [33.5731, -7.5898]
 
-  // Simulated trip route for device detail
-  const tripRoute = primaryDevice ? [
-    [primaryDevice.lat + 0.02, primaryDevice.lng - 0.01],
-    [primaryDevice.lat + 0.015, primaryDevice.lng + 0.005],
-    [primaryDevice.lat + 0.005, primaryDevice.lng + 0.01],
-    [primaryDevice.lat, primaryDevice.lng],
-  ] : []
 
   const formatTime = (iso) => {
     if (!iso) return ''
@@ -96,14 +89,6 @@ export default function MapView({
       />
 
       {primaryDevice && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
-
-      {/* Trip route line */}
-      {primaryDevice && tripRoute.length > 0 && (
-        <Polyline
-          positions={tripRoute}
-          pathOptions={{ color: '#00D97E', weight: 3, opacity: 0.7, dashArray: '8,4' }}
-        />
-      )}
 
       {/* Geofence circle */}
       {showGeofence && geofenceCenter && (
