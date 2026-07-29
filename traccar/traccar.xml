@@ -1,16 +1,19 @@
 <?xml version='1.0' encoding='UTF-8'?>
-    <!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
-    <properties>
-      <!-- Internal H2 database for Traccar (positions, history) -->
-      <entry key='database.driver'>org.h2.Driver</entry>
-      <entry key='database.url'>jdbc:h2:/opt/traccar/data/database</entry>
-      <entry key='database.user'>sa</entry>
-      <entry key='database.password'></entry>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+  <entry key='database.driver'>org.h2.Driver</entry>
+  <entry key='database.url'>jdbc:h2:/opt/traccar/data/database</entry>
+  <entry key='database.user'>sa</entry>
+  <entry key='database.password'></entry>
 
-      <!-- Wanway / GT06 protocol — GS900 uses port 5023 -->
-      <entry key='gt06.port'>5023</entry>
+  <!-- تفعيل واجهة الويب و WebSocket على المنفذ 8082 -->
+  <entry key='web.enable'>true</entry>
+  <entry key='web.port'>8082</entry>
 
-      <!-- TraccarClient protocol — mobile app (port 5055) -->
-      <entry key='traccar.port'>5055</entry>
-    </properties>
-    
+  <!-- Wanway / GT06 protocol — GS900 uses port 5023 -->
+  <entry key='gt06.port'>5023</entry>
+
+  <!-- تفعيل بروتوكول تطبيق الهاتف الرسمي -->
+  <entry key='5055.port'>5055</entry>
+  <entry key='5055.protocol'>org.traccar.protocol.TraccarClientProtocolDecoder</entry>
+</properties>
