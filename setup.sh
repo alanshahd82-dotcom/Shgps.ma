@@ -11,17 +11,13 @@ if [ ! -f /swapfile ]; then
 fi
 echo -e "${GREEN}✓ Swap${NC}"
 
-# 2. Docker + Node.js + Git + UFW
+# 2. Docker + Git
 apt-get update -qq
 if ! command -v docker &>/dev/null; then
     curl -fsSL https://get.docker.com | sh
 fi
-if ! command -v node &>/dev/null; then
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y nodejs
-fi
 command -v git &>/dev/null || apt-get install -y -qq git
-echo -e "${GREEN}✓ Docker + Node.js + Git${NC}"
+echo -e "${GREEN}✓ Docker + Git${NC}"
 
 # 3. Firewall (UFW)
 apt-get install -y -qq ufw
@@ -43,15 +39,9 @@ else
     git clone https://github.com/alanshahd82-dotcom/Shgps.ma.git /opt/shgps
 fi
 cd /opt/shgps
-echo -e "${GREEN}✓ Code downloaded${NC}"
+echo -e "${GREEN}✓ Using pre-built app${NC}"
 
-# 5. Build React app on server
-echo -e "${YELLOW}Building React app...${NC}"
-npm install --production=false --legacy-peer-deps
-npm run build
-echo -e "${GREEN}✓ React app built${NC}"
-
-# 6. .env
+# 5. .env
 SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
 if [ ! -f /opt/shgps/.env ]; then
     DB_PASS=$(openssl rand -hex 12)
@@ -69,7 +59,7 @@ ENVEOF
 fi
 echo -e "${GREEN}✓ Config ready${NC}"
 
-# 7. Run
+# 6. Run
 docker compose down 2>/dev/null || true
 docker compose up -d --build
 
