@@ -38,9 +38,11 @@ function DeviceCard({ device, onClick, lang }) {
 
       {/* Right */}
       <div className="flex flex-col items-end gap-1">
-        <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
-          🔋 {device.battery}%
-        </div>
+        {device.battery != null && (
+          <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+            🔋 {device.battery}%
+          </div>
+        )}
         <ChevronRight size={14} className="text-slate-300" />
       </div>
     </motion.div>
@@ -49,8 +51,9 @@ function DeviceCard({ device, onClick, lang }) {
 
 export default function ClientHome() {
   const navigate = useNavigate()
-  const { clientAuth, getClientDevices, unreadCount, lang } = useApp()
-  const clientDevices = getClientDevices('c1')
+  const { clientAuth, devices, unreadCount, lang } = useApp()
+  // Use all devices returned by API (already filtered per user by backend)
+  const clientDevices = devices
   const onlineDevices = clientDevices.filter(d => d.status === 'online')
 
   return (
@@ -76,7 +79,7 @@ export default function ClientHome() {
             </button>
           </div>
           <p className="text-white/60 text-xs">{t(lang, 'welcome')}،</p>
-          <p className="text-white font-bold text-lg mt-0.5">{clientAuth?.name || 'محمد العلوي'} 👋</p>
+          <p className="text-white font-bold text-lg mt-0.5">{clientAuth?.name || ''} 👋</p>
 
           {/* Quick stats */}
           <div className="flex gap-3 mt-3">
@@ -110,7 +113,7 @@ export default function ClientHome() {
               </span>
             </div>
             <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100" style={{ height: 180 }}>
-              <MapView clientId="c1" height="100%" zoom={11} />
+              <MapView height="100%" zoom={11} />
             </div>
           </div>
 
@@ -134,6 +137,11 @@ export default function ClientHome() {
                   onClick={() => navigate(`/client/device/${device.id}`)}
                 />
               ))}
+              {clientDevices.length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-sm">
+                  {lang === 'ar' ? 'لا توجد أجهزة مسجلة' : 'Aucun appareil enregistré'}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
 
 function timeAgo(iso, lang) {
+  if (!iso) return '—'
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
   if (diff < 1) return t(lang, 'just_now')
   if (diff < 60) return `${diff} ${t(lang, 'minutes')}`
@@ -16,8 +17,8 @@ function timeAgo(iso, lang) {
 
 export default function DeviceList() {
   const navigate = useNavigate()
-  const { getClientDevices, lang } = useApp()
-  const devices = getClientDevices('c1')
+  // Backend already returns only the current user's devices
+  const { devices, lang } = useApp()
 
   return (
     <MobileFrame>
@@ -33,6 +34,11 @@ export default function DeviceList() {
 
         {/* Devices */}
         <div className="flex-1 overflow-y-auto mobile-scroll pb-24 pt-3 px-4 space-y-3">
+          {devices.length === 0 && (
+            <div className="text-center py-16 text-slate-400 text-sm">
+              {lang === 'ar' ? 'لا توجد أجهزة مسجلة' : 'Aucun appareil enregistré'}
+            </div>
+          )}
           {devices.map((device, i) => {
             const isOnline = device.status === 'online'
             return (
@@ -70,14 +76,16 @@ export default function DeviceList() {
                   {/* Stats row */}
                   <div className="grid grid-cols-3 gap-2">
                     <div className="flex items-center gap-1.5">
-                      <Battery size={13} className={device.battery < 30 ? 'text-red-500' : 'text-slate-400'} />
-                      <span className={`text-xs font-semibold ${device.battery < 30 ? 'text-red-500' : 'text-slate-600'}`}>
-                        {device.battery}%
+                      <Battery size={13} className={device.battery != null && device.battery < 30 ? 'text-red-500' : 'text-slate-400'} />
+                      <span className={`text-xs font-semibold ${device.battery != null && device.battery < 30 ? 'text-red-500' : 'text-slate-600'}`}>
+                        {device.battery != null ? `${device.battery}%` : '—'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Signal size={13} className="text-slate-400" />
-                      <span className="text-xs font-semibold text-slate-600">{device.signal}/4</span>
+                      <span className="text-xs font-semibold text-slate-600">
+                        {device.signal != null ? `${device.signal}/4` : '—'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Clock size={13} className="text-slate-400" />

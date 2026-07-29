@@ -1,149 +1,241 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
-    import { api } from '../api/index.js'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { api } from '../api/index.js'
 
-    const AppContext = createContext(null)
+const AppContext = createContext(null)
 
-    function loadFromStorage(key) {
-    try { return JSON.parse(localStorage.getItem(key)) } catch { return null }
+function loadFromStorage(key) {
+  try { return JSON.parse(localStorage.getItem(key)) } catch { return null }
+}
+
+export function AppProvider({ children }) {
+  const [lang, setLang]             = useState('ar')
+  const [clientAuth, setClientAuth] = useState(() => loadFromStorage('shgps_client'))
+  const [adminAuth,  setAdminAuth]  = useState(() => loadFromStorage('shgps_admin'))
+  const [devices,    setDevices]    = useState([])
+  const [alertsList, setAlertsList] = useState([])
+  const [clientList, setClientList] = useState([])
+  const wsRef = useRef(null)
+
+  useEffect(() => {
+    document.documentElement.lang = lang
+    document.documentElement.dir  = lang === 'ar' ? 'rtl' : 'ltr'
+  }, [lang])
+
+  // Initial data load
+  useEffect(() => {
+    if (!clientAuth && !adminAuth) return
+    loadDevices()
+    loadAlerts()
+    if (adminAuth) loadClients()
+    openWebSocket()
+    return () => closeWebSocket()
+  }, []) // eslint-disable-line
+
+  // Refresh devices every 30 s (WS handles real-time; polling is a fallback)
+  useEffect(() => {
+    if (!clientAuth && !adminAuth) return
+    const id = setInterval(loadDevices, 30000)
+    return () => clearInterval(id)
+  }, [clientAuth, adminAuth]) // eslint-disable-line
+
+  async function loadDevices() {
+    try { setDevices(await api.devices.list()) } catch (e) { console.error('devices:', e.message) }
+  }
+  async function loadAlerts() {
+    try { setAlertsList(await api.alerts.list()) } catch (e) { console.error('alerts:', e.message) }
+  }
+  async function loadClients() {
+    try { setClientList(await api.clients.list()) } catch (e) { console.error('clients:', e.message) }
+  }
+
+  // ── WebSocket live tracking ────────────────────────────────────────────────
+  function openWebSocket() {
+    const token = localStorage.getItem('shgps_token')
+    if (!token) return
+
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const host     = window.location.host
+    const url      = `${protocol}://${host}/api/socket?token=${encodeURIComponent(token)}`
+
+    const ws = new WebSocket(url)
+    wsRef.current = ws
+
+    ws.onopen = () => console.log('[WS] Live tracking connected')
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+
+        // Traccar pushes { positions: [...], devices: [...] }
+        if (data.positions && data.positions.length > 0) {
+          setDevices(prev => {
+            const updated = [...prev]
+            for (const pos of data.positions) {
+              const idx = updated.findIndex(d => d.traccarId === pos.deviceId || d.traccar_id === pos.deviceId)
+              if (idx !== -1) {
+                updated[idx] = {
+                  ...updated[idx],
+                  lat:        pos.latitude,
+                  lng:        pos.longitude,
+                  speed:      pos.speed ?? 0,
+                  lastUpdate: pos.fixTime,
+                  status:     'online',
+                  engineOn:   pos.attributes?.ignition   ?? updated[idx].engineOn,
+                  battery:    pos.attributes?.battery    ?? updated[idx].battery,
+                  signal:     pos.attributes?.rssi       ?? updated[idx].signal,
+                  fuel:       pos.attributes?.fuel       ?? updated[idx].fuel,
+                }
+              }
+            }
+            return updated
+          })
+        }
+
+        // Traccar also pushes device status changes
+        if (data.devices && data.devices.length > 0) {
+          setDevices(prev => {
+            const updated = [...prev]
+            for (const dev of data.devices) {
+              const idx = updated.findIndex(d => d.traccarId === dev.id || d.traccar_id === dev.id)
+              if (idx !== -1) {
+                updated[idx] = {
+                  ...updated[idx],
+                  status: dev.status === 'online' ? 'online' : 'offline',
+                }
+              }
+            }
+            return updated
+          })
+        }
+      } catch {}
     }
 
-    export function AppProvider({ children }) {
-    const [lang, setLang] = useState('ar')
-    const [clientAuth, setClientAuth] = useState(() => loadFromStorage('shgps_client'))
-    const [adminAuth,  setAdminAuth]  = useState(() => loadFromStorage('shgps_admin'))
-    const [devices,    setDevices]    = useState([])
-    const [alertsList, setAlertsList] = useState([])
-    const [clientList, setClientList] = useState([])
+    ws.onclose = (e) => {
+      console.log('[WS] Disconnected', e.code)
+      // Reconnect after 5 s unless we intentionally closed
+      if (e.code !== 1000) {
+        setTimeout(openWebSocket, 5000)
+      }
+    }
 
-    useEffect(() => {
-      document.documentElement.lang = lang
-      document.documentElement.dir  = lang === 'ar' ? 'rtl' : 'ltr'
-    }, [lang])
+    ws.onerror = (err) => console.error('[WS] Error:', err)
+  }
 
-    // Initial data load
-    useEffect(() => {
-      if (!clientAuth && !adminAuth) return
+  function closeWebSocket() {
+    if (wsRef.current) {
+      wsRef.current.close(1000, 'Logout')
+      wsRef.current = null
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const loginClient = async (email, password) => {
+    try {
+      const { token, user } = await api.auth.login(email, password)
+      if (user.isAdmin) throw new Error('Use admin login')
+      localStorage.setItem('shgps_token',  token)
+      localStorage.setItem('shgps_client', JSON.stringify(user))
+      setClientAuth(user)
       loadDevices()
       loadAlerts()
-      if (adminAuth) loadClients()
-    }, []) // eslint-disable-line
+      openWebSocket()
+      return true
+    } catch (e) { console.error(e.message); return false }
+  }
 
-    // Refresh devices every 15 s
-    useEffect(() => {
-      if (!clientAuth && !adminAuth) return
-      const id = setInterval(loadDevices, 15000)
-      return () => clearInterval(id)
-    }, [clientAuth, adminAuth]) // eslint-disable-line
+  const loginAdmin = async (email, password) => {
+    try {
+      const { token, user } = await api.auth.login(email, password)
+      if (!user.isAdmin) throw new Error('Not an admin account')
+      localStorage.setItem('shgps_token', token)
+      localStorage.setItem('shgps_admin', JSON.stringify(user))
+      setAdminAuth(user)
+      loadDevices()
+      loadAlerts()
+      loadClients()
+      openWebSocket()
+      return true
+    } catch (e) { console.error(e.message); return false }
+  }
 
-    async function loadDevices() {
-      try { setDevices(await api.devices.list()) } catch (e) { console.error('devices:', e.message) }
-    }
-    async function loadAlerts() {
-      try { setAlertsList(await api.alerts.list()) } catch (e) { console.error('alerts:', e.message) }
-    }
-    async function loadClients() {
-      try { setClientList(await api.clients.list()) } catch (e) { console.error('clients:', e.message) }
-    }
+  const logoutClient = () => {
+    closeWebSocket()
+    localStorage.removeItem('shgps_token')
+    localStorage.removeItem('shgps_client')
+    setClientAuth(null); setDevices([]); setAlertsList([])
+  }
 
-    const loginClient = async (email, password) => {
-      try {
-        const { token, user } = await api.auth.login(email, password)
-        if (user.isAdmin) throw new Error('Use admin login')
-        localStorage.setItem('shgps_token',  token)
-        localStorage.setItem('shgps_client', JSON.stringify(user))
-        setClientAuth(user)
-        return true
-      } catch (e) { console.error(e.message); return false }
-    }
+  const logoutAdmin = () => {
+    closeWebSocket()
+    localStorage.removeItem('shgps_token')
+    localStorage.removeItem('shgps_admin')
+    setAdminAuth(null); setDevices([]); setAlertsList([]); setClientList([])
+  }
 
-    const loginAdmin = async (email, password) => {
-      try {
-        const { token, user } = await api.auth.login(email, password)
-        if (!user.isAdmin) throw new Error('Not an admin account')
-        localStorage.setItem('shgps_token', token)
-        localStorage.setItem('shgps_admin', JSON.stringify(user))
-        setAdminAuth(user)
-        return true
-      } catch (e) { console.error(e.message); return false }
-    }
+  const toggleEngine = async (deviceId) => {
+    const dev = devices.find(d => d.id === deviceId)
+    if (!dev) return
+    try {
+      await api.devices.sendCommand(deviceId, dev.engineOn ? 'engineStop' : 'engineResume')
+      setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !d.engineOn } : d))
+    } catch (e) { console.error('command:', e.message) }
+  }
 
-    const logoutClient = () => {
-      localStorage.removeItem('shgps_token')
-      localStorage.removeItem('shgps_client')
-      setClientAuth(null); setDevices([]); setAlertsList([])
-    }
+  const getClientDevices = (clientId) =>
+    adminAuth ? devices.filter(d => d.clientId === clientId) : devices
 
-    const logoutAdmin = () => {
-      localStorage.removeItem('shgps_token')
-      localStorage.removeItem('shgps_admin')
-      setAdminAuth(null); setDevices([]); setAlertsList([]); setClientList([])
-    }
+  const getOnlineDevices = () => devices.filter(d => d.status === 'online')
 
-    const toggleEngine = async (deviceId) => {
-      const dev = devices.find(d => d.id === deviceId)
-      if (!dev) return
-      try {
-        await api.devices.sendCommand(deviceId, dev.engineOn ? 'engineStop' : 'engineResume')
-        setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !d.engineOn } : d))
-      } catch (e) { console.error('command:', e.message) }
-    }
+  const unreadCount = alertsList.filter(a => !a.read).length
 
-    const getClientDevices = (clientId) =>
-      adminAuth ? devices.filter(d => d.clientId === clientId) : devices
+  const markAlertRead = async (alertId) => {
+    try {
+      await api.alerts.markRead(alertId)
+      setAlertsList(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
+    } catch {}
+  }
 
-    const getOnlineDevices = () => devices.filter(d => d.status === 'online')
+  const markAllAlertsRead = async () => {
+    try {
+      await api.alerts.markAllRead()
+      setAlertsList(prev => prev.map(a => ({ ...a, read: true })))
+    } catch {}
+  }
 
-    const unreadCount = alertsList.filter(a => !a.read).length
+  const addClient = async (data) => {
+    const created = await api.clients.create(data)
+    setClientList(prev => [created, ...prev])
+    return created
+  }
 
-    const markAlertRead = async (alertId) => {
-      try {
-        await api.alerts.markRead(alertId)
-        setAlertsList(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
-      } catch {}
-    }
+  const addDevice = async (clientId, data) => {
+    const created = await api.clients.addDevice(clientId, data)
+    setDevices(prev => [...prev, { ...created, status:'offline', lat:0, lng:0, speed:0 }])
+    setClientList(prev => prev.map(c => c.id === clientId ? { ...c, devicesCount: c.devicesCount + 1 } : c))
+    return created
+  }
 
-    const markAllAlertsRead = async () => {
-      try {
-        await api.alerts.markAllRead()
-        setAlertsList(prev => prev.map(a => ({ ...a, read: true })))
-      } catch {}
-    }
+  const deleteClient = async (clientId) => {
+    await api.clients.delete(clientId)
+    setClientList(prev => prev.filter(c => c.id !== clientId))
+  }
 
-    const addClient = async (data) => {
-      const created = await api.clients.create(data)
-      setClientList(prev => [created, ...prev])
-      return created
-    }
+  return (
+    <AppContext.Provider value={{
+      lang, setLang,
+      clientAuth, adminAuth,
+      devices, alertsList, clientList,
+      loginClient, loginAdmin,
+      logoutClient, logoutAdmin,
+      toggleEngine,
+      getClientDevices, getOnlineDevices,
+      unreadCount, markAlertRead, markAllAlertsRead,
+      addClient, addDevice, deleteClient,
+      refreshDevices: loadDevices,
+    }}>
+      {children}
+    </AppContext.Provider>
+  )
+}
 
-    const addDevice = async (clientId, data) => {
-      const created = await api.clients.addDevice(clientId, data)
-      setDevices(prev => [...prev, { ...created, status:'offline', lat:0, lng:0, speed:0 }])
-      setClientList(prev => prev.map(c => c.id === clientId ? { ...c, devicesCount: c.devicesCount + 1 } : c))
-      return created
-    }
-
-    const deleteClient = async (clientId) => {
-      await api.clients.delete(clientId)
-      setClientList(prev => prev.filter(c => c.id !== clientId))
-    }
-
-    return (
-      <AppContext.Provider value={{
-        lang, setLang,
-        clientAuth, adminAuth,
-        devices, alertsList, clientList,
-        loginClient, loginAdmin,
-        logoutClient, logoutAdmin,
-        toggleEngine,
-        getClientDevices, getOnlineDevices,
-        unreadCount, markAlertRead, markAllAlertsRead,
-        addClient, addDevice, deleteClient,
-        refreshDevices: loadDevices,
-      }}>
-        {children}
-      </AppContext.Provider>
-    )
-    }
-
-    export const useApp = () => useContext(AppContext)
-    
+export const useApp = () => useContext(AppContext)

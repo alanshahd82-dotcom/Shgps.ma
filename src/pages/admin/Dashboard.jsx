@@ -1,22 +1,22 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, Cpu, Wifi, WifiOff, Bell, TrendingUp, DollarSign, Activity } from 'lucide-react'
+import { Users, Cpu, Wifi, Bell, TrendingUp, Activity } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
-import { adminStats, revenueData, deviceStatusData } from '../../data/mockData'
+import { revenueData } from '../../data/mockData'
 
 function StatCard({ icon: Icon, label, value, sub, color, delay }) {
   const colors = {
-    blue: { bg: 'from-primary-500 to-primary-600', icon: 'bg-white/20', text: 'text-white' },
-    green: { bg: 'from-emerald-500 to-accent', icon: 'bg-white/20', text: 'text-white' },
-    orange: { bg: 'from-orange-400 to-orange-500', icon: 'bg-white/20', text: 'text-white' },
-    red: { bg: 'from-red-400 to-red-500', icon: 'bg-white/20', text: 'text-white' },
-    purple: { bg: 'from-purple-500 to-purple-600', icon: 'bg-white/20', text: 'text-white' },
-    teal: { bg: 'from-teal-500 to-teal-600', icon: 'bg-white/20', text: 'text-white' },
+    blue:   { bg: 'from-primary-500 to-primary-600',   icon: 'bg-white/20', text: 'text-white' },
+    green:  { bg: 'from-emerald-500 to-accent',        icon: 'bg-white/20', text: 'text-white' },
+    orange: { bg: 'from-orange-400 to-orange-500',     icon: 'bg-white/20', text: 'text-white' },
+    red:    { bg: 'from-red-400 to-red-500',           icon: 'bg-white/20', text: 'text-white' },
+    purple: { bg: 'from-purple-500 to-purple-600',     icon: 'bg-white/20', text: 'text-white' },
+    teal:   { bg: 'from-teal-500 to-teal-600',         icon: 'bg-white/20', text: 'text-white' },
   }
   const c = colors[color] || colors.blue
 
@@ -60,9 +60,16 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { devices, clientList, alertsList, lang } = useApp()
-  const online = devices.filter(d => d.status === 'online').length
+
+  // Compute real stats from live data
+  const online  = devices.filter(d => d.status === 'online').length
   const offline = devices.filter(d => d.status !== 'online').length
-  const unread = alertsList.filter(a => !a.read).length
+  const unread  = alertsList.filter(a => !a.read).length
+
+  const deviceStatusData = [
+    { name: lang === 'ar' ? 'متصل'      : 'En ligne',     value: online,  color: '#00D97E' },
+    { name: lang === 'ar' ? 'غير متصل' : 'Hors ligne',   value: offline, color: '#94A3B8' },
+  ]
 
   return (
     <AdminLayout>
@@ -83,23 +90,24 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stats grid */}
+        {/* Stats grid — real data */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard icon={Users} label={t(lang, 'totalClients')} value={clientList.length} color="blue" delay={0} />
-          <StatCard icon={Cpu} label={t(lang, 'totalDevices')} value={devices.length} color="purple" delay={1} />
-          <StatCard icon={Wifi} label={t(lang, 'onlineDevices')} value={online} sub="LIVE" color="green" delay={2} />
-          <StatCard icon={Bell} label={t(lang, 'todayAlerts')} value={unread} color="orange" delay={3} />
+          <StatCard icon={Users}    label={t(lang, 'totalClients')}  value={clientList.length} color="blue"   delay={0} />
+          <StatCard icon={Cpu}      label={t(lang, 'totalDevices')}  value={devices.length}    color="purple" delay={1} />
+          <StatCard icon={Wifi}     label={t(lang, 'onlineDevices')} value={online}            sub="LIVE"     color="green"  delay={2} />
+          <StatCard icon={Bell}     label={t(lang, 'todayAlerts')}   value={unread}            color="orange" delay={3} />
         </div>
 
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          {/* Revenue chart */}
+          {/* Revenue chart (historical — kept as reference data) */}
           <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-bold text-primary-500">{t(lang, 'revenueChart')}</h3>
                 <p className="text-2xl font-black text-primary-500 mt-1">
-                  {adminStats.monthlyRevenue.toLocaleString()} <span className="text-sm font-normal text-slate-400">{t(lang, 'drh')}</span>
+                  {revenueData[revenueData.length - 1]?.revenue?.toLocaleString() ?? '—'}
+                  {' '}<span className="text-sm font-normal text-slate-400">{t(lang, 'drh')}</span>
                 </p>
               </div>
               <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1.5 rounded-xl">
@@ -111,7 +119,7 @@ export default function Dashboard() {
               <AreaChart data={revenueData}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0F2044" stopOpacity={0.15} />
+                    <stop offset="5%"  stopColor="#0F2044" stopOpacity={0.15} />
                     <stop offset="95%" stopColor="#0F2044" stopOpacity={0} />
                   </linearGradient>
                 </defs>
@@ -123,7 +131,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Device status pie */}
+          {/* Device status pie — real data */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <h3 className="font-bold text-primary-500 mb-4">{t(lang, 'deviceStatus')}</h3>
             <div className="flex justify-center">
@@ -176,10 +184,15 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+              {alertsList.length === 0 && (
+                <div className="px-4 py-6 text-center text-slate-400 text-xs">
+                  {lang === 'ar' ? 'لا توجد تنبيهات' : 'Aucune alerte'}
+                </div>
+              )}
               {alertsList.slice(0, 5).map(alert => (
                 <div key={alert.id} className="px-4 py-3 flex items-start gap-3">
                   <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                    alert.severity === 'danger' ? 'bg-red-500' :
+                    alert.severity === 'danger'  ? 'bg-red-500' :
                     alert.severity === 'warning' ? 'bg-orange-400' : 'bg-blue-400'
                   }`} />
                   <div className="flex-1 min-w-0">
