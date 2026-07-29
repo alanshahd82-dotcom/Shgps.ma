@@ -11,18 +11,32 @@ if [ ! -f /swapfile ]; then
 fi
 echo -e "${GREEN}✓ Swap${NC}"
 
-# 2. Docker + Node.js + Git
+# 2. Docker + Node.js + Git + UFW
+apt-get update -qq
 if ! command -v docker &>/dev/null; then
-    apt-get update -qq && curl -fsSL https://get.docker.com | sh
+    curl -fsSL https://get.docker.com | sh
 fi
 if ! command -v node &>/dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     apt-get install -y nodejs
 fi
-command -v git &>/dev/null || apt-get install -y git
+command -v git &>/dev/null || apt-get install -y -qq git
 echo -e "${GREEN}✓ Docker + Node.js + Git${NC}"
 
-# 3. Clone/Pull
+# 3. Firewall (UFW)
+apt-get install -y -qq ufw
+ufw --force reset
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp    # SSH
+ufw allow 80/tcp    # HTTP
+ufw allow 443/tcp   # HTTPS
+ufw allow 5027/tcp  # GPS GT06 (GS900)
+ufw allow 5023/tcp  # GPS Wanway
+ufw --force enable
+echo -e "${GREEN}✓ Firewall (UFW) configured${NC}"
+
+# 4. Clone/Pull
 if [ -d /opt/shgps ]; then
     cd /opt/shgps && git pull
 else
@@ -31,13 +45,13 @@ fi
 cd /opt/shgps
 echo -e "${GREEN}✓ Code downloaded${NC}"
 
-# 4. Build React app on server
+# 5. Build React app on server
 echo -e "${YELLOW}Building React app...${NC}"
 npm install --production=false --legacy-peer-deps
 npm run build
 echo -e "${GREEN}✓ React app built${NC}"
 
-# 5. .env
+# 6. .env
 SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
 if [ ! -f /opt/shgps/.env ]; then
     DB_PASS=$(openssl rand -hex 12)
@@ -55,11 +69,20 @@ ENVEOF
 fi
 echo -e "${GREEN}✓ Config ready${NC}"
 
-# 6. Run
+# 7. Run
 docker compose down 2>/dev/null || true
 docker compose up -d --build
+
 echo ""
-echo -e "${GREEN}✓ SHGPS is running!${NC}"
-echo -e "URL:   ${BLUE}http://${SERVER_IP}${NC}"
-echo -e "Login: ${YELLOW}admin@shgps.ma / Admin@1234${NC}"
-echo -e "${RED}Change the password after first login!${NC}"
+echo -e "${GREEN}══════════════════════════════════════${NC}"
+echo -e "${GREEN}  ✓ SHGPS is running!                 ${NC}"
+echo -e "${GREEN}══════════════════════════════════════${NC}"
+echo -e "  🌐 URL:    ${BLUE}http://${SERVER_IP}${NC}"
+echo -e "  👤 Login:  ${YELLOW}admin@shgps.ma${NC}"
+echo -e "  🔑 Pass:   ${YELLOW}Admin@1234${NC}"
+echo -e "  📡 GPS Port: ${YELLOW}5027 (GT06/GS900)${NC}"
+echo ""
+echo -e "${RED}  ⚠️  Change the admin password after first login!${NC}"
+echo ""
+echo -e "Firewall status:"
+ufw status
