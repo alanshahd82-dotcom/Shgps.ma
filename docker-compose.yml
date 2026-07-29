@@ -15,6 +15,7 @@ services:
   traccar:
     image: traccar/traccar:ubuntu
     ports:
+      - "5055:5055"   # TraccarClient protocol (mobile app)
       - "5023:5023"   # Wanway protocol
       - "5027:5027"   # GT06 protocol (GS900)
       - "5001:5001"   # GT06 fallback
