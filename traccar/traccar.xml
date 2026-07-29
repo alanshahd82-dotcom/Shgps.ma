@@ -6,14 +6,13 @@
   <entry key='database.user'>sa</entry>
   <entry key='database.password'></entry>
 
-  <!-- تفعيل واجهة الويب و WebSocket على المنفذ 8082 -->
+  <!-- واجهة الويب و WebSocket على المنفذ 8082 -->
   <entry key='web.enable'>true</entry>
   <entry key='web.port'>8082</entry>
 
   <!-- Wanway / GT06 protocol — GS900 uses port 5023 -->
   <entry key='gt06.port'>5023</entry>
 
-  <!-- تفعيل بروتوكول تطبيق الهاتف الرسمي -->
-  <entry key='5055.port'>5055</entry>
-  <entry key='5055.protocol'>org.traccar.protocol.TraccarClientProtocolDecoder</entry>
+  <!-- TraccarClient protocol (mobile app) — Traccar v6.x format -->
+  <entry key='traccar.port'>5055</entry>
 </properties>
