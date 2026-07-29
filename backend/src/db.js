@@ -3,9 +3,12 @@ import pg from 'pg'
 
     const { Pool } = pg
 
-    export const db = new Pool({
+    // Only use SSL if explicitly requested in the connection string (not based on NODE_ENV,
+// since Docker-internal postgres doesn't support SSL regardless of environment)
+const useSSL = config.databaseUrl?.includes('sslmode=require')
+export const db = new Pool({
     connectionString: config.databaseUrl,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: useSSL ? { rejectUnauthorized: false } : false,
     })
 
     db.on('error', (err) => console.error('DB connection error:', err))
