@@ -44,7 +44,7 @@ fi
 echo "✅ Nginx يعمل على HTTP."
 echo ""
 
-# ─── الخطوة 3: الحصول على شهادة SSL عبر webroot ──────────────
+# ─── الخطوة 3: الحصول على شهادة SSL ──────────────────────────
 echo "📜 الخطوة 3: طلب شهادة SSL من Let's Encrypt..."
 docker compose run --rm --entrypoint "" certbot certbot certonly \
     --webroot -w /var/www/certbot \
@@ -69,13 +69,17 @@ if [ "$CERT_OK" = "false" ]; then
 fi
 echo ""
 
-# ─── الخطوة 4: التحقق من وجود الشهادات ───────────────────────
-echo "🔍 الخطوة 4: التحقق من الشهادات..."
-if ls /etc/letsencrypt/live/"$DOMAIN"/fullchain.pem &>/dev/null; then
-    echo "✅ الشهادات موجودة:"
-    ls -l /etc/letsencrypt/live/"$DOMAIN"/
+# ─── الخطوة 4: التحقق من الشهادات داخل Docker volume ─────────
+echo "🔍 الخطوة 4: التحقق من الشهادات داخل Docker volume..."
+if docker compose run --rm --entrypoint "" certbot \
+    ls /etc/letsencrypt/live/"$DOMAIN"/fullchain.pem > /dev/null 2>&1; then
+    echo "✅ الشهادات موجودة داخل Docker volume:"
+    docker compose run --rm --entrypoint "" certbot \
+        ls -l /etc/letsencrypt/live/"$DOMAIN"/
 else
-    echo "❌ لم يتم إنشاء الشهادات! تحقق من إعدادات DNS."
+    echo "❌ لم يتم إنشاء الشهادات! تفاصيل الخطأ:"
+    docker compose run --rm --entrypoint "" certbot \
+        certbot certificates 2>&1 || true
     exit 1
 fi
 echo ""
@@ -96,7 +100,7 @@ echo "📊 حالة Nginx:"
 docker compose ps nginx
 
 if docker compose ps nginx | grep -q "Restarting\|Exit"; then
-    echo "❌ Nginx فشل بعد HTTPS! سجل الأخطاء:"
+    echo "❌ Nginx فشل بعد تطبيق HTTPS! سجل الأخطاء:"
     docker compose logs --tail=20 nginx
     exit 1
 fi
