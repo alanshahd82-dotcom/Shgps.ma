@@ -57,44 +57,86 @@ wss.on('connection', (ws, req) => {
 })
 
 // --- Traccar WebSocket bridge --------------------------------------------------
-// Traccar 6.x: use GET /api/session with Basic Auth to retrieve the user token,
-// then open the WebSocket with ?token=<value> — most reliable method.
+// Traccar 6.x auth flow:
+//   1. Try to register admin user (POST /api/users) — succeeds only if no users exist yet
+//   2. Login via POST /api/session (form data) — returns JSESSIONID cookie + user token
+//   3. Open WebSocket with ?token=<value> or Cookie header
+async function ensureTraccarAdmin(baseUrl) {
+  try {
+    const body = new URLSearchParams({
+      name: 'Admin',
+      email: config.traccar.email,
+      password: config.traccar.password,
+      administrator: 'true',
+    })
+    const res = await fetch(baseUrl + '/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Admin',
+        email: config.traccar.email,
+        password: config.traccar.password,
+        administrator: true,
+      }),
+    })
+    if (res.ok) {
+      console.log('[Traccar WS] Admin user created successfully')
+    } else if (res.status === 400 || res.status === 409) {
+      console.log('[Traccar WS] Admin user already exists')
+    } else {
+      console.log('[Traccar WS] User creation response:', res.status)
+    }
+  } catch (err) {
+    console.warn('[Traccar WS] User creation skipped:', err.message)
+  }
+}
+
 async function connectTraccar() {
   const baseUrl = config.traccar.url
   const wsBase  = baseUrl.startsWith('https://')
     ? baseUrl.replace('https://', 'wss://')
     : baseUrl.replace('http://', 'ws://')
 
-  const basicAuth = Buffer.from(
-    config.traccar.email + ':' + config.traccar.password
-  ).toString('base64')
+  // Step 1: ensure admin user exists
+  await ensureTraccarAdmin(baseUrl)
 
-  // Step 1: fetch session via Basic Auth to get the user's API token
+  // Step 2: POST /api/session with form data (Traccar 6.x)
+  let sessionCookie = ''
   let userToken = ''
   try {
+    const formBody = 'email=' + encodeURIComponent(config.traccar.email)
+                   + '&password=' + encodeURIComponent(config.traccar.password)
     const res = await fetch(baseUrl + '/api/session', {
-      headers: { Authorization: 'Basic ' + basicAuth },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formBody,
     })
     if (!res.ok) {
-      console.error('[Traccar WS] Session fetch failed:', res.status)
+      console.error('[Traccar WS] Session POST failed:', res.status)
       setTimeout(connectTraccar, 10000)
       return
     }
+    const setCookie = res.headers.get('set-cookie') || ''
+    sessionCookie = setCookie.split(';')[0]   // "JSESSIONID=abc123"
     const user = await res.json()
     userToken = user.token || ''
-    console.log('[Traccar WS] Session OK — user:', user.email, '— token present:', !!userToken)
+    console.log('[Traccar WS] Session OK — user:', user.email,
+                '— token:', !!userToken, '— cookie:', !!sessionCookie)
   } catch (err) {
     console.error('[Traccar WS] Session error:', err.message)
     setTimeout(connectTraccar, 10000)
     return
   }
 
-  // Step 2: open WebSocket — prefer token param, fall back to Basic Auth header
+  // Step 3: open WebSocket with token (preferred) or session cookie
   const socketUrl = userToken
     ? wsBase + '/api/socket?token=' + userToken
     : wsBase + '/api/socket'
 
-  const wsOpts = userToken ? {} : { headers: { Authorization: 'Basic ' + basicAuth } }
+  const wsOpts = (!userToken && sessionCookie)
+    ? { headers: { Cookie: sessionCookie } }
+    : {}
+
   const traccarWs = new WebSocket(socketUrl, wsOpts)
 
   traccarWs.on('open', () => {
