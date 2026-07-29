@@ -15,8 +15,9 @@ services:
   traccar:
     image: traccar/traccar:ubuntu
     ports:
-      - "5023:5023"
-      - "5001:5001"
+      - "5023:5023"   # Wanway protocol
+      - "5027:5027"   # GT06 protocol (GS900)
+      - "5001:5001"   # GT06 fallback
     volumes:
       - traccar_data:/opt/traccar/data
       - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
@@ -42,17 +43,29 @@ services:
     image: nginx:alpine
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./dist:/usr/share/nginx/html:ro
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
     depends_on: [backend]
     restart: unless-stopped
+    networks: [shgps]
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
     networks: [shgps]
 
 volumes:
   postgres_data:
   traccar_data:
   letsencrypt:
+  certbot_www:
 
 networks:
   shgps:
