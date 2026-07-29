@@ -9,5 +9,8 @@
 
       <!-- Wanway / GT06 protocol — GS900 uses port 5023 -->
       <entry key='gt06.port'>5023</entry>
+
+      <!-- TraccarClient protocol — mobile app (port 5055) -->
+      <entry key='traccar.port'>5055</entry>
     </properties>
     
