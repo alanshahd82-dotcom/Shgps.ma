@@ -17,16 +17,17 @@ echo "  🔧 إصلاح HTTPS لـ $DOMAIN"
 echo "========================================"
 echo ""
 
-# ─── الخطوة 1: سحب nginx.conf المؤقت (HTTP فقط) من main ──────
-echo "📥 الخطوة 1: سحب nginx.conf المؤقت (HTTP فقط)..."
+# ─── الخطوة 1: مزامنة الريبو مع تجاهل التعديلات المحلية ──────
+echo "📥 الخطوة 1: مزامنة الريبو..."
 git fetch origin
-git checkout origin/main -- nginx/nginx.conf
-echo "✅ تم تحديث nginx.conf بالنسخة المؤقتة (HTTP فقط)."
+git checkout -- nginx/nginx.conf 2>/dev/null || true
+git reset --hard origin/main
+echo "✅ تمت المزامنة."
 echo ""
 
-# ─── الخطوة 2: إيقاف Nginx القديم وإعادة تشغيله ──────────────
-echo "🔄 الخطوة 2: إعادة تشغيل Nginx..."
-docker compose stop nginx
+# ─── الخطوة 2: إيقاف Nginx وإعادة تشغيله بـ nginx.conf المؤقت ─
+echo "🔄 الخطوة 2: إعادة تشغيل Nginx بالإعداد المؤقت (HTTP فقط)..."
+docker compose stop nginx 2>/dev/null || true
 sleep 2
 docker compose up -d nginx
 echo "⏳ انتظار 8 ثوانٍ..."
@@ -40,11 +41,11 @@ if docker compose ps nginx | grep -q "Restarting\|Exit"; then
     docker compose logs --tail=20 nginx
     exit 1
 fi
-echo "✅ Nginx يعمل."
+echo "✅ Nginx يعمل على HTTP."
 echo ""
 
 # ─── الخطوة 3: الحصول على شهادة SSL عبر webroot ──────────────
-echo "📜 الخطوة 3: طلب شهادة SSL من Let's Encrypt (webroot)..."
+echo "📜 الخطوة 3: طلب شهادة SSL من Let's Encrypt..."
 docker compose run --rm --entrypoint "" certbot certbot certonly \
     --webroot -w /var/www/certbot \
     --email "$EMAIL" \
@@ -79,10 +80,10 @@ else
 fi
 echo ""
 
-# ─── الخطوة 5: استعادة nginx.conf الاحترافي (HTTPS) ──────────
-echo "🔐 الخطوة 5: تطبيق nginx.conf الاحترافي مع HTTPS..."
+# ─── الخطوة 5: تطبيق nginx.conf الاحترافي (HTTPS) ─────────────
+echo "🔐 الخطوة 5: تطبيق إعداد HTTPS الاحترافي..."
 git checkout origin/ssl-ready -- nginx/nginx.conf
-echo "✅ تم تطبيق إعدادات HTTPS."
+echo "✅ تم تطبيق nginx.conf مع HTTPS."
 echo ""
 
 # ─── الخطوة 6: إعادة تشغيل Nginx بإعدادات HTTPS ───────────────
