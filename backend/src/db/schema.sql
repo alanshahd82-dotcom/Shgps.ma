@@ -42,7 +42,7 @@
     INSERT INTO users (email, password_hash, name, is_admin, avatar)
     VALUES (
     'admin@shgps.ma',
-    '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    '$2b$10$ZvUexuJI0dAHaSm6hq2jZOPjS5wlvvIHLywBCz.8hK72GQSMu2z1m',
     'مدير النظام', true, 'م'
-    ) ON CONFLICT (email) DO NOTHING;
+    ) ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
     

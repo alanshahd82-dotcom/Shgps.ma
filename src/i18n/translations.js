@@ -21,6 +21,10 @@ export const translations = {
     
     // Auth
     login: 'تسجيل الدخول',
+    clientLogin: 'تسجيل دخول العميل',
+    clientLoginSubtitle: 'أدخل بياناتك للوصول لأجهزتك',
+    adminLoginSubtitle: 'لوحة تحكم المدير',
+    invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
     email: 'البريد الإلكتروني',
     password: 'كلمة المرور',
     emailPlaceholder: 'example@email.com',
@@ -169,6 +173,10 @@ export const translations = {
     
     // Auth
     login: 'Connexion',
+    clientLogin: 'Connexion client',
+    clientLoginSubtitle: 'Entrez vos identifiants pour accéder à vos appareils',
+    adminLoginSubtitle: 'Panneau d\'administration',
+    invalidCredentials: 'Email ou mot de passe incorrect',
     email: 'Email',
     password: 'Mot de passe',
     emailPlaceholder: 'exemple@email.com',
