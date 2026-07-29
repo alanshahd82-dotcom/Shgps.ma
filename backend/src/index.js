@@ -58,12 +58,14 @@ wss.on('connection', (ws, req) => {
 
 // --- Traccar WebSocket bridge --------------------------------------------------
 async function connectTraccar() {
-  const baseUrl = config.traccar.url  // e.g. http://traccar:8082
-  // FIX: escape forward slashes in regex to avoid // being parsed as comment
-  const wsUrl = baseUrl.replace(/^http:///, 'ws://').replace(/^https:///, 'wss://')
+  const baseUrl = config.traccar.url
+  // convert http:// -> ws://  and  https:// -> wss://
+  const wsUrl = baseUrl.startsWith('https://')
+    ? baseUrl.replace('https://', 'wss://')
+    : baseUrl.replace('http://', 'ws://')
 
-  // Step 1: Obtain a Traccar session cookie via REST login
-  // (Basic Auth headers are NOT supported by Traccar for WebSocket upgrades)
+  // Step 1: Login to Traccar via REST to get a session cookie.
+  // Basic Auth headers are NOT supported by Traccar for WebSocket upgrades.
   let sessionCookie = ''
   try {
     const params = new URLSearchParams()
@@ -93,7 +95,7 @@ async function connectTraccar() {
     return
   }
 
-  // Step 2: Connect WebSocket using the session cookie
+  // Step 2: Open WebSocket using the session cookie
   const traccarWs = new WebSocket(wsUrl + '/api/socket', {
     headers: { Cookie: sessionCookie },
   })
