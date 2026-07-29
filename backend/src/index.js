@@ -57,51 +57,48 @@ wss.on('connection', (ws, req) => {
 })
 
 // --- Traccar WebSocket bridge --------------------------------------------------
+// Traccar 6.x: use GET /api/session with Basic Auth to retrieve the user token,
+// then open the WebSocket with ?token=<value> — most reliable method.
 async function connectTraccar() {
   const baseUrl = config.traccar.url
-  // convert http:// -> ws://  and  https:// -> wss://
-  const wsUrl = baseUrl.startsWith('https://')
+  const wsBase  = baseUrl.startsWith('https://')
     ? baseUrl.replace('https://', 'wss://')
     : baseUrl.replace('http://', 'ws://')
 
-  // Step 1: Login to Traccar via REST to get a session cookie.
-  // Basic Auth headers are NOT supported by Traccar for WebSocket upgrades.
-  let sessionCookie = ''
+  const basicAuth = Buffer.from(
+    config.traccar.email + ':' + config.traccar.password
+  ).toString('base64')
+
+  // Step 1: fetch session via Basic Auth to get the user's API token
+  let userToken = ''
   try {
-    const params = new URLSearchParams()
-    params.append('email',    config.traccar.email)
-    params.append('password', config.traccar.password)
-
-    const loginRes = await fetch(baseUrl + '/api/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString(),
+    const res = await fetch(baseUrl + '/api/session', {
+      headers: { Authorization: 'Basic ' + basicAuth },
     })
-
-    if (!loginRes.ok) {
-      console.error('[Traccar WS] Login failed:', loginRes.status, await loginRes.text())
+    if (!res.ok) {
+      console.error('[Traccar WS] Session fetch failed:', res.status)
       setTimeout(connectTraccar, 10000)
       return
     }
-
-    const setCookie = loginRes.headers.get('set-cookie')
-    if (setCookie) {
-      sessionCookie = setCookie.split(';')[0]  // JSESSIONID=<value>
-    }
-    console.log('[Traccar WS] Session established')
+    const user = await res.json()
+    userToken = user.token || ''
+    console.log('[Traccar WS] Session OK — user:', user.email, '— token present:', !!userToken)
   } catch (err) {
-    console.error('[Traccar WS] Login error:', err.message)
+    console.error('[Traccar WS] Session error:', err.message)
     setTimeout(connectTraccar, 10000)
     return
   }
 
-  // Step 2: Open WebSocket using the session cookie
-  const traccarWs = new WebSocket(wsUrl + '/api/socket', {
-    headers: { Cookie: sessionCookie },
-  })
+  // Step 2: open WebSocket — prefer token param, fall back to Basic Auth header
+  const socketUrl = userToken
+    ? wsBase + '/api/socket?token=' + userToken
+    : wsBase + '/api/socket'
+
+  const wsOpts = userToken ? {} : { headers: { Authorization: 'Basic ' + basicAuth } }
+  const traccarWs = new WebSocket(socketUrl, wsOpts)
 
   traccarWs.on('open', () => {
-    console.log('[Traccar WS] Connected to', wsUrl)
+    console.log('[Traccar WS] Connected to', wsBase)
   })
 
   traccarWs.on('message', (data) => {
@@ -127,6 +124,6 @@ server.listen(PORT, () => {
   if (config.traccar.email && config.traccar.password) {
     connectTraccar()
   } else {
-    console.warn('[Traccar WS] No credentials — bridge disabled (set TRACCAR_ADMIN_EMAIL / TRACCAR_ADMIN_PASSWORD)')
+    console.warn('[Traccar WS] No credentials — bridge disabled')
   }
 })
