@@ -1,11 +1,10 @@
 # Stage 1: Build React app
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-RUN npm install --save-dev vite@^5.4.8 @vitejs/plugin-react@^4.3.2 tailwindcss@^3.4.13 autoprefixer@^10.4.20 postcss@^8.4.47
+RUN npm install -g vite@5
 COPY . .
-RUN ./node_modules/.bin/vite build
+RUN npm install --legacy-peer-deps
+RUN vite build
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
