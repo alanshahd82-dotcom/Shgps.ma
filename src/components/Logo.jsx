@@ -10,7 +10,7 @@ export default function Logo({ size = 'md', white = false }) {
   const s = sizes[size] || sizes.md
 
   return (
-    <div className="flex items-center gap-2 select-none">
+    <div className="flex items-center gap-2 select-none" dir="ltr">
       <img
         src="/icon.png"
         alt="AtharGPS"
