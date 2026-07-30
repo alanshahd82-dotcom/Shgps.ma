@@ -20,9 +20,11 @@ jobs:
         with:
           node-version: '20'
 
-      # ── 3. Downgrade npm to stable v9 (npm@10 crashes silently on runners) ───
-      - name: Pin npm to v9
-        run: npm install -g npm@9
+      # ── 3. Force npm registry to public npmjs.org ────────────────────────────
+      #   The Replit environment sets a private registry that isn't reachable
+      #   from GitHub Actions runners, so we override it here.
+      - name: Set npm registry to public npmjs.org
+        run: npm config set registry https://registry.npmjs.org/
 
       # ── 4. Install Capacitor CLI + Android plugin ─────────────────────────────
       - name: Install Capacitor dependencies
