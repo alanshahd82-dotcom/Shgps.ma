@@ -33,6 +33,39 @@ import { Router } from 'express'
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
     })
 
+    // POST / — إنشاء جهاز جديد مباشرة (أدمن فقط)
+    devicesRouter.post('/', requireAuth, async (req, res) => {
+      if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
+      const { name, imei, type, plate, clientId } = req.body
+      if (!name || !imei) return res.status(400).json({ error: 'Name and IMEI required' })
+      if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
+      try {
+        let traccarId = null
+        try {
+          const td = await traccar.createDevice(name, imei)
+          traccarId = td.id
+          if (clientId) {
+            const { rows: ur } = await db.query('SELECT traccar_id FROM users WHERE id=$1', [clientId])
+            if (ur[0]?.traccar_id) await traccar.linkDevice(ur[0].traccar_id, traccarId)
+          }
+        } catch (e) { console.warn('Traccar device skipped:', e.message) }
+        const { rows } = await db.query(
+          `INSERT INTO devices (name,imei,type,plate,user_id,traccar_id)
+           VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+          [name, imei, type || 'car', plate || null, clientId || null, traccarId]
+        )
+        const d = rows[0]
+        res.status(201).json({
+          id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
+          clientId: d.user_id, status: 'offline', lat: 0, lng: 0, speed: 0,
+          lastUpdate: null, engineOn: false, battery: null, signal: null, fuel: null,
+        })
+      } catch (err) {
+        if (err.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
+        console.error(err); res.status(500).json({ error: 'Server error' })
+      }
+    })
+
     devicesRouter.get('/:id', requireAuth, async (req, res) => {
     try {
       const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])

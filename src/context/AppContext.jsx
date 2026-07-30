@@ -237,6 +237,15 @@ export function AppProvider({ children }) {
     return created
   }
 
+  const addDeviceDirect = async (data) => {
+    const created = await api.devices.create(data)
+    setDevices(prev => [...prev, created])
+    if (data.clientId) {
+      setClientList(prev => prev.map(c => c.id === data.clientId ? { ...c, devicesCount: c.devicesCount + 1 } : c))
+    }
+    return created
+  }
+
   const deleteClient = async (clientId) => {
     await api.clients.delete(clientId)
     setClientList(prev => prev.filter(c => c.id !== clientId))
@@ -253,7 +262,7 @@ export function AppProvider({ children }) {
       saveGeofence, removeGeofence,
       getClientDevices, getOnlineDevices,
       unreadCount, markAlertRead, markAllAlertsRead,
-      addClient, addDevice, deleteClient,
+      addClient, addDevice, addDeviceDirect, deleteClient,
       refreshDevices: loadDevices,
     }}>
       {children}

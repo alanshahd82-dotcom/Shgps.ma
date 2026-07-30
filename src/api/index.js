@@ -29,6 +29,7 @@
     devices: {
       list:        ()           => apiFetch('/devices'),
       get:         (id)         => apiFetch(`/devices/${id}`),
+      create:      (data)       => apiFetch('/devices', { method:'POST', body: JSON.stringify(data) }),
       sendCommand: (id, type)   => apiFetch(`/devices/${id}/command`, { method:'POST', body: JSON.stringify({ type }) }),
       setGeofence: (id, data)   => apiFetch(`/devices/${id}/geofence`, { method:'POST', body: JSON.stringify(data) }),
       removeGeofence: (id, geofenceId) => apiFetch(`/devices/${id}/geofence`, { method:'DELETE', body: JSON.stringify({ geofenceId }) }),

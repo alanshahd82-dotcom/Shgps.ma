@@ -1,21 +1,186 @@
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Search, Battery, Signal, Wifi, WifiOff, Filter } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, Battery, Signal, Wifi, WifiOff, Plus, X, AlertCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 
 function timeAgo(iso, lang) {
+  if (!iso) return '—'
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
   if (diff < 1) return t(lang, 'just_now')
   if (diff < 60) return `${diff}m`
   return `${Math.floor(diff / 60)}h`
 }
 
+function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
+  const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId: '' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const imeiValid = /^\d{15}$/.test(form.imei)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!imeiValid) { setError(lang === 'ar' ? 'IMEI يجب أن يكون 15 رقماً' : 'IMEI doit contenir 15 chiffres'); return }
+    setLoading(true); setError('')
+    try {
+      await onAdd({ ...form, clientId: form.clientId || null })
+      setForm({ name: '', imei: '', type: 'car', plate: '', clientId: '' })
+      onClose()
+    } catch (err) {
+      setError(err.message || (lang === 'ar' ? 'حدث خطأ' : 'Une erreur est survenue'))
+    } finally { setLoading(false) }
+  }
+
+  const handleClose = () => { setError(''); onClose() }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={handleClose}
+          />
+          <motion.div
+            className="fixed inset-x-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[500px] z-50"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          >
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="bg-primary-500 px-6 py-4 flex items-center justify-between">
+                <h3 className="font-bold text-white text-lg">
+                  {lang === 'ar' ? 'إضافة جهاز جديد' : 'Ajouter un appareil'}
+                </h3>
+                <button onClick={handleClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+                  <X size={16} className="text-white" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                {/* Error */}
+                {error && (
+                  <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
+                    <AlertCircle size={15} />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    {lang === 'ar' ? 'اسم الجهاز' : 'Nom de l\'appareil'} *
+                  </label>
+                  <input
+                    className="input-field text-sm"
+                    placeholder={lang === 'ar' ? 'مثال: سيارة أحمد' : 'Ex: Voiture Ahmed'}
+                    value={form.name}
+                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                {/* IMEI */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    IMEI <span className="text-slate-400 font-normal">(15 {lang === 'ar' ? 'رقماً' : 'chiffres'})</span> *
+                  </label>
+                  <input
+                    className={`input-field text-sm font-mono ${form.imei && !imeiValid ? 'border-red-300 bg-red-50' : form.imei && imeiValid ? 'border-emerald-300' : ''}`}
+                    placeholder="123456789012345"
+                    value={form.imei}
+                    maxLength={15}
+                    onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '') }))}
+                    required
+                  />
+                  {form.imei && (
+                    <p className={`text-[11px] mt-1 ${imeiValid ? 'text-emerald-500' : 'text-red-400'}`}>
+                      {form.imei.length}/15 {imeiValid ? '✓' : ''}
+                    </p>
+                  )}
+                </div>
+
+                {/* Type + Plate */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      {lang === 'ar' ? 'نوع المركبة' : 'Type de véhicule'}
+                    </label>
+                    <select
+                      className="input-field text-sm"
+                      value={form.type}
+                      onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
+                    >
+                      <option value="car">{lang === 'ar' ? '🚗 سيارة' : '🚗 Voiture'}</option>
+                      <option value="bike">{lang === 'ar' ? '🏍️ دراجة' : '🏍️ Moto'}</option>
+                      <option value="truck">{lang === 'ar' ? '🚚 شاحنة' : '🚚 Camion'}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      {lang === 'ar' ? 'رقم اللوحة' : 'Immatriculation'}
+                    </label>
+                    <input
+                      className="input-field text-sm font-mono uppercase"
+                      placeholder={lang === 'ar' ? 'أ ب 1234' : 'AB-1234'}
+                      value={form.plate}
+                      onChange={e => setForm(p => ({ ...p, plate: e.target.value.toUpperCase() }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Client */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    {lang === 'ar' ? 'تعيين للعميل' : 'Assigner au client'}
+                    <span className="text-slate-400 font-normal ml-1">({lang === 'ar' ? 'اختياري' : 'optionnel'})</span>
+                  </label>
+                  <select
+                    className="input-field text-sm"
+                    value={form.clientId}
+                    onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}
+                  >
+                    <option value="">{lang === 'ar' ? '— بدون عميل —' : '— Sans client —'}</option>
+                    {clientList.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">
+                    {t(lang, 'cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || !imeiValid}
+                    className="flex-1 btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading
+                      ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...')
+                      : (lang === 'ar' ? 'إضافة الجهاز' : 'Ajouter')
+                    }
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export default function AllDevices() {
-  const { devices, clientList, lang } = useApp()
+  const { devices, clientList, addDeviceDirect, lang } = useApp()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [showAdd, setShowAdd] = useState(false)
 
   const filtered = devices.filter(d => {
     const matchSearch = d.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -36,11 +201,18 @@ export default function AllDevices() {
             <h1 className="text-2xl font-black text-primary-500">{t(lang, 'allDevices')}</h1>
             <p className="text-slate-400 text-sm mt-0.5">{devices.length} {lang === 'ar' ? 'جهاز' : 'appareils'}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-2 rounded-xl">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
               {devices.filter(d => d.status === 'online').length} {lang === 'ar' ? 'متصل' : 'connectés'}
             </span>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="btn-primary flex items-center gap-2 py-2.5"
+            >
+              <Plus size={16} />
+              {lang === 'ar' ? 'إضافة جهاز' : 'Ajouter'}
+            </button>
           </div>
         </div>
 
@@ -123,13 +295,13 @@ export default function AllDevices() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center text-xs font-bold text-primary-500">
-                            {client?.avatar || '?'}
+                            {client?.avatar || '—'}
                           </div>
-                          <span className="text-sm text-slate-600">{client?.name || '-'}</span>
+                          <span className="text-sm text-slate-600">{client?.name || <span className="text-slate-300 italic text-xs">{lang === 'ar' ? 'غير مسند' : 'Non assigné'}</span>}</span>
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">{device.plate}</span>
+                        <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">{device.plate || '—'}</span>
                       </td>
                       <td className="px-5 py-4">
                         <span className={`flex items-center gap-1.5 text-xs font-semibold w-fit px-2.5 py-1 rounded-full ${
@@ -145,31 +317,30 @@ export default function AllDevices() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${device.battery < 30 ? 'bg-red-500' : device.battery < 60 ? 'bg-orange-400' : 'bg-accent'}`}
-                              style={{ width: `${device.battery}%` }}
-                            />
+                        {device.battery != null ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${device.battery < 30 ? 'bg-red-500' : device.battery < 60 ? 'bg-orange-400' : 'bg-accent'}`}
+                                style={{ width: `${device.battery}%` }}
+                              />
+                            </div>
+                            <span className={`text-xs font-semibold ${device.battery < 30 ? 'text-red-500' : 'text-slate-500'}`}>
+                              {device.battery}%
+                            </span>
                           </div>
-                          <span className={`text-xs font-semibold ${device.battery < 30 ? 'text-red-500' : 'text-slate-500'}`}>
-                            {device.battery}%
-                          </span>
-                        </div>
+                        ) : <span className="text-slate-300 text-xs">—</span>}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-0.5">
-                          {[1,2,3,4].map(bar => (
-                            <div
-                              key={bar}
-                              className="w-1.5 rounded-sm"
-                              style={{
-                                height: 4 + bar * 3,
-                                background: bar <= device.signal ? '#0F2044' : '#E2E8F0'
-                              }}
-                            />
-                          ))}
-                        </div>
+                        {device.signal != null ? (
+                          <div className="flex items-center gap-0.5">
+                            {[1,2,3,4].map(bar => (
+                              <div key={bar} className="w-1.5 rounded-sm"
+                                style={{ height: 4 + bar * 3, background: bar <= device.signal ? '#0F2044' : '#E2E8F0' }}
+                              />
+                            ))}
+                          </div>
+                        ) : <span className="text-slate-300 text-xs">—</span>}
                       </td>
                       <td className="px-5 py-4">
                         <span className="text-xs text-slate-400">{timeAgo(device.lastUpdate, lang)}</span>
@@ -199,12 +370,12 @@ export default function AllDevices() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-primary-500 text-sm truncate">{device.name}</p>
-                    <p className="text-xs text-slate-400">{client?.name} · {device.plate}</p>
+                    <p className="text-xs text-slate-400">{client?.name || (lang === 'ar' ? 'غير مسند' : 'Non assigné')} · {device.plate || '—'}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs font-medium ${isOnline ? 'text-emerald-500' : 'text-gray-400'}`}>
                         ● {isOnline ? t(lang, 'online') : t(lang, 'offline')}
                       </span>
-                      <span className="text-xs text-slate-400">🔋 {device.battery}%</span>
+                      {device.battery != null && <span className="text-xs text-slate-400">🔋 {device.battery}%</span>}
                       {isOnline && <span className="text-xs text-primary-500 font-bold">{device.speed} km/h</span>}
                     </div>
                   </div>
@@ -220,6 +391,14 @@ export default function AllDevices() {
           )}
         </div>
       </div>
+
+      <AddDeviceModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onAdd={addDeviceDirect}
+        clientList={clientList}
+        lang={lang}
+      />
     </AdminLayout>
   )
 }
