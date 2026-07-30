@@ -33,11 +33,11 @@ services:
     networks:
       - shgps
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/api/server"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/8082"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 90s
     deploy:
       resources:
         limits:
