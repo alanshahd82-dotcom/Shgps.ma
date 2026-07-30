@@ -21,41 +21,30 @@ jobs:
           node-version: '20'
 
       # ── 3. Force npm registry to public npmjs.org ────────────────────────────
-      #   The Replit environment sets a private registry that isn't reachable
-      #   from GitHub Actions runners, so we override it here.
       - name: Set npm registry to public npmjs.org
         run: npm config set registry https://registry.npmjs.org/
 
-      # ── 4. Install Capacitor CLI + Android plugin ─────────────────────────────
-      #   Remove package-lock.json so npm doesn't follow Replit's private
-      #   registry URLs embedded in the lockfile.
-      - name: Install Capacitor dependencies
+      # ── 4. Install all dependencies (frontend + Capacitor) ───────────────────
+      - name: Install dependencies
         run: |
           rm -f package-lock.json
-          npm install \
-            @capacitor/cli@^6.2.0 \
-            @capacitor/core@^6.2.0 \
-            @capacitor/android@^6.2.0 \
-            @capacitor/splash-screen@^6.0.2 \
-            @capacitor/status-bar@^6.0.2 \
-            typescript
-          echo "cap binary: $(ls node_modules/.bin/cap 2>/dev/null || echo NOT_FOUND)"
-          ls node_modules/.bin/cap || (echo "❌ cap not found after install" && exit 1)
+          npm install
+          echo "✔ All dependencies installed"
+          ls node_modules/.bin/cap || (echo "❌ cap not found" && exit 1)
 
-      # ── 5. Verify dist/ is present ────────────────────────────────────────────
-      - name: Verify dist/ folder
+      # ── 5. Build frontend from source ────────────────────────────────────────
+      #   Always rebuild from src/ so any code change appears in the APK.
+      - name: Build Vite app
         run: |
+          npm run build
+          echo "✔ Vite build complete"
           ls -lh dist/
-          echo "✔ dist/ is committed — skipping Vite build"
 
       # ── 6. Convert capacitor.config.ts → capacitor.config.json ───────────────
-      #   Capacitor CLI crashes parsing .ts configs under Node 24 (no ts.ModuleKind).
-      #   Converting to JSON sidesteps the issue entirely.
       - name: Convert capacitor config to JSON
         run: |
           node -e "
           const fs = require('fs');
-          // Read the hardcoded config values (mirrors capacitor.config.ts)
           const config = {
             appId: 'com.athargps.app',
             appName: 'AtharGPS',
@@ -78,14 +67,13 @@ jobs:
           fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
           if (fs.existsSync('capacitor.config.ts')) fs.unlinkSync('capacitor.config.ts');
           console.log('✔ capacitor.config.json written');
-          console.log(JSON.stringify(config, null, 2));
           "
 
       # ── 7. Add Capacitor Android platform ────────────────────────────────────
       - name: Add Capacitor Android platform
         run: ./node_modules/.bin/cap add android
 
-      # ── 7. Copy app icon to all mipmap densities ──────────────────────────────
+      # ── 8. Copy app icon to all mipmap densities ─────────────────────────────
       - name: Copy app icon
         run: |
           sudo apt-get install -y imagemagick -q
@@ -115,31 +103,31 @@ jobs:
             echo "✔ ${DIR} — ${SIZE}x${SIZE}"
           done
 
-      # ── 8. Sync Capacitor ─────────────────────────────────────────────────────
+      # ── 9. Sync Capacitor ─────────────────────────────────────────────────────
       - name: Capacitor sync
         run: ./node_modules/.bin/cap sync android
 
-      # ── 9. Java 17 ────────────────────────────────────────────────────────────
+      # ── 10. Java 17 ───────────────────────────────────────────────────────────
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # ── 10. Android SDK ───────────────────────────────────────────────────────
+      # ── 11. Android SDK ──────────────────────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # ── 11. Make gradlew executable ───────────────────────────────────────────
+      # ── 12. Make gradlew executable ──────────────────────────────────────────
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      # ── 12. Build debug APK ───────────────────────────────────────────────────
+      # ── 13. Build debug APK ──────────────────────────────────────────────────
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      # ── 13. Upload APK ────────────────────────────────────────────────────────
+      # ── 14. Upload APK ───────────────────────────────────────────────────────
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -147,7 +135,7 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-      # ── 14. Report ────────────────────────────────────────────────────────────
+      # ── 15. Report ───────────────────────────────────────────────────────────
       - name: APK info
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
