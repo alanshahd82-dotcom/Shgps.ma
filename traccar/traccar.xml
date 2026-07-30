@@ -10,9 +10,11 @@
   <entry key='web.enable'>true</entry>
   <entry key='web.port'>8082</entry>
 
-  <!-- Wanway / GT06 protocol — GS900 uses port 5023 -->
+  <!-- Wanway / GT06 protocol — GS900E uses port 5023 -->
   <entry key='gt06.port'>5023</entry>
+  <entry key='gt06.enabled'>true</entry>
 
   <!-- TraccarClient protocol (mobile app) — Traccar v6.x format -->
   <entry key='traccar.port'>5055</entry>
+  <entry key='traccar.enabled'>true</entry>
 </properties>
