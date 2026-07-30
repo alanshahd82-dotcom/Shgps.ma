@@ -39,24 +39,14 @@ export default function SplashScreen() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 0.1 }}
       >
-        {/* SVG Logo icon */}
-        <motion.img src="/icon.png" alt="AtharGPS" style={{ borderRadius: 20 }}
-          width={100}
-          height={100}
-          viewBox="0 0 48 48"
-          fill="none"
+        {/* App icon */}
+        <motion.img
+          src="/icon.png"
+          alt="AtharGPS"
+          style={{ borderRadius: 20, width: 100, height: 100 }}
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <rect width="48" height="48" rx="14" fill="rgba(255,255,255,0.08)" />
-          <path
-            d="M24 8C17.373 8 12 13.373 12 20C12 28.5 24 42 24 42C24 42 36 28.5 36 20C36 13.373 30.627 8 24 8Z"
-            fill="#00D97E"
-          />
-          <circle cx="24" cy="20" r="4.5" fill="#0F2044" />
-          <path d="M18 11C15.3 13.1 13.5 16.4 13.5 20" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-          <path d="M30 11C32.7 13.1 34.5 16.4 34.5 20" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-        </motion.svg>
+        />
 
         <motion.h1
           className="mt-4 text-4xl font-extrabold text-white tracking-tight"
