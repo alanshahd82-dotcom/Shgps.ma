@@ -14,40 +14,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Node.js ───────────────────────────────────────────────────────────
+      # ── 2. Node.js 20 ────────────────────────────────────────────────────────
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # ── 3. Install Capacitor CLI + Android plugin only ────────────────────────
-      #   dist/ is already committed in the repo, so we skip the full npm install
-      #   and only install what we need to run `cap add android` and `cap sync`.
+      # ── 3. Downgrade npm to stable v9 (npm@10 crashes silently on runners) ───
+      - name: Pin npm to v9
+        run: npm install -g npm@9
+
+      # ── 4. Install Capacitor CLI + Android plugin ─────────────────────────────
       - name: Install Capacitor dependencies
         run: |
-          npm install --save-dev @capacitor/cli@^6.2.0
-          npm install @capacitor/core@^6.2.0 \
-                      @capacitor/android@^6.2.0 \
-                      @capacitor/splash-screen@^6.0.2 \
-                      @capacitor/status-bar@^6.0.2
+          npm install \
+            @capacitor/cli@^6.2.0 \
+            @capacitor/core@^6.2.0 \
+            @capacitor/android@^6.2.0 \
+            @capacitor/splash-screen@^6.0.2 \
+            @capacitor/status-bar@^6.0.2
+          echo "node_modules/.bin/cap: $(ls node_modules/.bin/cap 2>/dev/null || echo NOT_FOUND)"
 
-      # ── 4. Verify dist/ is present ────────────────────────────────────────────
+      # ── 5. Verify dist/ is present ────────────────────────────────────────────
       - name: Verify dist/ folder
         run: |
-          ls dist/
-          echo "✔ dist/ folder present — skipping Vite build"
+          ls -lh dist/
+          echo "✔ dist/ is committed — skipping Vite build"
 
-      # ── 5. Add Android platform ───────────────────────────────────────────────
+      # ── 6. Add Capacitor Android platform ────────────────────────────────────
       - name: Add Capacitor Android platform
         run: ./node_modules/.bin/cap add android
 
-      # ── 6. Copy app icon to all mipmap densities ──────────────────────────────
-      - name: Copy app icon (logo.jpeg → mipmap-*)
+      # ── 7. Copy app icon to all mipmap densities ──────────────────────────────
+      - name: Copy app icon
         run: |
-          sudo apt-get install -y imagemagick
+          sudo apt-get install -y imagemagick -q
 
           ICON_SRC="public/logo.jpeg"
-
           declare -A SIZES=(
             ["mipmap-mdpi"]=48
             ["mipmap-hdpi"]=72
@@ -61,65 +64,55 @@ jobs:
             DEST_DIR="android/app/src/main/res/${DIR}"
             mkdir -p "$DEST_DIR"
 
-            # Standard launcher icon
             convert "$ICON_SRC" -resize "${SIZE}x${SIZE}" "${DEST_DIR}/ic_launcher.png"
-            echo "✔ ${DEST_DIR}/ic_launcher.png (${SIZE}x${SIZE})"
-
-            # Round icon — white circle mask
             convert "$ICON_SRC" -resize "${SIZE}x${SIZE}" \
-              -gravity center \
-              -background none \
+              -gravity center -background none \
               \( +clone -alpha extract \
-                 -draw "fill white circle $((SIZE/2)),$((SIZE/2)) $((SIZE/2)),0" \
-              \) \
+                 -draw "fill white circle $((SIZE/2)),$((SIZE/2)) $((SIZE/2)),0" \) \
               -compose CopyOpacity -composite \
               "${DEST_DIR}/ic_launcher_round.png"
-            echo "✔ ${DEST_DIR}/ic_launcher_round.png (round, ${SIZE}x${SIZE})"
-
-            # foreground layer for adaptive icons
             cp "${DEST_DIR}/ic_launcher.png" "${DEST_DIR}/ic_launcher_foreground.png"
+            echo "✔ ${DIR} — ${SIZE}x${SIZE}"
           done
 
-      # ── 7. Sync Capacitor (copies dist/ into android/app/src/main/assets/) ───
+      # ── 8. Sync Capacitor ─────────────────────────────────────────────────────
       - name: Capacitor sync
         run: ./node_modules/.bin/cap sync android
 
-      # ── 8. Java 17 ────────────────────────────────────────────────────────────
+      # ── 9. Java 17 ────────────────────────────────────────────────────────────
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # ── 9. Android SDK ────────────────────────────────────────────────────────
+      # ── 10. Android SDK ───────────────────────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # ── 10. Make gradlew executable ───────────────────────────────────────────
+      # ── 11. Make gradlew executable ───────────────────────────────────────────
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      # ── 11. Build debug APK ───────────────────────────────────────────────────
+      # ── 12. Build debug APK ───────────────────────────────────────────────────
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      # ── 12. Upload APK as artifact ────────────────────────────────────────────
-      - name: Upload APK
+      # ── 13. Upload APK ────────────────────────────────────────────────────────
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: SHGPS-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-      # ── 13. Report ────────────────────────────────────────────────────────────
+      # ── 14. Report ────────────────────────────────────────────────────────────
       - name: APK info
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           if [ -f "$APK" ]; then
-            SIZE=$(du -sh "$APK" | cut -f1)
-            echo "✅ APK built successfully — size: $SIZE"
+            echo "✅ APK built — size: $(du -sh "$APK" | cut -f1)"
           else
-            echo "❌ APK not found"
-            exit 1
+            echo "❌ APK not found"; exit 1
           fi
