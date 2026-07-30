@@ -27,15 +27,19 @@ jobs:
         run: npm config set registry https://registry.npmjs.org/
 
       # ── 4. Install Capacitor CLI + Android plugin ─────────────────────────────
+      #   Remove package-lock.json so npm doesn't follow Replit's private
+      #   registry URLs embedded in the lockfile.
       - name: Install Capacitor dependencies
         run: |
+          rm -f package-lock.json
           npm install \
             @capacitor/cli@^6.2.0 \
             @capacitor/core@^6.2.0 \
             @capacitor/android@^6.2.0 \
             @capacitor/splash-screen@^6.0.2 \
             @capacitor/status-bar@^6.0.2
-          echo "node_modules/.bin/cap: $(ls node_modules/.bin/cap 2>/dev/null || echo NOT_FOUND)"
+          echo "cap binary: $(ls node_modules/.bin/cap 2>/dev/null || echo NOT_FOUND)"
+          ls node_modules/.bin/cap || (echo "❌ cap not found after install" && exit 1)
 
       # ── 5. Verify dist/ is present ────────────────────────────────────────────
       - name: Verify dist/ folder
