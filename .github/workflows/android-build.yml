@@ -19,21 +19,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      # ── 3. Install dependencies ───────────────────────────────────────────────
-      - name: Install npm dependencies
-        run: npm install --legacy-peer-deps
-        env:
-          NODE_ENV: development
+      # ── 3. Install Capacitor CLI + Android plugin only ────────────────────────
+      #   dist/ is already committed in the repo, so we skip the full npm install
+      #   and only install what we need to run `cap add android` and `cap sync`.
+      - name: Install Capacitor dependencies
+        run: |
+          npm install --save-dev @capacitor/cli@^6.2.0
+          npm install @capacitor/core@^6.2.0 \
+                      @capacitor/android@^6.2.0 \
+                      @capacitor/splash-screen@^6.0.2 \
+                      @capacitor/status-bar@^6.0.2
 
-      # ── 4. Build web assets ───────────────────────────────────────────────────
-      - name: Build Vite app
-        run: npx vite build
+      # ── 4. Verify dist/ is present ────────────────────────────────────────────
+      - name: Verify dist/ folder
+        run: |
+          ls dist/
+          echo "✔ dist/ folder present — skipping Vite build"
 
-      # ── 5. Add Android platform (generates android/ folder) ──────────────────
+      # ── 5. Add Android platform ───────────────────────────────────────────────
       - name: Add Capacitor Android platform
-        run: npx cap add android
+        run: ./node_modules/.bin/cap add android
 
       # ── 6. Copy app icon to all mipmap densities ──────────────────────────────
       - name: Copy app icon (logo.jpeg → mipmap-*)
@@ -41,6 +47,7 @@ jobs:
           sudo apt-get install -y imagemagick
 
           ICON_SRC="public/logo.jpeg"
+
           declare -A SIZES=(
             ["mipmap-mdpi"]=48
             ["mipmap-hdpi"]=72
@@ -51,29 +58,31 @@ jobs:
 
           for DIR in "${!SIZES[@]}"; do
             SIZE="${SIZES[$DIR]}"
-            DEST="android/app/src/main/res/${DIR}/ic_launcher.png"
-            mkdir -p "android/app/src/main/res/${DIR}"
-            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}" "$DEST"
-            echo "✔ Created $DEST (${SIZE}x${SIZE})"
+            DEST_DIR="android/app/src/main/res/${DIR}"
+            mkdir -p "$DEST_DIR"
 
-            # Round icon variant
-            DEST_ROUND="android/app/src/main/res/${DIR}/ic_launcher_round.png"
-            convert "$ICON_SRC" \
-              -resize "${SIZE}x${SIZE}" \
-              \( +clone  -alpha extract \
-                 -draw "fill black polygon 0,0 0,${SIZE} ${SIZE},${SIZE} ${SIZE},0
-                        fill white circle $(( SIZE/2 )),$(( SIZE/2 )) $(( SIZE/2 )),0" \
-                 \( +clone -negate \) \
-                 -compose multiply -composite \
+            # Standard launcher icon
+            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}" "${DEST_DIR}/ic_launcher.png"
+            echo "✔ ${DEST_DIR}/ic_launcher.png (${SIZE}x${SIZE})"
+
+            # Round icon — white circle mask
+            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}" \
+              -gravity center \
+              -background none \
+              \( +clone -alpha extract \
+                 -draw "fill white circle $((SIZE/2)),$((SIZE/2)) $((SIZE/2)),0" \
               \) \
-              -alpha off -compose copyopacity -composite \
-              "$DEST_ROUND"
-            echo "✔ Created $DEST_ROUND (round, ${SIZE}x${SIZE})"
+              -compose CopyOpacity -composite \
+              "${DEST_DIR}/ic_launcher_round.png"
+            echo "✔ ${DEST_DIR}/ic_launcher_round.png (round, ${SIZE}x${SIZE})"
+
+            # foreground layer for adaptive icons
+            cp "${DEST_DIR}/ic_launcher.png" "${DEST_DIR}/ic_launcher_foreground.png"
           done
 
-      # ── 7. Sync Capacitor ─────────────────────────────────────────────────────
-      - name: Capacitor sync (web → android)
-        run: npx cap sync android
+      # ── 7. Sync Capacitor (copies dist/ into android/app/src/main/assets/) ───
+      - name: Capacitor sync
+        run: ./node_modules/.bin/cap sync android
 
       # ── 8. Java 17 ────────────────────────────────────────────────────────────
       - name: Setup Java 17
@@ -94,25 +103,22 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
-        env:
-          JAVA_HOME: ${{ env.JAVA_HOME }}
 
       # ── 12. Upload APK as artifact ────────────────────────────────────────────
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SHGPS-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-      # ── 13. Show APK size ────────────────────────────────────────────────────
-      - name: Report APK info
+      # ── 13. Report ────────────────────────────────────────────────────────────
+      - name: APK info
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           if [ -f "$APK" ]; then
             SIZE=$(du -sh "$APK" | cut -f1)
             echo "✅ APK built successfully — size: $SIZE"
-            echo "📦 Download from the Actions tab → this run → Artifacts section"
           else
             echo "❌ APK not found"
             exit 1
