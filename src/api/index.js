@@ -1,7 +1,7 @@
 // SHGPS API Client
     const API_URL = import.meta.env.VITE_API_URL || '/api'
 
-    function getToken() { return localStorage.getItem('shgps_token') }
+    function getToken() { return localStorage.getItem('athargps_token') }
 
     async function apiFetch(path, options = {}) {
     const token = getToken()

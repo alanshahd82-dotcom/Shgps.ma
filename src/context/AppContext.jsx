@@ -9,8 +9,8 @@ function loadFromStorage(key) {
 
 export function AppProvider({ children }) {
   const [lang, setLang]             = useState('ar')
-  const [clientAuth, setClientAuth] = useState(() => loadFromStorage('shgps_client'))
-  const [adminAuth,  setAdminAuth]  = useState(() => loadFromStorage('shgps_admin'))
+  const [clientAuth, setClientAuth] = useState(() => loadFromStorage('athargps_client'))
+  const [adminAuth,  setAdminAuth]  = useState(() => loadFromStorage('athargps_admin'))
   const [devices,    setDevices]    = useState([])
   const [alertsList, setAlertsList] = useState([])
   const [clientList, setClientList] = useState([])
@@ -50,7 +50,7 @@ export function AppProvider({ children }) {
 
   // ── WebSocket live tracking ────────────────────────────────────────────────
   function openWebSocket() {
-    const token = localStorage.getItem('shgps_token')
+    const token = localStorage.getItem('athargps_token')
     if (!token) return
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -133,8 +133,8 @@ export function AppProvider({ children }) {
     try {
       const { token, user } = await api.auth.login(email, password)
       if (user.isAdmin) throw new Error('Use admin login')
-      localStorage.setItem('shgps_token',  token)
-      localStorage.setItem('shgps_client', JSON.stringify(user))
+      localStorage.setItem('athargps_token',  token)
+      localStorage.setItem('athargps_client', JSON.stringify(user))
       setClientAuth(user)
       loadDevices()
       loadAlerts()
@@ -147,8 +147,8 @@ export function AppProvider({ children }) {
     try {
       const { token, user } = await api.auth.login(email, password)
       if (!user.isAdmin) throw new Error('Not an admin account')
-      localStorage.setItem('shgps_token', token)
-      localStorage.setItem('shgps_admin', JSON.stringify(user))
+      localStorage.setItem('athargps_token', token)
+      localStorage.setItem('athargps_admin', JSON.stringify(user))
       setAdminAuth(user)
       loadDevices()
       loadAlerts()
@@ -160,15 +160,15 @@ export function AppProvider({ children }) {
 
   const logoutClient = () => {
     closeWebSocket()
-    localStorage.removeItem('shgps_token')
-    localStorage.removeItem('shgps_client')
+    localStorage.removeItem('athargps_token')
+    localStorage.removeItem('athargps_client')
     setClientAuth(null); setDevices([]); setAlertsList([])
   }
 
   const logoutAdmin = () => {
     closeWebSocket()
-    localStorage.removeItem('shgps_token')
-    localStorage.removeItem('shgps_admin')
+    localStorage.removeItem('athargps_token')
+    localStorage.removeItem('athargps_admin')
     setAdminAuth(null); setDevices([]); setAlertsList([]); setClientList([])
   }
 

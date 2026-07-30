@@ -31,7 +31,7 @@ import AdminAlerts from './pages/admin/AdminAlerts'
 function isClientAuthenticated(clientAuth) {
   if (!clientAuth) return false
   try {
-    const stored = JSON.parse(localStorage.getItem('shgps_client'))
+    const stored = JSON.parse(localStorage.getItem('athargps_client'))
     return !!stored
   } catch {
     return false
@@ -43,7 +43,7 @@ function isClientAuthenticated(clientAuth) {
 function isAdminAuthenticated(adminAuth) {
   if (!adminAuth) return false
   try {
-    const stored = JSON.parse(localStorage.getItem('shgps_admin'))
+    const stored = JSON.parse(localStorage.getItem('athargps_admin'))
     return !!stored
   } catch {
     return false

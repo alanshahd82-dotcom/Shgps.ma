@@ -164,7 +164,7 @@ async function connectTraccar() {
 
 // --- Start --------------------------------------------------------------------
 server.listen(PORT, () => {
-  console.log('SHGPS Backend running on port ' + PORT)
+  console.log('AtharGPS Backend running on port ' + PORT)
   if (config.traccar.email && config.traccar.password) {
     connectTraccar()
   } else {
