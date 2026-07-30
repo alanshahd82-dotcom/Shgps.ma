@@ -21,16 +21,23 @@ services:
     image: traccar/traccar:ubuntu
     container_name: shgps-traccar-1
     ports:
-      - "5055:5055"
-      - "5023:5023"
-      - "5027:5027"
-      - "5001:5001"
+      - "5023:5023"   # GT06 / WanWay GS900E (البروتوكول الرئيسي)
+      - "5029:5029"   # WanWay protocol (بروتوكول WanWay الخاص — احتياطي)
+      - "5055:5055"   # Traccar Client (تطبيق الموبايل)
+      - "5027:5027"   # Teltonika
+      - "5001:5001"   # عام
     volumes:
       - traccar_data:/opt/traccar/data
       - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
     restart: unless-stopped
     networks:
       - shgps
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/server"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -49,8 +56,10 @@ services:
       FRONTEND_URL:           http://${DOMAIN}
       NODE_ENV:               production
     depends_on:
-      - postgres
-      - traccar
+      postgres:
+        condition: service_started
+      traccar:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - shgps
