@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'r
 import { AppProvider, useApp } from './context/AppContext'
 
 // Pages
+import LandingPage from './pages/LandingPage'
 import SplashScreen from './pages/SplashScreen'
 import ClientLogin from './pages/client/Login'
 import ClientHome from './pages/client/Home'
@@ -33,85 +34,6 @@ function AdminRoute({ children }) {
   return children
 }
 
-// Landing selector page
-function DemoSelector() {
-  const navigate = useNavigate()
-
-  return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center p-6"
-      style={{ background: 'linear-gradient(150deg, #0F2044 0%, #0a1628 60%, #0d2240 100%)' }}
-    >
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[200, 380, 560].map((size, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full border border-white/5"
-            style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: size, height: size }}
-          />
-        ))}
-      </div>
-
-      {/* Logo */}
-      <div className="relative z-10 text-center mb-12">
-        <svg width={80} height={80} viewBox="0 0 48 48" fill="none" className="mx-auto mb-4">
-          <rect width="48" height="48" rx="14" fill="rgba(255,255,255,0.08)" />
-          <path d="M24 8C17.373 8 12 13.373 12 20C12 28.5 24 42 24 42C24 42 36 28.5 36 20C36 13.373 30.627 8 24 8Z" fill="#00D97E" />
-          <circle cx="24" cy="20" r="4.5" fill="#0F2044" />
-        </svg>
-        <h1 className="text-4xl font-extrabold text-white">
-          Shgps<span className="text-accent">.ma</span>
-        </h1>
-        <p className="text-white/50 text-sm mt-2 font-medium tracking-widest uppercase">Interactive Demo</p>
-      </div>
-
-      {/* Demo cards */}
-      <div className="relative z-10 flex flex-col md:flex-row gap-5 w-full max-w-2xl">
-        {/* Client App */}
-        <button
-          onClick={() => navigate('/client')}
-          className="flex-1 bg-white/5 border border-white/10 hover:border-accent/50 hover:bg-white/10 rounded-3xl p-7 text-left transition-all duration-300 group backdrop-blur-sm"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center mb-5 group-hover:bg-accent/30 transition-colors">
-            <span className="text-3xl">📱</span>
-          </div>
-          <h3 className="text-xl font-bold text-white mb-2">تطبيق العميل</h3>
-          <p className="text-white/50 text-sm leading-relaxed">
-            واجهة موبايل لتتبع الأجهزة، تحريك المحرك عن بعد، السياج الجغرافي، والتنبيهات.
-          </p>
-          <div className="mt-5 flex items-center gap-2 text-accent font-semibold text-sm">
-            <span>عرض التطبيق</span>
-            <span className="text-lg">→</span>
-          </div>
-        </button>
-
-        {/* Admin Dashboard */}
-        <button
-          onClick={() => navigate('/admin/login')}
-          className="flex-1 bg-white/5 border border-white/10 hover:border-primary-300/30 hover:bg-white/10 rounded-3xl p-7 text-left transition-all duration-300 group backdrop-blur-sm"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-primary-300/20 flex items-center justify-center mb-5 group-hover:bg-primary-300/30 transition-colors">
-            <span className="text-3xl">🖥️</span>
-          </div>
-          <h3 className="text-xl font-bold text-white mb-2">لوحة تحكم Admin</h3>
-          <p className="text-white/50 text-sm leading-relaxed">
-            لوحة ويب لإدارة العملاء والأجهزة، الخريطة الشاملة، والإحصائيات.
-          </p>
-          <div className="mt-5 flex items-center gap-2 text-white/60 font-semibold text-sm group-hover:text-white/80 transition-colors">
-            <span>عرض اللوحة</span>
-            <span className="text-lg">→</span>
-          </div>
-        </button>
-      </div>
-
-      <p className="relative z-10 mt-8 text-white/30 text-xs">
-        جميع البيانات وهمية للعرض التقديمي فقط
-      </p>
-    </div>
-  )
-}
-
 // Client app splash entry
 function ClientSplash() {
   const navigate = useNavigate()
@@ -128,7 +50,7 @@ export default function App() {
       <HashRouter>
         <Routes>
           {/* Landing */}
-          <Route path="/" element={<DemoSelector />} />
+          <Route path="/" element={<LandingPage />} />
 
           {/* Client splash */}
           <Route path="/client" element={<ClientSplash />} />
