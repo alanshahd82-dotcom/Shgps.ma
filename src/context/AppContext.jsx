@@ -181,6 +181,28 @@ export function AppProvider({ children }) {
     } catch (e) { console.error('command:', e.message) }
   }
 
+  // ── Geofencing ────────────────────────────────────────────────────────────
+  const saveGeofence = async (deviceId, geofenceData) => {
+    const result = await api.devices.setGeofence(deviceId, geofenceData)
+    // تحديث حالة الجهاز بمعرّف السياج الجديد في الذاكرة
+    setDevices(prev => prev.map(d =>
+      d.id === deviceId
+        ? { ...d, activeGeofenceId: result.geofence?.id ?? null, geofenceActive: true }
+        : d
+    ))
+    return result
+  }
+
+  const removeGeofence = async (deviceId, geofenceId) => {
+    await api.devices.removeGeofence(deviceId, geofenceId)
+    setDevices(prev => prev.map(d =>
+      d.id === deviceId
+        ? { ...d, activeGeofenceId: null, geofenceActive: false }
+        : d
+    ))
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const getClientDevices = (clientId) =>
     adminAuth ? devices.filter(d => d.clientId === clientId) : devices
 
@@ -228,6 +250,7 @@ export function AppProvider({ children }) {
       loginClient, loginAdmin,
       logoutClient, logoutAdmin,
       toggleEngine,
+      saveGeofence, removeGeofence,
       getClientDevices, getOnlineDevices,
       unreadCount, markAlertRead, markAllAlertsRead,
       addClient, addDevice, deleteClient,

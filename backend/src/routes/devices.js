@@ -55,4 +55,40 @@ import { Router } from 'express'
       res.json({ success:true })
     } catch (err) { console.error(err); res.status(500).json({ error:'Failed to send command' }) }
     })
-    
+
+    // POST /:id/geofence — ينشئ سياجاً جغرافياً ويربطه بالجهاز
+    devicesRouter.post('/:id/geofence', requireAuth, async (req, res) => {
+      try {
+        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
+        const dev = rows[0]
+        if (!dev) return res.status(404).json({ error: 'Device not found' })
+        if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+
+        const { name, latitude, longitude, radius } = req.body
+        if (!latitude || !longitude || !radius) return res.status(400).json({ error: 'latitude, longitude and radius are required' })
+
+        const geofenceName = name || `Geofence-${dev.name}`
+        const geofence = await traccar.createGeofence(geofenceName, latitude, longitude, radius)
+        await traccar.linkGeofenceToDevice(dev.traccar_id, geofence.id)
+
+        res.json({ success: true, geofence })
+      } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to create geofence' }) }
+    })
+
+    // DELETE /:id/geofence — يحذف السياج الجغرافي ويفك ربطه بالجهاز
+    devicesRouter.delete('/:id/geofence', requireAuth, async (req, res) => {
+      try {
+        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
+        const dev = rows[0]
+        if (!dev) return res.status(404).json({ error: 'Device not found' })
+        if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+
+        const { geofenceId } = req.body
+        if (!geofenceId) return res.status(400).json({ error: 'geofenceId is required' })
+
+        await traccar.unlinkGeofenceFromDevice(dev.traccar_id, geofenceId)
+        await traccar.deleteGeofence(geofenceId)
+
+        res.json({ success: true })
+      } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to delete geofence' }) }
+    })

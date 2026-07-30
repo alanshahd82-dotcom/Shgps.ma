@@ -30,14 +30,15 @@ function StatBadge({ label, value, icon: Icon, color = 'primary' }) {
 export default function DeviceDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { devices, toggleEngine, lang } = useApp()
+  const { devices, toggleEngine, saveGeofence, removeGeofence, lang } = useApp()
   const device = devices.find(d => d.id === id)
 
   const [activeTab, setActiveTab] = useState('map')
   const [showEngineModal, setShowEngineModal] = useState(false)
-  const [showGeofence, setShowGeofence] = useState(false)
   const [geofenceCenter, setGeofenceCenter] = useState(null)
-  const [geofenceRadius] = useState(500)
+  const [geofenceRadius, setGeofenceRadius] = useState(500)
+  const [geofenceLoading, setGeofenceLoading] = useState(false)
+  const [geofenceError, setGeofenceError] = useState(null)
   const [engineSuccess, setEngineSuccess] = useState(null)
 
   if (!device) {
@@ -51,6 +52,7 @@ export default function DeviceDetail() {
   }
 
   const isOnline = device.status === 'online'
+  const geofenceActive = !!device.geofenceActive
 
   const handleEngineToggle = () => {
     toggleEngine(device.id)
@@ -62,6 +64,30 @@ export default function DeviceDetail() {
   const handleMapClick = (e) => {
     if (activeTab === 'geofence') {
       setGeofenceCenter([e.latlng.lat, e.latlng.lng])
+    }
+  }
+
+  const handleToggleGeofence = async () => {
+    setGeofenceError(null)
+    setGeofenceLoading(true)
+    try {
+      if (geofenceActive) {
+        // إلغاء السياج الجغرافي
+        await removeGeofence(device.id, device.activeGeofenceId)
+      } else {
+        // تفعيل السياج الجغرافي
+        const center = geofenceCenter || [device.lat, device.lng]
+        await saveGeofence(device.id, {
+          name: `${device.name}-geofence`,
+          latitude: center[0],
+          longitude: center[1],
+          radius: geofenceRadius,
+        })
+      }
+    } catch (e) {
+      setGeofenceError(e.message || 'حدث خطأ، يرجى المحاولة مجدداً')
+    } finally {
+      setGeofenceLoading(false)
     }
   }
 
@@ -273,38 +299,67 @@ export default function DeviceDetail() {
                   deviceId={device.id}
                   height="100%"
                   zoom={13}
-                  showGeofence={showGeofence}
+                  showGeofence={geofenceActive}
                   geofenceCenter={geofenceCenter || [device.lat, device.lng]}
                   geofenceRadius={geofenceRadius}
                   onMapClick={handleMapClick}
                 />
-                {!geofenceCenter && (
+                {!geofenceCenter && !geofenceActive && (
                   <div className="absolute inset-x-4 top-3 glass rounded-2xl px-4 py-2.5 text-center z-20 shadow-sm">
                     <p className="text-xs font-semibold text-primary-500">📍 {t(lang, 'geofenceDesc')}</p>
                   </div>
                 )}
-                {showGeofence && (
+                {geofenceActive && (
                   <div className="absolute inset-x-4 top-3 bg-accent/90 rounded-2xl px-4 py-2.5 text-center z-20">
                     <p className="text-xs font-bold text-primary-500">✅ {t(lang, 'geofenceActive')}</p>
                   </div>
                 )}
               </div>
-              <div className="bg-white px-4 py-3 shadow-t border-t border-gray-100 pb-20">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      if (!geofenceCenter) setGeofenceCenter([device.lat, device.lng])
-                      setShowGeofence(!showGeofence)
-                    }}
-                    className={`flex-1 py-3 rounded-2xl text-sm font-bold transition-all ${
-                      showGeofence
-                        ? 'bg-red-500 text-white'
-                        : 'bg-primary-500 text-white'
-                    }`}
-                  >
-                    {showGeofence ? t(lang, 'deactivateGeofence') : t(lang, 'activateGeofence')}
-                  </button>
-                </div>
+
+              <div className="bg-white px-4 py-3 shadow-t border-t border-gray-100 pb-20 space-y-3">
+                {/* Radius slider */}
+                {!geofenceActive && (
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs text-slate-400">
+                        {lang === 'ar' ? 'نصف القطر' : 'Rayon'}
+                      </span>
+                      <span className="text-xs font-bold text-primary-500">{geofenceRadius} م</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={100}
+                      max={5000}
+                      step={100}
+                      value={geofenceRadius}
+                      onChange={e => setGeofenceRadius(Number(e.target.value))}
+                      className="w-full accent-primary-500"
+                    />
+                  </div>
+                )}
+
+                {/* Error message */}
+                {geofenceError && (
+                  <p className="text-xs text-red-500 text-center">{geofenceError}</p>
+                )}
+
+                {/* Action button */}
+                <button
+                  onClick={handleToggleGeofence}
+                  disabled={geofenceLoading}
+                  className={`w-full py-3 rounded-2xl text-sm font-bold transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${
+                    geofenceActive
+                      ? 'bg-red-500 text-white'
+                      : 'bg-primary-500 text-white'
+                  }`}
+                >
+                  {geofenceLoading
+                    ? (lang === 'ar' ? 'جاري التنفيذ...' : 'En cours...')
+                    : geofenceActive
+                      ? t(lang, 'deactivateGeofence')
+                      : t(lang, 'activateGeofence')
+                  }
+                </button>
               </div>
             </div>
           )}
