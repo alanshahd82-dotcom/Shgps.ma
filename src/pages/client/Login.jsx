@@ -4,7 +4,6 @@ import React, { useState } from 'react'
     import { Eye, EyeOff, Lock, Mail, ArrowLeft } from 'lucide-react'
     import { useApp } from '../../context/AppContext'
     import { t } from '../../i18n/translations'
-    import MobileFrame from '../../components/MobileFrame'
     import Logo from '../../components/Logo'
 
     export default function ClientLogin() {
@@ -30,7 +29,7 @@ import React, { useState } from 'react'
     }
 
     return (
-      <MobileFrame>
+      <div className="min-h-screen flex flex-col">
         <div className="h-full flex flex-col" style={{ background:'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
           <div className="flex-shrink-0 pt-14 px-5">
             <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-sm mb-8">
@@ -75,7 +74,7 @@ import React, { useState } from 'react'
             </form>
           </div>
         </div>
-      </MobileFrame>
+      </div>
     )
     }
     

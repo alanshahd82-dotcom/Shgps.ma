@@ -1,7 +1,7 @@
 export const translations = {
   ar: {
     // Common
-    appName: 'Shgps.ma',
+    appName: 'AtharGPS',
     tagline: 'تتبع GPS احترافي',
     loading: 'جاري التحميل...',
     save: 'حفظ',
@@ -153,7 +153,7 @@ export const translations = {
   
   fr: {
     // Common
-    appName: 'Shgps.ma',
+    appName: 'AtharGPS',
     tagline: 'Tracking GPS Professionnel',
     loading: 'Chargement...',
     save: 'Enregistrer',

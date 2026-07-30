@@ -40,7 +40,7 @@ export default function SplashScreen() {
         transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 0.1 }}
       >
         {/* SVG Logo icon */}
-        <motion.svg
+        <motion.img src="/icon.png" alt="AtharGPS" style={{ borderRadius: 20 }}
           width={100}
           height={100}
           viewBox="0 0 48 48"
@@ -64,7 +64,7 @@ export default function SplashScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          Shgps<span className="text-accent">.ma</span>
+          AtharGPS
         </motion.h1>
 
         <motion.p

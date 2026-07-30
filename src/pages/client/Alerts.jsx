@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { Bell, AlertTriangle, Zap, MapPin, Battery, CheckCheck } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
-import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
 
 const alertIcons = {
@@ -28,7 +27,7 @@ export default function Alerts() {
   const unread = myAlerts.filter(a => !a.read).length
 
   return (
-    <MobileFrame>
+    <div className="min-h-screen flex flex-col">
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
         <div
@@ -102,6 +101,6 @@ export default function Alerts() {
 
         <ClientNav />
       </div>
-    </MobileFrame>
+    </div>
   )
 }

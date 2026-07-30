@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Bell, ChevronRight, Wifi, WifiOff, Zap } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
-import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
 import Carousel from '../../components/Carousel'
 import MapView from '../../components/MapView'
@@ -57,7 +56,7 @@ export default function ClientHome() {
   const onlineDevices = clientDevices.filter(d => d.status === 'online')
 
   return (
-    <MobileFrame>
+    <div className="min-h-screen flex flex-col">
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
         <div
@@ -148,6 +147,6 @@ export default function ClientHome() {
 
         <ClientNav />
       </div>
-    </MobileFrame>
+    </div>
   )
 }

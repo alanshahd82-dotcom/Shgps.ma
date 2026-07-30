@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { ChevronRight, Battery, Signal, Clock } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
-import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
 
 function timeAgo(iso, lang) {
@@ -21,7 +20,7 @@ export default function DeviceList() {
   const { devices, lang } = useApp()
 
   return (
-    <MobileFrame>
+    <div className="min-h-screen flex flex-col">
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
         <div
@@ -108,6 +107,6 @@ export default function DeviceList() {
 
         <ClientNav />
       </div>
-    </MobileFrame>
+    </div>
   )
 }

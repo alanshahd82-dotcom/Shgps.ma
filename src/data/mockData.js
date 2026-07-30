@@ -1,4 +1,4 @@
-// Mock data for Shgps.ma Demo
+// Mock data for AtharGPS Demo
 
 export const clients = [
   {
@@ -438,5 +438,5 @@ export const deviceStatusData = [
 ]
 
 // Demo credentials
-export const DEMO_CLIENT = { email: 'demo@shgps.ma', password: '123456' }
-export const DEMO_ADMIN = { email: 'admin@shgps.ma', password: 'admin123' }
+export const DEMO_CLIENT = { email: 'demo@athargps.com', password: '123456' }
+export const DEMO_ADMIN = { email: 'admin@athargps.com', password: 'admin123' }

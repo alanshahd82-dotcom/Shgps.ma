@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Signal, Gauge, Navigation } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
-import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
 import MapView from '../../components/MapView'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -43,11 +42,11 @@ export default function DeviceDetail() {
 
   if (!device) {
     return (
-      <MobileFrame>
+      <div className="min-h-screen flex flex-col">
         <div className="h-full flex items-center justify-center text-slate-400">
           <p>{t(lang, 'noData')}</p>
         </div>
-      </MobileFrame>
+      </div>
     )
   }
 
@@ -97,7 +96,7 @@ export default function DeviceDetail() {
   }
 
   return (
-    <MobileFrame>
+    <div className="min-h-screen flex flex-col">
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
         <div
@@ -393,6 +392,6 @@ export default function DeviceDetail() {
 
         <ClientNav />
       </div>
-    </MobileFrame>
+    </div>
   )
 }

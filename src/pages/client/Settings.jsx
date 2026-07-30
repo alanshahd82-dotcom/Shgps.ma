@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { User, Lock, Bell, Globe, LogOut, ChevronRight, Shield, Info } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
-import MobileFrame from '../../components/MobileFrame'
 import ClientNav from '../../components/ClientNav'
 import Logo from '../../components/Logo'
 
@@ -30,7 +29,7 @@ export default function Settings() {
   )
 
   return (
-    <MobileFrame>
+    <div className="min-h-screen flex flex-col">
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
         <div
@@ -45,7 +44,7 @@ export default function Settings() {
             </div>
             <div>
               <p className="text-white font-bold text-base">{clientAuth?.name || 'محمد العلوي'}</p>
-              <p className="text-white/60 text-xs">{clientAuth?.email || 'demo@shgps.ma'}</p>
+              <p className="text-white/60 text-xs">{clientAuth?.email || 'demo@athargps.com'}</p>
               <p className="text-white/60 text-xs">{clientAuth?.phone || '+212 6 12 34 56 78'}</p>
             </div>
           </div>
@@ -127,7 +126,7 @@ export default function Settings() {
               <Logo size="sm" />
               <span className="text-xs bg-primary-50 text-primary-500 font-semibold px-2 py-1 rounded-lg">v1.0.0</span>
             </div>
-            <p className="text-xs text-slate-400">{lang === 'ar' ? '© 2025 Shgps.ma — جميع الحقوق محفوظة' : '© 2025 Shgps.ma — Tous droits réservés'}</p>
+            <p className="text-xs text-slate-400">{lang === 'ar' ? '© 2025 AtharGPS — جميع الحقوق محفوظة' : '© 2025 AtharGPS — Tous droits réservés'}</p>
           </div>
 
           {/* Logout */}
@@ -142,6 +141,6 @@ export default function Settings() {
 
         <ClientNav />
       </div>
-    </MobileFrame>
+    </div>
   )
 }
