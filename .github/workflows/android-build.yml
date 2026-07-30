@@ -57,8 +57,8 @@ jobs:
           const fs = require('fs');
           // Read the hardcoded config values (mirrors capacitor.config.ts)
           const config = {
-            appId: 'ma.shgps.app',
-            appName: 'SHGPS',
+            appId: 'com.athargps.app',
+            appName: 'AtharGPS',
             webDir: 'dist',
             server: { androidScheme: 'https' },
             plugins: {
@@ -90,7 +90,7 @@ jobs:
         run: |
           sudo apt-get install -y imagemagick -q
 
-          ICON_SRC="public/logo.jpeg"
+          ICON_SRC="public/icon.png"
           declare -A SIZES=(
             ["mipmap-mdpi"]=48
             ["mipmap-hdpi"]=72
@@ -143,7 +143,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SHGPS-debug-apk
+          name: AtharGPS-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 

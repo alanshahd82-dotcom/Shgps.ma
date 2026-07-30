@@ -1,26 +1,25 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
-    const config: CapacitorConfig = {
-    appId: 'ma.shgps.app',
-    appName: 'SHGPS',
-    webDir: 'dist',
-    server: {
-      androidScheme: 'https',
+const config: CapacitorConfig = {
+  appId: 'com.athargps.app',
+  appName: 'AtharGPS',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: '#0a1628',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
     },
-    plugins: {
-      SplashScreen: {
-        launchShowDuration: 2000,
-        backgroundColor: '#0F2044',
-        showSpinner: false,
-        splashFullScreen: true,
-        splashImmersive: true,
-      },
-      StatusBar: {
-        style: 'Dark',
-        backgroundColor: '#0F2044',
-      },
+    StatusBar: {
+      style: 'Dark',
+      backgroundColor: '#0a1628',
     },
-    }
+  },
+}
 
-    export default config
-    
+export default config
