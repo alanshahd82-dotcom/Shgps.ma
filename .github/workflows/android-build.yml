@@ -48,7 +48,40 @@ jobs:
           ls -lh dist/
           echo "✔ dist/ is committed — skipping Vite build"
 
-      # ── 6. Add Capacitor Android platform ────────────────────────────────────
+      # ── 6. Convert capacitor.config.ts → capacitor.config.json ───────────────
+      #   Capacitor CLI crashes parsing .ts configs under Node 24 (no ts.ModuleKind).
+      #   Converting to JSON sidesteps the issue entirely.
+      - name: Convert capacitor config to JSON
+        run: |
+          node -e "
+          const fs = require('fs');
+          // Read the hardcoded config values (mirrors capacitor.config.ts)
+          const config = {
+            appId: 'ma.shgps.app',
+            appName: 'SHGPS',
+            webDir: 'dist',
+            server: { androidScheme: 'https' },
+            plugins: {
+              SplashScreen: {
+                launchShowDuration: 2000,
+                backgroundColor: '#0F2044',
+                showSpinner: false,
+                splashFullScreen: true,
+                splashImmersive: true
+              },
+              StatusBar: {
+                style: 'Dark',
+                backgroundColor: '#0F2044'
+              }
+            }
+          };
+          fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
+          if (fs.existsSync('capacitor.config.ts')) fs.unlinkSync('capacitor.config.ts');
+          console.log('✔ capacitor.config.json written');
+          console.log(JSON.stringify(config, null, 2));
+          "
+
+      # ── 7. Add Capacitor Android platform ────────────────────────────────────
       - name: Add Capacitor Android platform
         run: ./node_modules/.bin/cap add android
 
