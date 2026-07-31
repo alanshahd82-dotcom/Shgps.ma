@@ -18,6 +18,7 @@ import ClientDetail from './pages/admin/ClientDetail'
 import AllDevices from './pages/admin/AllDevices'
 import GlobalMap from './pages/admin/GlobalMap'
 import AdminAlerts from './pages/admin/AdminAlerts'
+import DeviceSetup from './pages/admin/DeviceSetup'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ROUTE GUARDS — double-layer security:
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="/admin/devices"      element={<AdminRoute><AllDevices /></AdminRoute>} />
           <Route path="/admin/map"          element={<AdminRoute><GlobalMap /></AdminRoute>} />
           <Route path="/admin/alerts"       element={<AdminRoute><AdminAlerts /></AdminRoute>} />
+          <Route path="/admin/setup"        element={<AdminRoute><DeviceSetup /></AdminRoute>} />
 
           {/* ── Catch-all → Landing ────────────────────────────────────── */}
           <Route path="*" element={<Navigate to="/" replace />} />

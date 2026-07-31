@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield
+  LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield, Wrench
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
@@ -27,6 +27,7 @@ export default function AdminLayout({ children }) {
     { path: '/admin/devices', icon: Cpu, label: t(lang, 'allDevices') },
     { path: '/admin/map', icon: Map, label: t(lang, 'globalMap') },
     { path: '/admin/alerts', icon: Bell, label: t(lang, 'allAlerts'), badge: allUnread },
+    { path: '/admin/setup', icon: Wrench, label: t(lang, 'deviceSetup') },
   ]
 
   const SidebarContent = () => (
