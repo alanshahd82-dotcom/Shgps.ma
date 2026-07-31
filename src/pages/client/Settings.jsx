@@ -225,6 +225,17 @@ export default function Settings() {
   const [batteryAlerts, setBatteryAlerts]     = useState(true)
   const [savingSettings, setSavingSettings]   = useState(false)
   const [settingsSaved, setSettingsSaved]     = useState(false)
+
+  // Load saved notification preferences from backend
+  useEffect(() => {
+    api.auth.me().then(user => {
+      const n = user?.notifications
+      if (!n) return
+      if (n.speedAlerts    != null) setSpeedAlerts(!!n.speedAlerts)
+      if (n.geofenceAlerts != null) setGeofenceAlerts(!!n.geofenceAlerts)
+      if (n.batteryAlerts  != null) setBatteryAlerts(!!n.batteryAlerts)
+    }).catch(() => { /* use defaults */ })
+  }, []) // eslint-disable-line
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showChangePwd, setShowChangePwd]     = useState(false)
   const [profile, setProfile] = useState({

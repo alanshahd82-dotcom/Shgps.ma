@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ShieldCheck, Gauge, Clock, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
+import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 
 /* ── Progress Circle SVG ─────────────────────────────────────── */
@@ -77,35 +78,55 @@ export default function DriverBehavior() {
   const { devices, lang } = useApp()
   const [selectedDeviceId, setSelectedDeviceId] = useState(devices[0]?.id || null)
   const [stats, setStats] = useState(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   const selectedDevice = devices.find(d => String(d.id) === String(selectedDeviceId))
 
   useEffect(() => {
     if (!selectedDevice) return
-    // Calculate driver safety score from available Traccar data
-    const speed = selectedDevice.speed ?? 0
-    const engine = selectedDevice.engineOn
-    const status = selectedDevice.status
+    setHistoryLoading(true)
 
-    // Scoring logic (simplified based on available data)
-    let score = 100
-    let speedingEvents = 0
-    let idleTime = 0
+    // Fetch last 7 days of trip history to compute a meaningful score
+    const to   = new Date().toISOString()
+    const from = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
 
-    // Penalize if current speed exceeds 120 km/h
-    if (speed > 120) { score -= 25; speedingEvents++ }
-    else if (speed > 100) { score -= 10; speedingEvents++ }
+    api.reports.get(selectedDevice.id, from, to)
+      .then(res => {
+        const trips = res?.trips ?? []
+        let score = 100
+        let speedingEvents = 0
+        let idleTime = 0
 
-    // Penalize if engine on but speed=0 for a while (idling indicator)
-    if (engine && speed === 0 && status === 'online') { score -= 10; idleTime = 15 }
+        for (const trip of trips) {
+          if ((trip.maxSpeed ?? 0) > 120) { score -= 8; speedingEvents++ }
+          else if ((trip.maxSpeed ?? 0) > 100) { score -= 4; speedingEvents++ }
+        }
 
-    // Offline bonus — no risky behaviour recorded recently
-    if (status === 'offline') score = Math.max(score, 70)
+        // Also factor in current live reading
+        const speed = selectedDevice.speed ?? 0
+        if (speed > 120) { score -= 10; speedingEvents++ }
+        else if (speed > 100) { score -= 5; speedingEvents++ }
 
-    score = Math.max(0, Math.min(100, score))
+        if (selectedDevice.engineOn && speed === 0 && selectedDevice.status === 'online') {
+          score -= 10; idleTime = 15
+        }
 
-    setStats({ score, speedingEvents, idleTime, currentSpeed: speed })
-  }, [selectedDeviceId, selectedDevice])
+        score = Math.max(0, Math.min(100, score))
+        setStats({ score, speedingEvents, idleTime, currentSpeed: speed, tripCount: trips.length })
+      })
+      .catch(() => {
+        // Fallback to live-only data if API fails
+        const speed = selectedDevice.speed ?? 0
+        let score = 100; let speedingEvents = 0; let idleTime = 0
+        if (speed > 120) { score -= 25; speedingEvents++ }
+        else if (speed > 100) { score -= 10; speedingEvents++ }
+        if (selectedDevice.engineOn && speed === 0 && selectedDevice.status === 'online') { score -= 10; idleTime = 15 }
+        if (selectedDevice.status === 'offline') score = Math.max(score, 70)
+        score = Math.max(0, Math.min(100, score))
+        setStats({ score, speedingEvents, idleTime, currentSpeed: speed, tripCount: 0 })
+      })
+      .finally(() => setHistoryLoading(false))
+  }, [selectedDeviceId]) // eslint-disable-line
 
   const isAr = lang === 'ar'
 

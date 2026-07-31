@@ -40,13 +40,13 @@ export function AppProvider({ children }) {
   }, [clientAuth, adminAuth]) // eslint-disable-line
 
   async function loadDevices() {
-    try { setDevices(await api.devices.list()) } catch (e) { console.error('devices:', e.message) }
+    try { setDevices(await api.devices.list()) } catch { /* silent */ }
   }
   async function loadAlerts() {
-    try { setAlertsList(await api.alerts.list()) } catch (e) { console.error('alerts:', e.message) }
+    try { setAlertsList(await api.alerts.list()) } catch { /* silent */ }
   }
   async function loadClients() {
-    try { setClientList(await api.clients.list()) } catch (e) { console.error('clients:', e.message) }
+    try { setClientList(await api.clients.list()) } catch { /* silent */ }
   }
 
   // ── WebSocket live tracking ────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export function AppProvider({ children }) {
     const ws = new WebSocket(url)
     wsRef.current = ws
 
-    ws.onopen = () => console.log('[WS] Live tracking connected')
+    ws.onopen = () => {}
 
     ws.onmessage = (event) => {
       try {
@@ -109,7 +109,7 @@ export function AppProvider({ children }) {
     }
 
     ws.onclose = () => {
-      console.log('[WS] Disconnected')
+      /* disconnected */
       // Reconnect after 5s if still authenticated
       if (localStorage.getItem('athargps_token')) {
         setTimeout(openWebSocket, 5000)

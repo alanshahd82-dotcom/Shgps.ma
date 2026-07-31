@@ -46,6 +46,10 @@ export default function DeviceDetail() {
   const [shareLink, setShareLink] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
 
+  // Trips tab — loaded from reports API on demand
+  const [tripsData, setTripsData]       = useState(null)
+  const [tripsLoading, setTripsLoading] = useState(false)
+
   // Fallback: if devices haven't loaded yet (e.g. page refresh), fetch this device directly
   const [fetchedDevice, setFetchedDevice] = useState(null)
   const [fetchError, setFetchError] = useState(false)
@@ -145,12 +149,41 @@ export default function DeviceDetail() {
     }
   }
 
+  // Load trips from reports API when the trips tab is opened
+  useEffect(() => {
+    if (activeTab !== 'trips' || !device) return
+    if (tripsData !== null) return   // already loaded
+    setTripsLoading(true)
+    const to   = new Date().toISOString()
+    const from = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+    api.reports.get(device.id, from, to)
+      .then(res => setTripsData(res?.trips ?? []))
+      .catch(() => setTripsData([]))
+      .finally(() => setTripsLoading(false))
+  }, [activeTab, device]) // eslint-disable-line
+
   const handleCopyLink = () => {
     if (!shareLink) return
-    navigator.clipboard?.writeText(shareLink).then(() => {
-      setShareCopied(true)
-      setTimeout(() => setShareCopied(false), 2500)
-    })
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(shareLink).then(() => {
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2500)
+      }).catch(() => fallbackCopy(shareLink))
+    } else {
+      fallbackCopy(shareLink)
+    }
+  }
+
+  const fallbackCopy = (text) => {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'; ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 2500)
   }
 
   const formatDate = (iso) => {
@@ -255,46 +288,54 @@ export default function DeviceDetail() {
           {/* TRIPS TAB */}
           {activeTab === 'trips' && (
             <div className="h-full overflow-y-auto mobile-scroll pb-20 p-4 space-y-3">
-              {(device.trips?.length ?? 0) === 0 ? (
+              {tripsLoading ? (
+                <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                  <Loader2 size={28} className="animate-spin mb-2" />
+                  <p className="text-sm">{t(lang, 'loading')}</p>
+                </div>
+              ) : !tripsData || tripsData.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-slate-400">
                   <Navigation size={32} className="mb-2 opacity-30" />
-                  <p className="text-sm">{t(lang, 'noData')}</p>
+                  <p className="text-sm">{lang === 'ar' ? 'لا توجد رحلات في آخر 7 أيام' : 'Aucun trajet sur les 7 derniers jours'}</p>
                 </div>
-              ) : (device.trips || []).map((trip, i) => (
-                <motion.div
-                  key={trip.id}
-                  className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-primary-500 bg-primary-50 px-2 py-1 rounded-lg">{formatDate(trip.date)}</span>
-                    <span className="text-xs text-slate-400">{trip.start} — {trip.end}</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="flex flex-col items-center mt-1">
-                      <div className="w-2 h-2 rounded-full bg-accent" />
-                      <div className="w-0.5 h-8 bg-gray-200 my-0.5" />
-                      <div className="w-2 h-2 rounded-full bg-primary-500" />
+              ) : tripsData.map((trip, i) => {
+                const startTime = trip.startTime ? new Date(trip.startTime) : null
+                const endTime   = trip.endTime   ? new Date(trip.endTime)   : null
+                const fmt = (d) => d ? d.toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' }) : '—'
+                const fmtDate = (d) => d ? d.toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { day: '2-digit', month: '2-digit' }) : '—'
+                return (
+                  <motion.div
+                    key={i}
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-semibold text-primary-500 bg-primary-50 px-2 py-1 rounded-lg">{fmtDate(startTime)}</span>
+                      <span className="text-xs text-slate-400">{fmt(startTime)} — {fmt(endTime)}</span>
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <div>
-                        <p className="text-[10px] text-slate-400">{t(lang, 'from')}</p>
-                        <p className="text-xs font-semibold text-primary-500">{trip.from}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-center">
+                        <p className="text-base font-bold text-primary-500">{trip.distanceKm ?? '—'}</p>
+                        <p className="text-[10px] text-slate-400">{t(lang, 'km')}</p>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400">{t(lang, 'to')}</p>
-                        <p className="text-xs font-semibold text-primary-500">{trip.to}</p>
+                      <div className="text-center">
+                        <p className="text-base font-bold text-slate-600">{trip.avgSpeed ?? '—'}</p>
+                        <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'متوسط كم/س' : 'Moy. km/h'}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-base font-bold text-orange-500">{trip.maxSpeed ?? '—'}</p>
+                        <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'أقصى كم/س' : 'Max km/h'}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-base font-bold text-slate-600">{trip.durationMin ?? '—'}</p>
+                        <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'دقيقة' : 'min'}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-base font-bold text-primary-500">{trip.distance}</p>
-                      <p className="text-[10px] text-slate-400">{t(lang, 'km')}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                )
+              })}
             </div>
           )}
 

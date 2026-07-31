@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { carouselSlides } from '../data/mockData'
 
+const SLIDE_ROUTES = [
+  '/client/devices',   // live tracking
+  '/client/devices',   // geofence
+  '/client/alerts',    // instant alerts
+  '/client/devices',   // engine cut-off
+]
+
 export default function Carousel() {
+  const navigate = useNavigate()
   const [current, setCurrent] = useState(0)
   const timerRef = useRef(null)
 
@@ -51,7 +60,8 @@ export default function Carousel() {
           </div>
           {/* CTA */}
           <button
-            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl"
+            onClick={() => navigate(SLIDE_ROUTES[current] || '/client/devices')}
+            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl active:scale-90 transition-transform"
             style={{ background: slide.accent, color: slide.bg.includes('006644') ? 'white' : '#0F2044' }}
           >
             {slide.cta}

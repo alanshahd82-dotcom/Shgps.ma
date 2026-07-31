@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ConfirmModal from '../../components/ConfirmModal'
 
 const TYPES_AR = [
   { value: 'oil', label: 'تغيير الزيت' },
@@ -120,6 +121,7 @@ export default function Maintenance() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [filterDevice, setFilterDevice] = useState('all')
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   const loadLogs = async () => {
     setLoading(true)
@@ -139,9 +141,14 @@ export default function Maintenance() {
     await loadLogs()
   }
 
-  const handleDelete = async (id) => {
-    await api.maintenance.remove(id)
-    setLogs(prev => prev.filter(l => l.id !== id))
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return
+    try {
+      await api.maintenance.remove(confirmDeleteId)
+      setLogs(prev => prev.filter(l => l.id !== confirmDeleteId))
+    } catch { /* silent */ } finally {
+      setConfirmDeleteId(null)
+    }
   }
 
   const filtered = filterDevice === 'all' ? logs : logs.filter(l => String(l.device_id) === filterDevice)
@@ -210,7 +217,7 @@ export default function Maintenance() {
                       <p className="text-[11px] text-slate-500 mt-0.5 truncate">{dev?.name || `#${log.device_id}`} · {new Date(log.date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA')}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(log.id)} className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 active:scale-90 transition-transform">
+                  <button onClick={() => setConfirmDeleteId(log.id)} className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 active:scale-90 transition-transform">
                     <Trash2 size={13} className="text-red-400" />
                   </button>
                 </div>
@@ -235,6 +242,16 @@ export default function Maintenance() {
       </div>
 
       <AddModal open={showAdd} onClose={() => setShowAdd(false)} onAdd={handleAdd} devices={devices} lang={lang} />
+      <ConfirmModal
+        open={!!confirmDeleteId}
+        title={isAr ? 'حذف سجل الصيانة' : 'Supprimer l\'entretien'}
+        message={isAr ? 'هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع عن هذا الإجراء.' : 'Êtes-vous sûr de vouloir supprimer cet entretien ? Cette action est irréversible.'}
+        confirmLabel={isAr ? 'حذف' : 'Supprimer'}
+        cancelLabel={isAr ? 'إلغاء' : 'Annuler'}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+        danger
+      />
       <ClientNav />
     </div>
   )
