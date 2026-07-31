@@ -41,6 +41,7 @@ export default function DeviceDetail() {
   const [geofenceRadius, setGeofenceRadius] = useState(500)
   const [geofenceLoading, setGeofenceLoading] = useState(false)
   const [geofenceError, setGeofenceError] = useState(null)
+  const [geofenceSuccess, setGeofenceSuccess] = useState(null)
   const [engineSuccess, setEngineSuccess] = useState(null)
   const [shareLoading, setShareLoading] = useState(false)
   const [shareLink, setShareLink] = useState(null)
@@ -112,12 +113,14 @@ export default function DeviceDetail() {
 
   const handleToggleGeofence = async () => {
     setGeofenceError(null)
+    setGeofenceSuccess(null)
     setGeofenceLoading(true)
     try {
       if (geofenceActive) {
         // إلغاء السياج الجغرافي — استخدم ID المخزّن في geofence أو geofenceActive
         const geoId = device.geofence?.geofence?.id ?? device.geofence?.id ?? device.activeGeofenceId
         await removeGeofence(device.id, geoId)
+        setGeofenceSuccess(lang === 'ar' ? 'تم إلغاء السياج الجغرافي بنجاح' : 'Zone désactivée avec succès')
       } else {
         // تفعيل السياج الجغرافي
         const center = geofenceCenter || [device.lat, device.lng]
@@ -127,7 +130,9 @@ export default function DeviceDetail() {
           longitude: center[1],
           radius: geofenceRadius,
         })
+        setGeofenceSuccess(lang === 'ar' ? 'تم تفعيل السياج الجغرافي بنجاح ✓' : 'Zone géographique activée ✓')
       }
+      setTimeout(() => setGeofenceSuccess(null), 3000)
     } catch (e) {
       setGeofenceError(e.message || 'حدث خطأ، يرجى المحاولة مجدداً')
     } finally {
@@ -463,6 +468,21 @@ export default function DeviceDetail() {
                       : t(lang, 'activateGeofence')
                   }
                 </button>
+
+                {/* Success message — shown right below the button */}
+                <AnimatePresence>
+                  {geofenceSuccess && (
+                    <motion.div
+                      className="flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl px-4 py-2.5 text-xs font-semibold"
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                      {geofenceSuccess}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}

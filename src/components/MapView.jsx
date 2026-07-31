@@ -4,25 +4,49 @@ import L from 'leaflet'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
-// Custom device icons
+// Professional SVG vehicle icons (no emoji)
 function createDeviceIcon(type, isSelected = false) {
-  const colors = {
-    car: { bg: '#0F2044', border: '#00D97E', emoji: '🚗' },
-    bike: { bg: '#FF9500', border: '#fff', emoji: '🏍️' },
-    truck: { bg: '#6B21A8', border: '#fff', emoji: '🚚' },
+  const configs = {
+    car: {
+      bg: '#0F2044',
+      border: isSelected ? '#00D97E' : '#1e3a6e',
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+      </svg>`,
+    },
+    bike: {
+      bg: '#c2410c',
+      border: isSelected ? '#00D97E' : '#ea580c',
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
+        <path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5 2.1V9c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4C7.4 8.8 7 9.5 7 10c0 .6.2 1.2.8 1.6l3.2 2.4V18h2v-5l-3.2-2.5.8-.8-.8-.7zm8.2 1.5c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/>
+      </svg>`,
+    },
+    truck: {
+      bg: '#6B21A8',
+      border: isSelected ? '#00D97E' : '#7e22ce',
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
+        <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+      </svg>`,
+    },
   }
-  const c = colors[type] || colors.car
-  const size = isSelected ? 40 : 34
+  const c = configs[type] || configs.car
+  const size = isSelected ? 42 : 36
+  const pulse = isSelected
+    ? `box-shadow:0 0 0 4px rgba(0,217,126,0.25),0 0 0 8px rgba(0,217,126,0.08),0 4px 14px rgba(0,0,0,0.45);`
+    : `box-shadow:0 2px 8px rgba(0,0,0,0.32);`
+
   const html = `
     <div style="
-      background:${c.bg};border:2.5px solid ${c.border};
-      border-radius:50%;width:${size}px;height:${size}px;
+      background:${c.bg};
+      border:2.5px solid ${c.border};
+      border-radius:50%;
+      width:${size}px;height:${size}px;
       display:flex;align-items:center;justify-content:center;
-      font-size:${isSelected ? 18 : 15}px;
-      box-shadow:0 3px 10px rgba(0,0,0,0.35);
-      transition:all 0.3s;
-      ${isSelected ? 'box-shadow:0 0 0 4px rgba(0,217,126,0.3),0 4px 12px rgba(0,0,0,0.4)' : ''}
-    ">${c.emoji}</div>
+      ${pulse}
+      transition:all 0.25s;
+    ">
+      ${c.svg}
+    </div>
   `
   return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
 }
@@ -92,7 +116,9 @@ export default function MapView({
         style={{ height, width: '100%' }}
         className="flex flex-col items-center justify-center bg-gray-100 text-slate-400 gap-2"
       >
-        <span className="text-3xl">📡</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>
+        </svg>
         <p className="text-sm font-semibold">
           {lang === 'ar' ? 'في انتظار الإشارة...' : 'En attente du signal...'}
         </p>
@@ -106,8 +132,6 @@ export default function MapView({
     : displayDevices.length > 0
       ? [displayDevices[0].lat, displayDevices[0].lng]
       : [33.5731, -7.5898]
-
-
 
   const formatTime = (iso) => {
     if (!iso) return ''
@@ -132,8 +156,6 @@ export default function MapView({
       />
 
       {primaryHasCoords && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
-
-
 
       {/* Geofence circle */}
       {showGeofence && geofenceCenter && (
@@ -167,7 +189,7 @@ export default function MapView({
               </div>
               {device.status === 'online' && (
                 <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
-                  🔋 {device.battery}% · 📶 {device.signal}/4
+                  {lang === 'ar' ? `بطارية ${device.battery}% · إشارة ${device.signal}/4` : `Batt. ${device.battery}% · Signal ${device.signal}/4`}
                 </div>
               )}
             </div>
