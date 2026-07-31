@@ -88,6 +88,7 @@ export default function App() {
         <Routes>
           {/* ── Public ─────────────────────────────────────────────────── */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Navigate to="/client/login" replace />} />
           <Route path="/share/:token" element={<PublicShare />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />

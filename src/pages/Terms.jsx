@@ -51,50 +51,50 @@ const content = {
       },
     ],
   },
-  fr: {
-    title: 'Conditions Générales d\'Utilisation',
-    subtitle: 'Veuillez lire attentivement ces conditions avant d\'utiliser AtharGPS',
-    updated: 'Dernière mise à jour : Janvier 2025',
+  en: {
+    title: 'Terms & Conditions',
+    subtitle: 'Please read these terms carefully before using AtharGPS',
+    updated: 'Last updated: January 2025',
     sections: [
       {
-        h: '1. Acceptation des Conditions',
-        p: 'En utilisant la plateforme AtharGPS et ses services, vous acceptez d\'être lié par l\'ensemble des conditions énoncées dans ce contrat. Si vous n\'acceptez pas ces conditions, veuillez ne pas utiliser le service.',
+        h: '1. Acceptance of Terms',
+        p: 'By using the AtharGPS platform and its services, you agree to be bound by all the terms and conditions set out in this agreement. If you do not agree to these terms, please do not use the service.',
       },
       {
-        h: '2. Description du Service',
-        p: 'AtharGPS fournit un système de suivi de véhicules en temps réel par technologie GPS, incluant : surveillance en direct, rapports détaillés, alertes intelligentes, coupure du moteur à distance, et gestion des zones géographiques.',
+        h: '2. Service Description',
+        p: 'AtharGPS provides a real-time vehicle tracking system using GPS technology, including: live monitoring, detailed reports, smart alerts, remote engine cut-off, and geofence management.',
       },
       {
-        h: '3. Compte et Responsabilités',
-        p: 'Vous êtes responsable de la confidentialité de vos identifiants de connexion et de toutes les activités effectuées via votre compte. Tout accès non autorisé doit être signalé immédiatement.',
+        h: '3. Account & Responsibilities',
+        p: 'You are responsible for maintaining the confidentiality of your login credentials and for all activities carried out through your account. Any unauthorised use must be reported immediately.',
       },
       {
-        h: '4. Utilisation Acceptable',
-        p: 'Il est interdit d\'utiliser le service à des fins illégales ou pour surveiller des personnes sans leur consentement. Vous devez respecter toutes les lois applicables au Royaume du Maroc.',
+        h: '4. Acceptable Use',
+        p: 'You may not use the service for illegal purposes or to monitor individuals without their consent. You must comply with all laws applicable in the Kingdom of Morocco.',
       },
       {
-        h: '5. Confidentialité et Données de Localisation',
-        p: 'Les données de localisation de vos véhicules sont traitées de manière strictement confidentielle et ne sont pas partagées avec des tiers sans votre consentement explicite ou en vertu d\'une ordonnance judiciaire.',
+        h: '5. Privacy & Location Data',
+        p: 'Your vehicles\' location data is treated with strict confidentiality and is not shared with third parties without your explicit consent or a court order. Please refer to our Privacy Policy for more details.',
       },
       {
-        h: '6. Limitation de Responsabilité',
-        p: 'AtharGPS ne peut être tenu responsable de tout dommage direct ou indirect résultant de l\'utilisation ou de l\'indisponibilité du service, y compris les pannes techniques ou les interruptions d\'internet.',
+        h: '6. Limitation of Liability',
+        p: 'AtharGPS is not liable for any direct or indirect damages arising from the use or temporary unavailability of the service, including technical failures or internet outages.',
       },
       {
-        h: '7. Modification des Conditions',
-        p: 'AtharGPS se réserve le droit de modifier ces conditions à tout moment. Toute modification substantielle vous sera notifiée par e-mail. Votre utilisation continue du service après modification vaut acceptation des nouvelles conditions.',
+        h: '7. Modification of Terms',
+        p: 'AtharGPS reserves the right to modify these terms at any time. You will be notified of any substantial changes via your registered email. Continued use of the service after modification constitutes acceptance of the new terms.',
       },
       {
-        h: '8. Résiliation',
-        p: 'AtharGPS peut suspendre ou résilier votre compte en cas de violation des présentes conditions ou de non-paiement, avec un préavis précisant les motifs.',
+        h: '8. Termination',
+        p: 'AtharGPS may suspend or terminate your account in the event of a breach of these terms or non-payment, with prior notice stating the reasons.',
       },
       {
-        h: '9. Loi Applicable',
-        p: 'Le présent contrat est régi par les lois du Royaume du Maroc. Les tribunaux marocains sont compétents pour tout litige en découlant.',
+        h: '9. Governing Law',
+        p: 'This agreement is governed by the laws of the Kingdom of Morocco. Moroccan courts have jurisdiction over any dispute arising from it.',
       },
       {
         h: '10. Contact',
-        p: 'Pour toute question sur ces conditions : support@athargps.ma',
+        p: 'For any questions about these terms: support@athargps.ma',
       },
     ],
   },
@@ -119,9 +119,9 @@ export default function Terms() {
           </div>
           <p className="text-blue-200/50 text-[10px]">{c.updated}</p>
         </div>
-        <button onClick={() => setLang(l => l === 'ar' ? 'fr' : 'ar')}
+        <button onClick={() => setLang(l => l === 'ar' ? 'en' : 'ar')}
           className="text-xs bg-white/10 text-white/70 px-3 py-1.5 rounded-lg font-medium">
-          {lang === 'ar' ? 'FR' : 'AR'}
+          {lang === 'ar' ? 'EN' : 'AR'}
         </button>
       </div>
 

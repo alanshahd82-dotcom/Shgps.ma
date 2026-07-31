@@ -51,50 +51,50 @@ const content = {
       },
     ],
   },
-  fr: {
-    title: 'Politique de Confidentialité',
-    subtitle: 'Nous nous engageons à protéger vos données personnelles et les données de localisation de vos véhicules',
-    updated: 'Dernière mise à jour : Janvier 2025',
+  en: {
+    title: 'Privacy Policy',
+    subtitle: 'We are committed to protecting your personal data and your vehicles\' location data',
+    updated: 'Last updated: January 2025',
     sections: [
       {
-        h: '1. Informations Collectées',
-        p: 'Nous collectons : (a) Données de compte : nom, e-mail, téléphone, (b) Données de localisation GPS des véhicules en temps réel et historiques, (c) Données d\'appareils : IMEI, plaque, type de véhicule, (d) Données d\'utilisation : journaux de connexion et opérations.',
+        h: '1. Information We Collect',
+        p: 'We collect: (a) Account data: name, email, phone number, (b) Real-time and historical GPS location data for your vehicles, (c) Device data: IMEI, plate number, vehicle type, (d) Usage data: login logs and operations.',
       },
       {
-        h: '2. Utilisation des Données',
-        p: 'Vos données sont utilisées pour : fournir le service de suivi, envoyer des alertes, générer des rapports, améliorer le service et respecter les obligations légales. Nous n\'utilisons pas vos données à des fins commerciales sans votre consentement.',
+        h: '2. How We Use Your Data',
+        p: 'Your data is used to: provide the tracking and monitoring service, send alerts and notifications, generate reports, improve the service, and comply with legal requirements. We do not use your data for other commercial purposes without your consent.',
       },
       {
-        h: '3. Données de Localisation',
-        p: 'Les données de localisation de vos véhicules sont sensibles et traitées avec le plus grand soin. Elles sont stockées en sécurité sur nos serveurs au Maroc et vous appartiennent. Les historiques de localisation sont conservés 90 jours puis supprimés automatiquement.',
+        h: '3. Location Data',
+        p: 'Your vehicles\' location data is sensitive and handled with the utmost care. It is stored securely on our servers in Morocco and remains your property. Location history is retained for 90 days and then automatically deleted.',
       },
       {
-        h: '4. Partage des Données',
-        p: 'Nous ne vendons, louons ni échangeons pas vos données avec des tiers. Nous pouvons partager des données avec des prestataires techniques de confiance (sous accord de confidentialité strict) ou en cas de demande légale.',
+        h: '4. Data Sharing',
+        p: 'We do not sell, rent, or trade your personal data with third parties. We may share data with trusted technical service providers (under strict confidentiality agreements) or when required by law.',
       },
       {
-        h: '5. Sécurité des Données',
-        p: 'Nous utilisons le chiffrement SSL/TLS pour toutes les communications, le chiffrement des données sensibles en base de données, des pare-feux avancés et une surveillance continue de la sécurité.',
+        h: '5. Data Security',
+        p: 'We use SSL/TLS encryption for all communications, encryption of sensitive data in databases, advanced firewalls, and continuous security monitoring. However, no digital system can guarantee absolute security.',
       },
       {
-        h: '6. Vos Droits',
-        p: 'Vous disposez du droit d\'accès, de rectification, de suppression, d\'opposition au traitement et de portabilité de vos données. Pour exercer ces droits : privacy@athargps.ma',
+        h: '6. Your Rights',
+        p: 'You have the right to access, correct, delete, object to the processing of, and request portability of your data. To exercise these rights, contact us at: privacy@athargps.ma',
       },
       {
         h: '7. Cookies',
-        p: 'Nous utilisons uniquement les cookies nécessaires au maintien de votre session et de vos préférences. Aucun cookie de suivi publicitaire n\'est utilisé.',
+        p: 'We only use cookies necessary to maintain your login session and preferences. We do not use advertising tracking cookies.',
       },
       {
-        h: '8. Conservation des Données',
-        p: 'Les données de compte sont conservées pendant la durée de l\'abonnement actif. À la résiliation, les données personnelles sont supprimées sous 30 jours, les données de localisation sous 90 jours.',
+        h: '8. Data Retention',
+        p: 'Account data is retained for the duration of the active subscription. Upon cancellation, personal data is deleted within 30 days, location data within 90 days, and billing records are kept for 5 years in accordance with Moroccan law.',
       },
       {
-        h: '9. Mises à Jour',
-        p: 'Nous nous réservons le droit de mettre à jour cette politique. Toute modification substantielle vous sera notifiée par e-mail 30 jours avant son application.',
+        h: '9. Policy Updates',
+        p: 'We reserve the right to update this policy. You will be notified of any substantial changes by email 30 days before they take effect.',
       },
       {
         h: '10. Contact',
-        p: 'Pour toute question sur la confidentialité : privacy@athargps.ma | Tél : +212 600 000 000',
+        p: 'For any privacy questions: privacy@athargps.ma | Tel: +212 600 000 000',
       },
     ],
   },
@@ -118,9 +118,9 @@ export default function Privacy() {
           </div>
           <p className="text-blue-200/50 text-[10px]">{c.updated}</p>
         </div>
-        <button onClick={() => setLang(l => l === 'ar' ? 'fr' : 'ar')}
+        <button onClick={() => setLang(l => l === 'ar' ? 'en' : 'ar')}
           className="text-xs bg-white/10 text-white/70 px-3 py-1.5 rounded-lg font-medium">
-          {lang === 'ar' ? 'FR' : 'AR'}
+          {lang === 'ar' ? 'EN' : 'AR'}
         </button>
       </div>
 
