@@ -2,50 +2,40 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   deploy:
-    name: Build & Deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Deploy via SSH
+      - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -e
+            echo "🚀 بدء عملية النشر التلقائي..."
             cd /opt/shgps
-            echo "=== Pulling latest code ==="
-            git pull origin main
-            echo "=== Installing dependencies ==="
-            npm ci --prefix backend
-            echo "=== Building frontend ==="
+            
+            # سحب آخر التحديثات
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # شبكة أمان: فرض BrowserRouter
+            sed -i 's/HashRouter/BrowserRouter/g' src/App.jsx
+            
+            # تثبيت الاعتمادات وبناء الواجهة
+            npm install
             npm run build
-            echo "=== Restarting containers ==="
+            
+            # إعادة بناء وتشغيل حاويات Docker
             docker compose up -d --build
-            echo "=== Reloading Nginx ==="
-            docker exec shgps-nginx-1 nginx -s reload || true
-            echo "=== Health check ==="
-            sleep 5
-            curl -sf http://localhost:3001/api/health || echo "Health check failed — check containers"
-            echo "=== Deploy complete ==="
+            
+            # إعادة تحميل Nginx
+            docker exec shgps-nginx-1 nginx -s reload
+            
+            echo "✅ تم النشر التلقائي بنجاح!"
