@@ -1,24 +1,24 @@
-// AtharGPS Service Worker — Basic Cache Strategy
-const CACHE_NAME = 'athargps-v1'
+// AtharGPS Service Worker v2 — Network-first with offline fallback
+const CACHE_NAME = 'athargps-v2'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable.png',
+  '/apple-touch-icon.png',
   '/manifest.json',
   '/favicon.svg',
 ]
 
-// Install: pre-cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS)
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   )
   self.skipWaiting()
 })
 
-// Activate: clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -30,33 +30,27 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// Fetch: Network-first for API, Cache-first for static assets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
-
-  // Skip non-GET and API requests
   if (event.request.method !== 'GET') return
   if (url.pathname.startsWith('/api/')) return
 
-  // For navigation requests: try network, fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        caches.match('/index.html')
-      )
+      fetch(event.request).catch(() => caches.match('/index.html'))
     )
     return
   }
 
-  // Cache-first for static assets
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached
       return fetch(event.request).then((response) => {
-        // Cache successful responses for static assets
-        if (response.ok && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.png') || url.pathname.endsWith('.svg'))) {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+        if (response.ok) {
+          const ext = url.pathname.split('.').pop()
+          if (['js','css','png','svg','jpg','jpeg','webp','woff2'].includes(ext)) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()))
+          }
         }
         return response
       }).catch(() => caches.match('/index.html'))

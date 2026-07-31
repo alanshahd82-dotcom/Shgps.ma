@@ -13,8 +13,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const root = ReactDOM.createRoot(document.getElementById('root'))
+root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 )
+
+// إخفاء شاشة البداية بعد تحميل React
+if (typeof window.__hideSplash === 'function') {
+  window.__hideSplash()
+}
