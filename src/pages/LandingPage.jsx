@@ -98,9 +98,20 @@ const content = {
     footer: {
       desc: 'Advanced GPS tracking solutions for modern fleet management in Morocco.',
       cols: [
-        { h: 'Product',  links: ['Features','Pricing','Mobile App'] },
-        { h: 'Company',  links: ['About Us','Contact','Blog'] },
-        { h: 'Support',  links: ['Help Center','Privacy Policy','Terms'] },
+        { h: 'Product', links: [
+          { label: 'Features',      href: '#features' },
+          { label: 'Pricing',       href: '#pricing' },
+          { label: 'Mobile App',    action: 'store' },
+        ]},
+        { h: 'Company', links: [
+          { label: 'About Us', href: 'https://wa.me/212618846582?text=Hello,%20I%20want%20to%20know%20more%20about%20AtharGPS', external: true },
+          { label: 'Contact',  href: 'https://wa.me/212618846582?text=Hello,%20I%20need%20help%20with%20AtharGPS', external: true },
+        ]},
+        { h: 'Support', links: [
+          { label: 'Help Center',    href: 'https://wa.me/212618846582?text=Hello,%20I%20need%20technical%20support', external: true },
+          { label: 'Privacy Policy', href: '/privacy' },
+          { label: 'Terms',          href: '/terms' },
+        ]},
       ],
       copy: `© ${new Date().getFullYear()} AtharGPS. All rights reserved.`,
     },
@@ -199,9 +210,20 @@ const content = {
     footer: {
       desc: 'منصة تتبع GPS متطورة لإدارة الأساطيل الحديثة في المغرب.',
       cols: [
-        { h: 'المنتج',  links: ['المزايا','الباقات','التطبيق'] },
-        { h: 'الشركة',  links: ['من نحن','اتصل بنا','المدونة'] },
-        { h: 'الدعم',   links: ['مركز المساعدة','سياسة الخصوصية','الشروط'] },
+        { h: 'المنتج', links: [
+          { label: 'المزايا',          href: '#features' },
+          { label: 'الباقات',          href: '#pricing' },
+          { label: 'التطبيق',          action: 'store' },
+        ]},
+        { h: 'الشركة', links: [
+          { label: 'من نحن',   href: 'https://wa.me/212618846582?text=مرحباً،%20أريد%20معرفة%20المزيد%20عن%20AtharGPS', external: true },
+          { label: 'اتصل بنا', href: 'https://wa.me/212618846582?text=مرحباً،%20أحتاج%20مساعدة', external: true },
+        ]},
+        { h: 'الدعم', links: [
+          { label: 'مركز المساعدة',    href: 'https://wa.me/212618846582?text=مرحباً،%20أحتاج%20دعماً%20فنياً', external: true },
+          { label: 'سياسة الخصوصية',  href: '/privacy' },
+          { label: 'الشروط',           href: '/terms' },
+        ]},
       ],
       copy: `© ${new Date().getFullYear()} AtharGPS. جميع الحقوق محفوظة.`,
     },
@@ -726,7 +748,23 @@ export default function LandingPage() {
               <ul style={{ listStyle:'none',display:'flex',flexDirection:'column',gap:'0.65rem' }}>
                 {col.links.map((link,j) => (
                   <li key={j}>
-                    <a href="#" className="nav-link-hover" style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.88rem',transition:'color .3s' }}>{link}</a>
+                    {link.action === 'store' ? (
+                      <button onClick={() => setModal('play')}
+                        className="nav-link-hover"
+                        style={{ background:'none',border:'none',cursor:'pointer',color:'#94a3b8',
+                          fontSize:'0.88rem',padding:0,transition:'color .3s',fontFamily:t.fontFamily,
+                          textAlign: t.dir === 'rtl' ? 'right' : 'left' }}>
+                        {link.label}
+                      </button>
+                    ) : (
+                      <a href={link.href}
+                        target={link.external ? '_blank' : '_self'}
+                        rel={link.external ? 'noopener noreferrer' : undefined}
+                        className="nav-link-hover"
+                        style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.88rem',transition:'color .3s' }}>
+                        {link.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
