@@ -23,6 +23,7 @@ import GlobalMap from './pages/admin/GlobalMap'
 import AdminAlerts from './pages/admin/AdminAlerts'
 import DeviceSetup from './pages/admin/DeviceSetup'
 import PublicMap from './pages/PublicMap'
+import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 
@@ -87,7 +88,7 @@ export default function App() {
         <Routes>
           {/* ── Public ─────────────────────────────────────────────────── */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/share/:token" element={<PublicMap />} />
+          <Route path="/share/:token" element={<PublicShare />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
 

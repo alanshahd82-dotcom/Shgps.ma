@@ -54,9 +54,11 @@ export function AppProvider({ children }) {
     const token = localStorage.getItem('athargps_token')
     if (!token) return
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const host     = window.location.host
-    const url      = `${protocol}://${host}/api/socket?token=${encodeURIComponent(token)}`
+    const wsBase = import.meta.env.VITE_WS_URL || (() => {
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+      return `${protocol}://${window.location.host}/api/socket`
+    })()
+    const url = `${wsBase}?token=${encodeURIComponent(token)}`
 
     const ws = new WebSocket(url)
     wsRef.current = ws
@@ -219,6 +221,14 @@ export function AppProvider({ children }) {
     setAlertsList(prev => prev.map(a => ({ ...a, read: true })))
   }
 
+  const updateUserInContext = (data) => {
+    setClientAuth(prev => {
+      const updated = { ...(prev || {}), ...data }
+      localStorage.setItem('athargps_client', JSON.stringify(updated))
+      return updated
+    })
+  }
+
   const addClient = async (data) => {
     const created = await api.clients.create(data)
     setClientList(prev => [created, ...prev])
@@ -260,6 +270,7 @@ export function AppProvider({ children }) {
       unreadCount, markAlertRead, markAllAlertsRead,
       addClient, addDevice, addDeviceDirect, deleteClient,
       refreshDevices: loadDevices,
+      updateUserInContext,
     }}>
       {children}
     </AppContext.Provider>

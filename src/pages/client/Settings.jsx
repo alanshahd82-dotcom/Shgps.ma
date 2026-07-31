@@ -219,10 +219,12 @@ function ChangePasswordModal({ open, onClose, lang }) {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { clientAuth, logoutClient, lang, setLang } = useApp()
+  const { clientAuth, logoutClient, lang, setLang, updateUserInContext } = useApp()
   const [speedAlerts, setSpeedAlerts]         = useState(true)
   const [geofenceAlerts, setGeofenceAlerts]   = useState(true)
   const [batteryAlerts, setBatteryAlerts]     = useState(true)
+  const [savingSettings, setSavingSettings]   = useState(false)
+  const [settingsSaved, setSettingsSaved]     = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showChangePwd, setShowChangePwd]     = useState(false)
   const [profile, setProfile] = useState({
@@ -235,8 +237,24 @@ export default function Settings() {
     navigate('/client/login')
   }
 
+  async function saveSettings() {
+    setSavingSettings(true)
+    try {
+      await api.auth.updateProfile({
+        notifications: { speedAlerts, geofenceAlerts, batteryAlerts },
+      })
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2500)
+    } catch {
+      // silent — preferences already applied locally
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   function handleProfileSaved(data) {
     setProfile(prev => ({ ...prev, ...data }))
+    if (updateUserInContext) updateUserInContext(data)
   }
 
   return (
@@ -311,6 +329,20 @@ export default function Settings() {
                 <ToggleSwitch value={item.val} onChange={item.set} />
               </div>
             ))}
+            <div className="px-4 py-3">
+              <button
+                onClick={saveSettings}
+                disabled={savingSettings}
+                className="w-full py-2.5 rounded-xl bg-primary-500 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+              >
+                <Save size={14} />
+                {savingSettings
+                  ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...')
+                  : settingsSaved
+                    ? (lang === 'ar' ? '✅ تم الحفظ' : '✅ Enregistré')
+                    : t(lang, 'save')}
+              </button>
+            </div>
           </div>
 
           {/* Account */}

@@ -30,8 +30,10 @@ function createDeviceIcon(type, isSelected = false) {
 function FlyToDevice({ lat, lng }) {
   const map = useMap()
   useEffect(() => {
-    if (lat && lng) {
-      map.flyTo([lat, lng], 15, { duration: 1.2 })
+    const _lat = parseFloat(lat)
+    const _lng = parseFloat(lng)
+    if (_lat !== undefined && _lng !== undefined && !isNaN(_lat) && !isNaN(_lng)) {
+      map.flyTo([_lat, _lng], 15, { duration: 1.2 })
     }
   }, [lat, lng])
   return null
@@ -68,10 +70,19 @@ export default function MapView({
         ? devices.filter(d => d.id === deviceId)
         : devices
 
-  // Only place markers for devices that have a real GPS fix
-  const displayDevices = allCandidates.filter(hasValidCoords)
+  // Normalise coordinates to numbers before any check
+  const normalised = allCandidates.map(d => ({
+    ...d,
+    lat: parseFloat(d.lat),
+    lng: parseFloat(d.lng),
+  }))
 
-  const primaryDevice = deviceId ? devices.find(d => d.id === deviceId) : null
+  // Only place markers for devices that have a real GPS fix
+  const displayDevices = normalised.filter(hasValidCoords)
+
+  const primaryDevice = deviceId
+    ? normalised.find(d => d.id === deviceId)
+    : null
   const primaryHasCoords = hasValidCoords(primaryDevice)
 
   // If the primary device has no coordinates yet, show a "waiting" overlay instead of a broken map

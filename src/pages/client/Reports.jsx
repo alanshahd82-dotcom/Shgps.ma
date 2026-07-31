@@ -69,6 +69,12 @@ export default function Reports() {
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
 
+  // Clear previous results when filter changes
+  useEffect(() => {
+    setData(null)
+    setError('')
+  }, [selectedDevice, dateFrom, dateTo])
+
   async function loadReport() {
     if (!selectedDevice) return
     setLoading(true); setError('')
@@ -98,10 +104,15 @@ export default function Reports() {
       ])
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
+    const deviceLabel = devices.find(d => String(d.id) === String(selectedDevice))?.name || selectedDevice
+    const fromLabel = new Date(dateFrom).toISOString().slice(0, 10)
+    const filename = lang === 'ar'
+      ? `تقرير_${deviceLabel}_${fromLabel}.csv`
+      : `report_${deviceLabel}_${fromLabel}.csv`
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
-    a.href = url; a.download = 'rapport-gps.csv'; a.click()
+    a.href = url; a.download = filename; a.click()
     URL.revokeObjectURL(url)
   }
 

@@ -136,8 +136,7 @@ export default function DeviceDetail() {
     setShareLink(null)
     try {
       const { token } = await api.sharing.create(device.id)
-      const base = window.location.origin + window.location.pathname.replace('index.html', '')
-      setShareLink(`${base}#/share/${token}`)
+      setShareLink(`${window.location.origin}/share/${token}`)
     } catch (e) {
       setEngineSuccess('❌ ' + (e.message || (lang === 'ar' ? 'فشل إنشاء الرابط' : 'Échec de la création du lien')))
       setTimeout(() => setEngineSuccess(null), 3000)
@@ -321,16 +320,25 @@ export default function DeviceDetail() {
                     ? 'يمكنك التحكم في محرك المركبة عن بعد. استخدم هذه الميزة بحذر.'
                     : 'Vous pouvez contrôler le moteur du véhicule à distance. Utilisez cette fonctionnalité avec précaution.'}
                 </p>
-                <button
-                  onClick={() => setShowEngineModal(true)}
-                  className={`w-full py-4 rounded-2xl font-bold text-sm transition-all active:scale-95 ${
-                    device.engineOn
-                      ? 'bg-red-500 text-white hover:bg-red-600'
-                      : 'bg-gradient-to-r from-accent to-emerald-500 text-primary-500'
-                  }`}
-                >
-                  {device.engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')}
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => setShowEngineModal(true)}
+                    disabled={device.status === 'offline'}
+                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      device.engineOn
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-gradient-to-r from-accent to-emerald-500 text-primary-500'
+                    }`}
+                  >
+                    {device.engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')}
+                  </button>
+                  {device.status === 'offline' && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-800 text-white text-[11px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      {lang === 'ar' ? 'الجهاز غير متصل' : 'Appareil hors ligne'}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Status log */}
@@ -338,19 +346,9 @@ export default function DeviceDetail() {
                 <p className="text-xs font-semibold text-slate-400 mb-3">
                   {lang === 'ar' ? 'سجل التحكم' : 'Journal de contrôle'}
                 </p>
-                {[
-                  { time: '10:45', action: lang === 'ar' ? 'تشغيل المحرك' : 'Démarrage moteur', by: lang === 'ar' ? 'المستخدم' : 'Utilisateur' },
-                  { time: '08:00', action: lang === 'ar' ? 'تشغيل المحرك' : 'Démarrage moteur', by: lang === 'ar' ? 'المستخدم' : 'Utilisateur' },
-                  { time: '07:55', action: lang === 'ar' ? 'إيقاف المحرك' : 'Arrêt moteur', by: lang === 'ar' ? 'الأدمن' : 'Admin' },
-                ].map((log, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <div>
-                      <p className="text-xs font-medium text-primary-500">{log.action}</p>
-                      <p className="text-[10px] text-slate-400">{log.by}</p>
-                    </div>
-                    <span className="text-[10px] text-slate-400">{log.time}</span>
-                  </div>
-                ))}
+                <p className="text-xs text-slate-400 text-center py-2">
+                  {lang === 'ar' ? 'لا توجد سجلات حالياً' : 'Aucun enregistrement pour le moment'}
+                </p>
               </div>
             </div>
           )}
