@@ -197,8 +197,8 @@ export default function DeviceDetail() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col" style={{ height: '100dvh' }}>
+      <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
         {/* Header */}
         <div
           className="flex-shrink-0 pt-14 px-4 pb-4"
@@ -418,8 +418,13 @@ export default function DeviceDetail() {
                   </div>
                 )}
                 {geofenceActive && (
-                  <div className="absolute inset-x-4 top-3 bg-accent/90 rounded-2xl px-4 py-2.5 text-center z-20">
-                    <p className="text-xs font-bold text-primary-500">✅ {t(lang, 'geofenceActive')}</p>
+                  <div className="absolute inset-x-4 top-3 z-20 flex justify-center">
+                    <div className="flex items-center gap-2 bg-primary-500/90 backdrop-blur-sm rounded-2xl px-4 py-2.5 shadow-lg">
+                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                      <span className="text-xs font-bold text-white tracking-wide">
+                        {lang === 'ar' ? 'السياج الجغرافي مفعّل' : 'Zone géographique active'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

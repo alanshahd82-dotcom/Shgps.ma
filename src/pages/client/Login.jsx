@@ -212,20 +212,17 @@ export default function ClientLogin() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        <div className="flex items-center gap-3 mb-4">
-          <img
-            src="/icon.png"
-            alt="AtharGPS"
-            width={48}
-            height={48}
-            style={{ borderRadius: 14, objectFit: 'cover', boxShadow: '0 0 24px rgba(0,217,126,0.3)' }}
-          />
-          <div className="flex flex-col leading-none" dir="ltr">
-            <span className="font-black text-2xl text-white tracking-tight">
-              Athar<span style={{ color: '#00D97E' }}>GPS</span>
-            </span>
-            <span className="text-xs text-white/40 font-medium mt-0.5">GPS Tracking</span>
+        <div className="flex flex-col items-center gap-1 mb-4">
+          <div className="flex items-end gap-0.5" dir="ltr">
+            <span className="font-black text-4xl text-white tracking-tight leading-none">Athar</span>
+            <span className="font-black text-4xl leading-none" style={{ color: '#00D97E' }}>GPS</span>
           </div>
+          <span
+            className="text-[11px] font-semibold tracking-[0.22em] uppercase mt-1"
+            style={{ color: 'rgba(0,217,126,0.55)', letterSpacing: '0.22em' }}
+          >
+            Système de Suivi GPS
+          </span>
         </div>
 
         <h1 className="text-white text-xl font-black">
@@ -334,17 +331,6 @@ export default function ClientLogin() {
           </form>
         </motion.div>
 
-        {/* ── الفاصل + رابط Admin ── */}
-        <div className="flex items-center gap-3 mt-6 px-2">
-          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
-          <button
-            onClick={() => navigate('/admin')}
-            className="text-xs text-white/30 hover:text-white/60 transition-colors whitespace-nowrap"
-          >
-            {t(lang, 'adminLogin') || (isRtl ? 'لوحة الأدمن' : 'Admin')}
-          </button>
-          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.08)' }} />
-        </div>
       </motion.div>
 
       {/* ── تذييل ── */}
