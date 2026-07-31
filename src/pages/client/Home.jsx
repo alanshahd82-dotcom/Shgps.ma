@@ -56,7 +56,7 @@ export default function ClientHome() {
   const onlineDevices = clientDevices.filter(d => d.status === 'online')
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-[100dvh] flex flex-col">
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
         <div

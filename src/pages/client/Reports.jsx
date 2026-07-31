@@ -124,7 +124,7 @@ export default function Reports() {
   const devicesForSelect = devices
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-[100dvh] flex flex-col bg-gray-50">
       {/* Header */}
       <div className="flex-shrink-0 pt-14 pb-5 px-4"
         style={{ background: 'linear-gradient(160deg, #0F2044 0%, #162d5e 100%)' }}>

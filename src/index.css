@@ -202,3 +202,9 @@
   font-size: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
+
+/* Native mobile viewport and safe-area handling */
+html { background: #F0F4F8; }
+body { min-height: 100dvh; overscroll-behavior-y: none; }
+#root { min-height: 100dvh; }
+.pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }

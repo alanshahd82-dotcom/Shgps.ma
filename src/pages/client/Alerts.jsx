@@ -30,7 +30,7 @@ export default function Alerts() {
   const unread = myAlerts.filter(a => !a.read).length
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-[100dvh] flex flex-col">
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
         <div

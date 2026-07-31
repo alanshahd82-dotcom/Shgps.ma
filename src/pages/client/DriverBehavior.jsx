@@ -151,7 +151,7 @@ export default function DriverBehavior() {
     : (isAr ? 'يحتاج تحسين' : 'À améliorer')
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg,#0d1b33 0%,#0a1225 100%)' }}>
+    <div className="min-h-[100dvh] flex flex-col" style={{ background: 'linear-gradient(180deg,#0d1b33 0%,#0a1225 100%)' }}>
       {/* Header */}
       <div className="pt-14 px-4 pb-4" style={{ background: 'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
         <div className="flex items-center gap-3 mb-1">

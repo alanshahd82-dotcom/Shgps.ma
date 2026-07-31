@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Lock, Mail, Satellite, AlertCircle, ChevronRight } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Satellite, AlertCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 
@@ -151,7 +151,7 @@ export default function ClientLogin() {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col overflow-hidden relative"
+      className="min-h-[100dvh] w-full flex flex-col overflow-hidden relative"
       dir={isRtl ? 'rtl' : 'ltr'}
       style={{ background: 'linear-gradient(170deg, #071629 0%, #0F2044 50%, #0d2850 100%)' }}
     >
@@ -160,7 +160,7 @@ export default function ClientLogin() {
       <FloatingDots />
 
       {/* ── الرأس ── */}
-      <div className="relative z-10 flex items-center justify-between px-6 pt-12 pb-2">
+      <div className="relative z-10 flex items-center justify-end px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-2">
         {/* اختيار اللغة */}
         <div
           className="flex items-center rounded-xl overflow-hidden"
@@ -181,23 +181,6 @@ export default function ClientLogin() {
           ))}
         </div>
 
-        {/* زر العودة */}
-        <button
-          onClick={() => navigate('/')}
-          className="text-xs text-white/40 hover:text-white/70 transition-colors flex items-center gap-1"
-        >
-          {isRtl ? (
-            <>
-              <span>{t(lang, 'back') || 'رجوع'}</span>
-              <ChevronRight size={14} />
-            </>
-          ) : (
-            <>
-              <ChevronRight size={14} className="rotate-180" />
-              <span>{t(lang, 'back') || 'Retour'}</span>
-            </>
-          )}
-        </button>
       </div>
 
       {/* ── منطقة الرادار العلوية ── */}

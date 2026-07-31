@@ -1,5 +1,5 @@
-// AtharGPS Service Worker v2 — Network-first with offline fallback
-const CACHE_NAME = 'athargps-v2'
+// AtharGPS Service Worker v3 — Network-first with offline fallback
+const CACHE_NAME = 'athargps-v3'
 const STATIC_ASSETS = [
   '/',
   '/index.html',

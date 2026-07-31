@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import React from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { AppProvider, useApp } from './context/AppContext'
 
 // Pages
 import LandingPage from './pages/LandingPage'
-import SplashScreen from './pages/SplashScreen'
 import ClientLogin from './pages/client/Login'
 import ClientHome from './pages/client/Home'
 import DeviceList from './pages/client/DeviceList'
@@ -69,15 +69,6 @@ function AdminRoute({ children }) {
   return children
 }
 
-function ClientSplash() {
-  const navigate = useNavigate()
-  useEffect(() => {
-    const t = setTimeout(() => navigate('/client/login'), 2500)
-    return () => clearTimeout(t)
-  }, []) // eslint-disable-line
-  return <SplashScreen />
-}
-
 /* ─────────────────────────────────────────────────────────────────────────────
    ROUTER
 ───────────────────────────────────────────────────────────────────────────── */
@@ -87,14 +78,19 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* ── Public ─────────────────────────────────────────────────── */}
-          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/"
+            element={Capacitor.isNativePlatform()
+              ? <Navigate to="/client/login" replace />
+              : <LandingPage />}
+          />
           <Route path="/login" element={<Navigate to="/client/login" replace />} />
           <Route path="/share/:token" element={<PublicShare />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
 
           {/* ── Client app ─────────────────────────────────────────────── */}
-          <Route path="/client"        element={<ClientSplash />} />
+          <Route path="/client" element={<Navigate to="/client/login" replace />} />
           <Route path="/client/login"  element={<ClientLogin />} />
 
           <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />

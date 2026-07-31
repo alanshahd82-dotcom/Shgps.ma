@@ -20,7 +20,7 @@ export default function ClientNav() {
   ]
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 glass border-t border-gray-200/80 z-30 pb-safe">
+    <div className="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/80 z-30 pb-safe">
       <div className="flex items-center justify-around px-1 py-2">
         {items.map(item => {
           const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
@@ -29,7 +29,7 @@ export default function ClientNav() {
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-2xl transition-all duration-200 relative ${
+              className={`flex min-w-[50px] min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-2xl transition-all duration-200 relative ${
                 active ? 'text-accent' : 'text-slate-400'
               }`}
             >

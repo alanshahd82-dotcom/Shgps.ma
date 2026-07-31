@@ -71,7 +71,7 @@ export default function DeviceDetail() {
 
   if (fetchError && !device) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-slate-400">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-3 text-slate-400">
         <p>{t(lang, 'noData')}</p>
         <button onClick={() => navigate(-1)} className="text-xs text-primary-400 underline">
           {lang === 'ar' ? 'رجوع' : 'Retour'}
@@ -82,7 +82,7 @@ export default function DeviceDetail() {
 
   if (!device) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-slate-400">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center text-slate-400">
         <Loader2 size={28} className="animate-spin mb-2" />
         <p className="text-sm">{t(lang, 'loading')}</p>
       </div>
