@@ -12,9 +12,10 @@ export function AppProvider({ children }) {
   const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
   const [adminAuth,  setAdminAuth]          = useState(() => loadFromStorage('athargps_admin'))
   const [mustChangePassword, setMustChange] = useState(false)
-  const [devices,    setDevices]            = useState([])
-  const [alertsList, setAlertsList]         = useState([])
-  const [clientList, setClientList]         = useState([])
+  const [devices,      setDevices]          = useState([])
+  const [alertsList,   setAlertsList]       = useState([])
+  const [clientList,   setClientList]       = useState([])
+  const [networkError, setNetworkError]     = useState(false)
   const wsRef = useRef(null)
 
   useEffect(() => {
@@ -40,13 +41,18 @@ export function AppProvider({ children }) {
   }, [clientAuth, adminAuth]) // eslint-disable-line
 
   async function loadDevices() {
-    try { setDevices(await api.devices.list()) } catch { /* silent */ }
+    try {
+      setDevices(await api.devices.list())
+      setNetworkError(false)
+    } catch {
+      setNetworkError(true)
+    }
   }
   async function loadAlerts() {
-    try { setAlertsList(await api.alerts.list()) } catch { /* silent */ }
+    try { setAlertsList(await api.alerts.list()) } catch { /* non-critical */ }
   }
   async function loadClients() {
-    try { setClientList(await api.clients.list()) } catch { /* silent */ }
+    try { setClientList(await api.clients.list()) } catch { /* non-critical */ }
   }
 
   // ── WebSocket live tracking ────────────────────────────────────────────────
@@ -271,6 +277,7 @@ export function AppProvider({ children }) {
       addClient, addDevice, addDeviceDirect, deleteClient,
       refreshDevices: loadDevices,
       updateUserInContext,
+      networkError,
     }}>
       {children}
     </AppContext.Provider>

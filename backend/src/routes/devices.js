@@ -116,6 +116,14 @@ import { Router } from 'express'
       const dev = rows[0]
       if (!dev) return res.status(404).json({ error:'Device not found' })
       if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error:'Access denied' })
+
+      // ── تحقق من وجود traccar_id قبل إرسال الأمر ──────────────────────────
+      if (!dev.traccar_id) {
+        return res.status(400).json({
+          error: 'الجهاز غير مرتبط بالمتتبع. تواصل مع المدير. / Appareil non lié au tracker. Contactez l\'admin.'
+        })
+      }
+
       await traccar.sendCommand(dev.traccar_id, req.body.type)
       res.json({ success:true })
     } catch (err) { console.error(err); res.status(500).json({ error:'Failed to send command' }) }
