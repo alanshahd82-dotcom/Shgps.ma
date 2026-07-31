@@ -1,13 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { carouselSlides } from '../data/mockData'
+
+const carouselSlides = [
+  {
+    id: 1,
+    title: 'شارك التطبيق، احصل على شهر مجاني!',
+    subtitle: 'ادع أصدقاءك لتركيب GPS واحصل على خصم حصري',
+    bg: 'linear-gradient(135deg, #0F2044 0%, #1a3a6e 100%)',
+    accent: '#00D97E',
+    icon: '🎁',
+    cta: 'شارك الآن'
+  },
+  {
+    id: 2,
+    title: 'تتبع أجهزتك في الوقت الفعلي',
+    subtitle: 'راقب موقع وسرعة جميع مركباتك من مكان واحد',
+    bg: 'linear-gradient(135deg, #006644 0%, #00D97E 100%)',
+    accent: '#ffffff',
+    icon: '📍',
+    cta: 'اكتشف المزيد'
+  },
+  {
+    id: 3,
+    title: 'تنبيهات فورية على هاتفك',
+    subtitle: 'احصل على إشعارات فورية عند تجاوز السرعة أو الخروج من المنطقة',
+    bg: 'linear-gradient(135deg, #7B2D00 0%, #FF9500 100%)',
+    accent: '#ffffff',
+    icon: '🔔',
+    cta: 'ضبط التنبيهات'
+  },
+  {
+    id: 4,
+    title: 'قطع المحرك عن بعد',
+    subtitle: 'أوقف مركبتك من أي مكان في حالة السرقة أو الطوارئ',
+    bg: 'linear-gradient(135deg, #1a0a2e 0%, #6B21A8 100%)',
+    accent: '#00D97E',
+    icon: '🔒',
+    cta: 'معرفة المزيد'
+  }
+]
 
 const SLIDE_ROUTES = [
-  '/client/devices',   // live tracking
-  '/client/devices',   // geofence
-  '/client/alerts',    // instant alerts
-  '/client/devices',   // engine cut-off
+  '/client/devices',
+  '/client/devices',
+  '/client/alerts',
+  '/client/devices',
 ]
 
 export default function Carousel() {
