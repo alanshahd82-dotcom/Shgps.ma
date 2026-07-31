@@ -32,65 +32,165 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
           <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
           <motion.div
-            className="fixed inset-x-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[480px] z-50"
+            className="fixed inset-x-3 bottom-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[520px] z-50"
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
           >
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="bg-primary-500 px-6 py-4 flex items-center justify-between">
-                <h3 className="font-bold text-white text-lg">{t(lang, 'addClient')}</h3>
-                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[88vh]">
+              {/* Sticky header */}
+              <div className="bg-primary-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
+                    <User size={14} className="text-white" />
+                  </div>
+                  <h3 className="font-bold text-white text-base">{t(lang, 'addClient')}</h3>
+                </div>
+                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
                   <X size={16} className="text-white" />
                 </button>
               </div>
-              {error && (
-                <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
-                  <AlertCircle size={15} /> {error}
-                </div>
-              )}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'name')}</label>
-                    <input className="input-field text-sm" value={form.name}
-                      onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
+
+              {/* Scrollable body */}
+              <div className="overflow-y-auto flex-1">
+                {error && (
+                  <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+                    <AlertCircle size={15} className="flex-shrink-0" /> {error}
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'city')}</label>
-                    <input className="input-field text-sm" value={form.city}
-                      onChange={e => setForm(p => ({ ...p, city: e.target.value }))} />
+                )}
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                  {/* Name + City */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                        {t(lang, 'name')} <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        className="input-field text-sm"
+                        value={form.name}
+                        onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                        placeholder={lang === 'ar' ? 'الاسم الكامل' : 'Nom complet'}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t(lang, 'city')}</label>
+                      <input
+                        className="input-field text-sm"
+                        value={form.city}
+                        onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+                        placeholder={lang === 'ar' ? 'المدينة' : 'Ville'}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'email')}</label>
-                  <input type="email" className="input-field text-sm" value={form.email}
-                    onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'password')}</label>
-                  <input type="password" className="input-field text-sm" value={form.password}
-                    onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required minLength={6} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'phone')}</label>
-                  <input className="input-field text-sm" value={form.phone}
-                    onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'subscription')}</label>
-                  <select className="input-field text-sm" value={form.subscription}
-                    onChange={e => setForm(p => ({ ...p, subscription: e.target.value }))}>
-                    <option value="Basic">Basic</option>
-                    <option value="Pro">Pro</option>
-                    <option value="Enterprise">Enterprise</option>
-                  </select>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-                  <button type="submit" disabled={loading} className="flex-1 btn-primary py-3">
-                    {loading ? '...' : t(lang, 'add')}
-                  </button>
-                </div>
-              </form>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                      <span className="flex items-center gap-1">
+                        <Phone size={11} />
+                        {t(lang, 'phone')}
+                      </span>
+                    </label>
+                    <input
+                      className="input-field text-sm"
+                      value={form.phone}
+                      onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                      placeholder={lang === 'ar' ? '06XXXXXXXX' : '06XXXXXXXX'}
+                      type="tel"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                      {t(lang, 'email')} <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      className="input-field text-sm"
+                      value={form.email}
+                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                      placeholder="exemple@email.com"
+                      required
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                      {t(lang, 'password')} <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="input-field text-sm"
+                      value={form.password}
+                      onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1.5">
+                      {lang === 'ar'
+                        ? 'سيُطلب من العميل تغيير كلمة المرور عند أول تسجيل دخول'
+                        : 'Le client devra changer ce mot de passe à la première connexion'}
+                    </p>
+                  </div>
+
+                  {/* Subscription */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                      {t(lang, 'subscription')} <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      className="input-field text-sm"
+                      value={form.subscription}
+                      onChange={e => setForm(p => ({ ...p, subscription: e.target.value }))}
+                    >
+                      <option value="Basic">Basic</option>
+                      <option value="Pro">Pro</option>
+                      <option value="Enterprise">Enterprise</option>
+                    </select>
+                  </div>
+
+                  {/* Info box */}
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                    <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-600 leading-relaxed">
+                      {lang === 'ar'
+                        ? 'بعد إنشاء الحساب، يستطيع العميل تسجيل الدخول مباشرة عبر تطبيق العميل بالبريد وكلمة المرور المُدخلة.'
+                        : 'Après création, le client peut se connecter directement via l\'app client avec ces identifiants.'}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="flex-1 btn-secondary py-3 text-sm"
+                    >
+                      {t(lang, 'cancel')}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      {loading ? (
+                        <>
+                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
+                          </svg>
+                          <span>{lang === 'ar' ? 'جارٍ الإنشاء...' : 'Création...'}</span>
+                        </>
+                      ) : (
+                        <span>{t(lang, 'add')}</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </motion.div>
         </>
