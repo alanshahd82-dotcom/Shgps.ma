@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Cpu, Bell, Settings, BarChart2 } from 'lucide-react'
+import { Home, Cpu, Bell, Settings, BarChart2, Wrench, ShieldCheck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
@@ -8,13 +8,15 @@ export default function ClientNav() {
   const navigate = useNavigate()
   const location = useLocation()
   const { unreadCount, lang } = useApp()
+  const isAr = lang === 'ar'
 
   const items = [
-    { path: '/client/home',    icon: Home,     label: t(lang, 'home') },
-    { path: '/client/devices', icon: Cpu,      label: t(lang, 'devices') },
-    { path: '/client/alerts',  icon: Bell,     label: t(lang, 'alerts'),  badge: unreadCount },
-    { path: '/client/reports', icon: BarChart2, label: lang === 'ar' ? 'التقارير' : 'Rapports' },
-    { path: '/client/settings',icon: Settings, label: t(lang, 'settings') },
+    { path: '/client/home',            icon: Home,        label: t(lang, 'home') },
+    { path: '/client/devices',         icon: Cpu,         label: t(lang, 'devices') },
+    { path: '/client/alerts',          icon: Bell,        label: t(lang, 'alerts'), badge: unreadCount },
+    { path: '/client/maintenance',     icon: Wrench,      label: isAr ? 'الصيانة' : 'Entretien' },
+    { path: '/client/driver-behavior', icon: ShieldCheck, label: isAr ? 'السائق' : 'Conduite' },
+    { path: '/client/settings',        icon: Settings,    label: t(lang, 'settings') },
   ]
 
   return (
@@ -27,13 +29,13 @@ export default function ClientNav() {
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-2xl transition-all duration-200 relative ${
+              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-2xl transition-all duration-200 relative ${
                 active ? 'text-accent' : 'text-slate-400'
               }`}
             >
               <div className="relative">
                 <Icon
-                  size={20}
+                  size={18}
                   strokeWidth={active ? 2.5 : 2}
                   className={`transition-all duration-200 ${active ? 'text-accent' : 'text-slate-400'}`}
                 />
@@ -43,7 +45,7 @@ export default function ClientNav() {
                   </span>
                 )}
               </div>
-              <span className={`text-[9px] font-medium transition-colors duration-200 ${active ? 'text-accent' : 'text-slate-400'}`}>
+              <span className={`text-[8px] font-medium transition-colors duration-200 leading-tight text-center ${active ? 'text-accent' : 'text-slate-400'}`}>
                 {item.label}
               </span>
               {active && (

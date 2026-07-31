@@ -736,7 +736,17 @@ export default function LandingPage() {
 
         <div style={{ maxWidth:1200,margin:'2.5rem auto 0',paddingTop:'1.75rem',borderTop:'1px solid #1e293b',
           display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'1rem',color:'#94a3b8',fontSize:'0.83rem' }}>
-          <span>{t.footer.copy}</span>
+          <div style={{ display:'flex',alignItems:'center',gap:'1.5rem',flexWrap:'wrap' }}>
+            <span>{t.footer.copy}</span>
+            <a href="/#/terms" style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.83rem',transition:'color .2s' }}
+              onMouseEnter={e=>e.currentTarget.style.color='#00D97E'} onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>
+              {lang === 'ar' ? 'الشروط والأحكام' : 'CGU'}
+            </a>
+            <a href="/#/privacy" style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.83rem',transition:'color .2s' }}
+              onMouseEnter={e=>e.currentTarget.style.color='#00D97E'} onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>
+              {lang === 'ar' ? 'سياسة الخصوصية' : 'Confidentialité'}
+            </a>
+          </div>
           <div style={{ display:'flex',gap:'0.75rem' }}>
             {[['Google Play','play'],['App Store','apple']].map(([label,key]) => (
               <button key={key} onClick={() => setModal(key)}

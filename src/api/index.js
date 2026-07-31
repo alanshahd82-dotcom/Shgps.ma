@@ -65,4 +65,17 @@ export const api = {
     stats:       () => apiFetch('/admin/stats'),
     traccarSync: () => apiFetch('/admin/traccar-sync', { method: 'POST' }),
   },
+  maintenance: {
+    list:   (deviceId) => apiFetch(`/maintenance?deviceId=${deviceId}`),
+    add:    (data)     => apiFetch('/maintenance', { method: 'POST', body: JSON.stringify(data) }),
+    remove: (id)       => apiFetch(`/maintenance/${id}`, { method: 'DELETE' }),
+  },
+  sharing: {
+    create: (deviceId) => apiFetch('/sharing', { method: 'POST', body: JSON.stringify({ deviceId }) }),
+    get:    (token)    => apiFetch(`/sharing/${token}`),
+  },
+  leads: {
+    submit: (data) => apiFetch('/leads', { method: 'POST', body: JSON.stringify(data) }),
+    list:   ()     => apiFetch('/leads'),
+  },
 }

@@ -4,14 +4,17 @@ import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import jwt from 'jsonwebtoken'
-import { authRouter }    from './routes/auth.js'
-import { devicesRouter } from './routes/devices.js'
-import { clientsRouter } from './routes/clients.js'
-import { alertsRouter }  from './routes/alerts.js'
-import { mapRouter }     from './routes/map.js'
-import { geofencesRouter } from './routes/geofences.js'
-import { reportsRouter } from './routes/reports.js'
-import { adminRouter }   from './routes/admin.js'
+import { authRouter }        from './routes/auth.js'
+import { devicesRouter }     from './routes/devices.js'
+import { clientsRouter }     from './routes/clients.js'
+import { alertsRouter }      from './routes/alerts.js'
+import { mapRouter }         from './routes/map.js'
+import { geofencesRouter }   from './routes/geofences.js'
+import { reportsRouter }     from './routes/reports.js'
+import { adminRouter }       from './routes/admin.js'
+import { maintenanceRouter } from './routes/maintenance.js'
+import { sharingRouter }     from './routes/sharing.js'
+import { leadsRouter }       from './routes/leads.js'
 import { config }        from './config.js'
 import { db }            from './db.js'
 
@@ -44,6 +47,38 @@ async function runMigrations() {
         created_at   TIMESTAMP DEFAULT NOW()
       )
     `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS maintenance_logs (
+        id               SERIAL PRIMARY KEY,
+        device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+        type             VARCHAR(50) NOT NULL,
+        note             TEXT,
+        mileage          NUMERIC(12,2),
+        date             TIMESTAMP DEFAULT NOW(),
+        next_due_mileage NUMERIC(12,2),
+        created_at       TIMESTAMP DEFAULT NOW()
+      )
+    `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS share_links (
+        id         SERIAL PRIMARY KEY,
+        token      VARCHAR(64) UNIQUE NOT NULL,
+        device_id  INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id         SERIAL PRIMARY KEY,
+        name       VARCHAR(255) NOT NULL,
+        phone      VARCHAR(50)  NOT NULL,
+        email      VARCHAR(255),
+        package    VARCHAR(50),
+        message    TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `)
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)
@@ -56,16 +91,32 @@ const PORT = process.env.PORT || 3001
 app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }))
 app.use(express.json())
 
-app.use('/api/auth',       authRouter)
-app.use('/api/devices',    devicesRouter)
-app.use('/api/clients',    clientsRouter)
-app.use('/api/alerts',     alertsRouter)
-app.use('/api/map',        mapRouter)
-app.use('/api/geofences',  geofencesRouter)
-app.use('/api/reports',    reportsRouter)
-app.use('/api/admin',      adminRouter)
+app.use('/api/auth',        authRouter)
+app.use('/api/devices',     devicesRouter)
+app.use('/api/clients',     clientsRouter)
+app.use('/api/alerts',      alertsRouter)
+app.use('/api/map',         mapRouter)
+app.use('/api/geofences',   geofencesRouter)
+app.use('/api/reports',     reportsRouter)
+app.use('/api/admin',       adminRouter)
+app.use('/api/maintenance', maintenanceRouter)
+app.use('/api/sharing',     sharingRouter)
+app.use('/api/leads',       leadsRouter)
 
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', version: '1.1.0' }))
+app.get('/api/health', async (_req, res) => {
+  let dbStatus = 'disconnected'
+  let traccarStatus = 'unreachable'
+  try {
+    await db.query('SELECT 1')
+    dbStatus = 'connected'
+  } catch {}
+  try {
+    const r = await fetch(config.traccar.url + '/api/server', { signal: AbortSignal.timeout(3000) })
+    traccarStatus = r.ok ? 'reachable' : 'error'
+  } catch {}
+  const ok = dbStatus === 'connected'
+  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', db: dbStatus, traccar: traccarStatus, version: '1.2.0', ts: new Date().toISOString() })
+})
 
 // --- HTTP server ---------------------------------------------------------------
 const server = createServer(app)

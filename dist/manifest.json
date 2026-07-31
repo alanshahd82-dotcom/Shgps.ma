@@ -1,0 +1,43 @@
+{
+  "name": "AtharGPS — تتبع الأسطول",
+  "short_name": "AtharGPS",
+  "description": "نظام تتبع المركبات الذكي بالوقت الفعلي",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1628",
+  "theme_color": "#0F2044",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["navigation", "productivity", "business"],
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "الخريطة المباشرة",
+      "short_name": "الخريطة",
+      "description": "عرض مواقع المركبات مباشرة",
+      "url": "/#/client/home",
+      "icons": [{ "src": "/icon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "الأجهزة",
+      "short_name": "الأجهزة",
+      "url": "/#/client/devices",
+      "icons": [{ "src": "/icon.png", "sizes": "192x192" }]
+    }
+  ]
+}

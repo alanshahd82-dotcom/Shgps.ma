@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Signal, Gauge, Navigation } from 'lucide-react'
+import { ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Signal, Gauge, Navigation, Share2, Copy, CheckCheck, Loader2 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
+import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import MapView from '../../components/MapView'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -39,6 +40,9 @@ export default function DeviceDetail() {
   const [geofenceLoading, setGeofenceLoading] = useState(false)
   const [geofenceError, setGeofenceError] = useState(null)
   const [engineSuccess, setEngineSuccess] = useState(null)
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareLink, setShareLink] = useState(null)
+  const [shareCopied, setShareCopied] = useState(false)
 
   if (!device) {
     return (
@@ -88,6 +92,29 @@ export default function DeviceDetail() {
     } finally {
       setGeofenceLoading(false)
     }
+  }
+
+  const handleShareLocation = async () => {
+    setShareLoading(true)
+    setShareLink(null)
+    try {
+      const { token } = await api.sharing.create(device.id)
+      const base = window.location.origin + window.location.pathname.replace('index.html', '')
+      setShareLink(`${base}#/share/${token}`)
+    } catch (e) {
+      setEngineSuccess('❌ ' + (e.message || (lang === 'ar' ? 'فشل إنشاء الرابط' : 'Échec de la création du lien')))
+      setTimeout(() => setEngineSuccess(null), 3000)
+    } finally {
+      setShareLoading(false)
+    }
+  }
+
+  const handleCopyLink = () => {
+    if (!shareLink) return
+    navigator.clipboard?.writeText(shareLink).then(() => {
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2500)
+    })
   }
 
   const formatDate = (iso) => {
@@ -140,10 +167,11 @@ export default function DeviceDetail() {
         <div className="flex-shrink-0 bg-white border-b border-gray-100 px-4">
           <div className="flex overflow-x-auto gap-1 py-2 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
             {[
-              { key: 'map', label: t(lang, 'liveTracking') },
-              { key: 'trips', label: t(lang, 'tripHistory') },
-              { key: 'engine', label: t(lang, 'engineControl') },
+              { key: 'map',      label: t(lang, 'liveTracking') },
+              { key: 'trips',    label: t(lang, 'tripHistory') },
+              { key: 'engine',   label: t(lang, 'engineControl') },
               { key: 'geofence', label: t(lang, 'geofence') },
+              { key: 'share',    label: lang === 'ar' ? 'مشاركة' : 'Partager' },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -360,6 +388,55 @@ export default function DeviceDetail() {
                   }
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* SHARE TAB */}
+          {activeTab === 'share' && (
+            <div className="h-full overflow-y-auto mobile-scroll pb-20 p-5 flex flex-col gap-4">
+              <div className="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/40 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                  <Share2 size={24} className="text-accent" />
+                </div>
+                <h3 className="text-white font-bold text-base mb-1">
+                  {lang === 'ar' ? 'مشاركة الموقع المباشر' : 'Partager la position en direct'}
+                </h3>
+                <p className="text-slate-400 text-xs leading-relaxed mb-4">
+                  {lang === 'ar'
+                    ? 'يولّد رابطاً مؤقتاً صالحاً لمدة 24 ساعة يعرض موقع المركبة دون الحاجة لتسجيل الدخول.'
+                    : 'Génère un lien temporaire valable 24h pour partager la position du véhicule sans connexion.'}
+                </p>
+                <button
+                  onClick={handleShareLocation}
+                  disabled={shareLoading}
+                  className="w-full py-3 bg-accent text-slate-900 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-95 transition-transform"
+                >
+                  {shareLoading
+                    ? <><Loader2 size={16} className="animate-spin" /> {lang === 'ar' ? 'جاري الإنشاء...' : 'Création...'}</>
+                    : <><Share2 size={16} /> {lang === 'ar' ? 'إنشاء رابط المشاركة' : 'Créer un lien de partage'}</>}
+                </button>
+              </div>
+
+              <AnimatePresence>
+                {shareLink && (
+                  <motion.div
+                    className="bg-slate-800/60 rounded-2xl p-4 border border-accent/30"
+                    initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  >
+                    <p className="text-xs text-slate-400 mb-2">
+                      {lang === 'ar' ? '✅ الرابط جاهز — صالح لـ 24 ساعة:' : '✅ Lien prêt — valable 24h :'}
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <p className="flex-1 text-[11px] text-accent break-all leading-relaxed">{shareLink}</p>
+                      <button onClick={handleCopyLink}
+                        className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 active:scale-90 transition-transform">
+                        {shareCopied ? <CheckCheck size={15} className="text-accent" /> : <Copy size={15} className="text-accent" />}
+                      </button>
+                    </div>
+                    {shareCopied && <p className="text-[10px] text-accent mt-1">{lang === 'ar' ? 'تم النسخ!' : 'Copié!'}</p>}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>

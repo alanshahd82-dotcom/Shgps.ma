@@ -12,6 +12,8 @@ import DeviceDetail from './pages/client/DeviceDetail'
 import Alerts from './pages/client/Alerts'
 import Settings from './pages/client/Settings'
 import Reports from './pages/client/Reports'
+import DriverBehavior from './pages/client/DriverBehavior'
+import Maintenance from './pages/client/Maintenance'
 import AdminLogin from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/Dashboard'
 import Clients from './pages/admin/Clients'
@@ -20,6 +22,9 @@ import AllDevices from './pages/admin/AllDevices'
 import GlobalMap from './pages/admin/GlobalMap'
 import AdminAlerts from './pages/admin/AdminAlerts'
 import DeviceSetup from './pages/admin/DeviceSetup'
+import PublicMap from './pages/PublicMap'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ROUTE GUARDS
@@ -82,17 +87,22 @@ export default function App() {
         <Routes>
           {/* ── Public ─────────────────────────────────────────────────── */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/share/:token" element={<PublicMap />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           {/* ── Client app ─────────────────────────────────────────────── */}
           <Route path="/client"        element={<ClientSplash />} />
           <Route path="/client/login"  element={<ClientLogin />} />
 
-          <Route path="/client/home"      element={<ClientRoute><ClientHome /></ClientRoute>} />
-          <Route path="/client/devices"   element={<ClientRoute><DeviceList /></ClientRoute>} />
-          <Route path="/client/device/:id" element={<ClientRoute><DeviceDetail /></ClientRoute>} />
-          <Route path="/client/alerts"    element={<ClientRoute><Alerts /></ClientRoute>} />
-          <Route path="/client/settings"  element={<ClientRoute><Settings /></ClientRoute>} />
-          <Route path="/client/reports"   element={<ClientRoute><Reports /></ClientRoute>} />
+          <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />
+          <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
+          <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
+          <Route path="/client/alerts"          element={<ClientRoute><Alerts /></ClientRoute>} />
+          <Route path="/client/settings"        element={<ClientRoute><Settings /></ClientRoute>} />
+          <Route path="/client/reports"         element={<ClientRoute><Reports /></ClientRoute>} />
+          <Route path="/client/driver-behavior" element={<ClientRoute><DriverBehavior /></ClientRoute>} />
+          <Route path="/client/maintenance"     element={<ClientRoute><Maintenance /></ClientRoute>} />
 
           {/* ── Admin app ──────────────────────────────────────────────── */}
           <Route path="/admin/login" element={<AdminLogin />} />
