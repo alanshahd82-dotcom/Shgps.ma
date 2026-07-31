@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 
 // Pages
@@ -83,7 +83,7 @@ function ClientSplash() {
 export default function App() {
   return (
     <AppProvider>
-      <HashRouter>
+      <BrowserRouter>
         <Routes>
           {/* ── Public ─────────────────────────────────────────────────── */}
           <Route path="/" element={<LandingPage />} />
@@ -118,7 +118,7 @@ export default function App() {
           {/* ── Catch-all → Landing ────────────────────────────────────── */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </HashRouter>
+      </BrowserRouter>
     </AppProvider>
   )
 }

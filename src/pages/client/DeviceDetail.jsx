@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Signal, Gauge, Navigation, Share2, Copy, CheckCheck, Loader2 } from 'lucide-react'
@@ -31,7 +31,9 @@ export default function DeviceDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { devices, toggleEngine, saveGeofence, removeGeofence, lang } = useApp()
-  const device = devices.find(d => d.id === id)
+
+  // id from useParams() is always a string; db ids may be numbers — coerce both sides
+  const deviceFromCtx = devices.find(d => String(d.id) === String(id))
 
   const [activeTab, setActiveTab] = useState('map')
   const [showEngineModal, setShowEngineModal] = useState(false)
@@ -44,12 +46,40 @@ export default function DeviceDetail() {
   const [shareLink, setShareLink] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
 
+  // Fallback: if devices haven't loaded yet (e.g. page refresh), fetch this device directly
+  const [fetchedDevice, setFetchedDevice] = useState(null)
+  const [fetchError, setFetchError] = useState(false)
+
+  useEffect(() => {
+    if (deviceFromCtx) return              // already in context — no need to fetch
+    if (devices.length > 0) {             // context loaded but id not found → not found
+      setFetchError(true)
+      return
+    }
+    // context still loading (empty array on first render) → hit API directly
+    api.devices.get(id)
+      .then(d => setFetchedDevice(d))
+      .catch(() => setFetchError(true))
+  }, [id, deviceFromCtx, devices.length]) // eslint-disable-line
+
+  const device = deviceFromCtx || fetchedDevice
+
+  if (fetchError && !device) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-slate-400">
+        <p>{t(lang, 'noData')}</p>
+        <button onClick={() => navigate(-1)} className="text-xs text-primary-400 underline">
+          {lang === 'ar' ? 'رجوع' : 'Retour'}
+        </button>
+      </div>
+    )
+  }
+
   if (!device) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <div className="h-full flex items-center justify-center text-slate-400">
-          <p>{t(lang, 'noData')}</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center text-slate-400">
+        <Loader2 size={28} className="animate-spin mb-2" />
+        <p className="text-sm">{t(lang, 'loading')}</p>
       </div>
     )
   }

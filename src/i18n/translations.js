@@ -179,6 +179,19 @@ export const translations = {
     resetPassword: 'إعادة تعيين كلمة المرور',
     traccarSync: 'مزامنة Traccar',
 
+    // Sharing
+    share_location:    'مشاركة الموقع',
+    create_share_link: 'إنشاء رابط المشاركة',
+    copy_link:         'نسخ الرابط',
+
+    // Maintenance
+    maintenance:        'الصيانة',
+    add_maintenance_log:'إضافة سجل صيانة',
+
+    // Driver behavior
+    driver_score:    'درجة السلامة',
+    driver_behavior: 'سلوك السائق',
+
     // Misc
     noData: 'لا توجد بيانات',
     error: 'حدث خطأ',
@@ -373,6 +386,19 @@ export const translations = {
     sortBy: 'Trier par',
     resetPassword: 'Réinitialiser le mot de passe',
     traccarSync: 'Sync Traccar',
+
+    // Sharing
+    share_location:    'Partager la position',
+    create_share_link: 'Créer un lien de partage',
+    copy_link:         'Copier le lien',
+
+    // Maintenance
+    maintenance:        'Maintenance',
+    add_maintenance_log:'Ajouter un rapport',
+
+    // Driver behavior
+    driver_score:    'Score de sécurité',
+    driver_behavior: 'Comportement conducteur',
 
     // Misc
     noData: 'Aucune donnée',
