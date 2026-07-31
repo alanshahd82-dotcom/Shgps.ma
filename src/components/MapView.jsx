@@ -37,6 +37,16 @@ function FlyToDevice({ lat, lng }) {
   return null
 }
 
+/** Returns true only when both coordinates are valid non-zero numbers */
+function hasValidCoords(device) {
+  return (
+    device &&
+    typeof device.lat === 'number' &&
+    typeof device.lng === 'number' &&
+    (device.lat !== 0 || device.lng !== 0)
+  )
+}
+
 export default function MapView({
   deviceId = null,
   showAllDevices = false,
@@ -50,7 +60,7 @@ export default function MapView({
 }) {
   const { devices, lang } = useApp()
 
-  const displayDevices = showAllDevices
+  const allCandidates = showAllDevices
     ? devices
     : clientId
       ? devices.filter(d => d.clientId === clientId)
@@ -58,20 +68,44 @@ export default function MapView({
         ? devices.filter(d => d.id === deviceId)
         : devices
 
+  // Only place markers for devices that have a real GPS fix
+  const displayDevices = allCandidates.filter(hasValidCoords)
+
   const primaryDevice = deviceId ? devices.find(d => d.id === deviceId) : null
-  const center = primaryDevice
+  const primaryHasCoords = hasValidCoords(primaryDevice)
+
+  // If the primary device has no coordinates yet, show a "waiting" overlay instead of a broken map
+  if (deviceId && primaryDevice && !primaryHasCoords && !showAllDevices) {
+    return (
+      <div
+        style={{ height, width: '100%' }}
+        className="flex flex-col items-center justify-center bg-gray-100 text-slate-400 gap-2"
+      >
+        <span className="text-3xl">📡</span>
+        <p className="text-sm font-semibold">
+          {lang === 'ar' ? 'في انتظار الإشارة...' : 'En attente du signal...'}
+        </p>
+      </div>
+    )
+  }
+
+  // Default center: Morocco (Casablanca) when no device has a valid fix
+  const center = primaryHasCoords
     ? [primaryDevice.lat, primaryDevice.lng]
     : displayDevices.length > 0
       ? [displayDevices[0].lat, displayDevices[0].lng]
       : [33.5731, -7.5898]
 
   // Simulated trip route for device detail
-  const tripRoute = primaryDevice ? [
-    [primaryDevice.lat + 0.02, primaryDevice.lng - 0.01],
-    [primaryDevice.lat + 0.015, primaryDevice.lng + 0.005],
-    [primaryDevice.lat + 0.005, primaryDevice.lng + 0.01],
-    [primaryDevice.lat, primaryDevice.lng],
-  ] : []
+  const tripRoute =
+    primaryHasCoords
+      ? [
+          [primaryDevice.lat + 0.02, primaryDevice.lng - 0.01],
+          [primaryDevice.lat + 0.015, primaryDevice.lng + 0.005],
+          [primaryDevice.lat + 0.005, primaryDevice.lng + 0.01],
+          [primaryDevice.lat, primaryDevice.lng],
+        ]
+      : []
 
   const formatTime = (iso) => {
     if (!iso) return ''
@@ -95,10 +129,10 @@ export default function MapView({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
 
-      {primaryDevice && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
+      {primaryHasCoords && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
 
       {/* Trip route line */}
-      {primaryDevice && tripRoute.length > 0 && (
+      {primaryHasCoords && tripRoute.length > 0 && (
         <Polyline
           positions={tripRoute}
           pathOptions={{ color: '#00D97E', weight: 3, opacity: 0.7, dashArray: '8,4' }}
@@ -114,7 +148,7 @@ export default function MapView({
         />
       )}
 
-      {/* Device markers */}
+      {/* Device markers — only rendered for devices with a real GPS fix */}
       {displayDevices.map(device => (
         <Marker
           key={device.id}

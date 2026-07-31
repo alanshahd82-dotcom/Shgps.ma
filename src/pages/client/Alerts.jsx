@@ -22,8 +22,11 @@ function timeAgo(iso, lang) {
 }
 
 export default function Alerts() {
-  const { alertsList, markAlertRead, markAllAlertsRead, lang } = useApp()
-  const myAlerts = alertsList.filter(a => a.clientId === 'c1')
+  const { alertsList, clientAuth, markAlertRead, markAllAlertsRead, lang } = useApp()
+  // Show all alerts for the current user (was hardcoded to 'c1' which caused empty list for real users)
+  const myAlerts = clientAuth
+    ? alertsList.filter(a => !a.clientId || String(a.clientId) === String(clientAuth.id) || a.userId === clientAuth.id)
+    : alertsList
   const unread = myAlerts.filter(a => !a.read).length
 
   return (

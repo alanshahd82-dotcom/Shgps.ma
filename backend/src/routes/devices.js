@@ -14,8 +14,19 @@ import { Router } from 'express'
       let pm = {}
       try { for (const p of await traccar.getAllPositions()) pm[p.deviceId]=p } catch {}
 
+      // Load active geofences from local DB for all devices
+      let geofenceMap = {}
+      try {
+        const { rows: gRows } = await db.query(
+          'SELECT device_id, id, name FROM local_geofences WHERE device_id = ANY($1::int[])',
+          [rows.map(d => d.id)]
+        )
+        for (const g of gRows) geofenceMap[g.device_id] = g
+      } catch {}
+
       res.json(rows.map(d => {
         const p = pm[d.traccar_id]
+        const localGeo = geofenceMap[d.id] || null
         return {
           id:d.id, name:d.name, imei:d.imei, type:d.type, plate:d.plate,
           clientId:d.user_id, clientName:d.client_name??null,
@@ -28,6 +39,10 @@ import { Router } from 'express'
           battery:   p?.attributes?.battery  ?? null,
           signal:    p?.attributes?.rssi     ?? null,
           fuel:      p?.attributes?.fuel     ?? null,
+          // Geofence state from local DB
+          geofenceActive:   !!localGeo,
+          activeGeofenceId: localGeo?.id ?? null,
+          geofence: localGeo ? { id: localGeo.id, name: localGeo.name } : null,
         }
       }))
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
@@ -59,6 +74,7 @@ import { Router } from 'express'
           id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
           clientId: d.user_id, status: 'offline', lat: 0, lng: 0, speed: 0,
           lastUpdate: null, engineOn: false, battery: null, signal: null, fuel: null,
+          geofenceActive: false, activeGeofenceId: null, geofence: null,
         })
       } catch (err) {
         if (err.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
@@ -74,7 +90,23 @@ import { Router } from 'express'
       if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error:'Access denied' })
       let history = []
       try { history = await traccar.getHistory(dev.traccar_id) } catch {}
-      res.json({ ...dev, history })
+
+      // Load geofence state from local DB
+      let localGeo = null
+      try {
+        const { rows: gRows } = await db.query(
+          'SELECT id, name FROM local_geofences WHERE device_id=$1 LIMIT 1',
+          [dev.id]
+        )
+        localGeo = gRows[0] || null
+      } catch {}
+
+      res.json({
+        ...dev, history,
+        geofenceActive:   !!localGeo,
+        activeGeofenceId: localGeo?.id ?? null,
+        geofence: localGeo ? { id: localGeo.id, name: localGeo.name } : null,
+      })
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
     })
 
@@ -89,7 +121,7 @@ import { Router } from 'express'
     } catch (err) { console.error(err); res.status(500).json({ error:'Failed to send command' }) }
     })
 
-    // POST /:id/geofence — ينشئ سياجاً جغرافياً ويربطه بالجهاز
+    // POST /:id/geofence — ينشئ سياجاً جغرافياً ويخزّنه محلياً وفي Traccar (إن أمكن)
     devicesRouter.post('/:id/geofence', requireAuth, async (req, res) => {
       try {
         const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
@@ -98,17 +130,48 @@ import { Router } from 'express'
         if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
 
         const { name, latitude, longitude, radius } = req.body
-        if (!latitude || !longitude || !radius) return res.status(400).json({ error: 'latitude, longitude and radius are required' })
+        if (!latitude || !longitude || !radius) {
+          return res.status(400).json({ error: 'latitude, longitude and radius are required' })
+        }
 
         const geofenceName = name || `Geofence-${dev.name}`
-        const geofence = await traccar.createGeofence(geofenceName, latitude, longitude, radius)
-        await traccar.linkGeofenceToDevice(dev.traccar_id, geofence.id)
 
-        res.json({ success: true, geofence })
-      } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to create geofence' }) }
+        // حذف أي سياج سابق لهذا الجهاز
+        await db.query('DELETE FROM local_geofences WHERE device_id=$1', [dev.id])
+
+        // حفظ السياج في قاعدة البيانات المحلية (fallback دائم)
+        const coords = JSON.stringify({ lat: latitude, lng: longitude })
+        const { rows: gRows } = await db.query(
+          `INSERT INTO local_geofences (user_id, device_id, name, type, coords, radius)
+           VALUES ($1, $2, $3, 'circle', $4, $5) RETURNING *`,
+          [req.user.id, dev.id, geofenceName, coords, radius]
+        )
+        const localGeofence = gRows[0]
+
+        // محاولة المزامنة مع Traccar (اختيارية — لا تُفشل الطلب عند فشلها)
+        let traccarGeofence = null
+        try {
+          traccarGeofence = await traccar.createGeofence(geofenceName, latitude, longitude, radius)
+          await traccar.linkGeofenceToDevice(dev.traccar_id, traccarGeofence.id)
+        } catch (e) {
+          console.warn('[Geofence] Traccar sync skipped:', e.message)
+        }
+
+        res.json({
+          success: true,
+          geofence: {
+            id:   localGeofence.id,
+            name: localGeofence.name,
+            traccarId: traccarGeofence?.id ?? null,
+          },
+        })
+      } catch (err) {
+        console.error(err)
+        res.status(500).json({ error: 'Failed to create geofence' })
+      }
     })
 
-    // DELETE /:id/geofence — يحذف السياج الجغرافي ويفك ربطه بالجهاز
+    // DELETE /:id/geofence — يحذف السياج الجغرافي من المحلي ومن Traccar (إن أمكن)
     devicesRouter.delete('/:id/geofence', requireAuth, async (req, res) => {
       try {
         const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
@@ -116,12 +179,23 @@ import { Router } from 'express'
         if (!dev) return res.status(404).json({ error: 'Device not found' })
         if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
 
-        const { geofenceId } = req.body
-        if (!geofenceId) return res.status(400).json({ error: 'geofenceId is required' })
+        // حذف من قاعدة البيانات المحلية
+        await db.query('DELETE FROM local_geofences WHERE device_id=$1', [dev.id])
 
-        await traccar.unlinkGeofenceFromDevice(dev.traccar_id, geofenceId)
-        await traccar.deleteGeofence(geofenceId)
+        // محاولة حذف من Traccar (اختيارية)
+        const { geofenceId } = req.body
+        if (geofenceId) {
+          try {
+            await traccar.unlinkGeofenceFromDevice(dev.traccar_id, geofenceId)
+            await traccar.deleteGeofence(geofenceId)
+          } catch (e) {
+            console.warn('[Geofence] Traccar delete skipped:', e.message)
+          }
+        }
 
         res.json({ success: true })
-      } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to delete geofence' }) }
+      } catch (err) {
+        console.error(err)
+        res.status(500).json({ error: 'Failed to delete geofence' })
+      }
     })

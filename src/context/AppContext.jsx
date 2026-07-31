@@ -180,13 +180,21 @@ export function AppProvider({ children }) {
 
   const saveGeofence = async (deviceId, data) => {
     const result = await api.devices.setGeofence(deviceId, data)
-    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, geofence: result } : d))
+    setDevices(prev => prev.map(d =>
+      d.id === deviceId
+        ? { ...d, geofence: result, geofenceActive: true, activeGeofenceId: result?.geofence?.id ?? result?.id ?? null }
+        : d
+    ))
     return result
   }
 
   const removeGeofence = async (deviceId, geofenceId) => {
     await api.devices.removeGeofence(deviceId, geofenceId)
-    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, geofence: null } : d))
+    setDevices(prev => prev.map(d =>
+      d.id === deviceId
+        ? { ...d, geofence: null, geofenceActive: false, activeGeofenceId: null }
+        : d
+    ))
   }
 
   const getClientDevices = (clientId) => devices.filter(d => d.clientId === clientId || d.user_id === clientId)

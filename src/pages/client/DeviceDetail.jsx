@@ -85,7 +85,8 @@ export default function DeviceDetail() {
   }
 
   const isOnline = device.status === 'online'
-  const geofenceActive = !!device.geofenceActive
+  // geofenceActive is tracked via device.geofence (set by AppContext.saveGeofence)
+  const geofenceActive = !!(device.geofence || device.geofenceActive)
 
   const handleEngineToggle = () => {
     toggleEngine(device.id)
@@ -105,8 +106,9 @@ export default function DeviceDetail() {
     setGeofenceLoading(true)
     try {
       if (geofenceActive) {
-        // إلغاء السياج الجغرافي
-        await removeGeofence(device.id, device.activeGeofenceId)
+        // إلغاء السياج الجغرافي — استخدم ID المخزّن في geofence أو geofenceActive
+        const geoId = device.geofence?.geofence?.id ?? device.geofence?.id ?? device.activeGeofenceId
+        await removeGeofence(device.id, geoId)
       } else {
         // تفعيل السياج الجغرافي
         const center = geofenceCenter || [device.lat, device.lng]
@@ -238,7 +240,7 @@ export default function DeviceDetail() {
                   </div>
                   <div className="w-px h-10 bg-gray-200" />
                   <div className="text-center">
-                    <p className="text-sm font-bold text-primary-500">{(device.totalDistance / 1000).toFixed(1)}</p>
+                    <p className="text-sm font-bold text-primary-500">{((device.totalDistance ?? 0) / 1000).toFixed(1)}</p>
                     <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'ألف كم' : 'Mille km'}</p>
                   </div>
                 </div>
@@ -249,12 +251,12 @@ export default function DeviceDetail() {
           {/* TRIPS TAB */}
           {activeTab === 'trips' && (
             <div className="h-full overflow-y-auto mobile-scroll pb-20 p-4 space-y-3">
-              {device.trips.length === 0 ? (
+              {(device.trips?.length ?? 0) === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-slate-400">
                   <Navigation size={32} className="mb-2 opacity-30" />
                   <p className="text-sm">{t(lang, 'noData')}</p>
                 </div>
-              ) : device.trips.map((trip, i) => (
+              ) : (device.trips || []).map((trip, i) => (
                 <motion.div
                   key={trip.id}
                   className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
