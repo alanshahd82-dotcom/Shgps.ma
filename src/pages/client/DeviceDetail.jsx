@@ -88,11 +88,16 @@ export default function DeviceDetail() {
   // geofenceActive is tracked via device.geofence (set by AppContext.saveGeofence)
   const geofenceActive = !!(device.geofence || device.geofenceActive)
 
-  const handleEngineToggle = () => {
-    toggleEngine(device.id)
+  const handleEngineToggle = async () => {
+    const wasOn = device.engineOn
     setShowEngineModal(false)
-    setEngineSuccess(device.engineOn ? t(lang, 'engineCutSuccess') : t(lang, 'engineStartSuccess'))
-    setTimeout(() => setEngineSuccess(null), 3000)
+    try {
+      await toggleEngine(device.id, wasOn)
+      setEngineSuccess(wasOn ? t(lang, 'engineCutSuccess') : t(lang, 'engineStartSuccess'))
+    } catch {
+      setEngineSuccess(lang === 'ar' ? 'فشل إرسال الأمر. حاول مجدداً.' : 'Échec de la commande. Réessayez.')
+    }
+    setTimeout(() => setEngineSuccess(null), 3500)
   }
 
   const handleMapClick = (e) => {

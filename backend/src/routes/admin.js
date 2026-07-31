@@ -84,3 +84,38 @@ adminRouter.post('/traccar-sync', requireAuth, requireAdmin, async (_req, res) =
     res.status(500).json({ error: 'Sync failed: ' + err.message })
   }
 })
+
+// GET /api/admin/monthly-stats — real monthly clients & devices registered per month (last 6 months)
+adminRouter.get('/monthly-stats', requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const { rows } = await db.query(`
+      WITH months AS (
+        SELECT generate_series(
+          date_trunc('month', NOW() - INTERVAL '5 months'),
+          date_trunc('month', NOW()),
+          '1 month'::interval
+        ) AS m
+      )
+      SELECT
+        to_char(m.m, 'MM/YYYY') AS month,
+        COALESCE(c.clients, 0)  AS clients,
+        COALESCE(d.devices, 0)  AS devices
+      FROM months m
+      LEFT JOIN (
+        SELECT date_trunc('month', created_at) AS mo, COUNT(*)::int AS clients
+        FROM users WHERE is_admin = false
+        GROUP BY mo
+      ) c ON c.mo = m.m
+      LEFT JOIN (
+        SELECT date_trunc('month', created_at) AS mo, COUNT(*)::int AS devices
+        FROM devices
+        GROUP BY mo
+      ) d ON d.mo = m.m
+      ORDER BY m.m
+    `)
+    res.json(rows)
+  } catch (err) {
+    console.error('[admin/monthly-stats]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})

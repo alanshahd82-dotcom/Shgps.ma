@@ -437,6 +437,3 @@ export const deviceStatusData = [
   { name: 'غير متصل', value: 4, color: '#94A3B8' },
 ]
 
-// Demo credentials
-export const DEMO_CLIENT = { email: 'demo@athargps.com', password: '123456' }
-export const DEMO_ADMIN = { email: 'admin@athargps.com', password: 'admin123' }

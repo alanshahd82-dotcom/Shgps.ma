@@ -96,16 +96,7 @@ export default function MapView({
       ? [displayDevices[0].lat, displayDevices[0].lng]
       : [33.5731, -7.5898]
 
-  // Simulated trip route for device detail
-  const tripRoute =
-    primaryHasCoords
-      ? [
-          [primaryDevice.lat + 0.02, primaryDevice.lng - 0.01],
-          [primaryDevice.lat + 0.015, primaryDevice.lng + 0.005],
-          [primaryDevice.lat + 0.005, primaryDevice.lng + 0.01],
-          [primaryDevice.lat, primaryDevice.lng],
-        ]
-      : []
+
 
   const formatTime = (iso) => {
     if (!iso) return ''
@@ -131,13 +122,7 @@ export default function MapView({
 
       {primaryHasCoords && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
 
-      {/* Trip route line */}
-      {primaryHasCoords && tripRoute.length > 0 && (
-        <Polyline
-          positions={tripRoute}
-          pathOptions={{ color: '#00D97E', weight: 3, opacity: 0.7, dashArray: '8,4' }}
-        />
-      )}
+
 
       {/* Geofence circle */}
       {showGeofence && geofenceCenter && (

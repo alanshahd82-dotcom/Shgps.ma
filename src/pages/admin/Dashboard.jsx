@@ -8,7 +8,6 @@ import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
-import { revenueData } from '../../data/mockData'
 
 // Animated count-up hook
 function useCountUp(target, duration = 1200) {
@@ -87,8 +86,9 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { devices, clientList, alertsList, lang } = useApp()
-  const [liveStats, setLiveStats]   = useState(null)
-  const [loadingStats, setLoading]  = useState(false)
+  const [liveStats, setLiveStats]     = useState(null)
+  const [loadingStats, setLoading]   = useState(false)
+  const [monthlyData, setMonthlyData] = useState([])
 
   // Fetch live stats from backend
   useEffect(() => {
@@ -97,6 +97,9 @@ export default function Dashboard() {
       .then(s => setLiveStats(s))
       .catch(() => {})
       .finally(() => setLoading(false))
+    api.admin.monthlyStats()
+      .then(d => setMonthlyData(d))
+      .catch(() => {})
     const id = setInterval(() => {
       api.admin.stats().then(s => setLiveStats(s)).catch(() => {})
     }, 30000)
@@ -149,31 +152,39 @@ export default function Dashboard() {
 
         {/* Charts + map */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Revenue chart */}
+          {/* Monthly clients + devices chart (real data) */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-primary-500">{t(lang, 'revenueChart')}</h3>
+              <h3 className="font-bold text-primary-500">
+                {lang === 'ar' ? 'نمو العملاء والأجهزة' : 'Croissance clients & appareils'}
+              </h3>
             </div>
             <div className="p-4">
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={revenueData}>
-                  <defs>
-                    <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#0F2044" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#0F2044" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#00D97E" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#00D97E" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="revenue" stroke="#0F2044" strokeWidth={2} fill="url(#revenueGrad)" name="revenue" dot={false} />
-                  <Area type="monotone" dataKey="devices" stroke="#00D97E" strokeWidth={2} fill="url(#devGrad)" name="devices" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
+              {monthlyData.length === 0 ? (
+                <div className="flex items-center justify-center h-[200px] text-slate-400 text-xs">
+                  {lang === 'ar' ? 'لا توجد بيانات كافية بعد' : 'Pas encore assez de données'}
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={monthlyData}>
+                    <defs>
+                      <linearGradient id="clientGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#0F2044" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#0F2044" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#00D97E" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#00D97E" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} allowDecimals={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="clients" stroke="#0F2044" strokeWidth={2} fill="url(#clientGrad)" name="clients" dot={false} />
+                    <Area type="monotone" dataKey="devices" stroke="#00D97E" strokeWidth={2} fill="url(#devGrad)" name="devices" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 

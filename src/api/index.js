@@ -62,8 +62,9 @@ export const api = {
     },
   },
   admin: {
-    stats:       () => apiFetch('/admin/stats'),
-    traccarSync: () => apiFetch('/admin/traccar-sync', { method: 'POST' }),
+    stats:        () => apiFetch('/admin/stats'),
+    monthlyStats: () => apiFetch('/admin/monthly-stats'),
+    traccarSync:  () => apiFetch('/admin/traccar-sync', { method: 'POST' }),
   },
   maintenance: {
     list:   (deviceId) => apiFetch(`/maintenance?deviceId=${deviceId}`),

@@ -174,8 +174,15 @@ export function AppProvider({ children }) {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const toggleEngine = async (deviceId, turnOff) => {
-    await api.devices.sendCommand(deviceId, turnOff ? 'engineStop' : 'engineResume')
+    // Optimistic update
     setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !turnOff } : d))
+    try {
+      await api.devices.sendCommand(deviceId, turnOff ? 'engineStop' : 'engineResume')
+    } catch (err) {
+      // Rollback on failure
+      setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !!turnOff } : d))
+      throw err
+    }
   }
 
   const saveGeofence = async (deviceId, data) => {
