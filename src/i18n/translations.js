@@ -18,7 +18,7 @@ export const translations = {
     language: 'اللغة',
     arabic: 'العربية',
     french: 'الفرنسية',
-    
+
     // Auth
     login: 'تسجيل الدخول',
     clientLogin: 'تسجيل دخول العميل',
@@ -32,19 +32,30 @@ export const translations = {
     loginBtn: 'دخول',
     demoHint: 'بيانات التجربة:',
     adminLogin: 'لوحة الأدمن',
-    
+
+    // Password change
+    forceChangeTitle: 'تغيير كلمة المرور مطلوب',
+    forceChangeSubtitle: 'يجب عليك تعيين كلمة مرور جديدة قبل المتابعة',
+    currentPassword: 'كلمة المرور الحالية',
+    newPassword: 'كلمة المرور الجديدة',
+    confirmPassword: 'تأكيد كلمة المرور',
+    weakPassword: 'كلمة المرور ضعيفة',
+    wrongCurrentPassword: 'كلمة المرور الحالية غير صحيحة',
+    passwordChanged: 'تم تغيير كلمة المرور بنجاح',
+
     // Navigation
     home: 'الرئيسية',
     devices: 'أجهزتي',
     alerts: 'التنبيهات',
-    
+    reports: 'التقارير',
+
     // Home
     welcome: 'مرحباً',
     myDevices: 'أجهزتي',
     liveMap: 'الخريطة المباشرة',
     allDevices: 'جميع الأجهزة',
     viewAll: 'عرض الكل',
-    
+
     // Device
     device: 'الجهاز',
     status: 'الحالة',
@@ -66,7 +77,7 @@ export const translations = {
     to: 'إلى',
     distance: 'المسافة',
     duration: 'المدة',
-    
+
     // Engine control
     engineControl: 'التحكم في المحرك',
     cutEngine: 'قطع المحرك',
@@ -77,7 +88,7 @@ export const translations = {
     engineStartConfirmMsg: 'هل تريد تشغيل محرك هذه المركبة عن بعد؟',
     engineCutSuccess: 'تم قطع المحرك بنجاح',
     engineStartSuccess: 'تم تشغيل المحرك بنجاح',
-    
+
     // Geofence
     geofence: 'السياج الجغرافي',
     geofenceTitle: 'تحديد المنطقة الجغرافية',
@@ -87,7 +98,7 @@ export const translations = {
     geofenceAlert: 'تنبيه: خروج من المنطقة المحددة!',
     activateGeofence: 'تفعيل السياج',
     deactivateGeofence: 'إلغاء السياج',
-    
+
     // Alerts
     alertsTitle: 'التنبيهات',
     noAlerts: 'لا توجد تنبيهات',
@@ -98,7 +109,7 @@ export const translations = {
     power_alert: 'انقطاع الطاقة',
     engine_alert: 'تنبيه المحرك',
     unread: 'غير مقروء',
-    
+
     // Settings
     settingsTitle: 'الإعدادات',
     personalInfo: 'المعلومات الشخصية',
@@ -111,7 +122,19 @@ export const translations = {
     batteryAlerts: 'تنبيهات البطارية',
     languageSelect: 'اختيار اللغة',
     appVersion: 'إصدار التطبيق',
-    
+
+    // Reports
+    reportsTitle: 'التقارير',
+    reportsSubtitle: 'تحليل رحلاتك',
+    totalDistanceLbl: 'المسافة الإجمالية',
+    movingDuration: 'وقت الحركة',
+    stoppedDuration: 'وقت التوقف',
+    avgSpeedLbl: 'متوسط السرعة',
+    maxSpeedLbl: 'أقصى سرعة',
+    tripsCount: 'عدد الرحلات',
+    exportCsv: 'تصدير CSV',
+    analyze: 'تحليل',
+
     // Admin
     adminDashboard: 'لوحة التحكم',
     totalClients: 'إجمالي العملاء',
@@ -153,7 +176,9 @@ export const translations = {
     search: 'بحث...',
     filter: 'تصفية',
     sortBy: 'ترتيب حسب',
-    
+    resetPassword: 'إعادة تعيين كلمة المرور',
+    traccarSync: 'مزامنة Traccar',
+
     // Misc
     noData: 'لا توجد بيانات',
     error: 'حدث خطأ',
@@ -168,11 +193,11 @@ export const translations = {
     liveTracking: 'تتبع مباشر',
     plate: 'لوحة الترقيم',
   },
-  
+
   fr: {
     // Common
     appName: 'AtharGPS',
-    tagline: 'Tracking GPS Professionnel',
+    tagline: 'Suivi GPS professionnel',
     loading: 'Chargement...',
     save: 'Enregistrer',
     cancel: 'Annuler',
@@ -188,44 +213,55 @@ export const translations = {
     language: 'Langue',
     arabic: 'Arabe',
     french: 'Français',
-    
+
     // Auth
     login: 'Connexion',
-    clientLogin: 'Connexion client',
+    clientLogin: 'Espace client',
     clientLoginSubtitle: 'Entrez vos identifiants pour accéder à vos appareils',
-    adminLoginSubtitle: 'Panneau d\'administration',
+    adminLoginSubtitle: 'Tableau de bord administrateur',
     invalidCredentials: 'Email ou mot de passe incorrect',
     email: 'Email',
     password: 'Mot de passe',
-    emailPlaceholder: 'exemple@email.com',
+    emailPlaceholder: 'example@email.com',
     passwordPlaceholder: '••••••••',
     loginBtn: 'Se connecter',
-    demoHint: 'Données de démonstration:',
-    adminLogin: 'Admin Panel',
-    
+    demoHint: 'Identifiants de démo :',
+    adminLogin: 'Admin',
+
+    // Password change
+    forceChangeTitle: 'Changement de mot de passe requis',
+    forceChangeSubtitle: 'Vous devez définir un nouveau mot de passe pour continuer',
+    currentPassword: 'Mot de passe actuel',
+    newPassword: 'Nouveau mot de passe',
+    confirmPassword: 'Confirmer le mot de passe',
+    weakPassword: 'Mot de passe trop faible',
+    wrongCurrentPassword: 'Mot de passe actuel incorrect',
+    passwordChanged: 'Mot de passe modifié avec succès',
+
     // Navigation
     home: 'Accueil',
     devices: 'Mes appareils',
     alerts: 'Alertes',
-    
+    reports: 'Rapports',
+
     // Home
-    welcome: 'Bienvenue',
+    welcome: 'Bonjour',
     myDevices: 'Mes appareils',
     liveMap: 'Carte en direct',
     allDevices: 'Tous les appareils',
     viewAll: 'Voir tout',
-    
+
     // Device
     device: 'Appareil',
     status: 'Statut',
-    online: 'Connecté',
-    offline: 'Déconnecté',
+    online: 'En ligne',
+    offline: 'Hors ligne',
     speed: 'Vitesse',
     battery: 'Batterie',
     signal: 'Signal',
     lastUpdate: 'Dernière mise à jour',
-    engineOn: 'Moteur ON',
-    engineOff: 'Moteur OFF',
+    engineOn: 'Moteur allumé',
+    engineOff: 'Moteur éteint',
     fuel: 'Carburant',
     totalDistance: 'Distance totale',
     km: 'km',
@@ -236,28 +272,28 @@ export const translations = {
     to: 'À',
     distance: 'Distance',
     duration: 'Durée',
-    
+
     // Engine control
     engineControl: 'Contrôle moteur',
     cutEngine: 'Couper le moteur',
     startEngine: 'Démarrer le moteur',
-    engineCutConfirmTitle: 'Confirmer la coupure',
-    engineCutConfirmMsg: 'Voulez-vous vraiment couper le moteur de ce véhicule à distance ? Le moteur s\'arrêtera immédiatement.',
-    engineStartConfirmTitle: 'Confirmer le démarrage',
+    engineCutConfirmTitle: 'Confirmer la coupure moteur',
+    engineCutConfirmMsg: 'Êtes-vous sûr de vouloir couper le moteur de ce véhicule à distance ?',
+    engineStartConfirmTitle: 'Confirmer le démarrage moteur',
     engineStartConfirmMsg: 'Voulez-vous démarrer le moteur de ce véhicule à distance ?',
     engineCutSuccess: 'Moteur coupé avec succès',
     engineStartSuccess: 'Moteur démarré avec succès',
-    
+
     // Geofence
     geofence: 'Géofence',
     geofenceTitle: 'Définir la zone géographique',
     geofenceDesc: 'Cliquez sur la carte pour définir le centre de la zone',
     geofenceRadius: 'Rayon de la zone',
-    geofenceActive: 'Géofence actif',
-    geofenceAlert: 'Alerte: Sortie de la zone définie!',
-    activateGeofence: 'Activer le géofence',
-    deactivateGeofence: 'Désactiver le géofence',
-    
+    geofenceActive: 'Géofence active',
+    geofenceAlert: 'Alerte : sortie de la zone définie !',
+    activateGeofence: 'Activer la géofence',
+    deactivateGeofence: 'Désactiver la géofence',
+
     // Alerts
     alertsTitle: 'Alertes',
     noAlerts: 'Aucune alerte',
@@ -265,10 +301,10 @@ export const translations = {
     speed_alert: 'Excès de vitesse',
     geofence_alert: 'Sortie de zone',
     battery_alert: 'Batterie faible',
-    power_alert: 'Coupure d\'alimentation',
+    power_alert: 'Coupure de courant',
     engine_alert: 'Alerte moteur',
     unread: 'Non lu',
-    
+
     // Settings
     settingsTitle: 'Paramètres',
     personalInfo: 'Informations personnelles',
@@ -280,14 +316,26 @@ export const translations = {
     geofenceAlerts: 'Alertes de géofence',
     batteryAlerts: 'Alertes de batterie',
     languageSelect: 'Choisir la langue',
-    appVersion: 'Version de l\'app',
-    
+    appVersion: 'Version de l\'application',
+
+    // Reports
+    reportsTitle: 'Rapports',
+    reportsSubtitle: 'Analyse de vos trajets',
+    totalDistanceLbl: 'Distance totale',
+    movingDuration: 'Temps de mouvement',
+    stoppedDuration: 'Temps à l\'arrêt',
+    avgSpeedLbl: 'Vitesse moyenne',
+    maxSpeedLbl: 'Vitesse max',
+    tripsCount: 'Nombre de trajets',
+    exportCsv: 'Exporter CSV',
+    analyze: 'Analyser',
+
     // Admin
     adminDashboard: 'Tableau de bord',
     totalClients: 'Total clients',
     totalDevices: 'Total appareils',
     onlineDevices: 'Appareils connectés',
-    offlineDevices: 'Appareils déconnectés',
+    offlineDevices: 'Appareils hors ligne',
     todayAlerts: "Alertes aujourd'hui",
     monthlyRevenue: 'Revenus mensuels',
     clientsList: 'Liste des clients',
@@ -323,7 +371,9 @@ export const translations = {
     search: 'Rechercher...',
     filter: 'Filtrer',
     sortBy: 'Trier par',
-    
+    resetPassword: 'Réinitialiser le mot de passe',
+    traccarSync: 'Sync Traccar',
+
     // Misc
     noData: 'Aucune donnée',
     error: 'Une erreur est survenue',
@@ -331,7 +381,7 @@ export const translations = {
     ago: 'il y a',
     minutes: 'minutes',
     hours: 'heures',
-    just_now: 'À l\'instant',
+    just_now: "À l'instant",
     drh: 'DH',
     active: 'Actif',
     inactive: 'Inactif',

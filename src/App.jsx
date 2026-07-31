@@ -11,6 +11,7 @@ import DeviceList from './pages/client/DeviceList'
 import DeviceDetail from './pages/client/DeviceDetail'
 import Alerts from './pages/client/Alerts'
 import Settings from './pages/client/Settings'
+import Reports from './pages/client/Reports'
 import AdminLogin from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/Dashboard'
 import Clients from './pages/admin/Clients'
@@ -21,14 +22,9 @@ import AdminAlerts from './pages/admin/AdminAlerts'
 import DeviceSetup from './pages/admin/DeviceSetup'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   ROUTE GUARDS — double-layer security:
-   1. Context state (clientAuth / adminAuth) loaded from localStorage on mount.
-   2. Direct localStorage check as a second guard in case context is stale.
-   Any unauthenticated access to /client/* or /admin/* is blocked immediately.
+   ROUTE GUARDS
 ───────────────────────────────────────────────────────────────────────────── */
 
-/** Returns true only when BOTH the context token AND localStorage agree the
- *  client session is active. */
 function isClientAuthenticated(clientAuth) {
   if (!clientAuth) return false
   try {
@@ -39,8 +35,6 @@ function isClientAuthenticated(clientAuth) {
   }
 }
 
-/** Returns true only when BOTH the context token AND localStorage agree the
- *  admin session is active. */
 function isAdminAuthenticated(adminAuth) {
   if (!adminAuth) return false
   try {
@@ -54,9 +48,7 @@ function isAdminAuthenticated(adminAuth) {
 function ClientRoute({ children }) {
   const { clientAuth } = useApp()
   const location = useLocation()
-
   if (!isClientAuthenticated(clientAuth)) {
-    // Strip any residual state and redirect to login
     return <Navigate to="/client/login" state={{ from: location }} replace />
   }
   return children
@@ -65,15 +57,12 @@ function ClientRoute({ children }) {
 function AdminRoute({ children }) {
   const { adminAuth } = useApp()
   const location = useLocation()
-
   if (!isAdminAuthenticated(adminAuth)) {
-    // Redirect to admin login — never expose the dashboard
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
   return children
 }
 
-// Client app splash entry — always proceeds to login
 function ClientSplash() {
   const navigate = useNavigate()
   useEffect(() => {
@@ -85,8 +74,6 @@ function ClientSplash() {
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ROUTER
-   IMPORTANT: The root path "/" MUST always render <LandingPage />.
-   Do NOT change this mapping.
 ───────────────────────────────────────────────────────────────────────────── */
 export default function App() {
   return (
@@ -100,17 +87,16 @@ export default function App() {
           <Route path="/client"        element={<ClientSplash />} />
           <Route path="/client/login"  element={<ClientLogin />} />
 
-          {/* Protected client pages — redirect to /client/login if not auth */}
           <Route path="/client/home"      element={<ClientRoute><ClientHome /></ClientRoute>} />
           <Route path="/client/devices"   element={<ClientRoute><DeviceList /></ClientRoute>} />
           <Route path="/client/device/:id" element={<ClientRoute><DeviceDetail /></ClientRoute>} />
           <Route path="/client/alerts"    element={<ClientRoute><Alerts /></ClientRoute>} />
           <Route path="/client/settings"  element={<ClientRoute><Settings /></ClientRoute>} />
+          <Route path="/client/reports"   element={<ClientRoute><Reports /></ClientRoute>} />
 
           {/* ── Admin app ──────────────────────────────────────────────── */}
           <Route path="/admin/login" element={<AdminLogin />} />
 
-          {/* Protected admin pages — redirect to /admin/login if not auth */}
           <Route path="/admin/dashboard"    element={<AdminRoute><Dashboard /></AdminRoute>} />
           <Route path="/admin/clients"      element={<AdminRoute><Clients /></AdminRoute>} />
           <Route path="/admin/clients/:id"  element={<AdminRoute><ClientDetail /></AdminRoute>} />

@@ -7,11 +7,12 @@ import {
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import Logo from '../../components/Logo'
+import ForcePasswordModal from '../../components/ForcePasswordModal'
 
 export default function AdminLayout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { adminAuth, logoutAdmin, lang, setLang, unreadCount, alertsList } = useApp()
+  const { adminAuth, logoutAdmin, lang, setLang, alertsList, mustChangePassword, clearMustChange } = useApp()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const allUnread = alertsList.filter(a => !a.read).length
@@ -32,7 +33,6 @@ export default function AdminLayout({ children }) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Logo */}
       <div className="p-6 border-b border-slate-100">
         <Logo size="md" />
         <div className="mt-3 flex items-center gap-2 bg-primary-50 rounded-xl px-3 py-2">
@@ -47,7 +47,6 @@ export default function AdminLayout({ children }) {
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map(item => {
           const Icon = item.icon
@@ -72,9 +71,7 @@ export default function AdminLayout({ children }) {
         })}
       </nav>
 
-      {/* Bottom */}
       <div className="p-4 border-t border-slate-100 space-y-1">
-        {/* Language */}
         <div className="flex items-center gap-2 px-4 py-2">
           <Globe size={16} className="text-slate-400" />
           <div className="flex gap-1 flex-1">
@@ -104,6 +101,11 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      {/* Force password change modal */}
+      {mustChangePassword && (
+        <ForcePasswordModal lang={lang} onSuccess={clearMustChange} />
+      )}
+
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-100 flex-shrink-0 shadow-sm">
         <SidebarContent />
@@ -141,7 +143,6 @@ export default function AdminLayout({ children }) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile top bar */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -163,7 +164,6 @@ export default function AdminLayout({ children }) {
           </button>
         </div>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto">
           <motion.div
             key={location.pathname}

@@ -1,7 +1,11 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Battery, Signal, Wifi, WifiOff, Plus, X, AlertCircle } from 'lucide-react'
+import {
+  Search, Battery, Wifi, WifiOff, Plus, X, AlertCircle,
+  RefreshCw, CheckCircle2, AlertTriangle
+} from 'lucide-react'
 import { useApp } from '../../context/AppContext'
+import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 
@@ -39,19 +43,13 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
     <AnimatePresence>
       {open && (
         <>
-          <motion.div
-            className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={handleClose}
-          />
+          <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} />
           <motion.div
             className="fixed inset-x-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[500px] z-50"
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
           >
             <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-              {/* Header */}
               <div className="bg-primary-500 px-6 py-4 flex items-center justify-between">
                 <h3 className="font-bold text-white text-lg">
                   {lang === 'ar' ? 'إضافة جهاز جديد' : 'Ajouter un appareil'}
@@ -60,111 +58,58 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
                   <X size={16} className="text-white" />
                 </button>
               </div>
-
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                {/* Error */}
                 {error && (
                   <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
-                    <AlertCircle size={15} />
-                    <span>{error}</span>
+                    <AlertCircle size={15} /><span>{error}</span>
                   </div>
                 )}
-
-                {/* Name */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">
-                    {lang === 'ar' ? 'اسم الجهاز' : 'Nom de l\'appareil'} *
+                    {lang === 'ar' ? 'اسم الجهاز' : "Nom de l'appareil"} *
                   </label>
-                  <input
-                    className="input-field text-sm"
-                    placeholder={lang === 'ar' ? 'مثال: سيارة أحمد' : 'Ex: Voiture Ahmed'}
-                    value={form.name}
-                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                    required
-                  />
+                  <input className="input-field text-sm" value={form.name}
+                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
                 </div>
-
-                {/* IMEI */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">
-                    IMEI <span className="text-slate-400 font-normal">(15 {lang === 'ar' ? 'رقماً' : 'chiffres'})</span> *
-                  </label>
-                  <input
-                    className={`input-field text-sm font-mono ${form.imei && !imeiValid ? 'border-red-300 bg-red-50' : form.imei && imeiValid ? 'border-emerald-300' : ''}`}
-                    placeholder="123456789012345"
-                    value={form.imei}
-                    maxLength={15}
-                    onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '') }))}
-                    required
-                  />
-                  {form.imei && (
-                    <p className={`text-[11px] mt-1 ${imeiValid ? 'text-emerald-500' : 'text-red-400'}`}>
-                      {form.imei.length}/15 {imeiValid ? '✓' : ''}
-                    </p>
-                  )}
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">IMEI (15 {lang === 'ar' ? 'رقم' : 'chiffres'}) *</label>
+                  <input className={`input-field text-sm font-mono ${form.imei && !imeiValid ? 'border-red-300' : ''}`}
+                    maxLength={15} value={form.imei}
+                    onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '') }))} required />
                 </div>
-
-                {/* Type + Plate */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
-                      {lang === 'ar' ? 'نوع المركبة' : 'Type de véhicule'}
-                    </label>
-                    <select
-                      className="input-field text-sm"
-                      value={form.type}
-                      onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
-                    >
-                      <option value="car">{lang === 'ar' ? '🚗 سيارة' : '🚗 Voiture'}</option>
-                      <option value="bike">{lang === 'ar' ? '🏍️ دراجة' : '🏍️ Moto'}</option>
-                      <option value="truck">{lang === 'ar' ? '🚚 شاحنة' : '🚚 Camion'}</option>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'النوع' : 'Type'}</label>
+                    <select className="input-field text-sm" value={form.type}
+                      onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+                      <option value="car">{lang === 'ar' ? 'سيارة' : 'Voiture'}</option>
+                      <option value="bike">{lang === 'ar' ? 'دراجة' : 'Moto'}</option>
+                      <option value="truck">{lang === 'ar' ? 'شاحنة' : 'Camion'}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
-                      {lang === 'ar' ? 'رقم اللوحة' : 'Immatriculation'}
-                    </label>
-                    <input
-                      className="input-field text-sm font-mono uppercase"
-                      placeholder={lang === 'ar' ? 'أ ب 1234' : 'AB-1234'}
-                      value={form.plate}
-                      onChange={e => setForm(p => ({ ...p, plate: e.target.value.toUpperCase() }))}
-                    />
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
+                    <input className="input-field text-sm" value={form.plate}
+                      onChange={e => setForm(p => ({ ...p, plate: e.target.value }))} />
                   </div>
                 </div>
-
-                {/* Client */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">
                     {lang === 'ar' ? 'تعيين للعميل' : 'Assigner au client'}
-                    <span className="text-slate-400 font-normal ml-1">({lang === 'ar' ? 'اختياري' : 'optionnel'})</span>
                   </label>
-                  <select
-                    className="input-field text-sm"
-                    value={form.clientId}
-                    onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}
-                  >
+                  <select className="input-field text-sm" value={form.clientId}
+                    onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}>
                     <option value="">{lang === 'ar' ? '— بدون عميل —' : '— Sans client —'}</option>
                     {clientList.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>
-
-                {/* Buttons */}
                 <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">
-                    {t(lang, 'cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading || !imeiValid}
-                    className="flex-1 btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading
-                      ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...')
-                      : (lang === 'ar' ? 'إضافة الجهاز' : 'Ajouter')
-                    }
+                  <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
+                  <button type="submit" disabled={loading || !form.name || !imeiValid}
+                    className="flex-1 btn-primary py-3 disabled:opacity-50">
+                    {loading ? '...' : t(lang, 'add')}
                   </button>
                 </div>
               </form>
@@ -176,175 +121,217 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
   )
 }
 
+function SyncResultModal({ open, onClose, result, lang }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+          <motion.div
+            className="fixed inset-x-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[460px] z-50"
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+          >
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+              <div className="bg-teal-600 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw size={18} className="text-white" />
+                  <h3 className="font-bold text-white">
+                    {lang === 'ar' ? 'نتيجة المزامنة' : 'Résultat de la synchronisation'}
+                  </h3>
+                </div>
+                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                  <X size={16} className="text-white" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-black text-emerald-600">{result?.synced ?? 0}</p>
+                    <p className="text-xs text-emerald-500 font-semibold mt-1">
+                      {lang === 'ar' ? 'متزامن' : 'Synchronisé'}
+                    </p>
+                  </div>
+                  <div className="bg-orange-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-black text-orange-600">{result?.notInLocal?.length ?? 0}</p>
+                    <p className="text-xs text-orange-500 font-semibold mt-1">
+                      {lang === 'ar' ? 'في Traccar فقط' : 'Traccar uniquement'}
+                    </p>
+                  </div>
+                </div>
+                {result?.notInLocal?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 mb-2">
+                      {lang === 'ar' ? 'أجهزة في Traccar بدون مقابل في النظام:' : 'Appareils Traccar sans correspondance locale:'}
+                    </p>
+                    <div className="bg-orange-50 rounded-xl p-3 max-h-40 overflow-y-auto space-y-1">
+                      {result.notInLocal.map((d, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <AlertTriangle size={11} className="text-orange-400 flex-shrink-0" />
+                          <span className="text-orange-700 font-mono">{d.uniqueId}</span>
+                          <span className="text-orange-500">— {d.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {result?.notInTraccar?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 mb-2">
+                      {lang === 'ar' ? 'أجهزة في النظام بدون مقابل في Traccar:' : 'Appareils locaux sans correspondance Traccar:'}
+                    </p>
+                    <div className="bg-slate-50 rounded-xl p-3 max-h-40 overflow-y-auto space-y-1">
+                      {result.notInTraccar.map((d, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <AlertCircle size={11} className="text-slate-400 flex-shrink-0" />
+                          <span className="text-slate-600 font-mono">{d.imei}</span>
+                          <span className="text-slate-400">— {d.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {result?.notInLocal?.length === 0 && result?.notInTraccar?.length === 0 && (
+                  <div className="flex items-center justify-center gap-2 py-4 text-emerald-600">
+                    <CheckCircle2 size={24} />
+                    <span className="font-semibold">{lang === 'ar' ? 'كل شيء متزامن!' : 'Tout est synchronisé!'}</span>
+                  </div>
+                )}
+                <button onClick={onClose} className="w-full btn-primary py-3">{t(lang, 'close')}</button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export default function AllDevices() {
   const { devices, clientList, addDeviceDirect, lang } = useApp()
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [showAdd, setShowAdd] = useState(false)
+  const [search, setSearch]     = useState('')
+  const [showAdd, setShowAdd]   = useState(false)
+  const [syncing, setSyncing]   = useState(false)
+  const [syncResult, setSyncResult] = useState(null)
 
-  const filtered = devices.filter(d => {
-    const matchSearch = d.name.toLowerCase().includes(search.toLowerCase()) ||
-      d.plate?.toLowerCase().includes(search.toLowerCase()) ||
-      d.imei?.includes(search)
-    const matchStatus = statusFilter === 'all' || d.status === statusFilter
-    return matchSearch && matchStatus
-  })
+  const filtered = devices.filter(d =>
+    !search ||
+    d.name?.toLowerCase().includes(search.toLowerCase()) ||
+    d.imei?.toLowerCase().includes(search.toLowerCase()) ||
+    d.plate?.toLowerCase().includes(search.toLowerCase())
+  )
 
   const getClient = (clientId) => clientList.find(c => c.id === clientId)
 
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      const result = await api.admin.traccarSync()
+      setSyncResult(result)
+    } catch (err) {
+      setSyncResult({ error: err.message })
+    } finally { setSyncing(false) }
+  }
+
   return (
     <AdminLayout>
+      <SyncResultModal
+        open={!!syncResult}
+        onClose={() => setSyncResult(null)}
+        result={syncResult}
+        lang={lang}
+      />
+
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-primary-500">{t(lang, 'allDevices')}</h1>
-            <p className="text-slate-400 text-sm mt-0.5">{devices.length} {lang === 'ar' ? 'جهاز' : 'appareils'}</p>
+            <p className="text-slate-400 text-sm mt-0.5">
+              {devices.length} {lang === 'ar' ? 'جهاز مسجّل' : 'appareil(s) enregistré(s)'}
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-2 rounded-xl">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-              {devices.filter(d => d.status === 'online').length} {lang === 'ar' ? 'متصل' : 'connectés'}
-            </span>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowAdd(true)}
-              className="btn-primary flex items-center gap-2 py-2.5"
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 bg-teal-50 text-teal-700 border border-teal-200 font-semibold px-4 py-2.5 rounded-xl hover:bg-teal-100 transition-colors text-sm disabled:opacity-50"
             >
+              <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+              {syncing
+                ? (lang === 'ar' ? 'مزامنة...' : 'Sync...')
+                : (lang === 'ar' ? 'مزامنة Traccar' : 'Sync Traccar')}
+            </button>
+            <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2 text-sm">
               <Plus size={16} />
-              {lang === 'ar' ? 'إضافة جهاز' : 'Ajouter'}
+              {t(lang, 'addDevice')}
             </button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-5">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute top-1/2 -translate-y-1/2 left-4 text-slate-400" />
-            <input
-              className="input-field pl-11 bg-white shadow-sm"
-              placeholder={t(lang, 'search')}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2">
-            {[
-              { val: 'all', label: lang === 'ar' ? 'الكل' : 'Tous' },
-              { val: 'online', label: lang === 'ar' ? 'متصل' : 'Connecté' },
-              { val: 'offline', label: lang === 'ar' ? 'غير متصل' : 'Déconnecté' },
-            ].map(f => (
-              <button
-                key={f.val}
-                onClick={() => setStatusFilter(f.val)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  statusFilter === f.val
-                    ? 'bg-primary-500 text-white shadow-md shadow-primary-200'
-                    : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-50'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-4 text-slate-400" />
+          <input className="input-field ps-10" placeholder={t(lang, 'search')}
+            value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Desktop table */}
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  {[
-                    lang === 'ar' ? 'الجهاز' : 'Appareil',
-                    lang === 'ar' ? 'العميل' : 'Client',
-                    lang === 'ar' ? 'اللوحة' : 'Immatriculation',
-                    t(lang, 'status'),
-                    t(lang, 'speed'),
-                    t(lang, 'battery'),
-                    t(lang, 'signal'),
-                    lang === 'ar' ? 'آخر تحديث' : 'Dernière MAJ',
-                  ].map(h => (
-                    <th key={h} className="text-right px-5 py-3.5 text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+              <thead className="bg-slate-50 border-b border-gray-100">
+                <tr>
+                  {[t(lang,'device'), 'IMEI', t(lang,'plate'), lang === 'ar' ? 'العميل' : 'Client',
+                    t(lang,'speed'), t(lang,'battery'), t(lang,'status'), t(lang,'lastUpdate')].map((h, i) => (
+                    <th key={i} className="px-4 py-3 text-start text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
+                {filtered.length === 0 && (
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400 text-sm">{t(lang, 'noData')}</td></tr>
+                )}
                 {filtered.map((device, i) => {
-                  const client = getClient(device.clientId)
+                  const client   = getClient(device.clientId || device.user_id)
                   const isOnline = device.status === 'online'
                   return (
-                    <motion.tr
-                      key={device.id}
-                      className="hover:bg-gray-50/50 transition-colors"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                    <motion.tr key={device.id}
+                      className="hover:bg-slate-50 transition-colors"
+                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
                     >
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${isOnline ? 'bg-primary-50' : 'bg-gray-100'}`}>
                             {device.type === 'car' ? '🚗' : device.type === 'bike' ? '🏍️' : '🚚'}
                           </div>
                           <div>
-                            <p className="font-semibold text-primary-500 text-sm">{device.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">{device.imei}</p>
+                            <p className="font-semibold text-sm text-primary-500">{device.name}</p>
+                            <p className="text-[10px] text-slate-400">{device.type}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center text-xs font-bold text-primary-500">
-                            {client?.avatar || '—'}
-                          </div>
-                          <span className="text-sm text-slate-600">{client?.name || <span className="text-slate-300 italic text-xs">{lang === 'ar' ? 'غير مسند' : 'Non assigné'}</span>}</span>
+                      <td className="px-4 py-3 text-xs font-mono text-slate-500">{device.imei || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-500">{device.plate || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-500">{client?.name || (lang === 'ar' ? 'غير مسند' : 'Non assigné')}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-primary-500">
+                        {isOnline ? `${device.speed ?? 0} km/h` : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {device.battery != null
+                          ? <span className="text-xs font-medium text-slate-600">🔋 {device.battery}%</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {isOnline
+                            ? <><Wifi size={12} className="text-emerald-500" /><span className="text-xs font-bold text-emerald-600">{t(lang, 'online')}</span></>
+                            : <><WifiOff size={12} className="text-slate-400" /><span className="text-xs text-slate-400">{t(lang, 'offline')}</span></>
+                          }
                         </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">{device.plate || '—'}</span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={`flex items-center gap-1.5 text-xs font-semibold w-fit px-2.5 py-1 rounded-full ${
-                          isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'
-                        }`}>
-                          {isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-                          {isOnline ? t(lang, 'online') : t(lang, 'offline')}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-bold text-primary-500">
-                          {isOnline ? `${device.speed} km/h` : '—'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        {device.battery != null ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${device.battery < 30 ? 'bg-red-500' : device.battery < 60 ? 'bg-orange-400' : 'bg-accent'}`}
-                                style={{ width: `${device.battery}%` }}
-                              />
-                            </div>
-                            <span className={`text-xs font-semibold ${device.battery < 30 ? 'text-red-500' : 'text-slate-500'}`}>
-                              {device.battery}%
-                            </span>
-                          </div>
-                        ) : <span className="text-slate-300 text-xs">—</span>}
-                      </td>
-                      <td className="px-5 py-4">
-                        {device.signal != null ? (
-                          <div className="flex items-center gap-0.5">
-                            {[1,2,3,4].map(bar => (
-                              <div key={bar} className="w-1.5 rounded-sm"
-                                style={{ height: 4 + bar * 3, background: bar <= device.signal ? '#0F2044' : '#E2E8F0' }}
-                              />
-                            ))}
-                          </div>
-                        ) : <span className="text-slate-300 text-xs">—</span>}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="text-xs text-slate-400">{timeAgo(device.lastUpdate, lang)}</span>
-                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">{timeAgo(device.lastUpdate, lang)}</td>
                     </motion.tr>
                   )
                 })}
@@ -352,43 +339,34 @@ export default function AllDevices() {
             </table>
           </div>
 
-          {/* Mobile cards */}
+          {/* Mobile */}
           <div className="lg:hidden divide-y divide-gray-50">
+            {filtered.length === 0 && (
+              <div className="p-8 text-center text-slate-400 text-sm">{t(lang, 'noData')}</div>
+            )}
             {filtered.map((device, i) => {
-              const client = getClient(device.clientId)
+              const client   = getClient(device.clientId || device.user_id)
               const isOnline = device.status === 'online'
               return (
-                <motion.div
-                  key={device.id}
-                  className="p-4 flex items-center gap-3"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.04 }}
-                >
+                <motion.div key={device.id} className="p-4 flex items-center gap-3"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}>
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${isOnline ? 'bg-primary-50' : 'bg-gray-100'}`}>
                     {device.type === 'car' ? '🚗' : device.type === 'bike' ? '🏍️' : '🚚'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-primary-500 text-sm truncate">{device.name}</p>
-                    <p className="text-xs text-slate-400">{client?.name || (lang === 'ar' ? 'غير مسند' : 'Non assigné')} · {device.plate || '—'}</p>
+                    <p className="text-xs text-slate-400">{client?.name || '—'} · {device.plate || '—'}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs font-medium ${isOnline ? 'text-emerald-500' : 'text-gray-400'}`}>
                         ● {isOnline ? t(lang, 'online') : t(lang, 'offline')}
                       </span>
                       {device.battery != null && <span className="text-xs text-slate-400">🔋 {device.battery}%</span>}
-                      {isOnline && <span className="text-xs text-primary-500 font-bold">{device.speed} km/h</span>}
                     </div>
                   </div>
                 </motion.div>
               )
             })}
           </div>
-
-          {filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <p className="text-sm">{t(lang, 'noData')}</p>
-            </div>
-          )}
         </div>
       </div>
 

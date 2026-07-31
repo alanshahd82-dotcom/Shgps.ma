@@ -8,12 +8,13 @@ function loadFromStorage(key) {
 }
 
 export function AppProvider({ children }) {
-  const [lang, setLang]             = useState('ar')
-  const [clientAuth, setClientAuth] = useState(() => loadFromStorage('athargps_client'))
-  const [adminAuth,  setAdminAuth]  = useState(() => loadFromStorage('athargps_admin'))
-  const [devices,    setDevices]    = useState([])
-  const [alertsList, setAlertsList] = useState([])
-  const [clientList, setClientList] = useState([])
+  const [lang, setLang]                     = useState('ar')
+  const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
+  const [adminAuth,  setAdminAuth]          = useState(() => loadFromStorage('athargps_admin'))
+  const [mustChangePassword, setMustChange] = useState(false)
+  const [devices,    setDevices]            = useState([])
+  const [alertsList, setAlertsList]         = useState([])
+  const [clientList, setClientList]         = useState([])
   const wsRef = useRef(null)
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export function AppProvider({ children }) {
     return () => closeWebSocket()
   }, []) // eslint-disable-line
 
-  // Refresh devices every 30 s (WS handles real-time; polling is a fallback)
+  // Refresh devices every 30 s
   useEffect(() => {
     if (!clientAuth && !adminAuth) return
     const id = setInterval(loadDevices, 30000)
@@ -66,7 +67,6 @@ export function AppProvider({ children }) {
       try {
         const data = JSON.parse(event.data)
 
-        // Traccar pushes { positions: [...], devices: [...] }
         if (data.positions && data.positions.length > 0) {
           setDevices(prev => {
             const updated = [...prev]
@@ -91,17 +91,13 @@ export function AppProvider({ children }) {
           })
         }
 
-        // Traccar also pushes device status changes
         if (data.devices && data.devices.length > 0) {
           setDevices(prev => {
             const updated = [...prev]
             for (const dev of data.devices) {
               const idx = updated.findIndex(d => d.traccarId === dev.id || d.traccar_id === dev.id)
               if (idx !== -1) {
-                updated[idx] = {
-                  ...updated[idx],
-                  status: dev.status === 'online' ? 'online' : 'offline',
-                }
+                updated[idx] = { ...updated[idx], status: dev.status }
               }
             }
             return updated
@@ -110,52 +106,45 @@ export function AppProvider({ children }) {
       } catch {}
     }
 
-    ws.onclose = (e) => {
-      console.log('[WS] Disconnected', e.code)
-      // Reconnect after 5 s unless we intentionally closed
-      if (e.code !== 1000) {
+    ws.onclose = () => {
+      console.log('[WS] Disconnected')
+      // Reconnect after 5s if still authenticated
+      if (localStorage.getItem('athargps_token')) {
         setTimeout(openWebSocket, 5000)
       }
     }
 
-    ws.onerror = (err) => console.error('[WS] Error:', err)
+    ws.onerror = () => ws.close()
   }
 
   function closeWebSocket() {
     if (wsRef.current) {
-      wsRef.current.close(1000, 'Logout')
+      wsRef.current.onclose = null
+      wsRef.current.close()
       wsRef.current = null
     }
   }
-  // ─────────────────────────────────────────────────────────────────────────────
 
+  // ── Auth ──────────────────────────────────────────────────────────────────
   const loginClient = async (email, password) => {
-    try {
-      const { token, user } = await api.auth.login(email, password)
-      if (user.isAdmin) throw new Error('Use admin login')
-      localStorage.setItem('athargps_token',  token)
-      localStorage.setItem('athargps_client', JSON.stringify(user))
-      setClientAuth(user)
-      loadDevices()
-      loadAlerts()
-      openWebSocket()
-      return true
-    } catch (e) { console.error(e.message); return false }
+    const data = await api.auth.login(email, password)
+    localStorage.setItem('athargps_token',  data.token)
+    localStorage.setItem('athargps_client', JSON.stringify(data.user))
+    setClientAuth(data.user)
+    setMustChange(!!data.user.mustChangePassword)
+    loadDevices(); loadAlerts(); openWebSocket()
+    return data
   }
 
   const loginAdmin = async (email, password) => {
-    try {
-      const { token, user } = await api.auth.login(email, password)
-      if (!user.isAdmin) throw new Error('Not an admin account')
-      localStorage.setItem('athargps_token', token)
-      localStorage.setItem('athargps_admin', JSON.stringify(user))
-      setAdminAuth(user)
-      loadDevices()
-      loadAlerts()
-      loadClients()
-      openWebSocket()
-      return true
-    } catch (e) { console.error(e.message); return false }
+    const data = await api.auth.login(email, password)
+    if (!data.user.isAdmin) throw new Error('Not an admin account')
+    localStorage.setItem('athargps_token', data.token)
+    localStorage.setItem('athargps_admin', JSON.stringify(data.user))
+    setAdminAuth(data.user)
+    setMustChange(!!data.user.mustChangePassword)
+    loadDevices(); loadAlerts(); loadClients(); openWebSocket()
+    return data
   }
 
   const logoutClient = () => {
@@ -172,56 +161,47 @@ export function AppProvider({ children }) {
     setAdminAuth(null); setDevices([]); setAlertsList([]); setClientList([])
   }
 
-  const toggleEngine = async (deviceId) => {
-    const dev = devices.find(d => d.id === deviceId)
-    if (!dev) return
-    try {
-      await api.devices.sendCommand(deviceId, dev.engineOn ? 'engineStop' : 'engineResume')
-      setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !d.engineOn } : d))
-    } catch (e) { console.error('command:', e.message) }
+  const clearMustChange = () => {
+    setMustChange(false)
+    // Update stored user
+    const stored = loadFromStorage('athargps_admin') || loadFromStorage('athargps_client')
+    if (stored) {
+      const updated = { ...stored, mustChangePassword: false }
+      if (adminAuth) localStorage.setItem('athargps_admin', JSON.stringify(updated))
+      else localStorage.setItem('athargps_client', JSON.stringify(updated))
+    }
   }
 
-  // ── Geofencing ────────────────────────────────────────────────────────────
-  const saveGeofence = async (deviceId, geofenceData) => {
-    const result = await api.devices.setGeofence(deviceId, geofenceData)
-    // تحديث حالة الجهاز بمعرّف السياج الجديد في الذاكرة
-    setDevices(prev => prev.map(d =>
-      d.id === deviceId
-        ? { ...d, activeGeofenceId: result.geofence?.id ?? null, geofenceActive: true }
-        : d
-    ))
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const toggleEngine = async (deviceId, turnOff) => {
+    await api.devices.sendCommand(deviceId, turnOff ? 'engineStop' : 'engineResume')
+    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !turnOff } : d))
+  }
+
+  const saveGeofence = async (deviceId, data) => {
+    const result = await api.devices.setGeofence(deviceId, data)
+    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, geofence: result } : d))
     return result
   }
 
   const removeGeofence = async (deviceId, geofenceId) => {
     await api.devices.removeGeofence(deviceId, geofenceId)
-    setDevices(prev => prev.map(d =>
-      d.id === deviceId
-        ? { ...d, activeGeofenceId: null, geofenceActive: false }
-        : d
-    ))
+    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, geofence: null } : d))
   }
-  // ─────────────────────────────────────────────────────────────────────────────
 
-  const getClientDevices = (clientId) =>
-    adminAuth ? devices.filter(d => d.clientId === clientId) : devices
-
+  const getClientDevices = (clientId) => devices.filter(d => d.clientId === clientId || d.user_id === clientId)
   const getOnlineDevices = () => devices.filter(d => d.status === 'online')
 
   const unreadCount = alertsList.filter(a => !a.read).length
 
   const markAlertRead = async (alertId) => {
-    try {
-      await api.alerts.markRead(alertId)
-      setAlertsList(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
-    } catch {}
+    await api.alerts.markRead(alertId)
+    setAlertsList(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
   }
 
   const markAllAlertsRead = async () => {
-    try {
-      await api.alerts.markAllRead()
-      setAlertsList(prev => prev.map(a => ({ ...a, read: true })))
-    } catch {}
+    await api.alerts.markAllRead()
+    setAlertsList(prev => prev.map(a => ({ ...a, read: true })))
   }
 
   const addClient = async (data) => {
@@ -255,6 +235,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       lang, setLang,
       clientAuth, adminAuth,
+      mustChangePassword, clearMustChange,
       devices, alertsList, clientList,
       loginClient, loginAdmin,
       logoutClient, logoutAdmin,

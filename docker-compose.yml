@@ -21,11 +21,11 @@ services:
     image: traccar/traccar:ubuntu
     container_name: shgps-traccar-1
     ports:
-      - "5023:5023"   # GT06 / WanWay GS900E (البروتوكول الرئيسي)
-      - "5029:5029"   # WanWay protocol (بروتوكول WanWay الخاص — احتياطي)
-      - "5055:5055"   # Traccar Client (تطبيق الموبايل)
+      - "5023:5023"   # GT06 / WanWay GS900E
+      - "5029:5029"   # WanWay protocol
+      - "5055:5055"   # Traccar Client app
       - "5027:5027"   # Teltonika
-      - "5001:5001"   # عام
+      - "5001:5001"   # Generic
     volumes:
       - traccar_data:/opt/traccar/data
       - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
@@ -99,11 +99,42 @@ services:
     networks:
       - shgps
 
+  # ── Daily automated database backup ──────────────────────────────────────
+  db-backup:
+    image: postgres:16-alpine
+    container_name: shgps-backup-1
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - backups_data:/backups
+    entrypoint: >
+      /bin/sh -c '
+        while true; do
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+          echo "[backup] Running pg_dump at $$TIMESTAMP";
+          pg_dump -h postgres -U shgps -d shgps | gzip > /backups/shgps_$$TIMESTAMP.sql.gz;
+          echo "[backup] Done. Pruning old backups (keep last 7)";
+          ls -t /backups/*.sql.gz | tail -n +8 | xargs -r rm -f;
+          echo "[backup] Sleeping 24h";
+          sleep 86400;
+        done
+      '
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - shgps
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
 volumes:
   postgres_data:
   traccar_data:
   letsencrypt:
   certbot_www:
+  backups_data:
 
 networks:
   shgps:
