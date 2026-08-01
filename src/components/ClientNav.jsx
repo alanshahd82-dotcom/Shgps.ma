@@ -1,13 +1,13 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Cpu, Bell, Settings, BarChart2, Wrench, ShieldCheck } from 'lucide-react'
+import { Home, Cpu, Bell, Settings, Wrench, ShieldCheck, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
 export default function ClientNav() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { unreadCount, lang } = useApp()
+  const { unreadCount, lang, wsConnected } = useApp()
   const isAr = lang === 'ar'
 
   const items = [
@@ -20,7 +20,19 @@ export default function ClientNav() {
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/80 z-30 pb-safe">
+    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200/80 dark:border-slate-700/80 z-30 pb-safe">
+      {/* WebSocket connection indicator */}
+      <div className={`flex items-center justify-center gap-1.5 py-1 text-[9px] font-semibold transition-all duration-500 ${
+        wsConnected
+          ? 'text-emerald-500 bg-emerald-50/60 dark:bg-emerald-900/20'
+          : 'text-amber-500 bg-amber-50/60 dark:bg-amber-900/20'
+      }`}>
+        {wsConnected
+          ? <><Wifi size={9} />{t(lang, 'wsConnected')}</>
+          : <><WifiOff size={9} className="animate-pulse" />{t(lang, 'wsDisconnected')}</>
+        }
+      </div>
+
       <div className="flex items-center justify-around px-1 py-2">
         {items.map(item => {
           const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
@@ -30,14 +42,14 @@ export default function ClientNav() {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={`flex min-w-[50px] min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-2xl transition-all duration-200 relative ${
-                active ? 'text-accent' : 'text-slate-400'
+                active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'
               }`}
             >
               <div className="relative">
                 <Icon
                   size={18}
                   strokeWidth={active ? 2.5 : 2}
-                  className={`transition-all duration-200 ${active ? 'text-accent' : 'text-slate-400'}`}
+                  className={`transition-all duration-200 ${active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'}`}
                 />
                 {item.badge > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
@@ -45,7 +57,7 @@ export default function ClientNav() {
                   </span>
                 )}
               </div>
-              <span className={`text-[8px] font-medium transition-colors duration-200 leading-tight text-center ${active ? 'text-accent' : 'text-slate-400'}`}>
+              <span className={`text-[8px] font-medium transition-colors duration-200 leading-tight text-center ${active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'}`}>
                 {item.label}
               </span>
               {active && (

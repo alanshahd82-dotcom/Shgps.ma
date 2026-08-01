@@ -116,6 +116,13 @@ reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
         const speeds      = pts.map(p => speedKmh(p.speed)).filter(s => s > 0)
         const tripAvgSpd  = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0
         const tripMaxSpd  = speeds.length ? Math.max(...speeds) : 0
+        // Compute stop time (segments where speed == 0)
+        let stopMs = 0
+        for (let j = 1; j < pts.length; j++) {
+          if (speedKmh(pts[j].speed) < 2) {
+            stopMs += new Date(pts[j].fixTime) - new Date(pts[j-1].fixTime)
+          }
+        }
         return {
           index:       i + 1,
           startTime:   pts[0].fixTime,
@@ -124,13 +131,14 @@ reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
           distanceKm:  Math.round(dist * 10) / 10,
           avgSpeed:    Math.round(tripAvgSpd),
           maxSpeed:    Math.round(tripMaxSpd),
+          stopMin:     Math.round(stopMs / 60000),
           points:      pts.length,
           route:       pts.map(point => ({
-            latitude: Number(point.latitude),
+            latitude:  Number(point.latitude),
             longitude: Number(point.longitude),
-            speed: Math.round(speedKmh(point.speed)),
-            fixTime: point.fixTime,
-            address: point.address || null,
+            speed:     Math.round(speedKmh(point.speed)),
+            fixTime:   point.fixTime,
+            address:   point.address || null,
           })),
         }
       })
@@ -150,6 +158,72 @@ reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
     }
   } catch (err) {
     console.error('[reports]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/reports/daily-summary?days=7
+// Returns today's total km and daily km chart data for all client devices
+reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 7, 30)
+  try {
+    // Get all devices for this user
+    const { rows: deviceRows } = await db.query(
+      req.user.is_admin
+        ? 'SELECT id, traccar_id FROM devices WHERE traccar_id IS NOT NULL'
+        : 'SELECT id, traccar_id FROM devices WHERE user_id=$1 AND traccar_id IS NOT NULL',
+      req.user.is_admin ? [] : [req.user.id]
+    )
+
+    if (!deviceRows.length) {
+      return res.json({ todayKm: 0, dailyData: [] })
+    }
+
+    const now = new Date()
+    const todayStart = new Date(now)
+    todayStart.setHours(0, 0, 0, 0)
+
+    // Build daily buckets
+    const dailyData = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now)
+      d.setDate(d.getDate() - i)
+      d.setHours(0, 0, 0, 0)
+      dailyData.push({ date: d.toISOString().split('T')[0], km: 0 })
+    }
+
+    let todayKm = 0
+    const from = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString()
+    const to   = now.toISOString()
+
+    // Fetch each device in parallel (limit concurrency to avoid hammering Traccar)
+    const BATCH = 5
+    for (let b = 0; b < deviceRows.length; b += BATCH) {
+      const batch = deviceRows.slice(b, b + BATCH)
+      await Promise.allSettled(batch.map(async (dev) => {
+        try {
+          const positions = await traccar.getHistory(dev.traccar_id, from, to)
+          if (!positions || positions.length < 2) return
+          const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+          for (let i = 1; i < sorted.length; i++) {
+            const prev = sorted[i - 1]
+            const cur  = sorted[i]
+            const dist = haversine(prev.latitude, prev.longitude, cur.latitude, cur.longitude)
+            const dayStr = new Date(cur.fixTime).toISOString().split('T')[0]
+            const bucket = dailyData.find(d => d.date === dayStr)
+            if (bucket) bucket.km += dist
+            if (new Date(cur.fixTime) >= todayStart) todayKm += dist
+          }
+        } catch { /* skip individual device errors */ }
+      }))
+    }
+
+    dailyData.forEach(d => { d.km = Math.round(d.km * 10) / 10 })
+    todayKm = Math.round(todayKm * 10) / 10
+
+    return res.json({ todayKm, dailyData })
+  } catch (err) {
+    console.error('[reports/daily-summary]', err)
     res.status(500).json({ error: 'Server error' })
   }
 })

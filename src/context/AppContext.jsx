@@ -16,8 +16,25 @@ export function AppProvider({ children }) {
   const [alertsList,   setAlertsList]       = useState([])
   const [clientList,   setClientList]       = useState([])
   const [networkError, setNetworkError]     = useState(false)
-  const wsRef = useRef(null)
+  const [wsConnected,  setWsConnected]      = useState(false)
+  const [darkMode,     setDarkModeState]    = useState(() => localStorage.getItem('athargps_darkmode') === 'true')
+  const wsRef      = useRef(null)
+  const wsRetryRef = useRef(0) // exponential backoff counter
 
+  // ── Dark mode ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('athargps_darkmode', String(darkMode))
+  }, [darkMode])
+
+  const toggleDarkMode = () => setDarkModeState(prev => !prev)
+  const setDarkMode = (val) => setDarkModeState(val)
+
+  // ── Language / RTL ────────────────────────────────────────────────────────
   useEffect(() => {
     document.documentElement.lang = lang
     document.documentElement.dir  = lang === 'ar' ? 'rtl' : 'ltr'
@@ -69,7 +86,10 @@ export function AppProvider({ children }) {
     const ws = new WebSocket(url)
     wsRef.current = ws
 
-    ws.onopen = () => {}
+    ws.onopen = () => {
+      setWsConnected(true)
+      wsRetryRef.current = 0 // reset backoff on success
+    }
 
     ws.onmessage = (event) => {
       try {
@@ -111,14 +131,31 @@ export function AppProvider({ children }) {
             return updated
           })
         }
+
+        if (data.events && data.events.length > 0) {
+          // Push new events to alertsList
+          setAlertsList(prev => {
+            const newAlerts = data.events.map(ev => ({
+              id:        ev.id || Date.now(),
+              type:      ev.type || 'event',
+              deviceId:  ev.deviceId,
+              message:   ev.attributes?.message || ev.type,
+              createdAt: ev.eventTime || new Date().toISOString(),
+              read:      false,
+            }))
+            return [...newAlerts, ...prev].slice(0, 100) // keep last 100
+          })
+        }
       } catch {}
     }
 
     ws.onclose = () => {
-      /* disconnected */
-      // Reconnect after 5s if still authenticated
+      setWsConnected(false)
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
       if (localStorage.getItem('athargps_token')) {
-        setTimeout(openWebSocket, 5000)
+        const delay = Math.min(1000 * Math.pow(2, wsRetryRef.current), 30000)
+        wsRetryRef.current += 1
+        setTimeout(openWebSocket, delay)
       }
     }
 
@@ -127,10 +164,12 @@ export function AppProvider({ children }) {
 
   function closeWebSocket() {
     if (wsRef.current) {
-      wsRef.current.onclose = null
+      wsRef.current.onclose = null // prevent reconnect loop
       wsRef.current.close()
       wsRef.current = null
     }
+    setWsConnected(false)
+    wsRetryRef.current = 0
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -171,7 +210,6 @@ export function AppProvider({ children }) {
 
   const clearMustChange = () => {
     setMustChange(false)
-    // Update stored user
     const stored = loadFromStorage('athargps_admin') || loadFromStorage('athargps_client')
     if (stored) {
       const updated = { ...stored, mustChangePassword: false }
@@ -182,12 +220,10 @@ export function AppProvider({ children }) {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const toggleEngine = async (deviceId, turnOff) => {
-    // Optimistic update
     setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !turnOff } : d))
     try {
       await api.devices.sendCommand(deviceId, turnOff ? 'engineStop' : 'engineResume')
     } catch (err) {
-      // Rollback on failure
       setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !!turnOff } : d))
       throw err
     }
@@ -280,10 +316,12 @@ export function AppProvider({ children }) {
       saveGeofence, removeGeofence,
       getClientDevices, getOnlineDevices,
       unreadCount, markAlertRead, markAllAlertsRead,
-       addClient, updateClient, addDevice, addDeviceDirect, deleteClient,
+      addClient, updateClient, addDevice, addDeviceDirect, deleteClient,
       refreshDevices: loadDevices,
       updateUserInContext,
       networkError,
+      wsConnected,
+      darkMode, toggleDarkMode, setDarkMode,
     }}>
       {children}
     </AppContext.Provider>

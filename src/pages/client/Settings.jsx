@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  User, Lock, Bell, Globe, LogOut, ChevronRight, Shield, Eye, EyeOff,
-  CheckCircle2, XCircle, Save, X
+  User, Lock, Bell, Globe, LogOut, ChevronRight, Eye, EyeOff,
+  CheckCircle2, XCircle, Save, X, Moon, Sun
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
@@ -15,7 +15,7 @@ function ToggleSwitch({ value, onChange }) {
   return (
     <button
       onClick={() => onChange(!value)}
-      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${value ? 'bg-accent' : 'bg-gray-200'}`}
+      className={`w-12 h-6 rounded-full transition-all duration-300 relative flex-shrink-0 ${value ? 'bg-accent' : 'bg-gray-200 dark:bg-slate-600'}`}
     >
       <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${
         value ? 'left-6' : 'left-0.5'
@@ -51,26 +51,26 @@ function EditProfileModal({ open, onClose, currentName, currentPhone, lang, onSa
           onClick={onClose}
         >
           <motion.div
-            className="w-full md:max-w-[420px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
+            className="w-full md:max-w-[420px] bg-white dark:bg-slate-800 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="font-bold text-primary-500 text-lg">{t(lang, 'personalInfo')}</h3>
-                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
+                <h3 className="font-bold text-primary-500 dark:text-white text-lg">{t(lang, 'personalInfo')}</h3>
+                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
                   <X size={16} className="text-slate-400" />
                 </button>
               </div>
               {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
               <form onSubmit={handleSave} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'name')}</label>
-                  <input className="input-field text-sm" value={name} onChange={e => setName(e.target.value)} required />
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">{t(lang, 'name')}</label>
+                  <input className="input-field text-sm dark:bg-slate-700 dark:text-white dark:border-slate-600" value={name} onChange={e => setName(e.target.value)} required />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'phone')}</label>
-                  <input className="input-field text-sm" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">{t(lang, 'phone')}</label>
+                  <input className="input-field text-sm dark:bg-slate-700 dark:text-white dark:border-slate-600" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
                 </div>
                 <button type="submit" disabled={saving}
                   className="w-full btn-primary py-3 flex items-center justify-center gap-2">
@@ -140,14 +140,14 @@ function ChangePasswordModal({ open, onClose, lang }) {
           onClick={onClose}
         >
           <motion.div
-            className="w-full md:max-w-[420px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
+            className="w-full md:max-w-[420px] bg-white dark:bg-slate-800 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="font-bold text-primary-500 text-lg">{t(lang, 'changePassword')}</h3>
-                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
+                <h3 className="font-bold text-primary-500 dark:text-white text-lg">{t(lang, 'changePassword')}</h3>
+                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
                   <X size={16} className="text-slate-400" />
                 </button>
               </div>
@@ -164,11 +164,11 @@ function ChangePasswordModal({ open, onClose, lang }) {
                 {!success && (
                   <form onSubmit={handleSave} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                         {lang === 'ar' ? 'كلمة المرور الحالية' : 'Actuel'}
                       </label>
                       <div className="relative">
-                        <input type={showC ? 'text' : 'password'} className="input-field text-sm pe-10"
+                        <input type={showC ? 'text' : 'password'} className="input-field text-sm pe-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                           value={current} onChange={e => setCurrent(e.target.value)} required />
                         <button type="button" onClick={() => setShowC(p => !p)}
                           className="absolute top-1/2 -translate-y-1/2 end-3 text-slate-400">
@@ -177,11 +177,11 @@ function ChangePasswordModal({ open, onClose, lang }) {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                         {lang === 'ar' ? 'كلمة المرور الجديدة' : 'Nouveau'}
                       </label>
                       <div className="relative">
-                        <input type={showN ? 'text' : 'password'} className="input-field text-sm pe-10"
+                        <input type={showN ? 'text' : 'password'} className="input-field text-sm pe-10 dark:bg-slate-700 dark:text-white dark:border-slate-600"
                           value={next} onChange={e => setNext(e.target.value)} required />
                         <button type="button" onClick={() => setShowN(p => !p)}
                           className="absolute top-1/2 -translate-y-1/2 end-3 text-slate-400">
@@ -190,14 +190,14 @@ function ChangePasswordModal({ open, onClose, lang }) {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                         {lang === 'ar' ? 'تأكيد' : 'Confirmer'}
                       </label>
-                      <input type="password" className="input-field text-sm" value={confirm}
+                      <input type="password" className="input-field text-sm dark:bg-slate-700 dark:text-white dark:border-slate-600" value={confirm}
                         onChange={e => setConfirm(e.target.value)} required />
                     </div>
                     {next.length > 0 && (
-                      <div className="grid grid-cols-2 gap-1.5 bg-slate-50 rounded-xl p-3">
+                      <div className="grid grid-cols-2 gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-xl p-3">
                         {Object.entries(ruleLabels).map(([k, label]) => (
                           <div key={k} className={`flex items-center gap-1.5 text-xs ${rules[k] ? 'text-emerald-600' : 'text-slate-400'}`}>
                             {rules[k] ? <CheckCircle2 size={12} className="text-emerald-500" /> : <XCircle size={12} className="text-slate-300" />}
@@ -223,17 +223,15 @@ function ChangePasswordModal({ open, onClose, lang }) {
   )
 }
 
-export default function Settings()
- {
+export default function Settings() {
   const navigate = useNavigate()
-  const { clientAuth, logoutClient, lang, setLang, updateUserInContext } = useApp()
+  const { clientAuth, logoutClient, lang, setLang, updateUserInContext, darkMode, toggleDarkMode } = useApp()
   const [speedAlerts, setSpeedAlerts]         = useState(true)
   const [geofenceAlerts, setGeofenceAlerts]   = useState(true)
   const [batteryAlerts, setBatteryAlerts]     = useState(true)
   const [savingSettings, setSavingSettings]   = useState(false)
   const [settingsSaved, setSettingsSaved]     = useState(false)
 
-  // Load saved notification preferences from backend
   useEffect(() => {
     api.auth.me().then(user => {
       const n = user?.notifications
@@ -243,6 +241,7 @@ export default function Settings()
       if (n.batteryAlerts  != null) setBatteryAlerts(!!n.batteryAlerts)
     }).catch(() => { /* use defaults */ })
   }, []) // eslint-disable-line
+
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showChangePwd, setShowChangePwd]     = useState(false)
   const [profile, setProfile] = useState({
@@ -276,7 +275,7 @@ export default function Settings()
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col">
+    <div className="min-h-[100dvh] flex flex-col bg-gray-50 dark:bg-slate-900">
       <EditProfileModal
         open={showEditProfile}
         onClose={() => setShowEditProfile(false)}
@@ -291,7 +290,7 @@ export default function Settings()
         lang={lang}
       />
 
-      <div className="h-full flex flex-col bg-gray-50">
+      <div className="h-full flex flex-col">
         {/* Header */}
         <div className="flex-shrink-0 pt-14 pb-6 px-5"
           style={{ background: 'linear-gradient(160deg, #0F2044 0%, #162d5e 100%)' }}>
@@ -315,16 +314,39 @@ export default function Settings()
         </div>
 
         <div className="flex-1 overflow-y-auto mobile-scroll pb-24 px-4 pt-4 space-y-4">
+
+          {/* ── Appearance (Dark Mode) ── */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 dark:border-slate-700">
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{t(lang, 'appearance')}</p>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-slate-700 flex items-center justify-center">
+                  {darkMode
+                    ? <Moon size={15} className="text-primary-500 dark:text-accent" />
+                    : <Sun size={15} className="text-primary-500" />
+                  }
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-primary-500 dark:text-white">{t(lang, 'darkMode')}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">{t(lang, 'darkModeDesc')}</p>
+                </div>
+              </div>
+              <ToggleSwitch value={darkMode} onChange={toggleDarkMode} />
+            </div>
+          </div>
+
           {/* Language */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-50">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t(lang, 'languageSelect')}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 dark:border-slate-700">
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{t(lang, 'languageSelect')}</p>
             </div>
             <div className="p-3 flex gap-2">
               {[{ code: 'ar', label: '🇲🇦 العربية' }, { code: 'fr', label: '🇫🇷 Français' }].map(l => (
                 <button key={l.code} onClick={() => setLang(l.code)}
                   className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
-                    lang === l.code ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-50 text-slate-500 hover:bg-gray-100'
+                    lang === l.code ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-600'
                   }`}>
                   {l.label}
                 </button>
@@ -333,17 +355,17 @@ export default function Settings()
           </div>
 
           {/* Notifications */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-50">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t(lang, 'notifications')}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 dark:border-slate-700">
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{t(lang, 'notifications')}</p>
             </div>
             {[
               { label: t(lang, 'speedAlerts'),    val: speedAlerts,    set: setSpeedAlerts },
               { label: t(lang, 'geofenceAlerts'), val: geofenceAlerts, set: setGeofenceAlerts },
               { label: t(lang, 'batteryAlerts'),  val: batteryAlerts,  set: setBatteryAlerts },
             ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-gray-50 last:border-0">
-                <span className="text-sm font-medium text-primary-500">{item.label}</span>
+              <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-gray-50 dark:border-slate-700 last:border-0">
+                <span className="text-sm font-medium text-primary-500 dark:text-white">{item.label}</span>
                 <ToggleSwitch value={item.val} onChange={item.set} />
               </div>
             ))}
@@ -364,45 +386,45 @@ export default function Settings()
           </div>
 
           {/* Account */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-50">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t(lang, 'profile')}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 dark:border-slate-700">
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{t(lang, 'profile')}</p>
             </div>
             <button onClick={() => setShowEditProfile(true)}
-              className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-50 hover:bg-gray-50 transition-colors">
+              className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-50 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center">
-                  <User size={15} className="text-primary-500" />
+                <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-slate-700 flex items-center justify-center">
+                  <User size={15} className="text-primary-500 dark:text-accent" />
                 </div>
-                <span className="text-sm font-medium text-primary-500">{t(lang, 'personalInfo')}</span>
+                <span className="text-sm font-medium text-primary-500 dark:text-white">{t(lang, 'personalInfo')}</span>
               </div>
-              <ChevronRight size={15} className="text-slate-300" />
+              <ChevronRight size={15} className="text-slate-300 dark:text-slate-600" />
             </button>
             <button onClick={() => setShowChangePwd(true)}
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center">
-                  <Lock size={15} className="text-primary-500" />
+                <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-slate-700 flex items-center justify-center">
+                  <Lock size={15} className="text-primary-500 dark:text-accent" />
                 </div>
-                <span className="text-sm font-medium text-primary-500">{t(lang, 'changePassword')}</span>
+                <span className="text-sm font-medium text-primary-500 dark:text-white">{t(lang, 'changePassword')}</span>
               </div>
-              <ChevronRight size={15} className="text-slate-300" />
+              <ChevronRight size={15} className="text-slate-300 dark:text-slate-600" />
             </button>
           </div>
 
           {/* App info */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-4">
             <div className="flex items-center justify-between mb-2">
               <Logo size="sm" />
-              <span className="text-xs bg-primary-50 text-primary-500 font-semibold px-2 py-1 rounded-lg">v1.1.0</span>
+              <span className="text-xs bg-primary-50 dark:bg-slate-700 text-primary-500 dark:text-accent font-semibold px-2 py-1 rounded-lg">v1.2.0</span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               {lang === 'ar' ? '© 2025 AtharGPS — جميع الحقوق محفوظة' : '© 2025 AtharGPS — Tous droits réservés'}
             </p>
           </div>
 
           <button onClick={handleLogout}
-            className="w-full bg-red-50 text-red-500 border border-red-100 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-colors active:scale-98">
+            className="w-full bg-red-50 dark:bg-red-900/20 text-red-500 border border-red-100 dark:border-red-800 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors active:scale-98">
             <LogOut size={16} />
             {t(lang, 'logout')}
           </button>

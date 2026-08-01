@@ -60,6 +60,7 @@ export const api = {
       if (to)   params.set('to', to)
       return apiFetch(`/reports/trips?${params}`)
     },
+    summary: (days = 7) => apiFetch(`/reports/daily-summary?days=${days}`),
   },
   admin: {
     stats:        () => apiFetch('/admin/stats'),
@@ -72,7 +73,7 @@ export const api = {
     remove: (id)       => apiFetch(`/maintenance/${id}`, { method: 'DELETE' }),
   },
   sharing: {
-    create: (deviceId) => apiFetch('/sharing', { method: 'POST', body: JSON.stringify({ deviceId }) }),
+    create: (deviceId, expireHours = 24) => apiFetch('/sharing', { method: 'POST', body: JSON.stringify({ deviceId, expireHours }) }),
     get:    (token)    => apiFetch(`/sharing/${token}`),
   },
   leads: {

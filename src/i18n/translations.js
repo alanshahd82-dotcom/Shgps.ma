@@ -55,6 +55,14 @@ export const translations = {
     liveMap: 'الخريطة المباشرة',
     allDevices: 'جميع الأجهزة',
     viewAll: 'عرض الكل',
+    todayKm: 'كم اليوم',
+    weeklyKm: 'كم الأسبوع',
+    lastEvents: 'آخر الأحداث',
+    kmToday: 'الكيلومترات اليوم',
+    running: 'سائرة',
+    idle: 'خاملة',
+    stopped: 'متوقفة',
+    noSignal: 'بلا إشارة',
 
     // Device
     device: 'الجهاز',
@@ -122,6 +130,9 @@ export const translations = {
     batteryAlerts: 'تنبيهات البطارية',
     languageSelect: 'اختيار اللغة',
     appVersion: 'إصدار التطبيق',
+    darkMode: 'الوضع الداكن',
+    darkModeDesc: 'تفعيل المظهر الداكن للتطبيق',
+    appearance: 'المظهر',
 
     // Reports
     reportsTitle: 'التقارير',
@@ -134,6 +145,15 @@ export const translations = {
     tripsCount: 'عدد الرحلات',
     exportCsv: 'تصدير CSV',
     analyze: 'تحليل',
+
+    // Trip replay
+    replayGoStart: 'البداية',
+    replayGoEnd: 'النهاية',
+    speedChart: 'مخطط السرعة',
+    tripSummary: 'ملخص الرحلة',
+    avgSpeed: 'متوسط السرعة',
+    maxSpeed: 'أقصى سرعة',
+    stopTime: 'وقت التوقف',
 
     // Admin
     adminDashboard: 'لوحة التحكم',
@@ -206,6 +226,8 @@ export const translations = {
     inactive: 'غير نشط',
     liveTracking: 'تتبع مباشر',
     plate: 'لوحة الترقيم',
+    wsConnected: 'متصل مباشرة',
+    wsDisconnected: 'جاري إعادة الاتصال...',
   },
 
   fr: {
@@ -264,6 +286,14 @@ export const translations = {
     liveMap: 'Carte en direct',
     allDevices: 'Tous les appareils',
     viewAll: 'Voir tout',
+    todayKm: 'KM auj.',
+    weeklyKm: 'KM semaine',
+    lastEvents: 'Derniers événements',
+    kmToday: "Kilomètres aujourd'hui",
+    running: 'En marche',
+    idle: 'Au ralenti',
+    stopped: 'Arrêté',
+    noSignal: 'Sans signal',
 
     // Device
     device: 'Appareil',
@@ -330,19 +360,31 @@ export const translations = {
     geofenceAlerts: 'Alertes de géofence',
     batteryAlerts: 'Alertes de batterie',
     languageSelect: 'Choisir la langue',
-    appVersion: 'Version de l\'application',
+    appVersion: "Version de l'application",
+    darkMode: 'Mode sombre',
+    darkModeDesc: "Activer le thème sombre de l'application",
+    appearance: 'Apparence',
 
     // Reports
     reportsTitle: 'Rapports',
     reportsSubtitle: 'Analyse de vos trajets',
     totalDistanceLbl: 'Distance totale',
     movingDuration: 'Temps de mouvement',
-    stoppedDuration: 'Temps à l\'arrêt',
+    stoppedDuration: "Temps à l'arrêt",
     avgSpeedLbl: 'Vitesse moyenne',
     maxSpeedLbl: 'Vitesse max',
     tripsCount: 'Nombre de trajets',
     exportCsv: 'Exporter CSV',
     analyze: 'Analyser',
+
+    // Trip replay
+    replayGoStart: 'Début',
+    replayGoEnd: 'Fin',
+    speedChart: 'Graphique de vitesse',
+    tripSummary: 'Résumé du trajet',
+    avgSpeed: 'Vitesse moy.',
+    maxSpeed: 'Vitesse max',
+    stopTime: "Temps d'arrêt",
 
     // Admin
     adminDashboard: 'Tableau de bord',
@@ -357,7 +399,7 @@ export const translations = {
     addDevice: 'Ajouter un appareil',
     imei: 'Numéro IMEI',
     subscription: 'Abonnement',
-    expiryDate: 'Date d’expiration',
+    expiryDate: "Date d'expiration",
     globalMap: 'Carte globale',
     allAlerts: 'Toutes les alertes',
     deviceSetup: 'Config. appareils',
@@ -415,6 +457,8 @@ export const translations = {
     inactive: 'Inactif',
     liveTracking: 'Suivi en direct',
     plate: 'Immatriculation',
+    wsConnected: 'Connecté en direct',
+    wsDisconnected: 'Reconnexion...',
   }
 }
 
