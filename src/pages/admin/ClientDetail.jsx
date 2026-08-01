@@ -104,8 +104,8 @@ export default function ClientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { clientList, devices, addDevice, lang } = useApp()
-  const client = clientList.find(c => c.id === id)
-  const clientDevices = devices.filter(d => d.clientId === id)
+  const client = clientList.find(c => String(c.id) === String(id))
+  const clientDevices = devices.filter(d => String(d.clientId) === String(id) || String(d.user_id) === String(id))
   const [showAdd, setShowAdd] = useState(false)
 
   if (!client) {
