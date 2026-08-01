@@ -53,7 +53,7 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
               </div>
 
               {/* Scrollable body */}
-              <div className="overflow-y-auto flex-1">
+              <div className="overflow-y-auto flex-1 min-h-0">
                 {error && (
                   <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
                     <AlertCircle size={15} className="flex-shrink-0" /> {error}
