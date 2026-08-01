@@ -7,14 +7,21 @@ import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
 
-function AddDeviceModal({ open, onClose, onAdd, clientId, lang }) {
+function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
   const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onAdd(form)
-    setForm({ name: '', imei: '', type: 'car', plate: '', clientId })
-    onClose()
+    setLoading(true); setError('')
+    try {
+      await onAdd(form)
+      setForm({ name: '', imei: '', type: 'car', plate: '', clientId })
+      onClose()
+    } catch (err) {
+      setError(err.message || (lang === 'ar' ? 'تعذر إضافة الجهاز' : 'Impossible d’ajouter l’appareil'))
+    } finally { setLoading(false) }
   }
 
   return (
@@ -42,6 +49,11 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, lang }) {
 
             {/* Scrollable body */}
             <form id="add-device-detail-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
+              {error && (
+                <div className="flex items-start gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+                  <span>{error}</span>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
                   {lang === 'ar' ? 'اسم الجهاز' : 'Nom de l\'appareil'}
@@ -94,7 +106,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, lang }) {
             {/* Fixed footer – always visible */}
             <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
               <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-              <button type="submit" form="add-device-detail-form" className="flex-1 btn-primary py-3">{t(lang, 'add')}</button>
+              <button type="submit" form="add-device-detail-form" disabled={loading} className="flex-1 btn-primary py-3 disabled:opacity-60">{loading ? '...' : t(lang, 'add')}</button>
             </div>
           </motion.div>
         </motion.div>
@@ -188,11 +200,22 @@ export default function ClientDetail() {
             <h3 className="font-bold text-primary-500">
               {lang === 'ar' ? 'الأجهزة المرتبطة' : 'Appareils associés'} ({clientDevices.length})
             </h3>
-            <button onClick={() => setShowAdd(true)} className="btn-primary py-2 px-4 text-sm flex items-center gap-1.5">
+             <button
+               onClick={() => setShowAdd(true)}
+               disabled={clientDevices.length >= (client.maxDevices ?? 5)}
+               className="btn-primary py-2 px-4 text-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+             >
               <Plus size={14} />
               {t(lang, 'addDevice')}
             </button>
           </div>
+           {clientDevices.length >= (client.maxDevices ?? 5) && (
+             <div className="mx-5 mt-4 flex items-start gap-2 bg-orange-50 border border-orange-100 text-orange-700 rounded-xl px-4 py-3 text-sm">
+               <span>{lang === 'ar'
+                 ? `تم الوصول إلى حد الأجهزة (${clientDevices.length}/${client.maxDevices ?? 5}). عدّل الاشتراك لزيادة الحد.`
+                 : `La limite d’appareils est atteinte (${clientDevices.length}/${client.maxDevices ?? 5}). Modifiez l’abonnement pour augmenter la limite.`}</span>
+             </div>
+           )}
 
           {clientDevices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
@@ -242,6 +265,7 @@ export default function ClientDetail() {
         onClose={() => setShowAdd(false)}
         onAdd={addDevice}
         clientId={id}
+        client={client}
         lang={lang}
       />
     </AdminLayout>

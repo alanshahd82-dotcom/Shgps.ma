@@ -10,6 +10,8 @@
     subscription  VARCHAR(50) DEFAULT 'Basic',
     is_admin      BOOLEAN DEFAULT FALSE,
     is_active     BOOLEAN DEFAULT TRUE,
+    max_devices   INTEGER DEFAULT 5,
+    expiry_date   TIMESTAMP,
     traccar_id    INTEGER UNIQUE,
     avatar        VARCHAR(10),
     created_at    TIMESTAMP DEFAULT NOW(),

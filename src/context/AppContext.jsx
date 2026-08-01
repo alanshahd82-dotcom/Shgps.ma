@@ -241,6 +241,12 @@ export function AppProvider({ children }) {
     return created
   }
 
+  const updateClient = async (clientId, data) => {
+    const updated = await api.clients.update(clientId, data)
+    setClientList(prev => prev.map(client => client.id === clientId ? updated : client))
+    return updated
+  }
+
   const addDevice = async (clientId, data) => {
     const created = await api.clients.addDevice(clientId, data)
     setDevices(prev => [...prev, { ...created, status:'offline', lat:0, lng:0, speed:0 }])
@@ -274,7 +280,7 @@ export function AppProvider({ children }) {
       saveGeofence, removeGeofence,
       getClientDevices, getOnlineDevices,
       unreadCount, markAlertRead, markAllAlertsRead,
-      addClient, addDevice, addDeviceDirect, deleteClient,
+       addClient, updateClient, addDevice, addDeviceDirect, deleteClient,
       refreshDevices: loadDevices,
       updateUserInContext,
       networkError,

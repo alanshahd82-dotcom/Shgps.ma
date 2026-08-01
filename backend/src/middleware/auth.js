@@ -14,7 +14,7 @@ import jwt from 'jsonwebtoken'
     try {
       const { userId } = jwt.verify(token, config.jwtSecret)
       const { rows } = await db.query(
-        'SELECT id,email,name,is_admin,is_active,traccar_id,phone,city,subscription,avatar,must_change_password,notification_prefs FROM users WHERE id=$1',
+        'SELECT id,email,name,is_admin,is_active,max_devices,expiry_date,traccar_id,phone,city,subscription,avatar,must_change_password,notification_prefs FROM users WHERE id=$1',
         [userId]
       )
       if (!rows[0] || !rows[0].is_active) return res.status(401).json({ error: 'Account not found or inactive' })

@@ -55,6 +55,22 @@ import { Router } from 'express'
       if (!name || !imei) return res.status(400).json({ error: 'Name and IMEI required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
       try {
+        if (clientId) {
+          const { rows: clientRows } = await db.query(
+            `SELECT max_devices,
+                    (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
+             FROM users WHERE id=$1 AND is_admin=false`,
+            [clientId]
+          )
+          const client = clientRows[0]
+          if (!client) return res.status(404).json({ error: 'Client not found' })
+          if (Number(client.devices_count) >= Number(client.max_devices ?? 5)) {
+            return res.status(409).json({
+              code: 'DEVICE_LIMIT_REACHED',
+              error: `Device limit reached (${client.devices_count}/${client.max_devices ?? 5}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
+            })
+          }
+        }
         let traccarId = null
         try {
           const td = await traccar.createDevice(name, imei)

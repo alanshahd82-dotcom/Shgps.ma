@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Trash2, ChevronRight, User, Phone, MapPin, X, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Search, Plus, Trash2, ChevronRight, User, Phone, X, KeyRound, CheckCircle2, AlertCircle, Pencil, CalendarClock } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
@@ -285,13 +285,132 @@ function ResetPasswordModal({ open, onClose, client, lang }) {
   )
 }
 
+function EditClientModal({ open, onClose, client, onSave, lang }) {
+  const [form, setForm] = useState({ maxDevices: 5, expiryDate: '', is_active: true })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  React.useEffect(() => {
+    if (!client) return
+    setForm({
+      maxDevices: client.maxDevices ?? 5,
+      expiryDate: client.expiryDate ? String(client.expiryDate).slice(0, 10) : '',
+      is_active: client.isActive ?? client.status === 'active',
+    })
+    setError('')
+  }, [client])
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setLoading(true); setError('')
+    try {
+      await onSave(client.id, {
+        maxDevices: Number(form.maxDevices),
+        expiryDate: form.expiryDate || null,
+        is_active: form.is_active,
+      })
+      onClose()
+    } catch (err) {
+      setError(err.message || (lang === 'ar' ? 'حدث خطأ أثناء الحفظ' : 'Erreur lors de l’enregistrement'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {open && client && (
+        <motion.div
+          className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="w-full md:max-w-[460px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden"
+            initial={{ opacity: 0, scale: 0.97, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 10 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="bg-primary-500 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Pencil size={16} className="text-white" />
+                <h3 className="font-bold text-white">{lang === 'ar' ? 'تعديل اشتراك العميل' : 'Modifier l’abonnement'}</h3>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                <X size={16} className="text-white" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
+                <p className="font-bold text-primary-500 text-sm">{client.name}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{client.email}</p>
+              </div>
+              {error && (
+                <div className="flex items-start gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+                  <AlertCircle size={15} className="flex-shrink-0 mt-0.5" /> <span>{error}</span>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                  {lang === 'ar' ? 'الحد الأقصى للأجهزة' : 'Nombre maximum d’appareils'}
+                </label>
+                <input
+                  className="input-field text-sm"
+                  type="number" min="1" step="1" required
+                  value={form.maxDevices}
+                  onChange={e => setForm(p => ({ ...p, maxDevices: e.target.value }))}
+                />
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  {lang === 'ar'
+                    ? `المستخدم حاليًا: ${client.devicesCount} جهاز`
+                    : `Utilisés actuellement : ${client.devicesCount} appareil(s)`}
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 flex items-center gap-1">
+                  <CalendarClock size={12} />
+                  {lang === 'ar' ? 'تاريخ انتهاء الاشتراك' : 'Date d’expiration de l’abonnement'}
+                </label>
+                <input
+                  className="input-field text-sm"
+                  type="date"
+                  value={form.expiryDate}
+                  onChange={e => setForm(p => ({ ...p, expiryDate: e.target.value }))}
+                />
+              </div>
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 cursor-pointer">
+                <span>
+                  <span className="block text-sm font-semibold text-primary-500">{lang === 'ar' ? 'الحساب نشط' : 'Compte actif'}</span>
+                  <span className="block text-xs text-slate-400 mt-0.5">{lang === 'ar' ? 'السماح للعميل بتسجيل الدخول' : 'Autoriser la connexion du client'}</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 accent-emerald-500"
+                  checked={form.is_active}
+                  onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))}
+                />
+              </label>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3 text-sm">{t(lang, 'cancel')}</button>
+                <button type="submit" disabled={loading} className="flex-1 btn-primary py-3 text-sm disabled:opacity-60">
+                  {loading ? '...' : t(lang, 'save')}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export default function Clients() {
   const navigate = useNavigate()
-  const { clientList, addClient, deleteClient, lang } = useApp()
+  const { clientList, addClient, updateClient, deleteClient, lang } = useApp()
   const [search, setSearch]       = useState('')
   const [showAdd, setShowAdd]     = useState(false)
   const [toDelete, setToDelete]   = useState(null)
   const [resetTarget, setReset]   = useState(null)
+  const [editTarget, setEdit]     = useState(null)
 
   const filtered = clientList.filter(c =>
     !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -305,11 +424,21 @@ export default function Clients() {
   }
 
   const subColors = { Basic: 'bg-slate-100 text-slate-600', Pro: 'bg-blue-50 text-blue-600', Enterprise: 'bg-amber-50 text-amber-700' }
+  const expiryState = (date) => {
+    if (!date) return 'none'
+    const days = (new Date(date).getTime() - Date.now()) / 86400000
+    return days < 0 ? 'expired' : days <= 30 ? 'soon' : 'valid'
+  }
+  const expiryLabel = (date) => {
+    if (!date) return lang === 'ar' ? 'غير محدد' : 'Non définie'
+    return new Date(date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-FR')
+  }
 
   return (
     <AdminLayout>
       <AddClientModal open={showAdd} onClose={() => setShowAdd(false)} onAdd={addClient} lang={lang} />
       <ResetPasswordModal open={!!resetTarget} onClose={() => setReset(null)} client={resetTarget} lang={lang} />
+      <EditClientModal open={!!editTarget} onClose={() => setEdit(null)} client={editTarget} onSave={updateClient} lang={lang} />
       <ConfirmModal
         open={!!toDelete}
         title={lang === 'ar' ? 'حذف العميل' : 'Supprimer le client'}
@@ -352,14 +481,14 @@ export default function Clients() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-gray-100">
                 <tr>
-                  {[t(lang, 'name'), t(lang, 'email'), t(lang, 'phone'), t(lang, 'subscription'), t(lang, 'devices'), t(lang, 'status'), t(lang, 'actions')].map((h, i) => (
+                  {[t(lang, 'name'), t(lang, 'email'), t(lang, 'phone'), t(lang, 'subscription'), t(lang, 'devices'), t(lang, 'expiryDate'), t(lang, 'status'), t(lang, 'actions')].map((h, i) => (
                     <th key={i} className="px-4 py-3 text-start text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400 text-sm">{t(lang, 'noData')}</td></tr>
+                   <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400 text-sm">{t(lang, 'noData')}</td></tr>
                 )}
                 {filtered.map((client, i) => (
                   <motion.tr key={client.id}
@@ -384,7 +513,20 @@ export default function Clients() {
                         {client.subscription}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-primary-500">{client.devicesCount}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-primary-500">
+                      {client.devicesCount}/{client.maxDevices ?? 5}
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const state = expiryState(client.expiryDate)
+                        return (
+                          <span className={`text-xs font-semibold ${state === 'expired' ? 'text-red-600' : state === 'soon' ? 'text-orange-600' : 'text-slate-500'}`}>
+                            {state === 'expired' && <AlertCircle size={12} className="inline me-1" />}
+                            {expiryLabel(client.expiryDate)}
+                          </span>
+                        )
+                      })()}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-bold px-2 py-1 rounded-lg ${client.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
                         {client.status === 'active' ? t(lang, 'active') : t(lang, 'inactive')}
@@ -392,6 +534,13 @@ export default function Clients() {
                     </td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEdit(client)}
+                          className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center hover:bg-primary-100 transition-colors"
+                          title={t(lang, 'edit')}
+                        >
+                          <Pencil size={14} className="text-primary-500" />
+                        </button>
                         <button
                           onClick={() => setReset(client)}
                           className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center hover:bg-orange-100 transition-colors"
@@ -455,9 +604,12 @@ export default function Clients() {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${subColors[client.subscription] || subColors.Basic}`}>
                     {client.subscription}
                   </span>
-                  <span className="text-[10px] text-slate-400">
-                    {client.devicesCount} {lang === 'ar' ? 'جهاز' : 'appareils'}
+                   <span className="text-[10px] text-slate-400">
+                     {client.devicesCount}/{client.maxDevices ?? 5} {lang === 'ar' ? 'جهاز' : 'appareils'}
                   </span>
+                   <span className={`text-[10px] font-semibold ${expiryState(client.expiryDate) === 'expired' ? 'text-red-500' : expiryState(client.expiryDate) === 'soon' ? 'text-orange-500' : 'text-slate-400'}`}>
+                     {expiryLabel(client.expiryDate)}
+                   </span>
                 </div>
               </motion.div>
             ))}

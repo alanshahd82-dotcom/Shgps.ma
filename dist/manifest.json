@@ -1,8 +1,8 @@
 {
-  "name": "AtharGPS — تتبع الأسطول",
+  "name": "AtharGPS",
   "short_name": "AtharGPS",
   "description": "نظام تتبع المركبات الذكي بالوقت الفعلي",
-  "start_url": "/",
+  "start_url": "/client/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -10,7 +10,11 @@
   "theme_color": "#0F2044",
   "lang": "ar",
   "dir": "rtl",
-  "categories": ["navigation", "productivity", "business"],
+  "categories": [
+    "navigation",
+    "productivity",
+    "business"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -37,14 +41,27 @@
       "name": "الخريطة المباشرة",
       "short_name": "الخريطة",
       "description": "عرض مواقع المركبات مباشرة",
-      "url": "/#/client/home",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "url": "/client/home",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "الأجهزة",
       "short_name": "الأجهزة",
-      "url": "/#/client/devices",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "description": "إدارة الأجهزة المرتبطة بحسابك",
+      "url": "/client/devices",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

@@ -27,6 +27,9 @@ async function runMigrations() {
       ALTER TABLE users
         ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE,
         ADD COLUMN IF NOT EXISTS notification_prefs   JSONB   DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS max_devices           INTEGER DEFAULT 5,
+        ADD COLUMN IF NOT EXISTS expiry_date           TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS is_active             BOOLEAN DEFAULT TRUE,
         ADD COLUMN IF NOT EXISTS updated_at           TIMESTAMP DEFAULT NOW()
     `)
     await db.query(`
