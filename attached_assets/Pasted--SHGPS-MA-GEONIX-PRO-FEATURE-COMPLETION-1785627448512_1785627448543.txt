@@ -1,0 +1,517 @@
+══════════════════════════════════════════════════════
+🛰️ SHGPS.MA — GEONIX PRO FEATURE COMPLETION PROMPT
+══════════════════════════════════════════════════════
+
+أنت وكيل برمجي خبير. مهمتك إضافة جميع الميزات الناقصة
+لمشروع تتبع GPS موجود حتى يصبح مطابقاً لتطبيق GEONIX PRO.
+
+رابط المشروع: https://github.com/alanshahd82-dotcom/Shgps.ma
+
+══════════════════════════════════════════════════════
+📁 هيكل المشروع الحالي (اقرأه قبل أي تعديل):
+══════════════════════════════════════════════════════
+
+المشروع يحتوي على:
+
+FRONTEND (src/):
+├── api/index.js              ← API client للتواصل مع Backend
+├── components/               ← مكونات مشتركة (MapView, ClientNav, Carousel, Logo...)
+├── context/AppContext.jsx    ← الحالة العالمية (auth, devices, language)
+├── i18n/translations.js      ← ترجمة عربي/فرنسي {ar:{...}, fr:{...}}
+└── pages/
+    ├── admin/
+    │   ├── AdminLogin.jsx
+    │   ├── AdminLayout.jsx
+    │   ├── Dashboard.jsx
+    │   ├── Clients.jsx
+    │   ├── ClientDetail.jsx
+    │   ├── AllDevices.jsx
+    │   ├── GlobalMap.jsx
+    │   ├── AdminAlerts.jsx
+    │   └── DeviceSetup.jsx
+    ├── client/
+    │   ├── Login.jsx
+    │   ├── Home.jsx
+    │   ├── DeviceList.jsx
+    │   ├── DeviceDetail.jsx   ← يحتوي على Trip Replay أساسي
+    │   ├── Alerts.jsx
+    │   ├── Reports.jsx
+    │   ├── DriverBehavior.jsx
+    │   ├── Maintenance.jsx
+    │   └── Settings.jsx
+    ├── LandingPage.jsx
+    ├── SplashScreen.jsx
+    ├── PublicMap.jsx
+    ├── PublicShare.jsx
+    ├── Terms.jsx
+    └── Privacy.jsx
+
+BACKEND (backend/src/):
+├── routes/
+│   ├── admin.js, auth.js, alerts.js, clients.js
+│   ├── devices.js, geofences.js, leads.js
+│   ├── maintenance.js, map.js, reports.js, sharing.js
+├── services/
+│   ├── traccar.js            ← Traccar REST API integration
+│   └── tokenBlacklist.js
+├── db/                       ← PostgreSQL schema
+├── middleware/               ← JWT auth middleware
+├── config.js, db.js, index.js
+
+INFRASTRUCTURE:
+├── traccar/traccar.xml       ← إعداد Traccar server
+├── docker-compose.yml        ← Postgres + Traccar + Backend + Frontend + Nginx
+│   Traccar ports: 5023(GT06), 5029(WanWay), 5027(Teltonika), 5001(Generic), 5055(Client)
+├── nginx/                    ← Reverse proxy config
+├── ops/                      ← Scripts: monitor.sh, restore.sh, ufw-setup.sh
+├── .github/workflows/        ← CI/CD GitHub Actions
+└── capacitor.config.ts       ← Mobile app (Capacitor) configuration
+
+التقنيات: React + Vite + Tailwind CSS + Framer Motion + Leaflet
+          Node.js + Express + PostgreSQL + JWT
+          Traccar (GPS server) + Docker + Nginx
+
+══════════════════════════════════════════════════════
+🔴 قواعد صارمة — يجب اتباعها بدون استثناء:
+══════════════════════════════════════════════════════
+
+1. اقرأ كل ملف قبل تعديله — لا تحذف أي كود موجود
+2. كل إضافة تمتد من الكود الموجود ولا تستبدله
+3. استخدم نفس التقنيات الموجودة فقط (لا تضف frameworks جديدة)
+4. كل نص جديد يُضاف لـ src/i18n/translations.js بعربي + فرنسي
+5. كل صفحة Mobile-first (تعمل على شاشة 375px) — التطبيق يستخدم Capacitor
+6. لا بيانات وهمية (mock data) — كل شيء من Traccar API الحقيقي
+7. npm run build يجب أن ينجح بدون أخطاء في النهاية
+
+══════════════════════════════════════════════════════
+📋 المهام المطلوبة (13 مهمة كاملة):
+══════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────
+المهمة 1: لوحة إحصاء رئيسية محسّنة
+───────────────────────────────────────────────────
+الملف: src/pages/client/Home.jsx
+
+أضف:
+• عداد دائري (Gauge) يعرض إجمالي كم اليوم لجميع المركبات
+  → استخدم SVG circle progress أو مكتبة recharts RadialBarChart
+• 4 بطاقات إحصاء لحظية:
+  [🟢 سائرة] [🔴 متوقفة] [🟡 خاملة] [⚫ بلا إشارة]
+  البيانات من: GET /api/devices (traccar.getDevices() + traccar.getPositions())
+• مخطط بياني خطي (Line Chart) للكيلومترات آخر 7 أيام
+  البيانات من: GET /api/reports/summary?days=7
+• قسم "آخر الأحداث" — آخر 5 تنبيهات في الوقت الفعلي
+
+───────────────────────────────────────────────────
+المهمة 2: WebSocket للتحديث الفوري
+───────────────────────────────────────────────────
+الملف: src/context/AppContext.jsx + src/api/index.js
+
+أضف:
+• اتصال WebSocket بـ Traccar: wss://<TRACCAR_HOST>/api/socket
+  مع Authorization header من JWT المخزن
+• عند رسالة "positions" → حدّث موقع الجهاز في devices state فوراً
+• عند رسالة "devices" → حدّث حالة الجهاز (status, lastUpdate)
+• عند رسالة "events" → أضف التنبيه فوراً لقائمة alerts
+• إعادة اتصال تلقائية عند الانقطاع (exponential backoff: 1s, 2s, 4s, 8s, max 30s)
+• مؤشر حالة الاتصال في الـ Header/Nav: 🟢 متصل حي / 🔴 منقطع
+
+───────────────────────────────────────────────────
+المهمة 3: رسم المناطق الجغرافية (Geofencing UI)
+───────────────────────────────────────────────────
+ملف جديد: src/components/GeofenceDrawer.jsx
+الملف المحدّث: src/pages/client/DeviceDetail.jsx + GlobalMap.jsx
+
+أضف:
+• زر "رسم منطقة 📏" على صفحة الخريطة
+• وضع رسم تفاعلي على Leaflet يدعم: دائرة / مستطيل / مضلع حر
+  (استخدم Leaflet draw events أو رسم يدوي بـ map.on('click'))
+• عند إتمام الرسم: نافذة منبثقة تطلب:
+  - اسم المنطقة
+  - اختيار المركبات المرتبطة
+  - نوع التنبيه: دخول فقط / خروج فقط / كليهما
+• حفظ: POST /api/geofences → traccar.createGeofence()
+• عرض المناطق المحفوظة على الخريطة بشكل شفاف (polygon fill opacity 0.2)
+• تعديل وحذف كل منطقة
+• Badge يعرض عدد المركبات داخل كل منطقة الآن
+
+───────────────────────────────────────────────────
+المهمة 4: تصدير التقارير PDF + Excel
+───────────────────────────────────────────────────
+الملفات: src/pages/client/Reports.jsx + backend/src/routes/reports.js
+
+Frontend:
+• زر "📄 تصدير PDF" وزر "📊 تصدير Excel" في صفحة التقارير
+• PDF باستخدام jsPDF + jspdf-autotable:
+  - شعار Shgps.ma في الأعلى
+  - اسم المركبة + الفترة الزمنية + نوع التقرير
+  - جدول البيانات كامل
+  - إجمالي المسافة + الرحلات في الأسفل
+• Excel باستخدام SheetJS (xlsx):
+  - ورقة منفصلة لكل نوع تقرير
+  - تنسيق خلايا واضح
+
+Backend (جديد):
+GET /api/reports/export?type=trips&deviceId=X&from=Y&to=Z
+→ يجمع بيانات من Traccar ويعيد JSON كامل للتحويل
+
+───────────────────────────────────────────────────
+المهمة 5: سلوك السائق بنقاط (Driver Behavior Scoring)
+───────────────────────────────────────────────────
+الملفات: src/pages/client/DriverBehavior.jsx + backend/src/routes/reports.js
+
+خوارزمية النقاط (من 100):
+  نقطة البداية: 100
+  - تجاوز سرعة مرة واحدة: -10 نقاط (من Traccar events type=speedLimit)
+  - كبح مفاجئ: -5 نقاط (acceleration < -8 m/s²)
+  - قيادة أكثر من 4 ساعات متواصلة: -5 نقاط
+  - قيادة ليلية (12AM-5AM): -3 نقاط
+  الحد الأدنى: 0
+
+Frontend:
+• بطاقة لكل سائق تعرض:
+  - النقاط من 100 + نجوم (⭐)
+  - لون حسب النتيجة: 🟢 80+ / 🟠 50-79 / 🔴 أقل من 50
+  - شريط تقدم (Progress Bar) ملون
+• مخطط خطي للنقاط خلال آخر 30 يوم
+• Leaderboard: ترتيب السائقين من الأفضل للأسوأ
+• تفاصيل الأحداث لكل سائق (تجاوزات، توقفات)
+
+Backend (جديد):
+GET /api/reports/driver-behavior?deviceId=X&from=Y&to=Z
+→ يحسب ويعيد النقاط + الأحداث
+
+───────────────────────────────────────────────────
+المهمة 6: جدول الصيانة المحسّن
+───────────────────────────────────────────────────
+الملفات: src/pages/client/Maintenance.jsx + backend/src/routes/maintenance.js
+
+جدول بيانات يعرض الأعمدة:
+[التاريخ] [نوع الصيانة] [المركبة] [الكلفة] [الحالة] [ملاحظات] [الموعد القادم]
+
+أنواع الصيانة:
+تغيير زيت / فحص إطارات / فحص دوري / تأمين / ترخيص / بطارية / أخرى
+
+أضف:
+• نموذج إضافة صيانة جديدة (Modal)
+• تنبيه تلقائي: إذا موعد الصيانة القادم خلال ≤ 7 أيام → Badge أحمر في الـ Nav
+• حساب الكلفة الإجمالية الشهرية (Summary Card)
+• تصدير سجل الصيانة PDF
+
+DB Schema الجديد (أضف للـ migration):
+CREATE TABLE IF NOT EXISTS maintenance (
+  id SERIAL PRIMARY KEY,
+  device_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  date DATE NOT NULL,
+  next_date DATE,
+  cost DECIMAL(10,2),
+  notes TEXT,
+  status VARCHAR(20) DEFAULT 'completed',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+───────────────────────────────────────────────────
+المهمة 7: مشاركة الموقع الحي (Live Share)
+───────────────────────────────────────────────────
+الملفات: src/pages/client/DeviceDetail.jsx + src/pages/PublicShare.jsx
+          backend/src/routes/sharing.js
+
+Flow:
+1. زر "🔗 مشاركة الموقع الحي" في DeviceDetail
+2. نافذة منبثقة: اختيار مدة الصلاحية (1h / 6h / 24h / 7 أيام)
+3. توليد رابط فريد + QR Code (استخدم مكتبة qrcode.react)
+4. رابط: /share/<token>
+
+صفحة PublicShare (بدون تسجيل دخول):
+• خريطة Leaflet كاملة الشاشة
+• المركبة تتحرك في الوقت الفعلي
+• بطاقة معلومات: السرعة، الموقع، آخر تحديث
+• رسالة واضحة عند انتهاء الصلاحية
+
+Backend:
+POST /api/sharing/create {deviceId, expireHours}
+→ يولد UUID، يحفظه في DB مع expiry، يعيد الرابط
+
+GET /api/sharing/:token/position
+→ يتحقق من الصلاحية → يعيد موقع الجهاز من Traccar
+
+DB Schema:
+CREATE TABLE IF NOT EXISTS share_links (
+  id SERIAL PRIMARY KEY,
+  token UUID DEFAULT gen_random_uuid(),
+  device_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+───────────────────────────────────────────────────
+المهمة 8: Trip Replay متقدم
+───────────────────────────────────────────────────
+الملف: src/pages/client/DeviceDetail.jsx (موجود — عززه)
+
+أضف لـ ReplayMap الموجودة:
+• شريط تحكم محسّن:
+  ⏮ (البداية) / ⏵ (تشغيل) / ⏸ (إيقاف مؤقت) / ⏭ (النهاية)
+  سرعة: 1x / 2x / 4x / 8x
+• Badge سرعة يظهر على الخريطة ويتحرك مع المركبة أثناء Replay
+• تلوين المسار حسب السرعة:
+  - أخضر: سرعة عادية (< 80 كم/ساعة)
+  - برتقالي: سريع (80-120 كم/ساعة)
+  - أحمر: تجاوز (> 120 كم/ساعة)
+• نقاط توقف على الخريطة (⏸) مع مدة التوقف عند hover
+• Speed Chart أسفل الخريطة:
+  - محور X: الوقت / محور Y: السرعة
+  - خط عمودي يتحرك مع التشغيل
+• ملخص الرحلة الكامل:
+  [المسافة الكاملة] [مدة الرحلة] [متوسط السرعة] [أقصى سرعة] [وقت التوقف الإجمالي]
+
+───────────────────────────────────────────────────
+المهمة 9: Push Notifications
+───────────────────────────────────────────────────
+ملف جديد: src/services/notifications.js
+الملف المحدّث: src/pages/client/Settings.jsx
+
+PWA (Web):
+• استخدم Notification API المدمجة في المتصفح
+• اطلب الإذن عند أول تسجيل دخول
+• عند وصول event من WebSocket → أرسل Notification
+
+Capacitor (Mobile):
+• استخدم @capacitor/local-notifications (للإشعارات المحلية)
+• نقر الإشعار → navigate للجهاز المعني
+
+أنواع الإشعارات:
+• ⚡ تجاوز سرعة
+• 🚫 خروج من منطقة / دخول منطقة
+• 📡 انقطاع إشارة GPS
+• 🔑 تشغيل/إيقاف المحرك
+• 🔧 موعد صيانة قادم
+
+في Settings.jsx:
+• أضف قسم "إعدادات الإشعارات" مع Toggle لكل نوع
+• حفظ التفضيلات في localStorage
+
+───────────────────────────────────────────────────
+المهمة 10: Dark Mode
+───────────────────────────────────────────────────
+الملفات: src/context/AppContext.jsx + src/pages/client/Settings.jsx
+          كل ملفات CSS/JSX
+
+• أضف darkMode state في AppContext
+• احفظ في localStorage واقرأه عند التشغيل
+• أضف class="dark" لـ <html> عند تفعيل الوضع المظلم
+• استخدم Tailwind dark: variant في كل المكونات
+• ألوان Dark Mode:
+  - خلفية رئيسية: bg-slate-900 (#0f172a)
+  - بطاقات: bg-slate-800 (#1e293b)
+  - نص: text-slate-100
+  - حدود: border-slate-700
+• Toggle في Settings + اختصار في الـ Header
+• تأكد أن الخريطة (Leaflet) تستخدم tile layer داكن في Dark Mode
+  (مثل: CartoDB.DarkMatter)
+
+───────────────────────────────────────────────────
+المهمة 11: Clustering للمركبات على الخريطة
+───────────────────────────────────────────────────
+الملف: src/components/MapView.jsx
+
+• ثبّت: npm install react-leaflet-cluster
+• عند وجود > 5 مركبات في منطقة مضغوطة: اجمعها في Cluster
+• Cluster يعرض العدد داخل دائرة ملونة
+• لون الـ Cluster حسب الحالة السائدة:
+  - أخضر إذا أغلبها سائرة
+  - أحمر إذا أغلبها متوقفة
+• النقر على Cluster → zoom in وعرض المركبات الفردية
+• تعطيل Clustering عند zoom level > 15
+
+───────────────────────────────────────────────────
+المهمة 12: Device Setup Wizard مكتمل
+───────────────────────────────────────────────────
+الملف: src/pages/admin/DeviceSetup.jsx
+
+6 خطوات Step-by-Step (Stepper UI):
+
+الخطوة 1 — اختيار نوع الجهاز:
+[Teltonika] [Concox GT06] [WanWay GS900E] [Coban TK103] [Generic]
+
+الخطوة 2 — بيانات المركبة:
+• IMEI (15 رقم) مع تحقق تلقائي من الصيغة
+• اسم المركبة + رقم اللوحة + نوع المركبة
+
+الخطوة 3 — إعداد SIM (تعليمات خاصة بكل جهاز):
+عرض: أوامر SMS مخصصة حسب الجهاز المختار في الخطوة 1
+مثال Concox GT06:
+  SERVER,<IP>,5023,0,0#
+  APN,<اسم_شبكة>,,,#
+  GPRS#
+مثال Teltonika:
+  setparam 2001:<IP>;2002:5027
+
+الخطوة 4 — اختبار الاتصال:
+• زر "🔍 اختبار الاتصال"
+• يرسل طلب للـ Backend: POST /api/devices/test-connection {imei}
+• Backend يتحقق من وجود الجهاز في Traccar خلال 30 ثانية
+• عرض: ✅ متصل وجاهز / ❌ لم يصل بعد مع تلميحات تشخيصية
+
+الخطوة 5 — تعيين لعميل:
+• Dropdown لاختيار العميل
+• تأكيد الإضافة: POST /api/devices + ربط بالعميل
+
+الخطوة 6 — تأكيد نهائي:
+• ملخص كامل + زر "إضافة جهاز آخر" أو "الذهاب للخريطة"
+
+───────────────────────────────────────────────────
+المهمة 13: إدارة الاشتراكات
+───────────────────────────────────────────────────
+الملفات: src/pages/admin/ClientDetail.jsx + src/pages/admin/Clients.jsx
+          backend/src/routes/clients.js
+
+DB Schema (أضف للـ migration):
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS
+  subscription_start DATE,
+  subscription_end DATE,
+  max_devices INTEGER DEFAULT 5,
+  plan VARCHAR(20) DEFAULT 'basic',
+  is_active BOOLEAN DEFAULT true;
+
+Frontend - في ClientDetail.jsx:
+• قسم "الاشتراك" يعرض:
+  [تاريخ البداية] [تاريخ الانتهاء] [الأيام المتبقية] [الباقة] [عدد الأجهزة]
+• زر "تجديد الاشتراك" → نموذج لتحديد المدة الجديدة
+• زر "تعليق الحساب" / "تفعيل الحساب"
+
+Frontend - في Clients.jsx:
+• Badge أحمر للعملاء الذين ينتهي اشتراكهم خلال ≤ 7 أيام
+• Badge رمادي للعملاء المنتهي اشتراكهم
+• فلتر: الكل / نشط / منتهي / قريب الانتهاء
+
+Client-side Guard:
+• عند تسجيل دخول العميل: تحقق من تاريخ الاشتراك
+• إذا انتهى → عرض شاشة "انتهى اشتراكك، تواصل مع المسؤول"
+  بدلاً من الخريطة
+
+══════════════════════════════════════════════════════
+📦 المكتبات المطلوب تثبيتها:
+══════════════════════════════════════════════════════
+
+# Frontend
+npm install recharts jspdf jspdf-autotable xlsx \
+  react-leaflet-cluster qrcode.react \
+  @capacitor/local-notifications
+
+# لا تضف أي مكتبات أخرى غير هذه
+
+══════════════════════════════════════════════════════
+🗃️ قاعدة البيانات — Migrations المطلوبة:
+══════════════════════════════════════════════════════
+
+أضف ملف: backend/src/db/migrations/002_geonix_features.sql
+
+محتواه:
+-- Maintenance table
+CREATE TABLE IF NOT EXISTS maintenance (
+  id SERIAL PRIMARY KEY,
+  device_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  date DATE NOT NULL,
+  next_date DATE,
+  cost DECIMAL(10,2) DEFAULT 0,
+  notes TEXT,
+  status VARCHAR(20) DEFAULT 'completed',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Share links table
+CREATE TABLE IF NOT EXISTS share_links (
+  id SERIAL PRIMARY KEY,
+  token UUID DEFAULT gen_random_uuid() UNIQUE,
+  device_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  views INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Client subscription fields
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS subscription_start DATE,
+  ADD COLUMN IF NOT EXISTS subscription_end DATE,
+  ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 5,
+  ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'basic',
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Driver behavior cache
+CREATE TABLE IF NOT EXISTS driver_behavior_scores (
+  id SERIAL PRIMARY KEY,
+  device_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
+  date DATE NOT NULL,
+  score INTEGER DEFAULT 100,
+  speeding_events INTEGER DEFAULT 0,
+  harsh_braking INTEGER DEFAULT 0,
+  driving_hours DECIMAL(5,2) DEFAULT 0,
+  details JSONB,
+  UNIQUE(device_id, date)
+);
+
+══════════════════════════════════════════════════════
+🌐 Traccar API Reference (للرجوع إليها):
+══════════════════════════════════════════════════════
+
+Base URL: http://traccar:8082  (داخل Docker network)
+
+GET  /api/session         ← تسجيل دخول Traccar
+GET  /api/devices         ← جميع الأجهزة
+GET  /api/positions       ← آخر مواقع جميع الأجهزة
+POST /api/devices         ← إضافة جهاز جديد {name, uniqueId}
+GET  /api/reports/route?deviceId=X&from=Y&to=Z   ← تاريخ المسار
+GET  /api/reports/events?deviceId=X&from=Y&to=Z  ← الأحداث
+GET  /api/reports/summary?deviceId=X&from=Y&to=Z ← ملخص (مسافة، ساعات)
+GET  /api/geofences       ← المناطق الجغرافية
+POST /api/geofences       ← إضافة منطقة جديدة
+WSS  /api/socket          ← WebSocket للتحديث الفوري
+
+جميع هذه الـ endpoints موجودة في backend/src/services/traccar.js
+
+══════════════════════════════════════════════════════
+✅ معيار اكتمال المهمة:
+══════════════════════════════════════════════════════
+
+المهمة مكتملة فقط عندما تتحقق جميع هذه الشروط:
+
+□ 1. جميع الـ 13 مهمة مطبقة بالكامل
+□ 2. npm run build ينجح بدون أخطاء
+□ 3. لا يوجد console.error في المتصفح عند تشغيل التطبيق
+□ 4. كل النصوص الجديدة موجودة في translations.js (ar + fr)
+□ 5. كل الصفحات تعمل بشكل صحيح على شاشة 375px عرض
+□ 6. Dark Mode يعمل في جميع الصفحات بدون أخطاء بصرية
+□ 7. WebSocket يتحدث في الوقت الفعلي (يمكن اختباره بمحاكاة حركة جهاز)
+□ 8. لا توجد بيانات وهمية (كل شيء من Traccar API)
+□ 9. جميع الـ migrations اشتغلت بنجاح على PostgreSQL
+□ 10. التطبيق يعمل على Capacitor (npx cap sync لا يعطي أخطاء)
+
+══════════════════════════════════════════════════════
+🚀 ترتيب التنفيذ المقترح:
+══════════════════════════════════════════════════════
+
+ابدأ بهذا الترتيب لتجنب التعارضات:
+
+1. أولاً: DB Migrations (المهمة الأساس)
+2. ثانياً: WebSocket (المهمة 2) — كل شيء يعتمد عليه
+3. ثالثاً: Dark Mode (المهمة 10) — يؤثر على كل الملفات
+4. رابعاً: لوحة الإحصاء (المهمة 1)
+5. خامساً: Trip Replay المتقدم (المهمة 8)
+6. سادساً: Geofencing UI (المهمة 3)
+7. سابعاً: التقارير + التصدير (المهمة 4)
+8. ثامناً: سلوك السائق (المهمة 5)
+9. تاسعاً: الصيانة (المهمة 6)
+10. عاشراً: Live Share (المهمة 7)
+11. حادي عشر: Clustering (المهمة 11)
+12. ثاني عشر: Device Wizard (المهمة 12)
+13. ثالث عشر: Push Notifications (المهمة 9)
+14. رابع عشر: الاشتراكات (المهمة 13)
+══════════════════════════════════════════════════════
