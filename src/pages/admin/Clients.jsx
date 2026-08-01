@@ -34,12 +34,12 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
           onClick={onClose}
         >
           <motion.div
-            className="w-full md:max-w-[520px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
+            className="w-full md:max-w-[520px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, scale: 0.97, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 10 }}
             onClick={e => e.stopPropagation()}
           >
-              {/* Sticky header */}
-              <div className="sticky top-0 bg-primary-500 px-6 py-4 flex items-center justify-between z-10">
+              {/* Fixed header */}
+              <div className="flex-shrink-0 bg-primary-500 px-6 py-4 flex items-center justify-between rounded-t-3xl md:rounded-t-3xl">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
                     <User size={14} className="text-white" />
@@ -51,13 +51,14 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                 </button>
               </div>
 
-              {error && (
-                <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
-                  <AlertCircle size={15} className="flex-shrink-0" /> {error}
-                </div>
-              )}
+              {/* Scrollable body */}
+              <form id="add-client-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+                    <AlertCircle size={15} className="flex-shrink-0" /> {error}
+                  </div>
+                )}
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
                   {/* Name + City */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -161,35 +162,36 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                         : 'Après création, le client peut se connecter directement via l\'app client avec ces identifiants.'}
                     </p>
                   </div>
+              </form>
 
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="flex-1 btn-secondary py-3 text-sm"
-                    >
-                      {t(lang, 'cancel')}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-                    >
-                      {loading ? (
-                        <>
-                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
-                          </svg>
-                          <span>{lang === 'ar' ? 'جارٍ الإنشاء...' : 'Création...'}</span>
-                        </>
-                      ) : (
-                        <span>{t(lang, 'add')}</span>
-                      )}
-                    </button>
-                  </div>
-                </form>
+              {/* Fixed footer – always visible */}
+              <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 btn-secondary py-3 text-sm"
+                >
+                  {t(lang, 'cancel')}
+                </button>
+                <button
+                  type="submit"
+                  form="add-client-form"
+                  disabled={loading}
+                  className="flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
+                      </svg>
+                      <span>{lang === 'ar' ? 'جارٍ الإنشاء...' : 'Création...'}</span>
+                    </>
+                  ) : (
+                    <span>{t(lang, 'add')}</span>
+                  )}
+                </button>
+              </div>
           </motion.div>
         </motion.div>
       )}

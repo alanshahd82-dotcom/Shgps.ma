@@ -48,11 +48,12 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
           onClick={handleClose}
         >
           <motion.div
-            className="w-full md:max-w-[500px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
+            className="w-full md:max-w-[500px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-primary-500 px-6 py-4 flex items-center justify-between z-10">
+            {/* Fixed header */}
+            <div className="flex-shrink-0 bg-primary-500 px-6 py-4 flex items-center justify-between rounded-t-3xl">
               <h3 className="font-bold text-white text-lg">
                 {lang === 'ar' ? 'إضافة جهاز جديد' : 'Ajouter un appareil'}
               </h3>
@@ -60,7 +61,9 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
                 <X size={16} className="text-white" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+            {/* Scrollable body */}
+            <form id="add-device-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
               {error && (
                 <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
                   <AlertCircle size={15} /><span>{error}</span>
@@ -107,14 +110,16 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
                   ))}
                 </select>
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-                <button type="submit" disabled={loading || !form.name || !imeiValid}
-                  className="flex-1 btn-primary py-3 disabled:opacity-50">
-                  {loading ? '...' : t(lang, 'add')}
-                </button>
-              </div>
             </form>
+
+            {/* Fixed footer – always visible */}
+            <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
+              <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
+              <button type="submit" form="add-device-form" disabled={loading || !form.name || !imeiValid}
+                className="flex-1 btn-primary py-3 disabled:opacity-50">
+                {loading ? '...' : t(lang, 'add')}
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}
