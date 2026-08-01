@@ -58,7 +58,7 @@ export const api = {
       const params = new URLSearchParams({ deviceId })
       if (from) params.set('from', from)
       if (to)   params.set('to', to)
-      return apiFetch(`/reports?${params}`)
+      return apiFetch(`/reports/trips?${params}`)
     },
   },
   admin: {

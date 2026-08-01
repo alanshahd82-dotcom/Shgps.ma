@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Signal, Gauge, Navigation, Share2, Copy, CheckCheck, Loader2 } from 'lucide-react'
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import { ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Signal, Gauge, Navigation, Share2, Copy, CheckCheck, Loader2, Play, Pause, Square, FastForward, Route as RouteIcon } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -24,6 +26,67 @@ function StatBadge({ label, value, icon: Icon, color = 'primary' }) {
       </div>
       <p className="text-base font-bold">{value}</p>
     </div>
+  )
+}
+
+function ReplayMap({ route, currentIndex, deviceType = 'car', lang }) {
+  const validRoute = route.filter(point => (
+    Number.isFinite(Number(point.latitude)) &&
+    Number.isFinite(Number(point.longitude))
+  ))
+  const currentPoint = validRoute[Math.min(currentIndex, Math.max(validRoute.length - 1, 0))]
+  const coordinates = validRoute.map(point => [Number(point.latitude), Number(point.longitude)])
+  const replayCoordinates = coordinates.slice(0, Math.max(currentIndex + 1, 1))
+  const center = coordinates[0] || [33.5731, -7.5898]
+
+  const vehicleIcon = useMemo(() => L.divIcon({
+    className: 'athargps-replay-marker',
+    html: `<div style="width:38px;height:38px;border-radius:50%;background:#0F2044;border:3px solid #00D97E;box-shadow:0 0 0 7px rgba(0,217,126,.18),0 5px 14px rgba(15,32,68,.35);display:flex;align-items:center;justify-content:center;color:white;font-size:15px">●</div>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+  }), [])
+
+  function FitReplayBounds() {
+    const map = useMap()
+    useEffect(() => {
+      if (coordinates.length > 1) {
+        map.fitBounds(coordinates, { padding: [28, 28], maxZoom: 16 })
+      }
+    }, [map, route.length])
+    return null
+  }
+
+  if (!validRoute.length) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400">
+        <RouteIcon size={30} className="mb-2 opacity-40" />
+        <p className="text-sm">{lang === 'ar' ? 'لا توجد نقاط مسار لهذه الرحلة' : 'Aucun point pour ce trajet'}</p>
+      </div>
+    )
+  }
+
+  return (
+    <MapContainer center={center} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      />
+      <FitReplayBounds />
+      <Polyline positions={coordinates} pathOptions={{ color: '#8aa0bd', weight: 4, opacity: 0.42, dashArray: '6 8' }} />
+      <Polyline positions={replayCoordinates} pathOptions={{ color: '#1677ff', weight: 5, opacity: 0.94 }} />
+      {currentPoint && (
+        <Marker position={[Number(currentPoint.latitude), Number(currentPoint.longitude)]} icon={vehicleIcon}>
+          <Popup>
+            <div className="text-xs">
+              <strong>{currentPoint.speed} {lang === 'ar' ? 'كم/س' : 'km/h'}</strong>
+              <br />
+              {new Date(currentPoint.fixTime).toLocaleString(lang === 'ar' ? 'ar-MA' : 'fr-MA')}
+              {currentPoint.address && <><br />{currentPoint.address}</>}
+            </div>
+          </Popup>
+        </Marker>
+      )}
+    </MapContainer>
   )
 }
 
@@ -50,6 +113,11 @@ export default function DeviceDetail() {
   // Trips tab — loaded from reports API on demand
   const [tripsData, setTripsData]       = useState(null)
   const [tripsLoading, setTripsLoading] = useState(false)
+  const [tripsError, setTripsError]     = useState(null)
+  const [selectedTripIndex, setSelectedTripIndex] = useState(0)
+  const [replayIndex, setReplayIndex] = useState(0)
+  const [replayState, setReplayState] = useState('stopped')
+  const [replaySpeed, setReplaySpeed] = useState(1)
 
   // Fallback: if devices haven't loaded yet (e.g. page refresh), fetch this device directly
   const [fetchedDevice, setFetchedDevice] = useState(null)
@@ -159,13 +227,54 @@ export default function DeviceDetail() {
     if (activeTab !== 'trips' || !device) return
     if (tripsData !== null) return   // already loaded
     setTripsLoading(true)
+    setTripsError(null)
     const to   = new Date().toISOString()
     const from = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
     api.reports.get(device.id, from, to)
-      .then(res => setTripsData(res?.trips ?? []))
-      .catch(() => setTripsData([]))
+      .then(res => setTripsData(Array.isArray(res?.trips) ? res.trips : []))
+      .catch(error => setTripsError(error.message || (lang === 'ar' ? 'تعذر تحميل الرحلات' : 'Impossible de charger les trajets')))
       .finally(() => setTripsLoading(false))
   }, [activeTab, device]) // eslint-disable-line
+
+  const selectedTrip = tripsData?.[selectedTripIndex] || null
+  const selectedRoute = selectedTrip?.route || []
+
+  useEffect(() => {
+    setSelectedTripIndex(0)
+    setReplayIndex(0)
+    setReplayState('stopped')
+  }, [tripsData])
+
+  useEffect(() => {
+    if (replayState !== 'playing' || selectedRoute.length < 2) return undefined
+    const interval = window.setInterval(() => {
+      setReplayIndex(current => {
+        if (current >= selectedRoute.length - 1) {
+          setReplayState('stopped')
+          return selectedRoute.length - 1
+        }
+        return current + 1
+      })
+    }, Math.max(90, 650 / replaySpeed))
+    return () => window.clearInterval(interval)
+  }, [replayState, replaySpeed, selectedRoute.length])
+
+  const selectTrip = (index) => {
+    setSelectedTripIndex(index)
+    setReplayIndex(0)
+    setReplayState('stopped')
+  }
+
+  const toggleReplay = () => {
+    if (selectedRoute.length < 2) return
+    if (replayIndex >= selectedRoute.length - 1) setReplayIndex(0)
+    setReplayState(current => current === 'playing' ? 'paused' : 'playing')
+  }
+
+  const stopReplay = () => {
+    setReplayState('stopped')
+    setReplayIndex(0)
+  }
 
   const handleCopyLink = () => {
     if (!shareLink) return
@@ -298,49 +407,165 @@ export default function DeviceDetail() {
                   <Loader2 size={28} className="animate-spin mb-2" />
                   <p className="text-sm">{t(lang, 'loading')}</p>
                 </div>
+              ) : tripsError ? (
+                <div className="flex flex-col items-center justify-center h-40 text-red-400 text-center">
+                  <RouteIcon size={32} className="mb-2 opacity-50" />
+                  <p className="text-sm">{tripsError}</p>
+                  <button
+                    onClick={() => { setTripsData(null); setTripsError(null) }}
+                    className="mt-3 rounded-xl bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-500"
+                  >
+                    {lang === 'ar' ? 'إعادة المحاولة' : 'Réessayer'}
+                  </button>
+                </div>
               ) : !tripsData || tripsData.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-slate-400">
                   <Navigation size={32} className="mb-2 opacity-30" />
                   <p className="text-sm">{lang === 'ar' ? 'لا توجد رحلات في آخر 7 أيام' : 'Aucun trajet sur les 7 derniers jours'}</p>
                 </div>
-              ) : tripsData.map((trip, i) => {
-                const startTime = trip.startTime ? new Date(trip.startTime) : null
-                const endTime   = trip.endTime   ? new Date(trip.endTime)   : null
-                const fmt = (d) => d ? d.toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' }) : '—'
-                const fmtDate = (d) => d ? d.toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { day: '2-digit', month: '2-digit' }) : '—'
-                return (
-                  <motion.div
-                    key={i}
-                    className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.06 }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-primary-500 bg-primary-50 px-2 py-1 rounded-lg">{fmtDate(startTime)}</span>
-                      <span className="text-xs text-slate-400">{fmt(startTime)} — {fmt(endTime)}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="text-center">
-                        <p className="text-base font-bold text-primary-500">{trip.distanceKm ?? '—'}</p>
-                        <p className="text-[10px] text-slate-400">{t(lang, 'km')}</p>
+              ) : (
+                <>
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                    {tripsData.map((trip, i) => {
+                      const tripDate = trip.startTime
+                        ? new Date(trip.startTime).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { day: '2-digit', month: 'short' })
+                        : '—'
+                      return (
+                        <button
+                          key={trip.index || i}
+                          onClick={() => selectTrip(i)}
+                          className={`min-w-[126px] rounded-2xl border px-3 py-3 text-left transition-all ${
+                            selectedTripIndex === i
+                              ? 'border-primary-500 bg-primary-500 text-white shadow-md'
+                              : 'border-gray-100 bg-white text-slate-500'
+                          }`}
+                        >
+                          <span className="block text-[10px] font-bold uppercase opacity-70">
+                            {lang === 'ar' ? `رحلة ${i + 1}` : `Trajet ${i + 1}`}
+                          </span>
+                          <span className="mt-1 block text-xs font-semibold">{tripDate}</span>
+                          <span className="mt-1 block text-[10px] opacity-70">{trip.distanceKm ?? '—'} {t(lang, 'km')}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {selectedTrip && (
+                    <>
+                      <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+                        <div className="relative h-[245px]">
+                          <ReplayMap route={selectedRoute} currentIndex={replayIndex} deviceType={device.type} lang={lang} />
+                          <div className="absolute left-3 top-3 z-[500] rounded-xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur">
+                            <p className="text-[10px] font-semibold text-slate-400">
+                              {lang === 'ar' ? 'إعادة تشغيل المسار' : 'Replay du trajet'}
+                            </p>
+                            <p className="text-sm font-black text-primary-500">
+                              {selectedRoute[replayIndex]?.speed ?? 0} {t(lang, 'kmh')}
+                            </p>
+                          </div>
+                          <div className="absolute inset-x-3 bottom-3 z-[500] flex items-center gap-2 rounded-2xl bg-white/95 p-2 shadow-lg backdrop-blur">
+                            <button
+                              onClick={toggleReplay}
+                              disabled={selectedRoute.length < 2}
+                              aria-label={replayState === 'playing' ? 'Pause' : 'Play'}
+                              className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500 text-white disabled:opacity-40"
+                            >
+                              {replayState === 'playing' ? <Pause size={17} /> : <Play size={17} />}
+                            </button>
+                            <button
+                              onClick={stopReplay}
+                              aria-label="Stop"
+                              className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500"
+                            >
+                              <Square size={15} />
+                            </button>
+                            <div className="h-7 w-px bg-slate-200" />
+                            <FastForward size={15} className="text-slate-400" />
+                            {[1, 2, 4].map(speed => (
+                              <button
+                                key={speed}
+                                onClick={() => setReplaySpeed(speed)}
+                                className={`rounded-lg px-2 py-1 text-[10px] font-bold ${
+                                  replaySpeed === speed ? 'bg-primary-50 text-primary-500' : 'text-slate-400'
+                                }`}
+                              >
+                                {speed}x
+                              </button>
+                            ))}
+                            <span className="ml-auto text-[10px] font-semibold text-slate-400">
+                              {Math.min(replayIndex + 1, selectedRoute.length)} / {selectedRoute.length}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 border-t border-gray-100 p-3">
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-primary-500">{selectedTrip.distanceKm ?? '—'}</p>
+                            <p className="text-[10px] text-slate-400">{t(lang, 'km')}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-slate-600">{selectedTrip.avgSpeed ?? '—'}</p>
+                            <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'المتوسط' : 'Moyenne'}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-orange-500">{selectedTrip.maxSpeed ?? '—'}</p>
+                            <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'الأقصى' : 'Maximum'}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-slate-600">{selectedTrip.durationMin ?? '—'}</p>
+                            <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'دقيقة' : 'min'}</p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-base font-bold text-slate-600">{trip.avgSpeed ?? '—'}</p>
-                        <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'متوسط كم/س' : 'Moy. km/h'}</p>
+
+                      <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div>
+                            <h2 className="text-sm font-bold text-primary-500">
+                              {lang === 'ar' ? 'الخط الزمني' : 'Chronologie'}
+                            </h2>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {lang === 'ar' ? 'كل نقطة تمثل تحديثاً حقيقياً من Traccar' : 'Chaque point vient de Traccar'}
+                            </p>
+                          </div>
+                          <div className="flex gap-3 text-[10px] text-slate-400">
+                            <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />D</span>
+                            <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-red-400" />P</span>
+                          </div>
+                        </div>
+                        <div className="relative space-y-3">
+                          <div className="absolute bottom-2 left-[7px] top-2 w-px bg-slate-100" />
+                          {selectedRoute.map((point, pointIndex) => {
+                            const isDriving = Number(point.speed) > 0
+                            const time = point.fixTime
+                              ? new Date(point.fixTime).toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' })
+                              : '—'
+                            return (
+                              <button
+                                key={`${point.fixTime}-${pointIndex}`}
+                                onClick={() => { setReplayIndex(pointIndex); setReplayState('paused') }}
+                                className="relative flex w-full items-start gap-3 text-left"
+                              >
+                                <span className={`relative z-10 mt-1 h-4 w-4 shrink-0 rounded-full border-4 border-white shadow-sm ${isDriving ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                                <span className="min-w-0 flex-1 rounded-xl bg-slate-50 px-3 py-2">
+                                  <span className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-slate-600">{time}</span>
+                                    <span className={`text-[10px] font-bold ${isDriving ? 'text-emerald-600' : 'text-red-500'}`}>
+                                      {isDriving ? 'D' : 'P'} · {point.speed ?? 0} {t(lang, 'kmh')}
+                                    </span>
+                                  </span>
+                                  <span className="mt-1 block truncate text-[10px] text-slate-400">
+                                    {point.address || (lang === 'ar' ? 'العنوان غير متاح من Traccar' : 'Adresse indisponible dans Traccar')}
+                                  </span>
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-base font-bold text-orange-500">{trip.maxSpeed ?? '—'}</p>
-                        <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'أقصى كم/س' : 'Max km/h'}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-base font-bold text-slate-600">{trip.durationMin ?? '—'}</p>
-                        <p className="text-[10px] text-slate-400">{lang === 'ar' ? 'دقيقة' : 'min'}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )
-              })}
+                    </>
+                  )}
+                </>
+              )}
             </div>
           )}
 
