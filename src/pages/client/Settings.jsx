@@ -51,35 +51,33 @@ function EditProfileModal({ open, onClose, currentName, currentPhone, lang, onSa
           onClick={onClose}
         >
           <motion.div
-            className="w-full md:max-w-[420px] flex flex-col"
+            className="w-full md:max-w-[420px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
-              <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-primary-500 text-lg">{t(lang, 'personalInfo')}</h3>
                 <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
                   <X size={16} className="text-slate-400" />
                 </button>
               </div>
-              <div className="p-6 overflow-y-auto flex-1 min-h-0">
-                {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
-                <form onSubmit={handleSave} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'name')}</label>
-                    <input className="input-field text-sm" value={name} onChange={e => setName(e.target.value)} required />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'phone')}</label>
-                    <input className="input-field text-sm" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-                  </div>
-                  <button type="submit" disabled={saving}
-                    className="w-full btn-primary py-3 flex items-center justify-center gap-2">
-                    <Save size={15} />
-                    {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...') : t(lang, 'save')}
-                  </button>
-                </form>
-              </div>
+              {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+              <form onSubmit={handleSave} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'name')}</label>
+                  <input className="input-field text-sm" value={name} onChange={e => setName(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'phone')}</label>
+                  <input className="input-field text-sm" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+                </div>
+                <button type="submit" disabled={saving}
+                  className="w-full btn-primary py-3 flex items-center justify-center gap-2">
+                  <Save size={15} />
+                  {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...') : t(lang, 'save')}
+                </button>
+              </form>
             </div>
           </motion.div>
         </motion.div>
@@ -142,18 +140,18 @@ function ChangePasswordModal({ open, onClose, lang }) {
           onClick={onClose}
         >
           <motion.div
-            className="w-full md:max-w-[420px] flex flex-col"
+            className="w-full md:max-w-[420px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
-              <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
                 <h3 className="font-bold text-primary-500 text-lg">{t(lang, 'changePassword')}</h3>
                 <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
                   <X size={16} className="text-slate-400" />
                 </button>
               </div>
-              <div className="p-6 overflow-y-auto flex-1 min-h-0">
+              <div>
                 {success && (
                   <div className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 py-3 rounded-xl mb-3">
                     <CheckCircle2 size={16} />
@@ -225,7 +223,8 @@ function ChangePasswordModal({ open, onClose, lang }) {
   )
 }
 
-export default function Settings() {
+export default function Settings()
+ {
   const navigate = useNavigate()
   const { clientAuth, logoutClient, lang, setLang, updateUserInContext } = useApp()
   const [speedAlerts, setSpeedAlerts]         = useState(true)

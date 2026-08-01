@@ -34,13 +34,12 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
           onClick={onClose}
         >
           <motion.div
-            className="w-full md:max-w-[520px] md:max-h-[90vh] flex flex-col"
+            className="w-full md:max-w-[520px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, scale: 0.97, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 10 }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
               {/* Sticky header */}
-              <div className="bg-primary-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
+              <div className="sticky top-0 bg-primary-500 px-6 py-4 flex items-center justify-between z-10">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
                     <User size={14} className="text-white" />
@@ -52,13 +51,11 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                 </button>
               </div>
 
-              {/* Scrollable body */}
-              <div className="overflow-y-auto flex-1 min-h-0">
-                {error && (
-                  <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
-                    <AlertCircle size={15} className="flex-shrink-0" /> {error}
-                  </div>
-                )}
+              {error && (
+                <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+                  <AlertCircle size={15} className="flex-shrink-0" /> {error}
+                </div>
+              )}
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                   {/* Name + City */}
@@ -193,8 +190,6 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                     </button>
                   </div>
                 </form>
-              </div>
-            </div>
           </motion.div>
         </motion.div>
       )}
@@ -229,59 +224,57 @@ function ResetPasswordModal({ open, onClose, client, lang }) {
           onClick={onClose}
         >
           <motion.div
-            className="w-full md:max-w-[400px] flex flex-col"
+            className="w-full md:max-w-[400px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] md:max-h-[88vh]"
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
-              <div className="bg-orange-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <KeyRound size={18} className="text-white" />
-                  <h3 className="font-bold text-white">
-                    {lang === 'ar' ? 'إعادة تعيين كلمة المرور' : 'Réinitialiser le mot de passe'}
-                  </h3>
+            <div className="sticky top-0 bg-orange-500 px-6 py-4 flex items-center justify-between z-10">
+              <div className="flex items-center gap-2">
+                <KeyRound size={18} className="text-white" />
+                <h3 className="font-bold text-white">
+                  {lang === 'ar' ? 'إعادة تعيين كلمة المرور' : 'Réinitialiser le mot de passe'}
+                </h3>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                <X size={16} className="text-white" />
+              </button>
+            </div>
+            <div className="p-6">
+              {done ? (
+                <div className="flex flex-col items-center py-4 gap-3 text-emerald-600">
+                  <CheckCircle2 size={40} />
+                  <p className="font-semibold">{lang === 'ar' ? 'تم إعادة التعيين' : 'Réinitialisé'}</p>
                 </div>
-                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                  <X size={16} className="text-white" />
-                </button>
-              </div>
-              <div className="p-6 overflow-y-auto flex-1 min-h-0">
-                {done ? (
-                  <div className="flex flex-col items-center py-4 gap-3 text-emerald-600">
-                    <CheckCircle2 size={40} />
-                    <p className="font-semibold">{lang === 'ar' ? 'تم إعادة التعيين' : 'Réinitialisé'}</p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-sm text-slate-500 mb-4">
-                      {lang === 'ar' ? `كلمة مرور جديدة للعميل: ${client?.name}` : `Nouveau mot de passe pour: ${client?.name}`}
+              ) : (
+                <>
+                  <p className="text-sm text-slate-500 mb-4">
+                    {lang === 'ar' ? `كلمة مرور جديدة للعميل: ${client?.name}` : `Nouveau mot de passe pour: ${client?.name}`}
+                  </p>
+                  {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        {lang === 'ar' ? 'كلمة المرور الجديدة' : 'Nouveau mot de passe'}
+                      </label>
+                      <input type="password" className="input-field text-sm" value={pwd}
+                        onChange={e => setPwd(e.target.value)} required minLength={6}
+                        placeholder="••••••••" />
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {lang === 'ar' ? 'سيُطلب من العميل تغيير كلمة المرور عند تسجيل الدخول.' : 'Le client devra changer son mot de passe lors de la prochaine connexion.'}
                     </p>
-                    {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">
-                          {lang === 'ar' ? 'كلمة المرور الجديدة' : 'Nouveau mot de passe'}
-                        </label>
-                        <input type="password" className="input-field text-sm" value={pwd}
-                          onChange={e => setPwd(e.target.value)} required minLength={6}
-                          placeholder="••••••••" />
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        {lang === 'ar' ? 'سيُطلب من العميل تغيير كلمة المرور عند تسجيل الدخول.' : 'Le client devra changer son mot de passe lors de la prochaine connexion.'}
-                      </p>
-                      <div className="flex gap-3">
-                        <button type="button" onClick={onClose} className="flex-1 btn-secondary py-2.5 text-sm">
-                          {t(lang, 'cancel')}
-                        </button>
-                        <button type="submit" disabled={loading || !pwd}
-                          className="flex-1 bg-orange-500 text-white font-bold py-2.5 rounded-xl hover:bg-orange-600 transition-colors text-sm disabled:opacity-50">
-                          {loading ? '...' : (lang === 'ar' ? 'تعيين' : 'Appliquer')}
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                )}
-              </div>
+                    <div className="flex gap-3">
+                      <button type="button" onClick={onClose} className="flex-1 btn-secondary py-2.5 text-sm">
+                        {t(lang, 'cancel')}
+                      </button>
+                      <button type="submit" disabled={loading || !pwd}
+                        className="flex-1 bg-orange-500 text-white font-bold py-2.5 rounded-xl hover:bg-orange-600 transition-colors text-sm disabled:opacity-50">
+                        {loading ? '...' : (lang === 'ar' ? 'تعيين' : 'Appliquer')}
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
             </div>
           </motion.div>
         </motion.div>
