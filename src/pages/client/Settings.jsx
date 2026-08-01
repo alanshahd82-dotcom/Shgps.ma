@@ -45,40 +45,44 @@ function EditProfileModal({ open, onClose, currentName, currentPhone, lang, onSa
   return (
     <AnimatePresence>
       {open && (
-        <>
-          <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose} />
+        <motion.div
+          className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
           <motion.div
-            className="fixed inset-x-4 bottom-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[420px] z-50"
+            className="w-full md:max-w-[420px] flex flex-col"
             initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-6">
-              <div className="flex items-center justify-between mb-5">
+            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
+              <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">
                 <h3 className="font-bold text-primary-500 text-lg">{t(lang, 'personalInfo')}</h3>
                 <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
                   <X size={16} className="text-slate-400" />
                 </button>
               </div>
-              {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
-              <form onSubmit={handleSave} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'name')}</label>
-                  <input className="input-field text-sm" value={name} onChange={e => setName(e.target.value)} required />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'phone')}</label>
-                  <input className="input-field text-sm" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-                </div>
-                <button type="submit" disabled={saving}
-                  className="w-full btn-primary py-3 flex items-center justify-center gap-2">
-                  <Save size={15} />
-                  {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...') : t(lang, 'save')}
-                </button>
-              </form>
+              <div className="p-6 overflow-y-auto flex-1 min-h-0">
+                {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+                <form onSubmit={handleSave} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'name')}</label>
+                    <input className="input-field text-sm" value={name} onChange={e => setName(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{t(lang, 'phone')}</label>
+                    <input className="input-field text-sm" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+                  </div>
+                  <button type="submit" disabled={saving}
+                    className="w-full btn-primary py-3 flex items-center justify-center gap-2">
+                    <Save size={15} />
+                    {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...') : t(lang, 'save')}
+                  </button>
+                </form>
+              </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   )
@@ -132,86 +136,90 @@ function ChangePasswordModal({ open, onClose, lang }) {
   return (
     <AnimatePresence>
       {open && (
-        <>
-          <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose} />
+        <motion.div
+          className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
           <motion.div
-            className="fixed inset-x-4 bottom-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[420px] z-50"
+            className="w-full md:max-w-[420px] flex flex-col"
             initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-6">
-              <div className="flex items-center justify-between mb-5">
+            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
+              <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">
                 <h3 className="font-bold text-primary-500 text-lg">{t(lang, 'changePassword')}</h3>
                 <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center">
                   <X size={16} className="text-slate-400" />
                 </button>
               </div>
-              {success && (
-                <div className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 py-3 rounded-xl mb-3">
-                  <CheckCircle2 size={16} />
-                  <span className="text-sm font-semibold">
-                    {lang === 'ar' ? 'تم تغيير كلمة المرور' : 'Mot de passe modifié'}
-                  </span>
-                </div>
-              )}
-              {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
-              {!success && (
-                <form onSubmit={handleSave} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">
-                      {lang === 'ar' ? 'كلمة المرور الحالية' : 'Actuel'}
-                    </label>
-                    <div className="relative">
-                      <input type={showC ? 'text' : 'password'} className="input-field text-sm pe-10"
-                        value={current} onChange={e => setCurrent(e.target.value)} required />
-                      <button type="button" onClick={() => setShowC(p => !p)}
-                        className="absolute top-1/2 -translate-y-1/2 end-3 text-slate-400">
-                        {showC ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
+              <div className="p-6 overflow-y-auto flex-1 min-h-0">
+                {success && (
+                  <div className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 py-3 rounded-xl mb-3">
+                    <CheckCircle2 size={16} />
+                    <span className="text-sm font-semibold">
+                      {lang === 'ar' ? 'تم تغيير كلمة المرور' : 'Mot de passe modifié'}
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">
-                      {lang === 'ar' ? 'كلمة المرور الجديدة' : 'Nouveau'}
-                    </label>
-                    <div className="relative">
-                      <input type={showN ? 'text' : 'password'} className="input-field text-sm pe-10"
-                        value={next} onChange={e => setNext(e.target.value)} required />
-                      <button type="button" onClick={() => setShowN(p => !p)}
-                        className="absolute top-1/2 -translate-y-1/2 end-3 text-slate-400">
-                        {showN ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
+                )}
+                {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+                {!success && (
+                  <form onSubmit={handleSave} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        {lang === 'ar' ? 'كلمة المرور الحالية' : 'Actuel'}
+                      </label>
+                      <div className="relative">
+                        <input type={showC ? 'text' : 'password'} className="input-field text-sm pe-10"
+                          value={current} onChange={e => setCurrent(e.target.value)} required />
+                        <button type="button" onClick={() => setShowC(p => !p)}
+                          className="absolute top-1/2 -translate-y-1/2 end-3 text-slate-400">
+                          {showC ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">
-                      {lang === 'ar' ? 'تأكيد' : 'Confirmer'}
-                    </label>
-                    <input type="password" className="input-field text-sm" value={confirm}
-                      onChange={e => setConfirm(e.target.value)} required />
-                  </div>
-                  {next.length > 0 && (
-                    <div className="grid grid-cols-2 gap-1.5 bg-slate-50 rounded-xl p-3">
-                      {Object.entries(ruleLabels).map(([k, label]) => (
-                        <div key={k} className={`flex items-center gap-1.5 text-xs ${rules[k] ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {rules[k] ? <CheckCircle2 size={12} className="text-emerald-500" /> : <XCircle size={12} className="text-slate-300" />}
-                          {label}
-                        </div>
-                      ))}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        {lang === 'ar' ? 'كلمة المرور الجديدة' : 'Nouveau'}
+                      </label>
+                      <div className="relative">
+                        <input type={showN ? 'text' : 'password'} className="input-field text-sm pe-10"
+                          value={next} onChange={e => setNext(e.target.value)} required />
+                        <button type="button" onClick={() => setShowN(p => !p)}
+                          className="absolute top-1/2 -translate-y-1/2 end-3 text-slate-400">
+                          {showN ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  <button type="submit" disabled={!allOk || saving}
-                    className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
-                      allOk && !saving ? 'btn-primary' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    }`}>
-                    {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...') : t(lang, 'save')}
-                  </button>
-                </form>
-              )}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        {lang === 'ar' ? 'تأكيد' : 'Confirmer'}
+                      </label>
+                      <input type="password" className="input-field text-sm" value={confirm}
+                        onChange={e => setConfirm(e.target.value)} required />
+                    </div>
+                    {next.length > 0 && (
+                      <div className="grid grid-cols-2 gap-1.5 bg-slate-50 rounded-xl p-3">
+                        {Object.entries(ruleLabels).map(([k, label]) => (
+                          <div key={k} className={`flex items-center gap-1.5 text-xs ${rules[k] ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            {rules[k] ? <CheckCircle2 size={12} className="text-emerald-500" /> : <XCircle size={12} className="text-slate-300" />}
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button type="submit" disabled={!allOk || saving}
+                      className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
+                        allOk && !saving ? 'btn-primary' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}>
+                      {saving ? (lang === 'ar' ? 'جاري الحفظ...' : 'Enregistrement...') : t(lang, 'save')}
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   )

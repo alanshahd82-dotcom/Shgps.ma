@@ -42,15 +42,18 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
   return (
     <AnimatePresence>
       {open && (
-        <>
-          <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} />
+        <motion.div
+          className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={handleClose}
+        >
           <motion.div
-            className="fixed inset-x-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[500px] z-50"
+            className="w-full md:max-w-[500px] flex flex-col"
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="bg-primary-500 px-6 py-4 flex items-center justify-between">
+            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
+              <div className="bg-primary-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
                 <h3 className="font-bold text-white text-lg">
                   {lang === 'ar' ? 'إضافة جهاز جديد' : 'Ajouter un appareil'}
                 </h3>
@@ -58,64 +61,66 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
                   <X size={16} className="text-white" />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                {error && (
-                  <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
-                    <AlertCircle size={15} /><span>{error}</span>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">
-                    {lang === 'ar' ? 'اسم الجهاز' : "Nom de l'appareil"} *
-                  </label>
-                  <input className="input-field text-sm" value={form.name}
-                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">IMEI (15 {lang === 'ar' ? 'رقم' : 'chiffres'}) *</label>
-                  <input className={`input-field text-sm font-mono ${form.imei && !imeiValid ? 'border-red-300' : ''}`}
-                    maxLength={15} value={form.imei}
-                    onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '') }))} required />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="overflow-y-auto flex-1 min-h-0">
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                  {error && (
+                    <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
+                      <AlertCircle size={15} /><span>{error}</span>
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'النوع' : 'Type'}</label>
-                    <select className="input-field text-sm" value={form.type}
-                      onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                      <option value="car">{lang === 'ar' ? 'سيارة' : 'Voiture'}</option>
-                      <option value="bike">{lang === 'ar' ? 'دراجة' : 'Moto'}</option>
-                      <option value="truck">{lang === 'ar' ? 'شاحنة' : 'Camion'}</option>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      {lang === 'ar' ? 'اسم الجهاز' : "Nom de l'appareil"} *
+                    </label>
+                    <input className="input-field text-sm" value={form.name}
+                      onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">IMEI (15 {lang === 'ar' ? 'رقم' : 'chiffres'}) *</label>
+                    <input className={`input-field text-sm font-mono ${form.imei && !imeiValid ? 'border-red-300' : ''}`}
+                      maxLength={15} value={form.imei}
+                      onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '') }))} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'النوع' : 'Type'}</label>
+                      <select className="input-field text-sm" value={form.type}
+                        onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+                        <option value="car">{lang === 'ar' ? 'سيارة' : 'Voiture'}</option>
+                        <option value="bike">{lang === 'ar' ? 'دراجة' : 'Moto'}</option>
+                        <option value="truck">{lang === 'ar' ? 'شاحنة' : 'Camion'}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
+                      <input className="input-field text-sm" value={form.plate}
+                        onChange={e => setForm(p => ({ ...p, plate: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      {lang === 'ar' ? 'تعيين للعميل' : 'Assigner au client'}
+                    </label>
+                    <select className="input-field text-sm" value={form.clientId}
+                      onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}>
+                      <option value="">{lang === 'ar' ? '— بدون عميل —' : '— Sans client —'}</option>
+                      {clientList.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
-                    <input className="input-field text-sm" value={form.plate}
-                      onChange={e => setForm(p => ({ ...p, plate: e.target.value }))} />
+                  <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
+                    <button type="submit" disabled={loading || !form.name || !imeiValid}
+                      className="flex-1 btn-primary py-3 disabled:opacity-50">
+                      {loading ? '...' : t(lang, 'add')}
+                    </button>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">
-                    {lang === 'ar' ? 'تعيين للعميل' : 'Assigner au client'}
-                  </label>
-                  <select className="input-field text-sm" value={form.clientId}
-                    onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}>
-                    <option value="">{lang === 'ar' ? '— بدون عميل —' : '— Sans client —'}</option>
-                    {clientList.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-                  <button type="submit" disabled={loading || !form.name || !imeiValid}
-                    className="flex-1 btn-primary py-3 disabled:opacity-50">
-                    {loading ? '...' : t(lang, 'add')}
-                  </button>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   )
@@ -125,15 +130,18 @@ function SyncResultModal({ open, onClose, result, lang }) {
   return (
     <AnimatePresence>
       {open && (
-        <>
-          <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+        <motion.div
+          className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
           <motion.div
-            className="fixed inset-x-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[460px] z-50"
-            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full md:max-w-[460px] flex flex-col"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="bg-teal-600 px-6 py-4 flex items-center justify-between">
+            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
+              <div className="bg-teal-600 px-6 py-4 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <RefreshCw size={18} className="text-white" />
                   <h3 className="font-bold text-white">
@@ -144,7 +152,7 @@ function SyncResultModal({ open, onClose, result, lang }) {
                   <X size={16} className="text-white" />
                 </button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-emerald-50 rounded-xl p-3 text-center">
                     <p className="text-2xl font-black text-emerald-600">{result?.synced ?? 0}</p>
@@ -201,7 +209,7 @@ function SyncResultModal({ open, onClose, result, lang }) {
               </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   )

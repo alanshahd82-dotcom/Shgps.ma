@@ -223,15 +223,18 @@ function ResetPasswordModal({ open, onClose, client, lang }) {
   return (
     <AnimatePresence>
       {open && (
-        <>
-          <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+        <motion.div
+          className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
           <motion.div
-            className="fixed inset-x-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[400px] z-50"
-            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full md:max-w-[400px] flex flex-col"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="bg-orange-500 px-6 py-4 flex items-center justify-between">
+            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[90vh]">
+              <div className="bg-orange-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <KeyRound size={18} className="text-white" />
                   <h3 className="font-bold text-white">
@@ -242,7 +245,7 @@ function ResetPasswordModal({ open, onClose, client, lang }) {
                   <X size={16} className="text-white" />
                 </button>
               </div>
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto flex-1 min-h-0">
                 {done ? (
                   <div className="flex flex-col items-center py-4 gap-3 text-emerald-600">
                     <CheckCircle2 size={40} />
@@ -281,7 +284,7 @@ function ResetPasswordModal({ open, onClose, client, lang }) {
               </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   )

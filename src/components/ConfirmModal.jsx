@@ -6,24 +6,20 @@ export default function ConfirmModal({ open, title, message, confirmLabel, cance
   return (
     <AnimatePresence>
       {open && (
-        <>
-          {/* Backdrop */}
+        <motion.div
+          className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onCancel}
+        >
           <motion.div
-            className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onCancel}
-          />
-          {/* Modal */}
-          <motion.div
-            className="fixed inset-x-4 bottom-8 z-50 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-96"
+            className="w-full md:max-w-sm"
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white rounded-3xl shadow-2xl p-6">
+            <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-6">
               {/* Icon */}
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-100' : 'bg-amber-100'}`}>
                 <AlertTriangle className={`w-7 h-7 ${danger ? 'text-red-500' : 'text-amber-500'}`} />
@@ -56,7 +52,7 @@ export default function ConfirmModal({ open, title, message, confirmLabel, cance
               </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   )
