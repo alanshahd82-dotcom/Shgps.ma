@@ -16,6 +16,7 @@ export function AppProvider({ children }) {
   const [alertsList,   setAlertsList]       = useState([])
   const [clientList,   setClientList]       = useState([])
   const [networkError, setNetworkError]     = useState(false)
+  const [clientsError, setClientsError]     = useState(false)
   const [wsConnected,        setWsConnected]        = useState(false)
   const [subscriptionExpired, setSubscriptionExpired] = useState(false)
   const [darkMode,       setDarkModeState]  = useState(() => localStorage.getItem('athargps_darkmode') === 'true')
@@ -76,11 +77,12 @@ export function AppProvider({ children }) {
     return () => closeWebSocket()
   }, []) // eslint-disable-line
 
-  // Refresh devices every 30 s
+  // Refresh devices every 30 s, clients every 60 s
   useEffect(() => {
     if (!clientAuth && !adminAuth) return
-    const id = setInterval(loadDevices, 30000)
-    return () => clearInterval(id)
+    const devId     = setInterval(loadDevices, 30000)
+    const clientsId = adminAuth ? setInterval(loadClients, 60000) : null
+    return () => { clearInterval(devId); if (clientsId) clearInterval(clientsId) }
   }, [clientAuth, adminAuth]) // eslint-disable-line
 
   async function loadDevices() {
@@ -378,8 +380,9 @@ export function AppProvider({ children }) {
       unreadCount, markAlertRead, markAllAlertsRead,
       addClient, updateClient, addDevice, addDeviceDirect, deleteDevice, deleteClient,
       refreshDevices: loadDevices,
+      refreshClients: loadClients,
       updateUserInContext,
-      networkError,
+      networkError, clientsError,
       wsConnected,
       darkMode, toggleDarkMode, setDarkMode,
       pushEnabled, requestPushPermission, disablePush, sendBrowserNotification,

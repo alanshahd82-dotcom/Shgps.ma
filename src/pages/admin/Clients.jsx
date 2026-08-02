@@ -426,7 +426,7 @@ function SubscriptionBadge({ client }) {
 
 export default function Clients() {
   const navigate = useNavigate()
-  const { clientList, addClient, updateClient, deleteClient, lang } = useApp()
+  const { clientList, addClient, updateClient, deleteClient, refreshClients, clientsError, lang } = useApp()
   const [search, setSearch]       = useState('')
   const [filter, setFilter]       = useState('all')
   const [showAdd, setShowAdd]     = useState(false)
@@ -490,6 +490,24 @@ export default function Clients() {
       />
 
       <div className="p-6 max-w-7xl mx-auto">
+
+        {/* Error banner */}
+        {clientsError && (
+          <div className="mb-4 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <p className="text-sm text-red-600 font-medium">
+              {lang === 'ar'
+                ? '⚠️ تعذّر تحميل قائمة العملاء. تحقق من اتصال الخادم.'
+                : '⚠️ Impossible de charger les clients. Vérifiez la connexion au serveur.'}
+            </p>
+            <button
+              onClick={refreshClients}
+              className="flex-shrink-0 text-xs font-bold bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              {lang === 'ar' ? 'إعادة المحاولة' : 'Réessayer'}
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
