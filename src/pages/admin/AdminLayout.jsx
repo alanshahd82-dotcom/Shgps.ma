@@ -289,12 +289,14 @@ export default function AdminLayout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { adminAuth, logoutAdmin, lang, setLang, alertsList, mustChangePassword, clearMustChange,
-          clientList, addDeviceDirect } = useApp()
+          clientList, refreshDevices, refreshClients } = useApp()
   const [sidebarOpen,    setSidebarOpen]    = useState(false)
   const [showQuickAdd,   setShowQuickAdd]   = useState(false)
 
-  const handleQuickAddSuccess = (device) => {
-    addDeviceDirect && addDeviceDirect(device)
+  const handleQuickAddSuccess = () => {
+    // Device already created by the modal's API call — just refresh lists
+    refreshDevices?.()
+    refreshClients?.()
   }
 
   const allUnread = alertsList.filter(a => !a.read).length
