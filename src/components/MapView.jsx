@@ -140,6 +140,7 @@ export default function MapView({
   geofenceRadius = 500,
   onMapClick = null,
   zoom = 13,
+  children = null,
 }) {
   const { devices, lang } = useApp()
 
@@ -213,6 +214,9 @@ export default function MapView({
       />
 
       {primaryHasCoords && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
+
+      {/* Extra layers injected by parent (user location, routing, etc.) */}
+      {children}
 
       {/* Geofence circle */}
       {showGeofence && geofenceCenter && (

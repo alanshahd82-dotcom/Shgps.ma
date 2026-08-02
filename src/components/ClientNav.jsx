@@ -1,12 +1,12 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Cpu, Map, Bell, Settings, Wifi, WifiOff } from 'lucide-react'
+import { Home, Car, Map, Bell, Settings, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
 const NAV_ITEMS = [
   { path: '/client/home',     icon: Home,     labelKey: 'home'     },
-  { path: '/client/devices',  icon: Cpu,      labelKey: 'devices'  },
+  { path: '/client/devices',  icon: Car,      labelKey: 'devices'  },
   { path: '/client/map',      icon: Map,      labelKey: 'liveMap', exact: true },
   { path: '/client/alerts',   icon: Bell,     labelKey: 'alerts',  badge: true },
   { path: '/client/settings', icon: Settings, labelKey: 'settings' },
