@@ -1,0 +1,94 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# git pull && npm run build && pm2 restart shgps
+Already up to date.
+
+> athargps@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+✓ 2803 modules transformed.
+dist/index.html                     8.90 kB │ gzip:   2.88 kB
+dist/assets/index-D8NYgmS_.css     62.75 kB │ gzip:  15.00 kB
+dist/assets/index-CMdHv_FD.js   1,191.67 kB │ gzip: 334.98 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 21.25s
+Command 'pm2' not found, did you mean:
+  command 'pmw' from deb pmw (1:5.22-1)
+  command 'pmc' from deb linuxptp (4.0-1ubuntu1.1)
+  command 'tpm2' from deb tpm2-tools (5.4-1)
+  command 'pom2' from deb libpod-pom-perl (2.01-4)
+  command 'pm' from deb powerman (2.3.27-4)
+  command 'pms' from deb pms (0.42-1.1)
+  command 'wm2' from deb wm2 (4+svn20090216-4build1)
+  command 'pmg' from deb python3-pymatgen (2023.06.23+dfsg1-2build1)
+  command 'gm2' from deb gm2 (4:13.2.0-2ubuntu1)
+Try: apt install <deb name>
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cd /opt/shgps && git pull && npm run build && pm2 restart shgps
+^[[200~cd /opt/shgps && git pull && npm run build && pm2 restart shgps^[[201~^[[200~cd /opt/shgps && git pull && npm run build && pm2 restart shgps^[[201~
+remote: Enumerating objects: 27, done.
+remote: Counting objects: 100% (27/27), done.
+remote: Compressing objects: 100% (4/4), done.
+remote: Total 15 (delta 11), reused 15 (delta 11), pack-reused 0 (from 0)
+Unpacking objects: 100% (15/15), 346.40 KiB | 186.00 KiB/s, done.
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+   bc9d412..33fb36a  main       -> origin/main
+hint: You have divergent branches and need to specify how to reconcile them.
+hint: You can do so by running one of the following commands sometime before
+hint: your next pull:
+hint: 
+hint:   git config pull.rebase false  # merge
+hint:   git config pull.rebase true   # rebase
+hint:   git config pull.ff only       # fast-forward only
+hint: 
+hint: You can replace "git config" with "git config --global" to set a default
+hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+hint: or --ff-only on the command line to override the configured default per
+hint: invocation.
+fatal: Need to specify how to reconcile divergent branches.
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cd /opt/shgps && git pull && npm run build && pm2 restart shgpscd /opt/shgps && git pull && npm run build && pm2 restart shgps
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit bc9d412e90554af9f9cfbf042816a6518c0509ce.
+error: Your local changes to the following files would be overwritten by merge:
+        dist/index.html
+        src/pages/client/DeviceDetail.jsx
+        src/pages/client/Geofences.jsx
+        src/pages/client/LiveMap.jsx
+        src/pages/client/Maintenance.jsx
+        src/pages/client/Reports.jsx
+Please commit your changes or stash them before you merge.
+error: The following untracked working tree files would be overwritten by merge:
+        dist/assets/index-9LqENxLs.js
+        dist/assets/index-D8NYgmS_.css
+Please move or remove them before you merge.
+Aborting
+fatal: Cannot fast-forward your working tree.
+After making sure that you saved anything precious from
+$ git diff bc9d412e90554af9f9cfbf042816a6518c0509ce
+output, run
+$ git reset --hard
+to recover.
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cd /opt/shgps && git pull && npm run build && pm2 restart shgps
+remote: Enumerating objects: 18, done.
+remote: Counting objects: 100% (18/18), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 10 (delta 7), reused 10 (delta 7), pack-reused 0 (from 0)
+Unpacking objects: 100% (10/10), 330.35 KiB | 167.00 KiB/s, done.
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+   33fb36a..bb7286b  main       -> origin/main
+Updating 33fb36a..bb7286b
+Fast-forward
+ dist/assets/{index-9LqENxLs.js => index-Cw8hglBH.js} | 46 +++++++++++++++++++++++-----------------------
+ dist/index.html                                      |  2 +-
+ src/pages/client/LiveMap.jsx                         |  1 +
+ 3 files changed, 25 insertions(+), 24 deletions(-)
+ rename dist/assets/{index-9LqENxLs.js => index-Cw8hglBH.js} (96%)
+
+> athargps@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming (1067) node_modules/lucide-react/dist/esm/icons/message-square-warning.js
