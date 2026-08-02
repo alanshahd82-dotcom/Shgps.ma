@@ -1,0 +1,409 @@
+══════════════════════════════════════════════════════
+🔧 SHGPS.MA — COMPLETION PROMPT (3 Missing Features)
+══════════════════════════════════════════════════════
+
+المشروع: https://github.com/alanshahd82-dotcom/Shgps.ma
+المهمة: إكمال 3 ميزات ناقصة فقط — لا تلمس أي شيء آخر.
+
+══════════════════════════════════════════════════════
+📌 قواعد صارمة — اتبعها بدون استثناء:
+══════════════════════════════════════════════════════
+
+1. اقرأ كل ملف كاملاً قبل تعديله
+2. لا تحذف أي كود موجود — فقط أضف عليه
+3. لا تغير هيكل المشروع
+4. كل نص جديد يُضاف لـ src/i18n/translations.js (ar + fr)
+5. npm run build يجب ينجح في النهاية بدون أخطاء
+
+══════════════════════════════════════════════════════
+المهمة الأولى: تصدير PDF حقيقي + Excel
+══════════════════════════════════════════════════════
+
+الملف المستهدف: src/pages/client/Reports.jsx
+
+المشكلة الحالية:
+- زر PDF يستخدم window.print() فقط — مش PDF حقيقي
+- زر Excel موجود لكن xlsx غير مثبّتة
+
+الخطوة 1 — تثبيت المكتبات:
+  npm install jspdf jspdf-autotable xlsx
+
+الخطوة 2 — استبدل دالة exportPDF() الموجودة بهذا الكود:
+
+  import jsPDF from 'jspdf'
+  import autoTable from 'jspdf-autotable'
+  import * as XLSX from 'xlsx'
+
+  function exportPDF() {
+    if (!data?.trips?.length) return
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+    // Header
+    doc.setFontSize(16)
+    doc.setTextColor(15, 32, 68)       // primary-500
+    doc.text('Shgps.ma — تقرير الرحلات', 105, 18, { align: 'center' })
+
+    doc.setFontSize(9)
+    doc.setTextColor(100, 116, 139)    // slate-500
+    const deviceName = devices.find(d => String(d.id) === String(selectedDevice))?.name || ''
+    doc.text(`الجهاز: ${deviceName}`, 15, 28)
+    doc.text(`الفترة: ${new Date(dateFrom).toLocaleDateString('ar-MA')} — ${new Date(dateTo).toLocaleDateString('ar-MA')}`, 15, 34)
+
+    // Table
+    autoTable(doc, {
+      startY: 42,
+      head: [['#', 'البداية', 'النهاية', 'المدة', 'المسافة (كم)', 'متوسط السرعة', 'أقصى سرعة']],
+      body: data.trips.map((trip, i) => [
+        i + 1,
+        trip.startTime ? new Date(trip.startTime).toLocaleString('ar-MA') : '—',
+        trip.endTime   ? new Date(trip.endTime).toLocaleString('ar-MA')   : '—',
+        trip.duration  ? `${Math.round(trip.duration)} د`                 : '—',
+        trip.distance  ? trip.distance.toFixed(1)                         : '0',
+        trip.avgSpeed  ? `${Math.round(trip.avgSpeed)} كم/س`              : '—',
+        trip.maxSpeed  ? `${Math.round(trip.maxSpeed)} كم/س`              : '—',
+      ]),
+      styles: { font: 'helvetica', fontSize: 8, halign: 'center' },
+      headStyles: { fillColor: [15, 32, 68], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      foot: [[
+        '', '', 'الإجمالي',
+        data.summary?.totalDuration ? `${Math.round(data.summary.totalDuration)} د` : '—',
+        data.summary?.totalDistance ? `${data.summary.totalDistance.toFixed(1)} كم` : '—',
+        '', ''
+      ]],
+      footStyles: { fillColor: [0, 217, 126], textColor: [15, 32, 68], fontStyle: 'bold' },
+    })
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(7)
+      doc.setTextColor(148, 163, 184)
+      doc.text(`Shgps.ma — صفحة ${i} من ${pageCount}`, 105, 290, { align: 'center' })
+    }
+
+    doc.save(`taqrir-${deviceName}-${new Date().toISOString().slice(0,10)}.pdf`)
+  }
+
+الخطوة 3 — أضف دالة exportExcel() جديدة:
+
+  function exportExcel() {
+    if (!data?.trips?.length) return
+    const deviceName = devices.find(d => String(d.id) === String(selectedDevice))?.name || 'device'
+
+    const rows = data.trips.map((trip, i) => ({
+      '#':            i + 1,
+      'البداية':      trip.startTime ? new Date(trip.startTime).toLocaleString('ar-MA') : '—',
+      'النهاية':      trip.endTime   ? new Date(trip.endTime).toLocaleString('ar-MA')   : '—',
+      'المدة (د)':    trip.duration  ? Math.round(trip.duration)                        : 0,
+      'المسافة (كم)': trip.distance  ? parseFloat(trip.distance.toFixed(1))             : 0,
+      'متوسط السرعة': trip.avgSpeed  ? Math.round(trip.avgSpeed)                        : 0,
+      'أقصى سرعة':   trip.maxSpeed  ? Math.round(trip.maxSpeed)                        : 0,
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [{ wch: 4 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 12 }]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'الرحلات')
+
+    // Summary sheet
+    if (data.summary) {
+      const summaryData = [{
+        'إجمالي الرحلات':   data.trips.length,
+        'إجمالي المسافة':   data.summary.totalDistance?.toFixed(1) || '0',
+        'إجمالي الوقت (د)': data.summary.totalDuration ? Math.round(data.summary.totalDuration) : 0,
+        'متوسط السرعة':     data.summary.avgSpeed ? Math.round(data.summary.avgSpeed) : 0,
+      }]
+      const ws2 = XLSX.utils.json_to_sheet(summaryData)
+      XLSX.utils.book_append_sheet(wb, ws2, 'الملخص')
+    }
+
+    XLSX.writeFile(wb, `taqrir-${deviceName}-${new Date().toISOString().slice(0,10)}.xlsx`)
+  }
+
+الخطوة 4 — ربط الدوال بالأزرار الموجودة:
+  ابحث عن الأزرار الحالية (PDF و Excel) في JSX وتأكد أنها تستدعي
+  exportPDF() و exportExcel() على الترتيب.
+
+══════════════════════════════════════════════════════
+المهمة الثانية: Device Setup Wizard (6 خطوات)
+══════════════════════════════════════════════════════
+
+الملف المستهدف: src/pages/admin/DeviceSetup.jsx
+
+المشكلة الحالية:
+الصفحة الموجودة هي "مولّد أوامر SMS" فقط.
+احتفظ بها لكن أضف Wizard كامل فوقها.
+
+الهيكل الجديد للصفحة:
+
+  export default function DeviceSetup() {
+    const [mode, setMode] = useState('wizard') // 'wizard' | 'commands'
+    // ...
+    return mode === 'wizard' ? <WizardMode onSwitch={() => setMode('commands')} />
+                             : <CommandsMode onSwitch={() => setMode('wizard')} />
+  }
+
+══ مكوّن WizardMode — 6 خطوات: ══
+
+الخطوة 1 — اختيار نوع الجهاز:
+  const DEVICE_TYPES = [
+    { id: 'gt06',      label: 'Concox GT06',        port: '5023', icon: '📡' },
+    { id: 'wanway',   label: 'WanWay GS900E',       port: '5029', icon: '📡' },
+    { id: 'teltonika', label: 'Teltonika FMB920',    port: '5027', icon: '📡' },
+    { id: 'coban',    label: 'Coban TK103',          port: '5023', icon: '📡' },
+    { id: 'generic',  label: lang==='ar'?'عام':'Générique', port:'5001', icon:'📡' },
+  ]
+  → عرض كبطاقات قابلة للنقر (Grid 2 أعمدة)
+  → البطاقة المختارة تتميّز بحد accent أخضر
+
+الخطوة 2 — بيانات المركبة:
+  حقول: IMEI (15 رقم) + اسم المركبة + رقم اللوحة + نوع المركبة (سيارة/دراجة/شاحنة)
+  التحقق من IMEI: يجب أن يكون 15 رقماً بالضبط
+    const isIMEIValid = /^\d{15}$/.test(imei)
+  عرض ✅ أو ❌ بجانب حقل IMEI أثناء الكتابة
+
+الخطوة 3 — إعداد SIM (أوامر SMS):
+  عرض الأوامر المناسبة لكل نوع جهاز:
+
+  const SMS_COMMANDS = {
+    gt06: (serverHost, port, apn) => [
+      { label: 'ضبط APN',    cmd: `APN,${apn},#` },
+      { label: 'ضبط السيرفر', cmd: `SERVER,1,${serverHost},${port},0#` },
+      { label: 'إعادة تشغيل', cmd: `RESET,123456#` },
+    ],
+    wanway: (serverHost, port, apn) => [
+      { label: 'ضبط APN',    cmd: `APN,${apn},,` },
+      { label: 'ضبط السيرفر', cmd: `IP,${serverHost},${port}` },
+      { label: 'إعادة تشغيل', cmd: `RESET` },
+    ],
+    teltonika: (serverHost, port) => [
+      { label: 'ضبط السيرفر والمنفذ',
+        cmd: `setparam 2001:${serverHost};2002:${port}` },
+      { label: 'حفظ الإعدادات', cmd: `saveconfig` },
+    ],
+    coban: (serverHost, port, apn) => [
+      { label: 'ضبط APN',    cmd: `APN${apn}` },
+      { label: 'ضبط السيرفر', cmd: `adminip ${serverHost} ${port}` },
+    ],
+    generic: (serverHost, port) => [
+      { label: 'ضبط السيرفر', cmd: `SERVER,${serverHost},${port}` },
+    ],
+  }
+
+  → زر نسخ بجانب كل أمر
+  → اختيار شبكة SIM (inwi/Orange/IAM/مخصص) يغير APN تلقائياً
+
+الخطوة 4 — اختبار الاتصال:
+  زر "🔍 اختبار الاتصال"
+  → عند الضغط: أرسل GET /api/devices/test-connection?imei=<IMEI>
+  → مؤقت 30 ثانية مع Spinner
+  → إذا استجاب Traccar في 30 ثانية: ✅ عرض "متصل وجاهز"
+  → إذا لم يستجب: ❌ عرض رسالة تشخيص:
+      "تأكد من:
+       □ أن SIM تحمل بيانات الإنترنت (GPRS)
+       □ أن APN صحيح لشبكتك
+       □ أن المنفذ {port} غير محجوب"
+
+  Backend — أضف endpoint جديد في backend/src/routes/devices.js:
+  router.get('/test-connection', auth, async (req, res) => {
+    const { imei } = req.query
+    if (!imei) return res.status(400).json({ error: 'IMEI required' })
+
+    // Poll Traccar every 3 seconds for up to 30 seconds
+    const maxAttempts = 10
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 3000))
+      const devices = await traccar.getDevices()
+      const found = devices.find(d => d.uniqueId === imei)
+      if (found) {
+        // Check if it has a recent position (last 60 seconds)
+        const positions = await traccar.getPositions()
+        const pos = positions.find(p => p.deviceId === found.id)
+        const isRecent = pos && (Date.now() - new Date(pos.fixTime).getTime()) < 60000
+        return res.json({ connected: true, deviceId: found.id, hasPosition: !!isRecent })
+      }
+    }
+    return res.json({ connected: false })
+  })
+
+الخطوة 5 — تعيين لعميل:
+  → Dropdown: اختيار العميل من قائمة clientList
+  → زر "تسجيل الجهاز"
+  → يستدعي: POST /api/devices (مع clientId + imei + name + plate + type)
+  → عند النجاح: انتقل للخطوة 6
+
+الخطوة 6 — تأكيد نهائي:
+  → عرض ملخص: نوع الجهاز + IMEI + اسم المركبة + العميل المسند له
+  → زرّان:
+     "➕ إضافة جهاز آخر" → أعد للخطوة 1 (reset state)
+     "🗺️ الذهاب للخريطة" → navigate('/admin/map')
+
+══ Stepper UI: ══
+  أعلى الصفحة: 6 دوائر مترقّمة متصلة بخط
+  الخطوة الحالية: دائرة خضراء مضيئة
+  المكتملة: دائرة خضراء بعلامة ✓
+  القادمة: دائرة رمادية
+
+══════════════════════════════════════════════════════
+المهمة الثالثة: إدارة الاشتراكات
+══════════════════════════════════════════════════════
+
+الملفات المستهدفة:
+  - src/pages/admin/ClientDetail.jsx   (أضف قسم الاشتراك)
+  - src/pages/admin/Clients.jsx        (أضف Badges)
+  - src/pages/client/Login.jsx         (أضف Guard)
+  - backend/src/routes/clients.js      (أضف endpoint التجديد)
+
+══ أ) ClientDetail.jsx — أضف قسم "الاشتراك": ══
+
+بعد بطاقة معلومات العميل الموجودة، أضف قسماً جديداً:
+
+  ┌─────────────────────────────────────────────────┐
+  │  📅 الاشتراك                                   │
+  │                                                 │
+  │  الخطة: Basic  │  الأجهزة: 3/5                 │
+  │                                                 │
+  │  ████████░░░░░  78 يوماً متبقياً               │
+  │  2026-06-01  ←  2026-12-31                     │
+  │                                                 │
+  │  [🔄 تجديد]  [⏸ تعليق]  [▶ تفعيل]            │
+  └─────────────────────────────────────────────────┘
+
+  الحالات المرئية:
+  - أيام متبقية > 30:  شريط أخضر، نص عادي
+  - أيام متبقية ≤ 30:  شريط برتقالي + Badge "⚠️ قريب الانتهاء"
+  - أيام متبقية ≤ 0:   شريط أحمر + Badge "🔴 منتهي"
+  - is_active = false: بطاقة رمادية + نص "موقوف"
+
+  زر "تجديد الاشتراك" → Modal يطلب:
+    - تاريخ الانتهاء الجديد (date picker)
+    - الباقة: Basic / Pro / Enterprise
+    - عدد الأجهزة المسموح بها
+    → عند الإرسال: PATCH /api/clients/:id/subscription
+
+  زر "تعليق" → Confirm Modal → PATCH /api/clients/:id/subscription {is_active: false}
+  زر "تفعيل" (يظهر فقط إذا موقوف) → PATCH /api/clients/:id/subscription {is_active: true}
+
+  Backend — أضف في backend/src/routes/clients.js:
+
+  router.patch('/:id/subscription', auth, requireAdmin, async (req, res) => {
+    const { subscription_end, plan, max_devices, is_active } = req.body
+    const fields = []
+    const values = []
+    let idx = 1
+
+    if (subscription_end !== undefined) {
+      fields.push(`subscription_end = $${idx++}`); values.push(subscription_end)
+    }
+    if (plan !== undefined) {
+      fields.push(`plan = $${idx++}`); values.push(plan)
+    }
+    if (max_devices !== undefined) {
+      fields.push(`max_devices = $${idx++}`); values.push(max_devices)
+    }
+    if (is_active !== undefined) {
+      fields.push(`is_active = $${idx++}`); values.push(is_active)
+    }
+    if (!fields.length) return res.status(400).json({ error: 'No fields to update' })
+
+    values.push(req.params.id)
+    const { rows } = await db.query(
+      `UPDATE clients SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' })
+    res.json(rows[0])
+  })
+
+══ ب) Clients.jsx — أضف Badges للاشتراك: ══
+
+في بطاقة كل عميل، بعد اسمه، أضف:
+
+  function SubscriptionBadge({ client }) {
+    if (!client.subscription_end) return null
+    const daysLeft = Math.ceil((new Date(client.subscription_end) - new Date()) / 86400000)
+    if (!client.is_active)  return <span className="badge-gray">⏸ موقوف</span>
+    if (daysLeft <= 0)      return <span className="badge-red">🔴 منتهي</span>
+    if (daysLeft <= 7)      return <span className="badge-red">⚠️ {daysLeft} أيام</span>
+    if (daysLeft <= 30)     return <span className="badge-orange">⚠️ {daysLeft} يوم</span>
+    return null
+  }
+
+أضف فلتر فوق القائمة:
+  [الكل] [نشط] [قريب الانتهاء ≤30 يوم] [منتهي] [موقوف]
+
+══ ج) Login.jsx — أضف Guard عند تسجيل الدخول: ══
+
+في دالة loginClient() الموجودة في AppContext.jsx، بعد نجاح تسجيل الدخول:
+
+  async function loginClient(email, password) {
+    const data = await api.auth.loginClient(email, password)
+    // ... existing code ...
+
+    // ← أضف هذا التحقق:
+    if (data.user?.subscription_end) {
+      const daysLeft = Math.ceil((new Date(data.user.subscription_end) - new Date()) / 86400000)
+      if (daysLeft <= 0 || data.user.is_active === false) {
+        // احفظ state لإظهار شاشة الانتهاء
+        setSubscriptionExpired(true)
+        return // لا تكمل تسجيل الدخول
+      }
+    }
+    setClientAuth(data)
+    // ...
+  }
+
+في Login.jsx أضف شاشة بديلة عند subscriptionExpired:
+  إذا subscriptionExpired === true:
+    اعرض بدلاً من الخريطة:
+
+    ┌─────────────────────────────────────────────────┐
+    │                    🔒                           │
+    │                                                 │
+    │         انتهت صلاحية اشتراكك                  │
+    │                                                 │
+    │    للتجديد، تواصل مع المسؤول:                 │
+    │    📞 +212 XXX XXX XXX                         │
+    │    📧 admin@shgps.ma                           │
+    │                                                 │
+    │         [🔙 تسجيل خروج]                       │
+    └─────────────────────────────────────────────────┘
+
+  استخدم نفس ألوان التطبيق (primary-500, accent) + Framer Motion
+
+══════════════════════════════════════════════════════
+📦 الملخص الكامل للتغييرات المطلوبة:
+══════════════════════════════════════════════════════
+
+الملفات التي ستُعدَّل:
+  src/pages/client/Reports.jsx          ← دوال exportPDF + exportExcel
+  src/pages/admin/DeviceSetup.jsx       ← Wizard 6 خطوات
+  src/pages/admin/ClientDetail.jsx      ← قسم الاشتراك + Modal التجديد
+  src/pages/admin/Clients.jsx           ← Badges + فلتر
+  src/context/AppContext.jsx            ← Guard الاشتراك في loginClient()
+  src/pages/client/Login.jsx            ← شاشة انتهاء الاشتراك
+  backend/src/routes/devices.js         ← GET /devices/test-connection
+  backend/src/routes/clients.js         ← PATCH /clients/:id/subscription
+  src/i18n/translations.js              ← كل النصوص الجديدة (ar + fr)
+
+الحزم الجديدة فقط:
+  npm install jspdf jspdf-autotable xlsx
+
+══════════════════════════════════════════════════════
+✅ معيار اكتمال هذه المهمة:
+══════════════════════════════════════════════════════
+
+□ 1. زر PDF يُنزّل ملف .pdf حقيقي (ليس نافذة طباعة)
+□ 2. زر Excel يُنزّل ملف .xlsx يفتح في Excel/Sheets
+□ 3. DeviceSetup يعرض Stepper بـ 6 خطوات واضحة
+□ 4. حقل IMEI يتحقق من 15 رقم بالضبط مع مؤشر ✅/❌
+□ 5. اختبار الاتصال يعطي نتيجة حقيقية (connected/not)
+□ 6. ClientDetail يعرض قسم الاشتراك مع شريط التقدم
+□ 7. تجديد الاشتراك يحفظ في قاعدة البيانات
+□ 8. بطاقات العملاء تعرض Badge حمراء للاشتراكات المنتهية
+□ 9. عميل منتهي الاشتراك يرى شاشة الانتهاء عند تسجيل الدخول
+□ 10. npm run build ينجح بدون أخطاء
+══════════════════════════════════════════════════════
