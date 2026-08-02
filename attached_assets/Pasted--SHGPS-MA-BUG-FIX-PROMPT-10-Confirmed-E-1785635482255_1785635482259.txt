@@ -1,0 +1,675 @@
+══════════════════════════════════════════════════════
+🔧 SHGPS.MA — BUG FIX PROMPT (10 Confirmed Errors)
+══════════════════════════════════════════════════════
+
+المشروع: https://github.com/alanshahd82-dotcom/Shgps.ma
+المهمة: إصلاح 10 أخطاء مؤكدة — لا تضف أي ميزة جديدة.
+
+══════════════════════════════════════════════════════
+🔴 قواعد صارمة:
+══════════════════════════════════════════════════════
+
+1. اقرأ كل ملف قبل تعديله — لا تحذف أي كود قائم
+2. أصلح فقط ما هو مذكور — لا تعديلات إضافية
+3. بعد كل إصلاح: اكتب "✅ تم إصلاح الخطأ رقم X"
+4. في النهاية: تأكد npm run build ينجح
+
+══════════════════════════════════════════════════════
+الإصلاح 1: @capacitor/cli — تعارض tar@6.2.1
+══════════════════════════════════════════════════════
+
+الملف: package.json
+
+المشكلة: @capacitor/cli@6.2.1 يعتمد على tar@6.2.1 المحجوبة
+
+الحل — ابحث عن هذا السطر في devDependencies:
+  "@capacitor/cli": "^6.2.0"
+
+واستبدله بـ:
+  "@capacitor/cli": "^7.0.0"
+
+ثم شغّل: npm install
+
+إذا استمرت المشكلة، احذف @capacitor/cli كلياً من devDependencies
+(Capacitor CLI تُستخدم فقط للبناء المحلي — لا تؤثر على تشغيل التطبيق)
+
+══════════════════════════════════════════════════════
+الإصلاح 2: تعارض اسم جدول الصيانة
+══════════════════════════════════════════════════════
+
+الملف: backend/src/db/migrations/002_geonix_features.sql
+
+المشكلة:
+  Migration ينشئ: maintenance
+  Backend يستعلم من: maintenance_logs
+  → SQL error عند تشغيل المشروع
+
+الحل — ابحث عن:
+  CREATE TABLE IF NOT EXISTS maintenance (
+
+واستبدله بـ:
+  CREATE TABLE IF NOT EXISTS maintenance_logs (
+
+تأكد من تغيير كل الـ indexes أيضاً في نفس الملف:
+  ابحث عن: ON maintenance(
+  استبدل بـ:  ON maintenance_logs(
+
+══════════════════════════════════════════════════════
+الإصلاح 3: api.driverBehavior بدون JWT Token
+══════════════════════════════════════════════════════
+
+الملف: src/api/index.js
+
+المشكلة — الكود الحالي (السطور 72-82):
+  driverBehavior: {
+    saveScore: (deviceId, payload) =>
+      fetch(`/api/driver-behavior/scores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ deviceId, ...payload }),
+      }).then(r => r.json()),
+    getScores: (deviceId, days = 30) =>
+      fetch(`/api/driver-behavior/scores?deviceId=${deviceId}&days=${days}`, { credentials: 'include' }).then(r => r.json()),
+    getSummary: (deviceId) =>
+      fetch(`/api/driver-behavior/summary?deviceId=${deviceId}`, { credentials: 'include' }).then(r => r.json()),
+  },
+
+الحل — استبدل الكود أعلاه بـ:
+  driverBehavior: {
+    saveScore: (deviceId, payload) =>
+      apiFetch('/driver-behavior/scores', {
+        method: 'POST',
+        body: JSON.stringify({ deviceId, ...payload }),
+      }),
+    getScores: (deviceId, days = 30) =>
+      apiFetch(`/driver-behavior/scores?deviceId=${deviceId}&days=${days}`),
+    getSummary: (deviceId) =>
+      apiFetch(`/driver-behavior/summary?deviceId=${deviceId}`),
+  },
+
+الشرح: apiFetch تضيف Authorization: Bearer <token> تلقائياً
+        raw fetch كانت ترسل الطلبات بدون مصادقة → 401 Unauthorized
+
+══════════════════════════════════════════════════════
+الإصلاح 4: مشاركة الموقع تتجاهل expireHours
+══════════════════════════════════════════════════════
+
+الملف: backend/src/routes/sharing.js
+
+المشكلة — السطر 22 (الكود الحالي):
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  // ← دائماً 24 ساعة بغض النظر عن طلب المستخدم
+
+الحل — ابحث عن السطر:
+  const { deviceId } = req.body
+
+واستبدله بـ:
+  const { deviceId, expireHours = 24 } = req.body
+
+ثم ابحث عن السطر:
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+واستبدله بـ:
+  const hours = Math.min(Math.max(Number(expireHours) || 24, 1), 168) // بين 1 و 168 ساعة (7 أيام)
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000)
+
+══════════════════════════════════════════════════════
+الإصلاح 5: DeviceWizard — إضافة تحقق IMEI وتسجيل
+══════════════════════════════════════════════════════
+
+الملف: src/pages/client/DeviceWizard.jsx
+
+المشكلة الحالية:
+  - لا يوجد تحقق من صحة IMEI (15 رقم بالضبط)
+  - الزر الأخير navigate('/client/devices') فقط بدون حفظ في DB
+
+الخطوة 1 — أضف مرحلة إدخال IMEI كـ "الخطوة 0.5":
+
+أضف في قائمة STEPS الموجودة خطوة جديدة "بيانات الجهاز" بين
+خطوة اختيار النوع وخطوة الشبكة. أضف state جديد:
+
+  const [imei, setImei] = useState('')
+  const [vehicleName, setVehicleName] = useState('')
+  const [plate, setPlate] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+
+أضف مكوّن StepVehicleData جديد قبل StepNetwork:
+
+  function StepVehicleData({ imei, setImei, vehicleName, setVehicleName, plate, setPlate, lang }) {
+    const isAr = lang === 'ar'
+    const isIMEIValid = /^\d{15}$/.test(imei.trim())
+    return (
+      <div className="space-y-4">
+        <h2 className="text-white font-bold text-base">
+          {isAr ? 'بيانات الجهاز' : 'Informations de l\'appareil'}
+        </h2>
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">IMEI</label>
+          <div className="relative">
+            <input
+              type="tel"
+              maxLength={15}
+              value={imei}
+              onChange={e => setImei(e.target.value.replace(/\D/g, '').slice(0, 15))}
+              placeholder="358900001234567"
+              className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm focus:outline-none focus:border-accent pr-10"
+            />
+            <span className={`absolute left-3 top-3 text-lg ${imei.length === 15 ? (isIMEIValid ? 'text-accent' : 'text-red-400') : 'text-slate-600'}`}>
+              {imei.length === 15 ? (isIMEIValid ? '✅' : '❌') : '⬜'}
+            </span>
+          </div>
+          <p className="text-slate-500 text-[11px] mt-1">
+            {isAr ? `${imei.length}/15 رقم` : `${imei.length}/15 chiffres`}
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
+            {isAr ? 'اسم المركبة' : 'Nom du véhicule'}
+          </label>
+          <input
+            value={vehicleName}
+            onChange={e => setVehicleName(e.target.value)}
+            placeholder={isAr ? 'مثال: سيارة الشركة' : 'Ex: Voiture société'}
+            className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none focus:border-accent"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
+            {isAr ? 'رقم اللوحة' : 'Plaque d\'immatriculation'}
+          </label>
+          <input
+            value={plate}
+            onChange={e => setPlate(e.target.value.toUpperCase())}
+            placeholder="A 12345 XX"
+            className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm uppercase focus:outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+    )
+  }
+
+الخطوة 2 — عدّل STEPS لتشمل الخطوة الجديدة:
+
+  const STEPS = [
+    isAr ? 'نوع الجهاز' : 'Type',
+    isAr ? 'بيانات الجهاز' : 'Appareil',  // ← جديد
+    isAr ? 'الشبكة' : 'Réseau',
+    isAr ? 'الخادم' : 'Serveur',
+    isAr ? 'الأوامر' : 'Commandes',
+  ]
+
+الخطوة 3 — عدّل دالة canNext() لتشمل التحقق:
+
+  function canNext() {
+    if (step === 0) return !!deviceType
+    if (step === 1) return /^\d{15}$/.test(imei.trim()) && vehicleName.trim().length > 0
+    if (step === 2) return !!carrier && (carrier !== 'custom' || customApn.trim().length > 0)
+    if (step === 3) return !!server && !!port
+    return true
+  }
+
+الخطوة 4 — استبدل الزر الأخير "إنهاء" بـ:
+
+  <button
+    onClick={async () => {
+      setSaving(true)
+      setSaveError(null)
+      try {
+        await api.devices.quickAdd({
+          name: vehicleName.trim(),
+          imei: imei.trim(),
+          type: deviceType === 'concox' || deviceType === 'wanway' ? 'car' : 'car',
+          plate: plate.trim() || null,
+        })
+        navigate('/client/devices')
+      } catch (e) {
+        setSaveError(e.message)
+        setSaving(false)
+      }
+    }}
+    disabled={saving}
+    className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-60"
+  >
+    {saving
+      ? (isAr ? 'جاري الحفظ...' : 'Enregistrement...')
+      : (isAr ? '✅ حفظ الجهاز' : '✅ Enregistrer')}
+  </button>
+
+  {saveError && (
+    <p className="text-red-400 text-xs text-center mt-2">{saveError}</p>
+  )}
+
+الخطوة 5 — أضف خطوة الجهاز في JSX:
+
+  {step === 1 && (
+    <StepVehicleData
+      imei={imei} setImei={setImei}
+      vehicleName={vehicleName} setVehicleName={setVehicleName}
+      plate={plate} setPlate={setPlate}
+      lang={lang}
+    />
+  )}
+  // وعدّل بقية الـ step numbers بزيادة 1
+
+══════════════════════════════════════════════════════
+الإصلاح 6: ملفات يتيمة — Dead Files
+══════════════════════════════════════════════════════
+
+الملفات:
+  src/pages/adminLandingPage.jsx
+  src/pages/clientPrivacy.jsx
+
+هذه الملفات موجودة لكن لا يُستورد أيٌّ منها في App.jsx.
+
+الحل:
+أ) افتح src/App.jsx
+ب) تحقق إذا كان Privacy.jsx و LandingPage.jsx موجودَين
+ج) إذا كانا موجودَين وإصداراتهما أفضل من الملفات اليتيمة:
+   احذف: src/pages/adminLandingPage.jsx
+   احذف: src/pages/clientPrivacy.jsx
+
+إذا كانت الملفات اليتيمة تحتوي على محتوى مهم غير موجود في الملفات الرئيسية:
+   انسخ المحتوى المهم إلى الملف الصحيح ثم احذف اليتيم.
+
+══════════════════════════════════════════════════════
+الإصلاح 7: مفاتيح الترجمة المفقودة
+══════════════════════════════════════════════════════
+
+الملف: src/i18n/translations.js
+
+المفاتيح الناقصة في ar: {} و fr: {} التي يستخدمها الكود:
+
+افتح translations.js وأضف المفاتيح التالية في كلا الكائنَين ar و fr:
+
+داخل ar: { ... } أضف:
+  // Admin
+  adminLogin:               'تسجيل دخول المسؤول',
+  adminLoginSubtitle:       'لوحة تحكم Shgps.ma',
+  activate:                 'تفعيل',
+  activateClient:           'تفعيل العميل',
+  addAnother:               'إضافة جهاز آخر',
+  analyze:                  'تحليل',
+  appName:                  'Shgps.ma',
+  appVersion:               'الإصدار',
+  arabic:                   'العربية',
+  back:                     'رجوع',
+  confirm:                  'تأكيد',
+  confirmPassword:          'تأكيد كلمة المرور',
+  copy_link:                'نسخ الرابط',
+  create_share_link:        'مشاركة الموقع',
+  currentPassword:          'كلمة المرور الحالية',
+  daysLeft:                 'يوم متبقي',
+  delete:                   'حذف',
+  demoHint:                 'بيانات تجريبية',
+  device:                   'الجهاز',
+  drh:                      'سجل القيادة',
+  driver_behavior:          'سلوك السائق',
+  driver_score:             'نقاط السائق',
+  enablePush:               'تفعيل الإشعارات',
+  error:                    'خطأ',
+  exportCsv:                'تصدير CSV',
+  exportExcel:              'تصدير Excel',
+  exportPdf:                'تصدير PDF',
+  filter:                   'تصفية',
+  filterActive:             'النشطون',
+  filterAll:                'الكل',
+  filterExpired:            'المنتهية',
+  filterSoon:               'قريبة الانتهاء',
+  filterSuspended:          'الموقوفون',
+  forceChangeSubtitle:      'يرجى تغيير كلمة المرور للمتابعة',
+  forceChangeTitle:         'تغيير كلمة المرور مطلوب',
+  french:                   'الفرنسية',
+  from:                     'من',
+  geofenceActive:           'السياج نشط',
+  geofence_alert:           'تنبيه المنطقة',
+  geofenceAlert:            'تنبيه سياج',
+  geofenceRadius:           'نصف القطر (م)',
+  geofencesDesc:            'إدارة مناطقك الجغرافية',
+  geofencesPage:            'المناطق الجغرافية',
+  geofenceTitle:            'إضافة منطقة',
+  joinDate:                 'تاريخ الانضمام',
+  language:                 'اللغة',
+  lastUpdate:               'آخر تحديث',
+  maintenance:              'الصيانة',
+  maxDevices:               'الأجهزة المسموح بها',
+  maxSpeedLbl:              'أقصى سرعة',
+  monthlyRevenue:           'الإيراد الشهري',
+  movingDuration:           'وقت الحركة',
+  noDevices:                'لا توجد أجهزة',
+  noGeofences:              'لا توجد مناطق',
+  noHistory:                'لا يوجد تاريخ',
+  noMaintenanceLogs:        'لا سجلات صيانة',
+  noTrips:                  'لا توجد رحلات',
+  notificationSettings:     'إعدادات الإشعارات',
+  pageNotFound:             'الصفحة غير موجودة',
+  pushNotif:                'إشعارات',
+  recentAlerts:             'آخر التنبيهات',
+  refreshing:               'جاري التحديث',
+  renew:                    'تجديد الاشتراك',
+  reports:                  'التقارير',
+  security:                 'الأمان',
+  selectDevice:             'اختر الجهاز',
+  share:                    'مشاركة',
+  shareExpiry:              'انتهاء الرابط',
+  shareLink:                'رابط المشاركة',
+  stepAssignClient:         'تعيين العميل',
+  stepConfirm:              'تأكيد',
+  stepConnectionTest:       'اختبار الاتصال',
+  stepDeviceType:           'نوع الجهاز',
+  stepSim:                  'إعداد SIM',
+  stepVehicleData:          'بيانات المركبة',
+  stoppedDuration:          'وقت التوقف',
+  subscriptionActive:       'الاشتراك نشط',
+  subscriptionExpired:      'انتهى الاشتراك',
+  subscriptionExpiredBadge: 'منتهي',
+  subscriptionRenew:        'تجديد',
+  subscriptionSoon:         'ينتهي قريباً',
+  subscriptionSuspended:    'موقوف',
+  subscriptionSuspendedBadge: 'موقوف',
+  success:                  'تم بنجاح',
+  suspendClient:            'تعليق العميل',
+  tagline:                  'تتبع أسطولك بذكاء',
+  testConnection:           'اختبار الاتصال',
+  testConnectionStart:      'جاري الاختبار...',
+  testFound:                'الجهاز متصل ✅',
+  testNotFound:             'لم يُكتشف الجهاز ❌',
+  to:                       'إلى',
+  todayScore:               'نقاط اليوم',
+  totalDistance:            'إجمالي المسافة',
+  totalDistanceLbl:         'المسافة الكلية',
+  traccarSync:              'مزامنة Traccar',
+  trips:                    'الرحلات',
+  tripsCount:               'عدد الرحلات',
+  tripSummary:              'ملخص الرحلة',
+  unread:                   'غير مقروء',
+  weakPassword:             'كلمة المرور ضعيفة',
+  weekAvg:                  'متوسط الأسبوع',
+  weeklyKm:                 'كيلومترات الأسبوع',
+  wrongCurrentPassword:     'كلمة المرور الحالية خاطئة',
+  avgSpeedLbl:              'متوسط السرعة',
+  addGeofence:              'إضافة منطقة',
+  add_maintenance_log:      'إضافة سجل صيانة',
+  battery_alert:            'تنبيه بطارية',
+  engine_alert:             'تنبيه محرك',
+  geofence_alert:           'تنبيه منطقة',
+  ds_apn:                   'APN الشبكة',
+  ds_carrier:               'شركة الاتصال',
+  ds_cmds_ready:            'الأوامر جاهزة',
+  ds_commands:              'الأوامر',
+  ds_config:                'إعداد الجهاز',
+  ds_copied:                'تم النسخ',
+  ds_copy:                  'نسخ',
+  ds_copy_all:              'نسخ الكل',
+  ds_domain:                'النطاق',
+  ds_ip:                    'عنوان IP',
+  ds_live:                  'مباشر',
+  ds_note:                  'ملاحظة',
+  ds_pass:                  'كلمة المرور',
+  ds_port:                  'المنفذ',
+  ds_server_addr:           'عنوان السيرفر',
+  ds_subtitle:              'ضبط جهاز التتبع',
+  ds_title:                 'إعداد الجهاز',
+  deviceWizard:             'معالج الإضافة',
+  deviceWizardDesc:         'أضف جهازك خطوة بخطوة',
+
+داخل fr: { ... } أضف نفس المفاتيح بالفرنسية:
+  adminLogin:               'Connexion administrateur',
+  adminLoginSubtitle:       'Tableau de bord Shgps.ma',
+  activate:                 'Activer',
+  activateClient:           'Activer le client',
+  addAnother:               'Ajouter un autre',
+  analyze:                  'Analyser',
+  appName:                  'Shgps.ma',
+  appVersion:               'Version',
+  arabic:                   'Arabe',
+  back:                     'Retour',
+  confirm:                  'Confirmer',
+  confirmPassword:          'Confirmer le mot de passe',
+  copy_link:                'Copier le lien',
+  create_share_link:        'Partager la position',
+  currentPassword:          'Mot de passe actuel',
+  daysLeft:                 'jours restants',
+  delete:                   'Supprimer',
+  demoHint:                 'Données de démonstration',
+  device:                   'Appareil',
+  drh:                      'Historique conduite',
+  driver_behavior:          'Comportement conducteur',
+  driver_score:             'Score conducteur',
+  enablePush:               'Activer les notifications',
+  error:                    'Erreur',
+  exportCsv:                'Exporter CSV',
+  exportExcel:              'Exporter Excel',
+  exportPdf:                'Exporter PDF',
+  filter:                   'Filtrer',
+  filterActive:             'Actifs',
+  filterAll:                'Tous',
+  filterExpired:            'Expirés',
+  filterSoon:               'Bientôt expirés',
+  filterSuspended:          'Suspendus',
+  forceChangeSubtitle:      'Veuillez changer votre mot de passe pour continuer',
+  forceChangeTitle:         'Changement de mot de passe requis',
+  french:                   'Français',
+  from:                     'De',
+  geofenceActive:           'Zone active',
+  geofence_alert:           'Alerte zone',
+  geofenceAlert:            'Alerte géofence',
+  geofenceRadius:           'Rayon (m)',
+  geofencesDesc:            'Gérez vos zones géographiques',
+  geofencesPage:            'Zones géographiques',
+  geofenceTitle:            'Ajouter une zone',
+  joinDate:                 'Date d\'inscription',
+  language:                 'Langue',
+  lastUpdate:               'Dernière mise à jour',
+  maintenance:              'Maintenance',
+  maxDevices:               'Appareils autorisés',
+  maxSpeedLbl:              'Vitesse max',
+  monthlyRevenue:           'Revenu mensuel',
+  movingDuration:           'Durée de déplacement',
+  noDevices:                'Aucun appareil',
+  noGeofences:              'Aucune zone',
+  noHistory:                'Aucun historique',
+  noMaintenanceLogs:        'Aucun entretien',
+  noTrips:                  'Aucun trajet',
+  notificationSettings:     'Paramètres de notifications',
+  pageNotFound:             'Page introuvable',
+  pushNotif:                'Notifications',
+  recentAlerts:             'Alertes récentes',
+  refreshing:               'Actualisation...',
+  renew:                    'Renouveler l\'abonnement',
+  reports:                  'Rapports',
+  security:                 'Sécurité',
+  selectDevice:             'Sélectionner l\'appareil',
+  share:                    'Partager',
+  shareExpiry:              'Expiration du lien',
+  shareLink:                'Lien de partage',
+  stepAssignClient:         'Assigner au client',
+  stepConfirm:              'Confirmation',
+  stepConnectionTest:       'Test de connexion',
+  stepDeviceType:           'Type d\'appareil',
+  stepSim:                  'Config. SIM',
+  stepVehicleData:          'Données du véhicule',
+  stoppedDuration:          'Durée d\'arrêt',
+  subscriptionActive:       'Abonnement actif',
+  subscriptionExpired:      'Abonnement expiré',
+  subscriptionExpiredBadge: 'Expiré',
+  subscriptionRenew:        'Renouveler',
+  subscriptionSoon:         'Expire bientôt',
+  subscriptionSuspended:    'Suspendu',
+  subscriptionSuspendedBadge: 'Suspendu',
+  success:                  'Succès',
+  suspendClient:            'Suspendre le client',
+  tagline:                  'Suivez votre flotte intelligemment',
+  testConnection:           'Tester la connexion',
+  testConnectionStart:      'Test en cours...',
+  testFound:                'Appareil connecté ✅',
+  testNotFound:             'Appareil non détecté ❌',
+  to:                       'À',
+  todayScore:               'Score du jour',
+  totalDistance:            'Distance totale',
+  totalDistanceLbl:         'Distance totale',
+  traccarSync:              'Sync Traccar',
+  trips:                    'Trajets',
+  tripsCount:               'Nombre de trajets',
+  tripSummary:              'Résumé du trajet',
+  unread:                   'Non lu',
+  weakPassword:             'Mot de passe trop faible',
+  weekAvg:                  'Moyenne hebdomadaire',
+  weeklyKm:                 'Km cette semaine',
+  wrongCurrentPassword:     'Mot de passe actuel incorrect',
+  avgSpeedLbl:              'Vitesse moyenne',
+  addGeofence:              'Ajouter une zone',
+  add_maintenance_log:      'Ajouter un entretien',
+  battery_alert:            'Alerte batterie',
+  engine_alert:             'Alerte moteur',
+  ds_apn:                   'APN réseau',
+  ds_carrier:               'Opérateur',
+  ds_cmds_ready:            'Commandes prêtes',
+  ds_commands:              'Commandes',
+  ds_config:                'Configuration',
+  ds_copied:                'Copié !',
+  ds_copy:                  'Copier',
+  ds_copy_all:              'Tout copier',
+  ds_domain:                'Domaine',
+  ds_ip:                    'Adresse IP',
+  ds_live:                  'En direct',
+  ds_note:                  'Note',
+  ds_pass:                  'Mot de passe',
+  ds_port:                  'Port',
+  ds_server_addr:           'Adresse serveur',
+  ds_subtitle:              'Configuration du tracker',
+  ds_title:                 'Config. appareil',
+  deviceWizard:             'Assistant d\'ajout',
+  deviceWizardDesc:         'Ajoutez votre appareil étape par étape',
+
+══════════════════════════════════════════════════════
+الإصلاح 8: schema.sql — توحيد مع الـ Migrations
+══════════════════════════════════════════════════════
+
+الملف: backend/src/db/schema.sql
+
+أضف الحقول الناقصة لجدول users (التي تضيفها runMigrations() لكنها
+غائبة من schema.sql — وهذا يسبب تضارباً إذا أُعيد إنشاء DB من schema):
+
+ابحث عن:
+  avatar        VARCHAR(10),
+
+واستبدله بـ:
+  avatar                  VARCHAR(10),
+  must_change_password    BOOLEAN DEFAULT FALSE,
+  notification_prefs      JSONB DEFAULT '{}',
+  updated_at              TIMESTAMP DEFAULT NOW(),
+
+أضف أيضاً جدول local_geofences إذا لم يكن موجوداً في schema.sql:
+
+  CREATE TABLE IF NOT EXISTS local_geofences (
+    id           SERIAL PRIMARY KEY,
+    user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    device_id    INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+    name         VARCHAR(255) NOT NULL,
+    type         VARCHAR(20) NOT NULL DEFAULT 'circle',
+    coords       JSONB NOT NULL,
+    radius       NUMERIC(10,2),
+    notify_enter BOOLEAN DEFAULT TRUE,
+    notify_exit  BOOLEAN DEFAULT TRUE,
+    created_at   TIMESTAMP DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS maintenance_logs (
+    id               SERIAL PRIMARY KEY,
+    device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+    type             VARCHAR(50) NOT NULL,
+    note             TEXT,
+    mileage          NUMERIC(12,2),
+    date             TIMESTAMP DEFAULT NOW(),
+    next_due_mileage NUMERIC(12,2),
+    created_at       TIMESTAMP DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS share_links (
+    id         SERIAL PRIMARY KEY,
+    token      VARCHAR(64) UNIQUE NOT NULL,
+    device_id  INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS driver_behavior_scores (
+    id               SERIAL PRIMARY KEY,
+    device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+    user_id          INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    score            INTEGER NOT NULL DEFAULT 100,
+    speeding_events  INTEGER DEFAULT 0,
+    idle_min         INTEGER DEFAULT 0,
+    trip_count       INTEGER DEFAULT 0,
+    recorded_date    DATE NOT NULL DEFAULT CURRENT_DATE,
+    updated_at       TIMESTAMP DEFAULT NOW(),
+    UNIQUE (device_id, recorded_date)
+  );
+
+══════════════════════════════════════════════════════
+الإصلاح 9: WebSocket path في Capacitor/Vite
+══════════════════════════════════════════════════════
+
+الملف: vite.config.js
+
+المشكلة: ليس هناك proxy لـ /ws في vite config
+
+الحل — في كتلة server: { ... } الموجودة، أضف proxy بعد strictPort:
+
+  proxy: {
+    '/api': {
+      target: `http://localhost:${process.env.BACKEND_PORT || 3001}`,
+      changeOrigin: true,
+    },
+    '/ws': {
+      target: `ws://localhost:${process.env.BACKEND_PORT || 3001}`,
+      ws: true,
+      changeOrigin: true,
+    },
+  },
+
+ملاحظة: تأكد أن BACKEND_PORT متاح في .env أو استخدم قيمة افتراضية 3001
+
+══════════════════════════════════════════════════════
+الإصلاح 10: تحقق نهائي من البناء
+══════════════════════════════════════════════════════
+
+بعد كل الإصلاحات:
+
+1. شغّل: npm install
+   يجب أن تنجح بدون أخطاء 403.
+   إذا فشلت بسبب @capacitor/cli:
+     → احذف @capacitor/cli من devDependencies
+     → أضف في .npmrc: legacy-peer-deps=true
+
+2. شغّل: npm run build
+   يجب أن ينجح بدون أخطاء.
+   الأخطاء الشائعة وحلولها:
+   - "Cannot find module 'jspdf'" → npm install jspdf jspdf-autotable xlsx
+   - "Cannot find module 'leaflet'" → npm install leaflet react-leaflet
+   - أي import مكسور → اقرأ الملف وأصلحه
+
+3. بعد نجاح البناء، تحقق من:
+   □ src/api/index.js: driverBehavior يستخدم apiFetch ✅
+   □ backend/src/routes/sharing.js: يقرأ expireHours ✅
+   □ backend/src/db/migrations/002: maintenance_logs لا maintenance ✅
+   □ src/i18n/translations.js: كل المفاتيح في ar و fr ✅
+   □ src/pages/client/DeviceWizard.jsx: IMEI validation + quickAdd ✅
+
+══════════════════════════════════════════════════════
+✅ معيار الاكتمال — الإصلاح ناجح عندما:
+══════════════════════════════════════════════════════
+
+□ 1.  npm install ينجح بدون 403 errors
+□ 2.  npm run build ينجح بدون أخطاء
+□ 3.  لا console.error في المتصفح عند تشغيل التطبيق
+□ 4.  api.driverBehavior يرسل Authorization header
+□ 5.  POST /api/sharing يستجيب لـ expireHours
+□ 6.  جدول maintenance_logs موحّد في كل الملفات
+□ 7.  DeviceWizard يتحقق من 15 رقم في IMEI
+□ 8.  DeviceWizard يحفظ الجهاز في قاعدة البيانات
+□ 9.  لا مفاتيح ترجمة تعطي undefined في الواجهة
+□ 10. schema.sql يطابق الـ migrations
+══════════════════════════════════════════════════════
