@@ -48,9 +48,7 @@ export default function Login() {
         >
           {isAr ? 'FR' : 'AR'}
         </button>
-        <a href="/admin/login" className="text-xs transition-colors" style={{ color: 'rgba(255,255,255,0.3)' }}>
-          {t(lang, 'adminLogin')}
-        </a>
+        <div style={{ width: 40 }} />
       </div>
 
       {/* Body */}
