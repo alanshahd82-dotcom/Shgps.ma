@@ -109,6 +109,32 @@ clientsRouter.post('/:id/reset-password', requireAuth, requireAdmin, async (req,
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
+// PATCH /api/clients/:id/subscription — update subscription fields (admin)
+clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, res) => {
+  const { expiryDate, plan, maxDevices, isActive } = req.body
+  const params = []
+  const sets = []
+  let idx = 1
+  if (expiryDate !== undefined) { sets.push(`expiry_date=$${idx++}`); params.push(expiryDate || null) }
+  if (plan !== undefined)       { sets.push(`subscription=$${idx++}`); params.push(plan) }
+  if (maxDevices !== undefined) { sets.push(`max_devices=$${idx++}`);  params.push(Number(maxDevices)) }
+  if (isActive !== undefined)   { sets.push(`is_active=$${idx++}`);    params.push(!!isActive) }
+  if (!sets.length) return res.status(400).json({ error: 'Nothing to update' })
+  sets.push(`updated_at=NOW()`)
+  params.push(req.params.id)
+  try {
+    const { rows } = await db.query(
+      `UPDATE users SET ${sets.join(',')} WHERE id=$${idx} AND is_admin=false
+       RETURNING id,name,email,subscription,is_active,max_devices,expiry_date`,
+      params
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Client not found' })
+    const u = rows[0]
+    res.json({ id:u.id, name:u.name, email:u.email, subscription:u.subscription,
+      isActive:u.is_active, maxDevices:u.max_devices, expiryDate:u.expiry_date })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+
 clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) => {
   const { name, imei, type, plate } = req.body
   if (!name||!imei) return res.status(400).json({ error:'Name and IMEI required' })

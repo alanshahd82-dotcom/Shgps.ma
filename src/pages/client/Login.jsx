@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Lock, Mail, Satellite, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Satellite, AlertCircle, LogOut } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 
@@ -121,9 +121,49 @@ function InputField({ icon: Icon, type, value, onChange, placeholder, autoComple
 }
 
 /* ── مكوّن الصفحة الرئيسي ─────────────────────────────────────────────── */
+/* ── شاشة انتهاء الاشتراك ───────────────────────────────────────────────── */
+function ExpiredScreen({ lang, onLogout }) {
+  const isAr = lang === 'ar'
+  return (
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center px-6"
+      style={{ background: 'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-sm text-center">
+        <div className="w-20 h-20 rounded-full bg-red-500/15 border-2 border-red-500/30 flex items-center justify-center mx-auto mb-6">
+          <span className="text-4xl">🔒</span>
+        </div>
+        <h2 className="text-white font-black text-2xl mb-2">
+          {isAr ? 'انتهت صلاحية اشتراكك' : 'Abonnement expiré'}
+        </h2>
+        <p className="text-white/50 text-sm mb-8 leading-relaxed">
+          {isAr ? 'للتجديد، تواصل مع المسؤول:' : 'Pour renouveler, contactez l\'administrateur :'}
+        </p>
+        <div className="space-y-3 mb-8">
+          <a href="tel:+212600000000"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white/80 text-sm font-semibold"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
+            📞 {isAr ? 'اتصل بنا' : 'Appelez-nous'}
+          </a>
+          <a href="mailto:admin@shgps.ma"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white/80 text-sm font-semibold"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
+            📧 admin@shgps.ma
+          </a>
+        </div>
+        <button onClick={onLogout}
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-red-400 font-bold text-sm"
+          style={{ background: 'rgba(255,59,48,0.10)', border: '1px solid rgba(255,59,48,0.20)' }}>
+          <LogOut size={16} />
+          {isAr ? 'تسجيل خروج' : 'Se déconnecter'}
+        </button>
+      </motion.div>
+    </div>
+  )
+}
+
 export default function ClientLogin() {
   const navigate    = useNavigate()
-  const { loginClient, lang, setLang } = useApp()
+  const { loginClient, lang, setLang, subscriptionExpired, setSubscriptionExpired, logoutClient } = useApp()
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -137,7 +177,15 @@ export default function ClientLogin() {
     setError('')
     setLoading(true)
     try {
-      await loginClient(email, password)
+      const data = await loginClient(email, password)
+      // If subscription is expired loginClient sets subscriptionExpired=true and returns early
+      if (data?.user?.expiryDate) {
+        const daysLeft = Math.ceil((new Date(data.user.expiryDate) - new Date()) / 86400000)
+        if (daysLeft <= 0 || data.user.isActive === false) {
+          setLoading(false)
+          return // ExpiredScreen renders via subscriptionExpired state
+        }
+      }
       navigate('/client/home', { replace: true })
     } catch {
       setLoading(false)
@@ -148,6 +196,11 @@ export default function ClientLogin() {
   }
 
   const isRtl = lang === 'ar'
+
+  // ── Show expired subscription screen ──────────────────────────────────────
+  if (subscriptionExpired) {
+    return <ExpiredScreen lang={lang} onLogout={() => { logoutClient(); setSubscriptionExpired(false) }} />
+  }
 
   return (
     <div

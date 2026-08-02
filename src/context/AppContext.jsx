@@ -16,7 +16,8 @@ export function AppProvider({ children }) {
   const [alertsList,   setAlertsList]       = useState([])
   const [clientList,   setClientList]       = useState([])
   const [networkError, setNetworkError]     = useState(false)
-  const [wsConnected,    setWsConnected]    = useState(false)
+  const [wsConnected,        setWsConnected]        = useState(false)
+  const [subscriptionExpired, setSubscriptionExpired] = useState(false)
   const [darkMode,       setDarkModeState]  = useState(() => localStorage.getItem('athargps_darkmode') === 'true')
   const [pushEnabled,    setPushEnabled]    = useState(() => localStorage.getItem('athargps_push') === 'true')
   const wsRef      = useRef(null)
@@ -211,6 +212,14 @@ export function AppProvider({ children }) {
   // ── Auth ──────────────────────────────────────────────────────────────────
   const loginClient = async (email, password) => {
     const data = await api.auth.login(email, password)
+    // ── Subscription guard ────────────────────────────────────────────────
+    if (data.user?.expiryDate) {
+      const daysLeft = Math.ceil((new Date(data.user.expiryDate) - new Date()) / 86400000)
+      if (daysLeft <= 0 || data.user.isActive === false) {
+        setSubscriptionExpired(true)
+        return data
+      }
+    }
     localStorage.setItem('athargps_token',  data.token)
     localStorage.setItem('athargps_client', JSON.stringify(data.user))
     setClientAuth(data.user)
@@ -359,6 +368,7 @@ export function AppProvider({ children }) {
       wsConnected,
       darkMode, toggleDarkMode, setDarkMode,
       pushEnabled, requestPushPermission, disablePush, sendBrowserNotification,
+      subscriptionExpired, setSubscriptionExpired,
     }}>
       {children}
     </AppContext.Provider>

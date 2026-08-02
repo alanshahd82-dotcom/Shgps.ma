@@ -5,6 +5,40 @@ import { Router } from 'express'
 
     export const devicesRouter = Router()
 
+    // GET /devices/test-connection?imei= — check if Traccar already has this device/is online
+    devicesRouter.get('/test-connection', requireAuth, async (req, res) => {
+      const { imei } = req.query
+      if (!imei) return res.status(400).json({ error: 'IMEI required' })
+      try {
+        // Check local DB first
+        const { rows } = await db.query('SELECT id, traccar_id, name FROM devices WHERE imei=$1', [imei])
+        if (rows[0]) {
+          let position = null
+          try {
+            const allPos = await traccar.getAllPositions()
+            position = allPos.find(p => p.deviceId === rows[0].traccar_id) || null
+          } catch {}
+          return res.json({
+            found: true, registered: true, deviceId: rows[0].id,
+            traccarId: rows[0].traccar_id, name: rows[0].name,
+            online: !!position, lastUpdate: position?.fixTime || null,
+          })
+        }
+        // Check Traccar directly (admin-level device list)
+        try {
+          const traccarDevices = await traccar.getDevicesByUser(0) // all devices for admin
+          const td = Array.isArray(traccarDevices) && traccarDevices.find(d => d.uniqueId === imei)
+          if (td) {
+            const allPos = await traccar.getAllPositions()
+            const position = allPos.find(p => p.deviceId === td.id) || null
+            return res.json({ found: true, registered: false, traccarId: td.id,
+              name: td.name, online: !!position, lastUpdate: position?.fixTime || null })
+          }
+        } catch {}
+        return res.json({ found: false, registered: false, online: false })
+      } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+    })
+
     devicesRouter.get('/', requireAuth, async (req, res) => {
     try {
       const { rows } = req.user.is_admin

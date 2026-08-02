@@ -403,19 +403,49 @@ function EditClientModal({ open, onClose, client, onSave, lang }) {
   )
 }
 
+/* ── SubscriptionBadge ──────────────────────────────────────────────────── */
+function SubscriptionBadge({ client }) {
+  if (!client.isActive) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-gray-100 text-gray-500">⏸ Suspendu</span>
+  if (!client.expiryDate) return null
+  const days = Math.ceil((new Date(client.expiryDate) - new Date()) / 86400000)
+  if (days <= 0) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-100 text-red-600">🔴 Expiré</span>
+  if (days <= 30) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-orange-100 text-orange-600">⚠️ {days}j</span>
+  return null
+}
+
 export default function Clients() {
   const navigate = useNavigate()
   const { clientList, addClient, updateClient, deleteClient, lang } = useApp()
   const [search, setSearch]       = useState('')
+  const [filter, setFilter]       = useState('all')
   const [showAdd, setShowAdd]     = useState(false)
   const [toDelete, setToDelete]   = useState(null)
   const [resetTarget, setReset]   = useState(null)
   const [editTarget, setEdit]     = useState(null)
 
-  const filtered = clientList.filter(c =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const getSubState = (c) => {
+    if (!c.isActive) return 'suspended'
+    if (!c.expiryDate) return 'active'
+    const days = Math.ceil((new Date(c.expiryDate) - new Date()) / 86400000)
+    if (days <= 0) return 'expired'
+    if (days <= 30) return 'soon'
+    return 'active'
+  }
+
+  const filterTabs = [
+    { key: 'all',       ar: 'الكل',          fr: 'Tous' },
+    { key: 'active',    ar: 'نشط',           fr: 'Actifs' },
+    { key: 'soon',      ar: 'قريب الانتهاء', fr: 'Expirent bientôt' },
+    { key: 'expired',   ar: 'منتهي',         fr: 'Expirés' },
+    { key: 'suspended', ar: 'موقوف',         fr: 'Suspendus' },
+  ]
+
+  const filtered = clientList.filter(c => {
+    const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.email.toLowerCase().includes(search.toLowerCase())
+    const matchFilter = filter === 'all' || getSubState(c) === filter
+    return matchSearch && matchFilter
+  })
 
   const handleDelete = async () => {
     if (!toDelete) return
@@ -464,7 +494,7 @@ export default function Clients() {
         </div>
 
         {/* Search */}
-        <div className="relative mb-4">
+        <div className="relative mb-3">
           <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-4 text-slate-400" />
           <input
             className="input-field ps-10"
@@ -472,6 +502,26 @@ export default function Clients() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+          {filterTabs.map(tab => (
+            <button key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl transition-all ${
+                filter === tab.key
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-50'
+              }`}>
+              {lang === 'ar' ? tab.ar : tab.fr}
+              {tab.key !== 'all' && (
+                <span className="ms-1.5 opacity-70">
+                  ({clientList.filter(c => getSubState(c) === tab.key).length})
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Table */}
@@ -509,9 +559,12 @@ export default function Clients() {
                     <td className="px-4 py-3 text-sm text-slate-500">{client.email}</td>
                     <td className="px-4 py-3 text-sm text-slate-500">{client.phone || '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${subColors[client.subscription] || subColors.Basic}`}>
-                        {client.subscription}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-lg ${subColors[client.subscription] || subColors.Basic}`}>
+                          {client.subscription}
+                        </span>
+                        <SubscriptionBadge client={client} />
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-primary-500">
                       {client.devicesCount}/{client.maxDevices ?? 5}
@@ -610,6 +663,7 @@ export default function Clients() {
                    <span className={`text-[10px] font-semibold ${expiryState(client.expiryDate) === 'expired' ? 'text-red-500' : expiryState(client.expiryDate) === 'soon' ? 'text-orange-500' : 'text-slate-400'}`}>
                      {expiryLabel(client.expiryDate)}
                    </span>
+                   <SubscriptionBadge client={client} />
                 </div>
               </motion.div>
             ))}

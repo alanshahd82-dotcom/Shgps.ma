@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Plus, Cpu, Battery, Signal, Wifi, WifiOff, X } from 'lucide-react'
+import { ChevronLeft, Plus, Cpu, Battery, Signal, Wifi, WifiOff, X, CalendarDays, RefreshCw, PauseCircle, PlayCircle, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
+import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
@@ -115,10 +116,181 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
   )
 }
 
+/* ─── Subscription Section ────────────────────────────────────────────────── */
+function SubscriptionSection({ client, lang, onUpdate }) {
+  const isAr = lang === 'ar'
+  const [showRenew, setShowRenew] = useState(false)
+  const [renewForm, setRenewForm] = useState({ expiryDate: '', plan: client?.subscription || 'Basic', maxDevices: client?.maxDevices || 5 })
+  const [saving, setSaving] = useState(false)
+  const [savedOk, setSavedOk] = useState(false)
+  const [suspending, setSuspending] = useState(false)
+  const [error, setError] = useState('')
+
+  const expiry = client?.expiryDate ? new Date(client.expiryDate) : null
+  const daysLeft = expiry ? Math.ceil((expiry - new Date()) / 86400000) : null
+  const isExpired = daysLeft !== null && daysLeft <= 0
+  const isSoon = daysLeft !== null && daysLeft > 0 && daysLeft <= 30
+  const isActive = client?.isActive !== false
+
+  const barPct = daysLeft === null ? 100
+    : isExpired ? 0
+    : Math.min(100, Math.round((daysLeft / 365) * 100))
+
+  const barColor = isExpired ? '#ef4444' : isSoon ? '#f97316' : '#00D97E'
+  const statusBadge = isExpired
+    ? <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-red-100 text-red-600">🔴 {isAr ? 'منتهي' : 'Expiré'}</span>
+    : isSoon
+      ? <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-orange-100 text-orange-600">⚠️ {daysLeft} {isAr ? 'يوم' : 'j'}</span>
+      : !isActive
+        ? <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-gray-100 text-gray-500">⏸ {isAr ? 'موقوف' : 'Suspendu'}</span>
+        : <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-600">✓ {isAr ? 'نشط' : 'Actif'}</span>
+
+  const handleRenew = async (e) => {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.clients.updateSubscription(client.id, {
+        expiryDate: renewForm.expiryDate,
+        plan: renewForm.plan,
+        maxDevices: Number(renewForm.maxDevices),
+        isActive: true,
+      })
+      setSavedOk(true); setShowRenew(false)
+      onUpdate && onUpdate()
+      setTimeout(() => setSavedOk(false), 2000)
+    } catch (err) { setError(err.message) }
+    finally { setSaving(false) }
+  }
+
+  const toggleActive = async () => {
+    setSuspending(true)
+    try {
+      await api.clients.updateSubscription(client.id, { isActive: isActive ? false : true })
+      onUpdate && onUpdate()
+    } catch {}
+    finally { setSuspending(false) }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <CalendarDays size={16} className="text-primary-500" />
+          <h3 className="font-bold text-primary-500 text-sm">{isAr ? 'الاشتراك' : 'Abonnement'}</h3>
+          {statusBadge}
+          {savedOk && <CheckCircle2 size={14} className="text-emerald-500" />}
+        </div>
+        <div className="flex gap-2">
+          {isActive
+            ? <button onClick={toggleActive} disabled={suspending}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 disabled:opacity-50">
+                <PauseCircle size={13} />{isAr ? 'تعليق' : 'Suspendre'}
+              </button>
+            : <button onClick={toggleActive} disabled={suspending}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50">
+                <PlayCircle size={13} />{isAr ? 'تفعيل' : 'Activer'}
+              </button>
+          }
+          <button onClick={() => setShowRenew(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary-50 text-primary-500 hover:bg-primary-100">
+            <RefreshCw size={13} />{isAr ? 'تجديد' : 'Renouveler'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[
+          { label: isAr ? 'الباقة' : 'Forfait', val: client?.subscription || 'Basic' },
+          { label: isAr ? 'الأجهزة' : 'Appareils', val: `${client?.devicesCount ?? 0}/${client?.maxDevices ?? 5}` },
+          { label: isAr ? 'الانتهاء' : 'Expiration', val: expiry ? expiry.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR') : '—' },
+        ].map((s, i) => (
+          <div key={i} className="bg-slate-50 rounded-xl p-3 text-center">
+            <p className="text-sm font-black text-primary-500">{s.val}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      {daysLeft !== null && (
+        <div>
+          <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <motion.div className="h-full rounded-full" style={{ backgroundColor: barColor }}
+              initial={{ width: 0 }} animate={{ width: `${barPct}%` }} transition={{ duration: 0.6 }} />
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1.5">
+            {isExpired
+              ? (isAr ? 'الاشتراك منتهي' : 'Abonnement expiré')
+              : `${daysLeft} ${isAr ? 'يوم متبقي' : 'jours restants'}`}
+          </p>
+        </div>
+      )}
+
+      {/* Renew Modal */}
+      <AnimatePresence>
+        {showRenew && (
+          <motion.div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center md:p-6"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowRenew(false)}>
+            <motion.div className="w-full md:max-w-[420px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden"
+              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4 bg-primary-500">
+                <div className="flex items-center gap-2">
+                  <RefreshCw size={16} className="text-white" />
+                  <h3 className="font-bold text-white">{isAr ? 'تجديد الاشتراك' : 'Renouveler l\'abonnement'}</h3>
+                </div>
+                <button onClick={() => setShowRenew(false)} className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center">
+                  <X size={14} className="text-white" />
+                </button>
+              </div>
+              <form onSubmit={handleRenew} className="p-5 space-y-4">
+                {error && <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 px-3 py-2 rounded-xl border border-red-100"><AlertCircle size={14}/>{error}</div>}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-1.5">{isAr ? 'تاريخ الانتهاء الجديد' : 'Nouvelle date d\'expiration'}</label>
+                  <input type="date" required min={new Date().toISOString().split('T')[0]}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                    value={renewForm.expiryDate} onChange={e => setRenewForm(p => ({ ...p, expiryDate: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 block mb-1.5">{isAr ? 'الباقة' : 'Forfait'}</label>
+                    <select className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                      value={renewForm.plan} onChange={e => setRenewForm(p => ({ ...p, plan: e.target.value }))}>
+                      <option value="Basic">Basic</option>
+                      <option value="Pro">Pro</option>
+                      <option value="Enterprise">Enterprise</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 block mb-1.5">{isAr ? 'عدد الأجهزة' : 'Max appareils'}</label>
+                    <input type="number" min="1" max="50" required
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                      value={renewForm.maxDevices} onChange={e => setRenewForm(p => ({ ...p, maxDevices: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button type="button" onClick={() => setShowRenew(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-slate-500">
+                    {isAr ? 'إلغاء' : 'Annuler'}
+                  </button>
+                  <button type="submit" disabled={saving}
+                    className="flex-1 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-60">
+                    {saving ? <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />{isAr ? 'حفظ...' : 'Enreg...'}</> : <><CheckCircle2 size={14}/>{isAr ? 'حفظ' : 'Enregistrer'}</>}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export default function ClientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { clientList, devices, addDevice, lang } = useApp()
+  const { clientList, devices, addDevice, lang, updateClient } = useApp()
   const client = clientList.find(c => String(c.id) === String(id))
   const clientDevices = devices.filter(d => String(d.clientId) === String(id) || String(d.user_id) === String(id))
   const [showAdd, setShowAdd] = useState(false)
@@ -181,6 +353,9 @@ export default function ClientDetail() {
             ))}
           </div>
         </div>
+
+        {/* Subscription Section */}
+        <SubscriptionSection client={client} lang={lang} onUpdate={() => window.location.reload()} />
 
         {/* Map */}
         {clientDevices.length > 0 && (
