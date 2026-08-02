@@ -9,20 +9,33 @@ import AdminLayout from './AdminLayout'
 import ConfirmModal from '../../components/ConfirmModal'
 
 function AddClientModal({ open, onClose, onAdd, lang }) {
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', city: '', subscription: 'Basic' })
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [form, setForm]         = useState({ name: '', email: '', phone: '', subscription: 'Basic' })
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [genPwd, setGenPwd]     = useState(null)
+  const [copied, setCopied]     = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true); setError('')
     try {
-      await onAdd({ ...form, avatar: form.name[0] || '?' })
-      setForm({ name: '', email: '', password: '', phone: '', city: '', subscription: 'Basic' })
-      onClose()
+      const result = await onAdd({ ...form, avatar: form.name[0] || '?' })
+      if (result?.generatedPassword) {
+        setGenPwd(result.generatedPassword)
+      } else {
+        setForm({ name: '', email: '', phone: '', subscription: 'Basic' })
+        onClose()
+      }
     } catch (err) {
       setError(err.message || (lang === 'ar' ? 'حدث خطأ' : 'Une erreur est survenue'))
     } finally { setLoading(false) }
+  }
+
+  const handleCopyAndClose = () => {
+    if (genPwd) { navigator.clipboard?.writeText(genPwd).catch(() => {}) }
+    setGenPwd(null); setCopied(false)
+    setForm({ name: '', email: '', phone: '', subscription: 'Basic' })
+    onClose()
   }
 
   return (
@@ -51,16 +64,46 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                 </button>
               </div>
 
-              {/* Scrollable body */}
-              <form id="add-client-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
-                {error && (
-                  <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
-                    <AlertCircle size={15} className="flex-shrink-0" /> {error}
+              {/* Generated password success screen */}
+              {genPwd ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+                  <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                    <CheckCircle2 size={28} className="text-emerald-500" />
                   </div>
-                )}
+                  <div>
+                    <p className="font-bold text-primary-500 text-base">
+                      {lang === 'ar' ? 'تم إنشاء الحساب ✓' : 'Compte créé ✓'}
+                    </p>
+                    <p className="text-slate-400 text-xs mt-1">
+                      {lang === 'ar' ? 'انسخ كلمة المرور واحفظها الآن — لن تظهر مرة أخرى' : 'Copiez le mot de passe maintenant — il ne sera plus affiché'}
+                    </p>
+                  </div>
+                  <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <p className="text-xs text-slate-400 mb-2">{lang === 'ar' ? 'كلمة المرور المُولّدة' : 'Mot de passe généré'}</p>
+                    <p className="font-mono text-xl font-bold text-primary-500 tracking-widest">{genPwd}</p>
+                  </div>
+                  <button
+                    onClick={() => { setCopied(true); navigator.clipboard?.writeText(genPwd).catch(() => {}) }}
+                    className="w-full btn-primary py-3 text-sm flex items-center justify-center gap-2"
+                  >
+                    <KeyRound size={15} />
+                    {copied ? (lang === 'ar' ? '✓ تم النسخ' : '✓ Copié') : (lang === 'ar' ? 'نسخ كلمة المرور' : 'Copier le mot de passe')}
+                  </button>
+                  <button onClick={handleCopyAndClose} className="w-full btn-secondary py-3 text-sm">
+                    {lang === 'ar' ? 'إغلاق' : 'Fermer'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Scrollable body */}
+                  <form id="add-client-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
+                    {error && (
+                      <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl border border-red-100">
+                        <AlertCircle size={15} className="flex-shrink-0" /> {error}
+                      </div>
+                    )}
 
-                  {/* Name + City */}
-                  <div className="grid grid-cols-2 gap-3">
+                    {/* Name */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1.5">
                         {t(lang, 'name')} <span className="text-red-400">*</span>
@@ -73,125 +116,93 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                         required
                       />
                     </div>
+
+                    {/* Phone */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t(lang, 'city')}</label>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                        <span className="flex items-center gap-1">
+                          <Phone size={11} />
+                          {t(lang, 'phone')}
+                        </span>
+                      </label>
                       <input
                         className="input-field text-sm"
-                        value={form.city}
-                        onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                        placeholder={lang === 'ar' ? 'المدينة' : 'Ville'}
+                        value={form.phone}
+                        onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                        placeholder="06XXXXXXXX"
+                        type="tel"
                       />
                     </div>
-                  </div>
 
-                  {/* Phone */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                      <span className="flex items-center gap-1">
-                        <Phone size={11} />
-                        {t(lang, 'phone')}
-                      </span>
-                    </label>
-                    <input
-                      className="input-field text-sm"
-                      value={form.phone}
-                      onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                      placeholder={lang === 'ar' ? '06XXXXXXXX' : '06XXXXXXXX'}
-                      type="tel"
-                    />
-                  </div>
+                    {/* Email */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                        {t(lang, 'email')} <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        className="input-field text-sm"
+                        value={form.email}
+                        onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                        placeholder="exemple@email.com"
+                        required
+                      />
+                    </div>
 
-                  {/* Email */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                      {t(lang, 'email')} <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      className="input-field text-sm"
-                      value={form.email}
-                      onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                      placeholder="exemple@email.com"
-                      required
-                    />
-                  </div>
+                    {/* Subscription */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                        {t(lang, 'subscription')} <span className="text-red-400">*</span>
+                      </label>
+                      <select
+                        className="input-field text-sm"
+                        value={form.subscription}
+                        onChange={e => setForm(p => ({ ...p, subscription: e.target.value }))}
+                        required
+                      >
+                        <option value="Basic">Basic</option>
+                        <option value="Pro">Pro</option>
+                        <option value="Enterprise">Enterprise</option>
+                      </select>
+                    </div>
 
-                  {/* Password */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                      {t(lang, 'password')} <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      className="input-field text-sm"
-                      value={form.password}
-                      onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                      placeholder="••••••••"
-                      required
-                      minLength={6}
-                    />
-                    <p className="text-[11px] text-slate-400 mt-1.5">
-                      {lang === 'ar'
-                        ? 'سيُطلب من العميل تغيير كلمة المرور عند أول تسجيل دخول'
-                        : 'Le client devra changer ce mot de passe à la première connexion'}
-                    </p>
-                  </div>
+                    {/* Info box */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                      <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-blue-600 leading-relaxed">
+                        {lang === 'ar'
+                          ? 'سيتم توليد كلمة مرور عشوائية تلقائياً — انسخها بعد الإنشاء.'
+                          : 'Un mot de passe sera généré automatiquement — copiez-le après création.'}
+                      </p>
+                    </div>
+                  </form>
 
-                  {/* Subscription */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                      {t(lang, 'subscription')} <span className="text-red-400">*</span>
-                    </label>
-                    <select
-                      className="input-field text-sm"
-                      value={form.subscription}
-                      onChange={e => setForm(p => ({ ...p, subscription: e.target.value }))}
+                  {/* Fixed footer – always visible */}
+                  <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
+                    <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3 text-sm">
+                      {t(lang, 'cancel')}
+                    </button>
+                    <button
+                      type="submit"
+                      form="add-client-form"
+                      disabled={loading}
+                      className="flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
                     >
-                      <option value="Basic">Basic</option>
-                      <option value="Pro">Pro</option>
-                      <option value="Enterprise">Enterprise</option>
-                    </select>
+                      {loading ? (
+                        <>
+                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
+                          </svg>
+                          <span>{lang === 'ar' ? 'جارٍ الإنشاء...' : 'Création...'}</span>
+                        </>
+                      ) : (
+                        <span>{t(lang, 'add')}</span>
+                      )}
+                    </button>
                   </div>
-
-                  {/* Info box */}
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-2.5">
-                    <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-600 leading-relaxed">
-                      {lang === 'ar'
-                        ? 'بعد إنشاء الحساب، يستطيع العميل تسجيل الدخول مباشرة عبر تطبيق العميل بالبريد وكلمة المرور المُدخلة.'
-                        : 'Après création, le client peut se connecter directement via l\'app client avec ces identifiants.'}
-                    </p>
-                  </div>
-              </form>
-
-              {/* Fixed footer – always visible */}
-              <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 btn-secondary py-3 text-sm"
-                >
-                  {t(lang, 'cancel')}
-                </button>
-                <button
-                  type="submit"
-                  form="add-client-form"
-                  disabled={loading}
-                  className="flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
-                      </svg>
-                      <span>{lang === 'ar' ? 'جارٍ الإنشاء...' : 'Création...'}</span>
-                    </>
-                  ) : (
-                    <span>{t(lang, 'add')}</span>
-                  )}
-                </button>
-              </div>
+                </>
+              )}
           </motion.div>
         </motion.div>
       )}

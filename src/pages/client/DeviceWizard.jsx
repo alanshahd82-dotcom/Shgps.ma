@@ -2,39 +2,39 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
-  ChevronLeft, ChevronRight, Check, Smartphone, Wifi, Server,
-  MessageSquare, Copy, CheckCheck, Info, Zap, CheckCircle2, AlertCircle
+  ChevronLeft, ChevronRight, Check, Smartphone,
+  Copy, CheckCheck, Zap, AlertCircle
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 
 const DEVICE_TYPES = [
-  { value: 'wanway', label: 'WanWay / TK Series', emoji: '📡' },
-  { value: 'concox', label: 'Concox / GT06N',     emoji: '📟' },
-  { value: 'teltonika', label: 'Teltonika FMB',   emoji: '🔧' },
-  { value: 'other',   label: 'Autre / أخرى',      emoji: '📦' },
+  { value: 'wanway',    label: 'WanWay / TK Series', emoji: '📡' },
+  { value: 'concox',   label: 'Concox / GT06N',      emoji: '📟' },
+  { value: 'teltonika', label: 'Teltonika FMB',       emoji: '🔧' },
+  { value: 'other',    label: 'Autre / أخرى',         emoji: '📦' },
 ]
 const CARRIERS = [
   { value: 'iam',    label: 'Maroc Telecom (IAM)', apn: 'internet.iam.net' },
   { value: 'orange', label: 'Orange Maroc',         apn: 'internet' },
   { value: 'inwi',   label: 'inwi',                 apn: 'inwi.net' },
-  { value: 'custom', label: 'Personnalisé',          apn: '' },
 ]
 
-function buildCommands({ deviceType, carrier, apn, server, port, pass }) {
-  const p = pass || '0000'
-  const s = server || 'tracker.example.com'
-  const pt = port || '5055'
-  const a = apn || 'internet'
+const TRACCAR_HOST = import.meta.env.VITE_TRACCAR_HOST || '64.226.103.251'
+const TRACCAR_PORT = import.meta.env.VITE_TRACCAR_PORT || '5055'
 
+function buildCommands({ deviceType, apn }) {
+  const s  = TRACCAR_HOST
+  const pt = TRACCAR_PORT
+  const p  = '0000'
+  const a  = apn || 'internet'
   if (deviceType === 'teltonika') {
     return [
       { label: 'APN',    cmd: `setparam 2001:${a}` },
       { label: 'Server', cmd: `setparam 2004:${s};2005:${pt}` },
     ]
   }
-  // GT06 / WanWay / Concox similar protocol
   return [
     { label: 'Password reset', cmd: `PASSWORD,${p},123456#` },
     { label: 'APN',            cmd: `APN,${p},${a}#` },
@@ -59,174 +59,120 @@ function copyText(text) {
   }
 }
 
-// ── Step: Vehicle Data ────────────────────────────────────────────────────────
-function StepVehicleData({ imei, setImei, vehicleName, setVehicleName, plate, setPlate, lang }) {
+// ── Step 0: Device Info ───────────────────────────────────────────────────────
+function StepInfo({ state, setState, lang }) {
   const isAr = lang === 'ar'
-  const isIMEIValid = /^\d{15}$/.test(imei.trim())
+  const isIMEIValid = /^\d{15}$/.test(state.imei.trim())
   return (
-    <div className="space-y-4">
-      <h2 className="text-white font-bold text-base">
-        {isAr ? 'بيانات الجهاز' : 'Informations de l\'appareil'}
-      </h2>
-      <p className="text-slate-400 text-xs">
-        {isAr ? 'أدخل رقم IMEI واسم المركبة' : 'Entrez l\'IMEI et le nom du véhicule'}
-      </p>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-white font-bold text-base">
+          {isAr ? 'معلومات الجهاز' : 'Informations de l\'appareil'}
+        </h2>
+        <p className="text-slate-400 text-xs mt-1">
+          {isAr ? 'أدخل بيانات الجهاز واختر شبكة الجوال' : 'Entrez les données du tracker et choisissez l\'opérateur'}
+        </p>
+      </div>
+
+      {/* Device type */}
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase">
+          {isAr ? 'نوع الجهاز' : 'Type d\'appareil'}
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          {DEVICE_TYPES.map(dt => (
+            <button key={dt.value} type="button" onClick={() => setState(s => ({ ...s, deviceType: dt.value }))}
+              className={`p-3 rounded-xl border-2 text-left transition-all active:scale-97 ${
+                state.deviceType === dt.value
+                  ? 'border-accent bg-accent/10'
+                  : 'border-slate-700 bg-slate-800/60 hover:border-slate-600'
+              }`}>
+              <div className="text-xl mb-1">{dt.emoji}</div>
+              <p className={`text-xs font-bold ${state.deviceType === dt.value ? 'text-accent' : 'text-slate-300'}`}>
+                {dt.label}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* IMEI */}
       <div>
         <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">IMEI</label>
         <div className="relative">
           <input
             type="tel"
             maxLength={15}
-            value={imei}
-            onChange={e => setImei(e.target.value.replace(/\D/g, '').slice(0, 15))}
+            value={state.imei}
+            onChange={e => setState(s => ({ ...s, imei: e.target.value.replace(/\D/g, '').slice(0, 15) }))}
             placeholder="358900001234567"
             className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm focus:outline-none focus:border-accent pr-10"
           />
-          <span className={`absolute left-3 top-3 text-lg ${imei.length === 15 ? (isIMEIValid ? 'text-accent' : 'text-red-400') : 'text-slate-600'}`}>
-            {imei.length === 15 ? (isIMEIValid ? '✅' : '❌') : '⬜'}
-          </span>
+          {state.imei.length > 0 && (
+            <span className="absolute right-3 top-3 text-lg">
+              {isIMEIValid ? '✅' : '⬜'}
+            </span>
+          )}
         </div>
         <p className="text-slate-500 text-[11px] mt-1">
-          {isAr ? `${imei.length}/15 رقم` : `${imei.length}/15 chiffres`}
+          {isAr ? `${state.imei.length}/15 رقم` : `${state.imei.length}/15 chiffres`}
         </p>
       </div>
+
+      {/* Vehicle name */}
       <div>
         <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
           {isAr ? 'اسم المركبة' : 'Nom du véhicule'}
         </label>
         <input
-          value={vehicleName}
-          onChange={e => setVehicleName(e.target.value)}
+          value={state.vehicleName}
+          onChange={e => setState(s => ({ ...s, vehicleName: e.target.value }))}
           placeholder={isAr ? 'مثال: سيارة الشركة' : 'Ex: Voiture société'}
           className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none focus:border-accent"
         />
       </div>
+
+      {/* Plate */}
       <div>
         <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
           {isAr ? 'رقم اللوحة' : 'Plaque d\'immatriculation'}
         </label>
         <input
-          value={plate}
-          onChange={e => setPlate(e.target.value.toUpperCase())}
+          value={state.plate}
+          onChange={e => setState(s => ({ ...s, plate: e.target.value.toUpperCase() }))}
           placeholder="A 12345 XX"
           className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm uppercase focus:outline-none focus:border-accent"
         />
       </div>
-    </div>
-  )
-}
 
-// ── Step components ───────────────────────────────────────────────────────────
-function StepDeviceType({ value, onChange, lang }) {
-  const isAr = lang === 'ar'
-  return (
-    <div className="space-y-3">
-      <h2 className="text-white font-bold text-base">
-        {isAr ? 'نوع الجهاز' : 'Type d\'appareil'}
-      </h2>
-      <p className="text-slate-400 text-xs">
-        {isAr ? 'اختر نوع جهاز التتبع الخاص بك' : 'Sélectionnez le type de votre tracker GPS'}
-      </p>
-      <div className="grid grid-cols-2 gap-2 mt-3">
-        {DEVICE_TYPES.map(dt => (
-          <button key={dt.value} onClick={() => onChange(dt.value)}
-            className={`p-4 rounded-2xl border-2 text-left transition-all active:scale-97 ${
-              value === dt.value
-                ? 'border-accent bg-accent/10'
-                : 'border-slate-700 bg-slate-800/60 hover:border-slate-600'
-            }`}>
-            <div className="text-2xl mb-2">{dt.emoji}</div>
-            <p className={`text-sm font-bold ${value === dt.value ? 'text-accent' : 'text-slate-300'}`}>
-              {dt.label}
-            </p>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function StepNetwork({ carrier, setCarrier, customApn, setCustomApn, lang }) {
-  const isAr = lang === 'ar'
-  const selected = CARRIERS.find(c => c.value === carrier)
-  return (
-    <div className="space-y-3">
-      <h2 className="text-white font-bold text-base">
-        {isAr ? 'شبكة الاتصال' : 'Réseau mobile'}
-      </h2>
-      <p className="text-slate-400 text-xs">
-        {isAr ? 'اختر شبكة الجوال لشريحة الجهاز' : 'Choisissez l\'opérateur de la carte SIM du tracker'}
-      </p>
-      <div className="space-y-2 mt-2">
-        {CARRIERS.map(c => (
-          <button key={c.value} onClick={() => setCarrier(c.value)}
-            className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${
-              carrier === c.value
-                ? 'border-accent bg-accent/10'
-                : 'border-slate-700 bg-slate-800/60'
-            }`}>
-            <div>
-              <p className={`text-sm font-bold ${carrier === c.value ? 'text-accent' : 'text-slate-300'}`}>{c.label}</p>
-              {c.apn && <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{c.apn}</p>}
-            </div>
-            {carrier === c.value && <Check size={16} className="text-accent" />}
-          </button>
-        ))}
-      </div>
-      {carrier === 'custom' && (
-        <input type="text" placeholder="APN personnalisé" value={customApn}
-          onChange={e => setCustomApn(e.target.value)}
-          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-accent placeholder:text-slate-600 mt-2" />
-      )}
-      <div className="flex gap-2 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-        <Info size={14} className="text-blue-400 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-blue-300/80">
-          {isAr
-            ? 'تأكد من أن شريحة الجهاز تدعم GPRS وخطة البيانات مفعّلة'
-            : 'Vérifiez que la SIM supporte GPRS et que le forfait data est actif'}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function StepServer({ server, setServer, port, setPort, pass, setPass, lang }) {
-  const isAr = lang === 'ar'
-  return (
-    <div className="space-y-3">
-      <h2 className="text-white font-bold text-base">
-        {isAr ? 'إعدادات الخادم' : 'Paramètres serveur'}
-      </h2>
-      <p className="text-slate-400 text-xs">
-        {isAr ? 'أدخل بيانات خادم Traccar الخاص بك' : 'Entrez les données de votre serveur Traccar'}
-      </p>
-      <div className="space-y-2 mt-2">
-        <div>
-          <label className="text-[11px] text-slate-400 mb-1 block">{isAr ? 'عنوان الخادم (IP أو Domain)' : 'Adresse du serveur'}</label>
-          <input type="text" placeholder="tracker.yourdomain.com" value={server}
-            onChange={e => setServer(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-accent placeholder:text-slate-600" />
-        </div>
-        <div>
-          <label className="text-[11px] text-slate-400 mb-1 block">{isAr ? 'المنفذ' : 'Port'}</label>
-          <input type="number" placeholder="5055" value={port}
-            onChange={e => setPort(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-accent placeholder:text-slate-600" />
-        </div>
-        <div>
-          <label className="text-[11px] text-slate-400 mb-1 block">
-            {isAr ? 'كلمة سر الجهاز (افتراضي: 0000)' : 'Mot de passe appareil (défaut: 0000)'}
-          </label>
-          <input type="text" placeholder="0000" value={pass}
-            onChange={e => setPass(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-accent placeholder:text-slate-600" />
+      {/* Carrier */}
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase">
+          {isAr ? 'شبكة الجوال' : 'Opérateur mobile'}
+        </label>
+        <div className="space-y-2">
+          {CARRIERS.map(c => (
+            <button key={c.value} type="button" onClick={() => setState(s => ({ ...s, carrier: c.value }))}
+              className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                state.carrier === c.value
+                  ? 'border-accent bg-accent/10'
+                  : 'border-slate-700 bg-slate-800/60'
+              }`}>
+              <div className="text-left">
+                <p className={`text-sm font-bold ${state.carrier === c.value ? 'text-accent' : 'text-slate-300'}`}>{c.label}</p>
+                <p className="text-[10px] text-slate-500 font-mono">{c.apn}</p>
+              </div>
+              {state.carrier === c.value && <Check size={16} className="text-accent" />}
+            </button>
+          ))}
         </div>
       </div>
     </div>
   )
 }
 
-function StepCommands({ commands, lang }) {
+// ── Step 1: Commands + Save ───────────────────────────────────────────────────
+function StepCommands({ commands, lang, onSave, saving, saveError }) {
   const isAr = lang === 'ar'
   const [copied, setCopied] = useState({})
   const [allCopied, setAllCopied] = useState(false)
@@ -236,7 +182,6 @@ function StepCommands({ commands, lang }) {
     setCopied(prev => ({ ...prev, [i]: true }))
     setTimeout(() => setCopied(prev => ({ ...prev, [i]: false })), 2000)
   }
-
   const handleCopyAll = () => {
     copyText(commands.map(c => c.cmd).join('\n'))
     setAllCopied(true)
@@ -244,16 +189,19 @@ function StepCommands({ commands, lang }) {
   }
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-white font-bold text-base">
-        {isAr ? 'أوامر SMS' : 'Commandes SMS'}
-      </h2>
-      <p className="text-slate-400 text-xs leading-relaxed">
-        {isAr
-          ? 'أرسل هذه الأوامر بالترتيب إلى رقم شريحة الجهاز عبر SMS وانتظر رد التأكيد'
-          : 'Envoyez ces commandes dans l\'ordre au numéro SIM du tracker par SMS et attendez la confirmation'}
-      </p>
-      <div className="space-y-2 mt-2">
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-white font-bold text-base">
+          {isAr ? 'أوامر إعداد الجهاز' : 'Commandes de configuration'}
+        </h2>
+        <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+          {isAr
+            ? 'أرسل هذه الأوامر بالترتيب إلى رقم شريحة الجهاز عبر SMS، ثم احفظ الجهاز'
+            : 'Envoyez ces commandes dans l\'ordre au numéro SIM du tracker par SMS, puis enregistrez'}
+        </p>
+      </div>
+
+      <div className="space-y-2">
         {commands.map((c, i) => (
           <div key={i} className="flex items-center gap-2 bg-slate-800 border border-slate-700/60 rounded-xl p-3">
             <div className="w-6 h-6 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
@@ -267,12 +215,12 @@ function StepCommands({ commands, lang }) {
               className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 active:scale-90 transition-transform">
               {copied[i]
                 ? <CheckCheck size={12} className="text-accent" />
-                : <Copy size={12} className="text-slate-400" />
-              }
+                : <Copy size={12} className="text-slate-400" />}
             </button>
           </div>
         ))}
       </div>
+
       <button onClick={handleCopyAll}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-slate-900 font-bold text-sm active:scale-95 transition-transform">
         {allCopied ? <CheckCheck size={15} /> : <Copy size={15} />}
@@ -280,55 +228,84 @@ function StepCommands({ commands, lang }) {
           ? (isAr ? 'تم النسخ!' : 'Copié!')
           : (isAr ? 'نسخ كل الأوامر' : 'Copier toutes les commandes')}
       </button>
+
       <div className="flex gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
         <Zap size={14} className="text-emerald-400 shrink-0 mt-0.5" />
         <p className="text-[11px] text-emerald-300/80 leading-relaxed">
           {isAr
-            ? 'بعد إرسال الأوامر، يبدأ الجهاز بالإرسال خلال 2-5 دقائق. تحقق من لوحة التحكم.'
-            : 'Après envoi, le tracker commence à émettre dans 2-5 minutes. Vérifiez le tableau de bord.'}
+            ? 'بعد إرسال الأوامر، يبدأ الجهاز بالإرسال خلال 2-5 دقائق.'
+            : 'Après envoi, le tracker commence à émettre dans 2-5 minutes.'}
         </p>
       </div>
+
+      {saveError && (
+        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+          <AlertCircle size={14} className="text-red-400 shrink-0" />
+          <p className="text-xs text-red-300">{saveError}</p>
+        </div>
+      )}
+
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="w-full py-3.5 bg-emerald-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
+      >
+        <Check size={15} />
+        {saving
+          ? (isAr ? 'جاري الحفظ...' : 'Enregistrement...')
+          : (isAr ? '✅ حفظ الجهاز' : '✅ Enregistrer l\'appareil')}
+      </button>
     </div>
   )
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const STEPS = ['device', 'vehicleData', 'network', 'server', 'commands']
+const STEPS = ['info', 'commands']
 
 export default function DeviceWizard() {
   const navigate = useNavigate()
   const { lang } = useApp()
   const isAr = lang === 'ar'
 
-  const [step, setStep]               = useState(0)
-  const [deviceType, setDeviceType]   = useState('wanway')
-  const [imei, setImei]               = useState('')
-  const [vehicleName, setVehicleName] = useState('')
-  const [plate, setPlate]             = useState('')
-  const [saving, setSaving]           = useState(false)
-  const [saveError, setSaveError]     = useState(null)
-  const [carrier, setCarrier]         = useState('iam')
-  const [customApn, setCustomApn]     = useState('')
-  const [server, setServer]           = useState('')
-  const [port, setPort]               = useState('5055')
-  const [pass, setPass]               = useState('0000')
+  const [step, setStep] = useState(0)
+  const [state, setState] = useState({
+    deviceType: 'wanway',
+    imei: '',
+    vehicleName: '',
+    plate: '',
+    carrier: 'iam',
+  })
+  const [saving, setSaving]     = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
-  const selectedCarrier = CARRIERS.find(c => c.value === carrier)
-  const apn = carrier === 'custom' ? customApn : selectedCarrier?.apn || ''
-
-  const commands = buildCommands({ deviceType, carrier, apn, server, port, pass })
+  const selectedCarrier = CARRIERS.find(c => c.value === state.carrier)
+  const apn = selectedCarrier?.apn || 'internet'
+  const commands = buildCommands({ deviceType: state.deviceType, apn })
 
   const canNext = () => {
-    if (step === 0) return !!deviceType
-    if (step === 1) return /^\d{15}$/.test(imei.trim()) && vehicleName.trim().length > 0
-    if (step === 2) return !!carrier && (carrier !== 'custom' || !!customApn.trim())
-    if (step === 3) return !!server.trim()
+    if (step === 0) return /^\d{15}$/.test(state.imei.trim()) && state.vehicleName.trim().length > 0
     return true
   }
 
   const stepLabels = isAr
-    ? ['نوع الجهاز', 'بيانات الجهاز', 'الشبكة', 'الخادم', 'الأوامر']
-    : ['Appareil', 'Données', 'Réseau', 'Serveur', 'Commandes']
+    ? ['معلومات الجهاز', 'أوامر الإعداد']
+    : ['Informations', 'Configuration']
+
+  const handleSave = async () => {
+    setSaving(true); setSaveError(null)
+    try {
+      await api.devices.quickAdd({
+        name:  state.vehicleName.trim(),
+        imei:  state.imei.trim(),
+        type:  state.deviceType,
+        plate: state.plate.trim() || null,
+      })
+      navigate('/client/devices')
+    } catch (e) {
+      setSaveError(e.message)
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="min-h-[100dvh] flex flex-col" style={{ background: 'linear-gradient(180deg,#0d1b33 0%,#0a1225 100%)' }}>
@@ -341,14 +318,13 @@ export default function DeviceWizard() {
           </button>
           <div>
             <h1 className="text-white text-lg font-bold leading-tight">
-              {isAr ? 'معالج إضافة الجهاز' : 'Assistant d\'installation'}
+              {isAr ? 'إضافة جهاز تتبع' : 'Ajouter un tracker'}
             </h1>
             <p className="text-blue-200/60 text-xs">
               {stepLabels[step]} · {step + 1}/{STEPS.length}
             </p>
           </div>
         </div>
-
         {/* Progress bar */}
         <div className="flex gap-1.5">
           {STEPS.map((_, i) => (
@@ -365,65 +341,27 @@ export default function DeviceWizard() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: isAr ? 20 : -20 }}
             transition={{ duration: 0.2 }}>
-            {step === 0 && <StepDeviceType value={deviceType} onChange={setDeviceType} lang={lang} />}
-            {step === 1 && <StepVehicleData imei={imei} setImei={setImei} vehicleName={vehicleName} setVehicleName={setVehicleName} plate={plate} setPlate={setPlate} lang={lang} />}
-            {step === 2 && <StepNetwork carrier={carrier} setCarrier={setCarrier} customApn={customApn} setCustomApn={setCustomApn} lang={lang} />}
-            {step === 3 && <StepServer server={server} setServer={setServer} port={port} setPort={setPort} pass={pass} setPass={setPass} lang={lang} />}
-            {step === 4 && <StepCommands commands={commands} lang={lang} />}
+            {step === 0 && <StepInfo state={state} setState={setState} lang={lang} />}
+            {step === 1 && <StepCommands commands={commands} lang={lang} onSave={handleSave} saving={saving} saveError={saveError} />}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Nav buttons */}
-      <div className="fixed inset-x-0 bottom-20 px-4 pb-2">
-        <div className="bg-slate-900/95 backdrop-blur-sm rounded-2xl p-3 border border-slate-700/40 flex gap-2">
-          {step > 0 && (
-            <button onClick={() => setStep(s => s - 1)}
-              className="flex-none py-3 px-5 bg-slate-800 text-slate-300 rounded-xl font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform">
-              <ChevronLeft size={15} />
-              {isAr ? 'رجوع' : 'Retour'}
-            </button>
-          )}
-          {step < STEPS.length - 1 ? (
-            <button onClick={() => canNext() && setStep(s => s + 1)} disabled={!canNext()}
-              className="flex-1 py-3 bg-accent text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-95 transition-transform">
-              {isAr ? 'التالي' : 'Suivant'}
+      {/* Nav buttons — only on step 0 */}
+      {step === 0 && (
+        <div className="fixed inset-x-0 bottom-20 px-4 pb-2">
+          <div className="bg-slate-900/95 backdrop-blur-sm rounded-2xl p-3 border border-slate-700/40">
+            <button
+              onClick={() => canNext() && setStep(1)}
+              disabled={!canNext()}
+              className="w-full py-3 bg-accent text-slate-900 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-95 transition-transform"
+            >
+              {isAr ? 'التالي — أوامر الإعداد' : 'Suivant — Commandes'}
               <ChevronRight size={15} />
             </button>
-          ) : (
-            <div className="flex-1 flex flex-col gap-2">
-              <button
-                onClick={async () => {
-                  setSaving(true)
-                  setSaveError(null)
-                  try {
-                    await api.devices.quickAdd({
-                      name: vehicleName.trim(),
-                      imei: imei.trim(),
-                      type: 'car',
-                      plate: plate.trim() || null,
-                    })
-                    navigate('/client/devices')
-                  } catch (e) {
-                    setSaveError(e.message)
-                    setSaving(false)
-                  }
-                }}
-                disabled={saving}
-                className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-60"
-              >
-                <Check size={15} />
-                {saving
-                  ? (isAr ? 'جاري الحفظ...' : 'Enregistrement...')
-                  : (isAr ? '✅ حفظ الجهاز' : '✅ Enregistrer')}
-              </button>
-              {saveError && (
-                <p className="text-red-400 text-xs text-center">{saveError}</p>
-              )}
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       <ClientNav />
     </div>

@@ -6,9 +6,7 @@ import { defineConfig } from 'vite'
     base: '/',
     build: {
       outDir: 'dist',
-      rollupOptions: {
-        external: ['xlsx', 'jspdf', 'jspdf-autotable'],
-      },
+      rollupOptions: {},
     },
     server: {
       proxy: {

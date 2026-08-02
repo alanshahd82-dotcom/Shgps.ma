@@ -294,8 +294,7 @@ export default function AdminLayout({ children }) {
   const [showQuickAdd,   setShowQuickAdd]   = useState(false)
 
   const handleQuickAddSuccess = (device) => {
-    // AppContext already tracks devices via addDeviceDirect; here we just keep the modal open for "add another"
-    addDeviceDirect && addDeviceDirect({ ...device, clientId: device.clientId })
+    addDeviceDirect && addDeviceDirect(device)
   }
 
   const allUnread = alertsList.filter(a => !a.read).length

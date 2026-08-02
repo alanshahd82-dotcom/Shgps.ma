@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS share_links (
 );
 
 -- Client subscription fields
-ALTER TABLE clients
+ALTER TABLE users
   ADD COLUMN IF NOT EXISTS subscription_start DATE,
   ADD COLUMN IF NOT EXISTS subscription_end   DATE,
   ADD COLUMN IF NOT EXISTS max_devices        INTEGER DEFAULT 5,

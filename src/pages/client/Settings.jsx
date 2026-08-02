@@ -47,7 +47,7 @@ function DarkInput({ value, onChange, type = 'text', placeholder = '' }) {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { clientAuth, setClientAuth, lang, setLang, darkMode, toggleDarkMode, pushEnabled, setPushEnabled, wsConnected } = useApp()
+  const { clientAuth, setClientAuth, lang, setLang, darkMode, toggleDarkMode, pushEnabled, requestPushPermission, disablePush, wsConnected } = useApp()
   const [tab, setTab] = useState('profile')
   const isAr = lang === 'ar'
 
@@ -221,7 +221,7 @@ export default function Settings() {
                 </div>
               )},
               { Icon: Moon, label: isAr ? 'الوضع الليلي' : 'Mode sombre', ctrl: <Toggle checked={!!darkMode} onChange={toggleDarkMode}/> },
-              { Icon: Bell, label: isAr ? 'الإشعارات' : 'Notifications', ctrl: <Toggle checked={!!pushEnabled} onChange={setPushEnabled}/> },
+              { Icon: Bell, label: isAr ? 'الإشعارات' : 'Notifications', ctrl: <Toggle checked={!!pushEnabled} onChange={v => v ? requestPushPermission() : disablePush()}/> },
             ].map(({ Icon, label, ctrl }, i) => (
               <div key={i} className="flex items-center justify-between py-2" style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                 <div className="flex items-center gap-2.5">

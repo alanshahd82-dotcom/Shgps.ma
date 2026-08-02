@@ -73,7 +73,11 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
                   className="input-field text-sm font-mono"
                   placeholder="358900001234567"
                   value={form.imei}
-                  onChange={e => setForm(p => ({ ...p, imei: e.target.value }))}
+                  onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '').slice(0, 15) }))}
+                  maxLength={15}
+                  minLength={15}
+                  pattern="\d{15}"
+                  title={lang === 'ar' ? 'IMEI يجب أن يكون 15 رقماً' : 'IMEI doit contenir exactement 15 chiffres'}
                   required
                 />
               </div>

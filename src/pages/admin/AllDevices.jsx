@@ -94,8 +94,8 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
-                  <input className="input-field text-sm" value={form.plate}
-                    onChange={e => setForm(p => ({ ...p, plate: e.target.value }))} />
+                  <input className="input-field text-sm uppercase font-mono" value={form.plate}
+                    onChange={e => setForm(p => ({ ...p, plate: e.target.value.toUpperCase() }))} />
                 </div>
               </div>
               <div>
