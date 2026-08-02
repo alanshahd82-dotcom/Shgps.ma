@@ -62,8 +62,14 @@ import { Router } from 'express'
         const p = pm[d.traccar_id]
         const localGeo = geofenceMap[d.id] || null
         return {
-          id:d.id, name:d.name, imei:d.imei, type:d.type, plate:d.plate,
-          clientId:d.user_id, clientName:d.client_name??null,
+          id:        d.id,
+          traccarId: d.traccar_id,   // ← required for WebSocket live-update matching
+          name:      d.name,
+          imei:      d.imei,
+          type:      d.type,
+          plate:     d.plate,
+          clientId:  d.user_id,
+          clientName:d.client_name ?? null,
           status:    p ? 'online' : 'offline',
           lat:       p?.latitude  ?? 0,
           lng:       p?.longitude ?? 0,
@@ -73,7 +79,6 @@ import { Router } from 'express'
           battery:   p?.attributes?.battery  ?? null,
           signal:    p?.attributes?.rssi     ?? null,
           fuel:      p?.attributes?.fuel     ?? null,
-          // Geofence state from local DB
           geofenceActive:   !!localGeo,
           activeGeofenceId: localGeo?.id ?? null,
           geofence: localGeo ? { id: localGeo.id, name: localGeo.name } : null,

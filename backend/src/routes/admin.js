@@ -9,10 +9,10 @@ export const adminRouter = Router()
 adminRouter.get('/stats', requireAuth, requireAdmin, async (_req, res) => {
   try {
     const [usersRes, devicesRes, alertsTodayRes, noSignalRes] = await Promise.all([
-      db.query(`SELECT COUNT(*)::int AS total_clients FROM users WHERE is_admin=false AND is_active=true`),
+      db.query(`SELECT COUNT(*)::int AS total_clients FROM users WHERE is_admin=false`),
       db.query(`SELECT COUNT(*)::int AS total FROM devices`),
       db.query(`SELECT COUNT(*)::int AS today FROM alerts WHERE created_at >= NOW() - INTERVAL '24 hours'`),
-      db.query(`SELECT COUNT(*)::int AS no_signal FROM devices WHERE updated_at < NOW() - INTERVAL '24 hours' OR updated_at IS NULL`),
+      db.query(`SELECT COUNT(*)::int AS no_signal FROM devices WHERE traccar_id IS NOT NULL AND updated_at < NOW() - INTERVAL '24 hours' OR updated_at IS NULL`),
     ])
 
     // Get live device statuses from Traccar (best-effort)
@@ -56,15 +56,35 @@ adminRouter.post('/traccar-sync', requireAuth, requireAdmin, async (_req, res) =
 
     const localByTraccarId = new Map(localDevices.filter(d => d.traccar_id).map(d => [d.traccar_id, d]))
 
+    // Fetch live positions for status sync
+    let positionMap = {}
+    try {
+      const positions = await traccar.getAllPositions()
+      for (const p of positions) positionMap[p.deviceId] = p
+    } catch { /* non-critical */ }
+
     for (const td of traccarDevices) {
       const local = localByTraccarId.get(td.id)
       if (!local) {
         results.notInLocal.push({ traccarId: td.id, name: td.name, uniqueId: td.uniqueId, status: td.status })
       } else {
-        // Update status and last seen
+        const pos = positionMap[td.id]
+        // Sync live position + status into local DB so DB reflects reality
         await db.query(
-          'UPDATE devices SET updated_at=NOW() WHERE id=$1',
-          [local.id]
+          `UPDATE devices SET
+             updated_at = NOW(),
+             last_lat    = $2,
+             last_lng    = $3,
+             last_speed  = $4,
+             last_update = $5
+           WHERE id = $1`,
+          [
+            local.id,
+            pos?.latitude  ?? local.last_lat  ?? null,
+            pos?.longitude ?? local.last_lng  ?? null,
+            pos?.speed     ?? 0,
+            pos?.fixTime   ?? null,
+          ]
         )
         results.updated++
         results.synced++

@@ -37,7 +37,11 @@ async function runMigrations() {
     `)
     await db.query(`
       ALTER TABLE devices
-        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
+        ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMP DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS last_lat    DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS last_lng    DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS last_speed  NUMERIC(8,2),
+        ADD COLUMN IF NOT EXISTS last_update TIMESTAMP
     `)
     await db.query(`
       CREATE TABLE IF NOT EXISTS local_geofences (
