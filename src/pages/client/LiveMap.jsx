@@ -1,444 +1,192 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Search, X, Navigation, Wifi, WifiOff, ChevronUp,
-  LocateFixed, Route, Loader2
-} from 'lucide-react'
-import {
-  MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents
-} from 'react-leaflet'
+import { Search, X, ChevronUp, LocateFixed, Navigation } from 'lucide-react'
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
-import MapView from '../../components/MapView'
 import ClientNav from '../../components/ClientNav'
 import { VehicleIcon, StatusDot, timeAgo, getDeviceStatusKey } from '../../components/ui'
 
-const PANEL_PEEK = 88
-const PANEL_OPEN = 270
+const PANEL_PEEK = 90
+const PANEL_OPEN = 280
 
-// ── User location pulsing dot ─────────────────────────────────────────────────
 const userLocIcon = L.divIcon({
   className: '',
-  html: `<div style="
-    width:18px;height:18px;border-radius:50%;
-    background:#3B82F6;border:3px solid white;
-    box-shadow:0 0 0 6px rgba(59,130,246,0.22),0 2px 8px rgba(0,0,0,0.3);
-  "></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
+  html: '<div style="width:16px;height:16px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 0 0 6px rgba(59,130,246,0.22),0 2px 8px rgba(0,0,0,0.3)"></div>',
+  iconSize: [16,16], iconAnchor: [8,8],
 })
 
-// ── Fly-to helper ─────────────────────────────────────────────────────────────
+function makeVehicleIcon(device) {
+  const st = getDeviceStatusKey(device)
+  const c  = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }[st] || '#6b7280'
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:14px;height:14px;border-radius:50%;background:' + c + ';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>',
+    iconSize: [14,14], iconAnchor: [7,7],
+  })
+}
+
 function FlyTo({ lat, lng, zoom = 14 }) {
   const map = useMap()
-  const prevRef = useRef(null)
+  const prev = useRef(null)
   useEffect(() => {
     if (!lat || !lng) return
-    const key = `${lat},${lng}`
-    if (prevRef.current === key) return
-    prevRef.current = key
+    const key = lat + ',' + lng
+    if (prev.current === key) return
+    prev.current = key
     map.flyTo([lat, lng], zoom, { duration: 1.2 })
-  }, [lat, lng, zoom]) // eslint-disable-line
+  }, [lat, lng, zoom])
   return null
 }
 
-// ── Fit both user + vehicle in view ──────────────────────────────────────────
-function FitBoth({ userPos, vehicle }) {
-  const map = useMap()
-  useEffect(() => {
-    if (!userPos || !vehicle?.lat) return
-    map.fitBounds(
-      [[userPos.lat, userPos.lng], [vehicle.lat, vehicle.lng]],
-      { padding: [80, 80], maxZoom: 15, animate: true }
-    )
-  }, [userPos?.lat, userPos?.lng, vehicle?.lat, vehicle?.lng]) // eslint-disable-line
-  return null
-}
-
-// ── Route layer (OSRM, free, no key) ─────────────────────────────────────────
-function RouteLayer({ userPos, vehicle }) {
-  const [route,    setRoute]    = useState(null)
-  const [loading,  setLoading]  = useState(false)
-  const [distText, setDistText] = useState('')
-  const [timeText, setTimeText] = useState('')
-
-  useEffect(() => {
-    if (!userPos || !vehicle?.lat || !vehicle?.lng) {
-      setRoute(null); return
-    }
-    let cancelled = false
-    setLoading(true)
-    const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${userPos.lng},${userPos.lat};${vehicle.lng},${vehicle.lat}` +
-      `?overview=full&geometries=geojson`
-
-    fetch(url)
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return
-        const leg = data?.routes?.[0]
-        if (!leg) return
-        // GeoJSON coords are [lng, lat] — flip for Leaflet [lat, lng]
-        const coords = leg.geometry.coordinates.map(([lng, lat]) => [lat, lng])
-        setRoute(coords)
-        const km  = (leg.distance / 1000).toFixed(1)
-        const min = Math.round(leg.duration / 60)
-        setDistText(`${km} km`)
-        setTimeText(`${min} min`)
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false) })
-
-    return () => { cancelled = true }
-  }, [userPos?.lat, userPos?.lng, vehicle?.lat, vehicle?.lng]) // eslint-disable-line
-
-  return (
-    <>
-      {route && (
-        <Polyline
-          positions={route}
-          pathOptions={{
-            color: '#3B82F6',
-            weight: 5,
-            opacity: 0.75,
-            dashArray: '1 0',
-            lineCap: 'round',
-            lineJoin: 'round',
-          }}
-        />
-      )}
-      {/* info badge rendered outside map via portal-ish pattern — passed up via state */}
-      {(distText || loading) && (
-        <RouteBadge distText={distText} timeText={timeText} loading={loading} />
-      )}
-    </>
-  )
-}
-
-// ── Route info badge (drawn as Leaflet control via custom hook) ───────────────
-function RouteBadge({ distText, timeText, loading }) {
-  const map = useMap()
-  useEffect(() => {
-    const ctrl = L.control({ position: 'topright' })
-    ctrl.onAdd = () => {
-      const div = L.DomUtil.create('div')
-      div.style.cssText = `
-        background:rgba(15,32,68,0.9);color:white;padding:6px 12px;
-        border-radius:20px;font-size:11px;font-weight:700;
-        box-shadow:0 2px 10px rgba(0,0,0,0.3);backdrop-filter:blur(8px);
-        margin:8px;display:flex;align-items:center;gap:6px;
-      `
-      div.innerHTML = loading
-        ? `<span style="opacity:.7">…</span>`
-        : `<span style="color:#3B82F6">⬛</span><span>${distText}</span><span style="opacity:.6">|</span><span>${timeText}</span>`
-      return div
-    }
-    ctrl.addTo(map)
-    return () => ctrl.remove()
-  }, [distText, timeText, loading]) // eslint-disable-line
-  return null
-}
-
-// ── Inner map panel (needs access to map instance) ───────────────────────────
-function InnerMap({ focusDevice, userPos, showRoute }) {
-  return (
-    <>
-      {/* Fly to focused vehicle */}
-      {focusDevice?.lat && !showRoute && (
-        <FlyTo lat={focusDevice.lat} lng={focusDevice.lng} zoom={15} />
-      )}
-
-      {/* Fit both in view when routing */}
-      {showRoute && userPos && focusDevice?.lat && (
-        <FitBoth userPos={userPos} vehicle={focusDevice} />
-      )}
-
-      {/* User location dot */}
-      {userPos && (
-        <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />
-      )}
-
-      {/* Routing polyline */}
-      {showRoute && userPos && focusDevice?.lat && (
-        <RouteLayer userPos={userPos} vehicle={focusDevice} />
-      )}
-    </>
-  )
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function LiveMap() {
+  const navigate  = useNavigate()
   const { devices, lang, wsConnected } = useApp()
+  const [search, setSearch]     = useState('')
+  const [selected, setSelected] = useState(null)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [userPos, setUserPos]   = useState(null)
   const isAr = lang === 'ar'
 
-  const [search,     setSearch]     = useState('')
-  const [focusId,    setFocusId]    = useState(null)
-  const [panelOpen,  setPanelOpen]  = useState(false)
-  const [userPos,    setUserPos]    = useState(null)
-  const [locError,   setLocError]   = useState(false)
-  const [locLoading, setLocLoading] = useState(false)
-  const [showRoute,  setShowRoute]  = useState(false)
+  useEffect(() => {
+    let watcher
+    if (navigator.geolocation) {
+      watcher = navigator.geolocation.watchPosition(
+        p => setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => {}
+      )
+    }
+    return () => { if (watcher) navigator.geolocation.clearWatch(watcher) }
+  }, [])
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return devices
+    if (!search.trim()) return devices
+    const q = search.toLowerCase()
     return devices.filter(d =>
-      (d.name  || '').toLowerCase().includes(q) ||
-      (d.plate || '').toLowerCase().includes(q)
+      d.name?.toLowerCase().includes(q) || d.plate?.toLowerCase().includes(q)
     )
   }, [devices, search])
 
-  const onlineCount  = devices.filter(d => d.status === 'online').length
-  const focusDevice  = focusId ? devices.find(d => d.id === focusId) : null
+  const positioned = filtered.filter(d => d.lat && d.lng)
+  const sel = selected ? devices.find(d => d.id === selected) : null
 
-  // ── Get user GPS ────────────────────────────────────────────────────────
-  const locateMe = useCallback(() => {
-    if (!navigator.geolocation) { setLocError(true); return }
-    setLocLoading(true); setLocError(false)
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setLocLoading(false)
-      },
-      () => { setLocError(true); setLocLoading(false) },
-      { timeout: 10000, enableHighAccuracy: true }
-    )
-  }, [])
-
-  // Auto-locate once on mount
-  useEffect(() => { locateMe() }, []) // eslint-disable-line
-
-  // ── Toggle routing ──────────────────────────────────────────────────────
-  const toggleRoute = () => {
-    if (!userPos) { locateMe(); return }
-    setShowRoute(v => !v)
-  }
+  const ST_COLOR = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }
 
   return (
-    <div className="relative flex flex-col dark:bg-slate-900" style={{ height: '100dvh' }}>
-
-      {/* ── Full-screen map ──────────────────────────────────────────────── */}
-      <div className="absolute inset-0" style={{ bottom: 56 }}>
-        <MapView
-          showAllDevices
-          deviceId={focusId}
-          height="100%"
-          zoom={focusId ? 15 : 11}
-        >
-          <InnerMap
-            focusDevice={focusDevice}
-            userPos={userPos}
-            showRoute={showRoute && !!focusDevice}
-          />
-        </MapView>
-      </div>
-
-      {/* ── Floating top bar ─────────────────────────────────────────────── */}
-      <div
-        className="absolute left-0 right-0 z-20 flex flex-col gap-2 px-3"
-        style={{ top: 'env(safe-area-inset-top, 0px)', paddingTop: 12 }}
+    <div className="relative w-full" style={{ height: '100dvh' }}>
+      {/* Map */}
+      <MapContainer
+        center={[31.7917, -7.0926]}
+        zoom={6}
+        style={{ width:'100%', height:'100%', position:'absolute', inset:0 }}
+        zoomControl={false}
       >
-        {/* WS pill + Locate button row */}
-        <div className="flex items-center justify-between">
-          {/* Locate me button */}
-          <button
-            onClick={locateMe}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold text-white active:scale-90 transition-transform"
-            style={{ background: 'rgba(59,130,246,0.90)', backdropFilter: 'blur(8px)' }}
-            title={isAr ? 'موقعي' : 'Ma position'}
-          >
-            {locLoading
-              ? <Loader2 size={9} className="animate-spin" />
-              : <LocateFixed size={9} />
-            }
-            {isAr ? 'موقعي' : 'Ma position'}
-          </button>
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://openstreetmap.org">OSM</a>'
+        />
+        {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon}/>}
+        {positioned.map(d => (
+          <Marker key={d.id} position={[d.lat, d.lng]} icon={makeVehicleIcon(d)}
+            eventHandlers={{ click: () => { setSelected(d.id); setPanelOpen(true) } }}/>
+        ))}
+        {sel?.lat && sel?.lng && <FlyTo lat={sel.lat} lng={sel.lng}/>}
+      </MapContainer>
 
-          {/* WS pill */}
-          <div
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold"
-            style={{
-              background: wsConnected ? 'rgba(34,197,94,0.92)' : 'rgba(245,158,11,0.92)',
-              color: 'white',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            {wsConnected
-              ? <><Wifi size={9} /> LIVE</>
-              : <><WifiOff size={9} className="animate-pulse" /> {isAr ? 'إعادة الاتصال' : 'Reconnexion...'}</>
-            }
-          </div>
-        </div>
-
-        {/* Search */}
-        <div
-          className="flex items-center gap-2.5 rounded-2xl px-4 py-3"
-          style={{
-            background: 'rgba(255,255,255,0.96)',
-            backdropFilter: 'blur(16px)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-          }}
-        >
-          <Search size={15} className="text-slate-400 flex-shrink-0" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={isAr ? 'ابحث عن مركبة...' : 'Rechercher un véhicule...'}
-            className="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
-            dir={isAr ? 'rtl' : 'ltr'}
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="text-slate-400">
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        {/* Stats chip */}
-        <div
-          className="self-start flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold"
-          style={{ background: 'rgba(15,32,68,0.88)', color: 'white', backdropFilter: 'blur(8px)' }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-          {onlineCount}/{devices.length} {isAr ? 'متصل' : 'en ligne'}
+      {/* WS indicator */}
+      <div className="absolute top-4 left-4 z-20">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+          style={{ background: wsConnected ? 'rgba(0,217,126,0.85)' : 'rgba(255,59,48,0.85)', color:'white', backdropFilter:'blur(10px)' }}>
+          <div className="w-1.5 h-1.5 rounded-full bg-white"/>
+          {wsConnected ? 'Live' : 'Offline'}
         </div>
       </div>
 
-      {/* ── Focus chip + Route button ─────────────────────────────────────── */}
-      {focusDevice && (() => {
-        const hasCoords = focusDevice.lat && focusDevice.lng
-        return (
-          <div
-            className="absolute z-20 flex items-center gap-2 px-3 py-2 rounded-2xl"
-            style={{
-              bottom: PANEL_PEEK + 70,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'rgba(15,32,68,0.92)',
-              backdropFilter: 'blur(8px)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <Navigation size={11} className="text-accent" />
-            <span className="text-white text-xs font-semibold">{focusDevice.name}</span>
-
-            {/* Route toggle */}
-            {hasCoords && userPos && (
-              <button
-                onClick={toggleRoute}
-                className="flex items-center gap-1 ms-1 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all active:scale-90"
-                style={{
-                  background: showRoute ? '#3B82F6' : 'rgba(255,255,255,0.15)',
-                  color: 'white',
-                }}
-              >
-                <Route size={9} />
-                {isAr ? 'المسار' : 'Itinéraire'}
-              </button>
-            )}
-
-            <button onClick={() => { setFocusId(null); setShowRoute(false) }} className="text-white/60 ms-1">
-              <X size={11} />
-            </button>
-          </div>
-        )
-      })()}
-
-      {/* ── Location error toast ──────────────────────────────────────────── */}
-      {locError && (
-        <div
-          className="absolute z-20 left-4 right-4 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold"
-          style={{ bottom: PANEL_PEEK + 12, background: 'rgba(239,68,68,0.90)', color: 'white', backdropFilter: 'blur(8px)' }}
-        >
-          <LocateFixed size={12} />
-          {isAr ? 'تعذّر تحديد موقعك — تأكد من السماح بالوصول للموقع' : 'Position indisponible — vérifiez les permissions'}
-          <button onClick={() => setLocError(false)} className="ms-auto"><X size={12} /></button>
+      {/* Search bar */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-64">
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
+          style={{ background:'rgba(8,15,31,0.9)', border:'1px solid rgba(255,255,255,0.12)', backdropFilter:'blur(16px)' }}>
+          <Search size={14} style={{ color:'rgba(255,255,255,0.4)' }} className="flex-shrink-0"/>
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={isAr ? 'بحث...' : 'Chercher...'}
+            className="flex-1 bg-transparent text-white text-sm outline-none placeholder-white/30"
+            style={{ fontSize: 13 }}/>
+          {search && <button onClick={() => setSearch('')}><X size={13} style={{ color:'rgba(255,255,255,0.35)' }}/></button>}
         </div>
-      )}
+      </div>
 
-      {/* ── Bottom vehicle drawer ─────────────────────────────────────────── */}
+      {/* Locate me button */}
+      <div className="absolute z-20" style={{ bottom: panelOpen ? (PANEL_OPEN + 16) : (PANEL_PEEK + 16), right: 16 }}>
+        <motion_button
+          onClick={() => userPos && setSelected(null)}
+          style={{ width:42, height:42, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+            background:'rgba(8,15,31,0.9)', border:'1px solid rgba(255,255,255,0.12)', backdropFilter:'blur(16px)' }}>
+          <LocateFixed size={18} style={{ color:'#00D97E' }}/>
+        </motion_button>
+      </div>
+
+      {/* Sliding panel */}
       <div
-        className="absolute left-0 right-0 z-20"
+        className="absolute left-0 right-0 z-20 transition-all duration-300 ease-out"
         style={{
-          bottom: 56,
+          bottom: 0,
           height: panelOpen ? PANEL_OPEN : PANEL_PEEK,
-          transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)',
+          background:'rgba(8,15,31,0.97)',
+          borderTop:'1px solid rgba(255,255,255,0.1)',
+          backdropFilter:'blur(24px)',
+          borderRadius:'20px 20px 0 0',
         }}
       >
-        <div
-          className="mx-2 h-full flex flex-col rounded-t-3xl overflow-hidden"
-          style={{
-            background: 'rgba(255,255,255,0.97)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
-          }}
-        >
-          {/* Handle */}
-          <button
-            className="w-full flex flex-col items-center pt-2.5 pb-2 flex-shrink-0"
-            onClick={() => setPanelOpen(v => !v)}
-          >
-            <div className="w-9 h-1 rounded-full bg-slate-300" />
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <ChevronUp
-                size={12}
-                className="text-slate-400 transition-transform duration-300"
-                style={{ transform: panelOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-              />
-              <span className="text-[11px] text-slate-500 font-medium">
-                {filtered.length} {isAr ? 'مركبة' : 'véhicules'}
-              </span>
-            </div>
-          </button>
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-2 cursor-pointer" onClick={() => setPanelOpen(p => !p)}>
+          <div className="w-10 h-1 rounded-full" style={{ background:'rgba(255,255,255,0.25)' }}/>
+        </div>
 
-          {/* Vehicle list */}
-          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
-            {filtered.length === 0 ? (
-              <p className="text-center text-slate-400 text-xs py-4">
-                {isAr ? 'لا توجد نتائج' : 'Aucun résultat'}
-              </p>
-            ) : filtered.map(device => {
-              const st        = getDeviceStatusKey(device)
-              const isFocused = focusId === device.id
+        {/* Count + toggle */}
+        <div className="flex items-center justify-between px-4 pb-3">
+          <p className="text-white text-sm font-bold">
+            {positioned.length} {isAr ? 'جهاز' : 'appareils'}
+          </p>
+          <ChevronUp size={16} style={{ color:'rgba(255,255,255,0.35)', transform: panelOpen ? 'rotate(180deg)' : 'none', transition:'transform 0.3s' }}/>
+        </div>
+
+        {/* Vehicle list */}
+        {panelOpen && (
+          <div className="overflow-y-auto px-4 space-y-2.5" style={{ maxHeight: PANEL_OPEN - 70 }}>
+            {filtered.map(d => {
+              const st = getDeviceStatusKey(d)
+              const c  = ST_COLOR[st] || '#6b7280'
+              const isSelected = selected === d.id
               return (
-                <button
-                  key={device.id}
-                  type="button"
-                  onClick={() => {
-                    if (isFocused) { setFocusId(null); setShowRoute(false) }
-                    else { setFocusId(device.id); setPanelOpen(false) }
-                  }}
-                  className="w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-start transition-all"
+                <button key={d.id} onClick={() => { setSelected(d.id) }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left"
                   style={{
-                    background: isFocused ? 'rgba(0,217,126,0.10)' : 'rgba(248,250,252,1)',
-                    border: `1.5px solid ${isFocused ? 'rgba(0,217,126,0.40)' : 'rgba(226,232,240,1)'}`,
-                  }}
-                >
-                  <VehicleIcon type={device.type} iconSize={14} />
+                    background: isSelected ? 'rgba(0,217,126,0.1)' : 'rgba(255,255,255,0.05)',
+                    border: '1px solid ' + (isSelected ? 'rgba(0,217,126,0.35)' : 'rgba(255,255,255,0.07)'),
+                  }}>
+                  <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: c, minHeight:30 }}/>
+                  <VehicleIcon type={d.type} iconSize={16}/>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-primary-500 text-sm truncate">{device.name}</p>
-                    <p className="text-slate-400 text-[10px]">{device.plate || '—'}</p>
+                    <p className="text-white font-semibold text-xs truncate">{d.name}</p>
+                    {d.plate && <p className="text-[10px] font-mono" style={{ color:'rgba(255,255,255,0.3)' }}>{d.plate}</p>}
                   </div>
-                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <StatusDot status={st} size={7} />
-                    {device.speed > 0 && (
-                      <span className="text-[9px] font-bold text-slate-500">{device.speed} {t(lang, 'kmh')}</span>
-                    )}
-                    <span className="text-[9px] text-slate-400">{timeAgo(device.lastUpdate, lang)}</span>
-                  </div>
+                  {d.speed != null && d.speed > 0 && (
+                    <span className="text-xs font-bold flex-shrink-0" style={{ color:'#00D97E' }}>
+                      {Math.round(d.speed)} <span className="font-normal text-[10px]" style={{ color:'rgba(255,255,255,0.35)' }}>km/h</span>
+                    </span>
+                  )}
                 </button>
               )
             })}
           </div>
-        </div>
+        )}
+
+        {/* Bottom nav space */}
+        <div style={{ height:65 }}/>
       </div>
 
-      {/* ── Bottom nav ───────────────────────────────────────────────────── */}
-      <div className="absolute bottom-0 left-0 right-0 z-30">
-        <ClientNav />
-      </div>
+      <ClientNav/>
     </div>
   )
 }
