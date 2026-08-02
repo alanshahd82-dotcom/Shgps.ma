@@ -16,8 +16,9 @@ export function AppProvider({ children }) {
   const [alertsList,   setAlertsList]       = useState([])
   const [clientList,   setClientList]       = useState([])
   const [networkError, setNetworkError]     = useState(false)
-  const [wsConnected,  setWsConnected]      = useState(false)
-  const [darkMode,     setDarkModeState]    = useState(() => localStorage.getItem('athargps_darkmode') === 'true')
+  const [wsConnected,    setWsConnected]    = useState(false)
+  const [darkMode,       setDarkModeState]  = useState(() => localStorage.getItem('athargps_darkmode') === 'true')
+  const [pushEnabled,    setPushEnabled]    = useState(() => localStorage.getItem('athargps_push') === 'true')
   const wsRef      = useRef(null)
   const wsRetryRef = useRef(0) // exponential backoff counter
 
@@ -33,6 +34,30 @@ export function AppProvider({ children }) {
 
   const toggleDarkMode = () => setDarkModeState(prev => !prev)
   const setDarkMode = (val) => setDarkModeState(val)
+
+  // ── Push Notifications ─────────────────────────────────────────────────────
+  const requestPushPermission = async () => {
+    if (!('Notification' in window)) return 'unsupported'
+    const permission = await Notification.requestPermission()
+    const granted = permission === 'granted'
+    setPushEnabled(granted)
+    localStorage.setItem('athargps_push', String(granted))
+    return permission
+  }
+
+  const disablePush = () => {
+    setPushEnabled(false)
+    localStorage.setItem('athargps_push', 'false')
+  }
+
+  // Send a browser notification (used when WS alert arrives & push is enabled)
+  const sendBrowserNotification = (title, body, opts = {}) => {
+    if (!pushEnabled || Notification.permission !== 'granted') return
+    try {
+      const n = new Notification(title, { body, icon: '/icon-192.png', badge: '/icon-192.png', ...opts })
+      n.onclick = () => { window.focus(); n.close() }
+    } catch { /* silently skip if blocked */ }
+  }
 
   // ── Language / RTL ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -143,6 +168,17 @@ export function AppProvider({ children }) {
               createdAt: ev.eventTime || new Date().toISOString(),
               read:      false,
             }))
+            // Fire browser notifications for new alerts (if enabled)
+            if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
+              for (const ev of data.events) {
+                try {
+                  new Notification('AtharGPS', {
+                    body: ev.attributes?.message || ev.type || 'تنبيه جديد',
+                    icon: '/icon-192.png',
+                  })
+                } catch { /* ignore */ }
+              }
+            }
             return [...newAlerts, ...prev].slice(0, 100) // keep last 100
           })
         }
@@ -322,6 +358,7 @@ export function AppProvider({ children }) {
       networkError,
       wsConnected,
       darkMode, toggleDarkMode, setDarkMode,
+      pushEnabled, requestPushPermission, disablePush, sendBrowserNotification,
     }}>
       {children}
     </AppContext.Provider>

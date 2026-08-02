@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart2, Clock, Navigation, Zap, TrendingUp, Download,
-  PlayCircle, ChevronDown, Calendar, Gauge
+  PlayCircle, ChevronDown, Calendar, Gauge, FileText, FileSpreadsheet
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -97,10 +97,11 @@ export default function Reports() {
        lang === 'ar' ? 'المدة (د)' : 'Durée (min)',
        lang === 'ar' ? 'المسافة (كم)' : 'Distance (km)',
        lang === 'ar' ? 'متوسط السرعة' : 'Vit. moy.',
-       lang === 'ar' ? 'أقصى سرعة' : 'Vit. max.'],
+       lang === 'ar' ? 'أقصى سرعة' : 'Vit. max.',
+       lang === 'ar' ? 'وقت التوقف (د)' : 'Arrêt (min)'],
       ...(data.trips || []).map(tr => [
         tr.index, formatTime(tr.startTime), formatTime(tr.endTime),
-        tr.durationMin, tr.distanceKm, tr.avgSpeed, tr.maxSpeed,
+        tr.durationMin, tr.distanceKm, tr.avgSpeed, tr.maxSpeed, tr.stopMin ?? 0,
       ])
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
@@ -114,6 +115,117 @@ export default function Reports() {
     const a    = document.createElement('a')
     a.href = url; a.download = filename; a.click()
     URL.revokeObjectURL(url)
+  }
+
+  function exportExcel() {
+    if (!data) return
+    const deviceLabel = devices.find(d => String(d.id) === String(selectedDevice))?.name || selectedDevice
+    const fromLabel   = new Date(dateFrom).toISOString().slice(0, 10)
+    const toLabelStr  = new Date(dateTo).toISOString().slice(0, 10)
+
+    const hdrs = lang === 'ar'
+      ? ['#', 'البداية', 'النهاية', 'المدة (دقيقة)', 'المسافة (كم)', 'متوسط السرعة (كم/س)', 'أقصى سرعة (كم/س)', 'التوقف (دقيقة)']
+      : ['#', 'Début', 'Fin', 'Durée (min)', 'Distance (km)', 'Vit. moy. (km/h)', 'Vit. max. (km/h)', 'Arrêts (min)']
+
+    const rows = (data.trips || []).map(tr => [
+      tr.index, formatTime(tr.startTime), formatTime(tr.endTime),
+      tr.durationMin, tr.distanceKm, tr.avgSpeed, tr.maxSpeed, tr.stopMin ?? 0,
+    ])
+
+    // Build minimal XLML (Excel-compatible XML spreadsheet)
+    const xmlRows = [hdrs, ...rows].map(row =>
+      `<Row>${row.map(cell =>
+        typeof cell === 'number'
+          ? `<Cell><Data ss:Type="Number">${cell}</Data></Cell>`
+          : `<Cell><Data ss:Type="String">${String(cell).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</Data></Cell>`
+      ).join('')}</Row>`
+    ).join('')
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Worksheet ss:Name="${deviceLabel}">
+    <Table>
+      <Row><Cell ss:MergeAcross="7"><Data ss:Type="String">${deviceLabel} · ${fromLabel} → ${toLabelStr}</Data></Cell></Row>
+      ${xmlRows}
+    </Table>
+  </Worksheet>
+</Workbook>`
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url
+    a.download = lang === 'ar' ? `تقرير_${deviceLabel}_${fromLabel}.xls` : `rapport_${deviceLabel}_${fromLabel}.xls`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function exportPDF() {
+    if (!data) return
+    const deviceLabel = devices.find(d => String(d.id) === String(selectedDevice))?.name || selectedDevice
+    const fromLabel   = new Date(dateFrom).toISOString().slice(0, 10)
+    const toLabelStr  = new Date(dateTo).toISOString().slice(0, 10)
+    const dir = lang === 'ar' ? 'rtl' : 'ltr'
+    const tripsRows = (data.trips || []).map(tr => `
+      <tr>
+        <td>${tr.index}</td>
+        <td>${formatTime(tr.startTime)}</td>
+        <td>${formatTime(tr.endTime)}</td>
+        <td>${tr.durationMin}</td>
+        <td>${tr.distanceKm}</td>
+        <td>${tr.avgSpeed}</td>
+        <td>${tr.maxSpeed}</td>
+        <td>${tr.stopMin ?? 0}</td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html><html dir="${dir}"><head><meta charset="UTF-8">
+<title>${deviceLabel}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 24px; color: #1e293b; direction: ${dir}; }
+  h1 { color: #0F2044; font-size: 18px; margin-bottom: 4px; }
+  .meta { color: #64748b; font-size: 12px; margin-bottom: 20px; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .card { background: #f1f5f9; border-radius: 8px; padding: 12px; text-align: center; }
+  .card .val { font-size: 22px; font-weight: 900; color: #0F2044; }
+  .card .lbl { font-size: 10px; color: #64748b; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #0F2044; color: white; padding: 8px 6px; text-align: ${lang === 'ar' ? 'right' : 'left'}; }
+  td { padding: 7px 6px; border-bottom: 1px solid #e2e8f0; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  @media print { body { margin: 0; } }
+</style></head><body>
+<h1>AtharGPS — ${deviceLabel}</h1>
+<div class="meta">${fromLabel} → ${toLabelStr}</div>
+<div class="summary">
+  <div class="card"><div class="val">${data.totalDistanceKm}</div><div class="lbl">${lang === 'ar' ? 'كم إجمالي' : 'km total'}</div></div>
+  <div class="card"><div class="val">${(data.trips || []).length}</div><div class="lbl">${lang === 'ar' ? 'رحلة' : 'trajet(s)'}</div></div>
+  <div class="card"><div class="val">${data.avgSpeed}</div><div class="lbl">${lang === 'ar' ? 'متوسط كم/س' : 'moy. km/h'}</div></div>
+  <div class="card"><div class="val">${data.maxSpeed}</div><div class="lbl">${lang === 'ar' ? 'أقصى كم/س' : 'max km/h'}</div></div>
+</div>
+<table>
+  <thead><tr>
+    <th>#</th>
+    <th>${lang === 'ar' ? 'البداية' : 'Début'}</th>
+    <th>${lang === 'ar' ? 'النهاية' : 'Fin'}</th>
+    <th>${lang === 'ar' ? 'مدة (د)' : 'Durée (min)'}</th>
+    <th>${lang === 'ar' ? 'مسافة' : 'Distance'}</th>
+    <th>${lang === 'ar' ? 'متوسط' : 'Moy.'}</th>
+    <th>${lang === 'ar' ? 'أقصى' : 'Max'}</th>
+    <th>${lang === 'ar' ? 'توقف' : 'Arrêt'}</th>
+  </tr></thead>
+  <tbody>${tripsRows}</tbody>
+</table>
+<div style="margin-top:20px;font-size:10px;color:#94a3b8;text-align:center">AtharGPS © ${new Date().getFullYear()}</div>
+</body></html>`
+
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print(); win.close() }, 400)
   }
 
   const chartData = (data?.speedSeries || []).map((pt, i) => ({
@@ -273,13 +385,20 @@ export default function Reports() {
                   <h3 className="font-bold text-primary-500 text-sm">
                     {lang === 'ar' ? 'تفاصيل الرحلات' : 'Détail des trajets'}
                   </h3>
-                  <button
-                    onClick={exportCSV}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-accent bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors"
-                  >
-                    <Download size={12} />
-                    {lang === 'ar' ? 'تصدير CSV' : 'Exporter CSV'}
-                  </button>
+                  <div className="flex gap-1.5">
+                    <button onClick={exportCSV}
+                      className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors">
+                      <Download size={11} /> CSV
+                    </button>
+                    <button onClick={exportExcel}
+                      className="flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
+                      <FileSpreadsheet size={11} /> XLS
+                    </button>
+                    <button onClick={exportPDF}
+                      className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition-colors">
+                      <FileText size={11} /> PDF
+                    </button>
+                  </div>
                 </div>
                 <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
                   {data.trips.map(trip => (

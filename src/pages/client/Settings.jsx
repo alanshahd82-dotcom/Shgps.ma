@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   User, Lock, Bell, Globe, LogOut, ChevronRight, Eye, EyeOff,
-  CheckCircle2, XCircle, Save, X, Moon, Sun
+  CheckCircle2, XCircle, Save, X, Moon, Sun, Shield, Smartphone, MapPin
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
@@ -225,7 +226,7 @@ function ChangePasswordModal({ open, onClose, lang }) {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { clientAuth, logoutClient, lang, setLang, updateUserInContext, darkMode, toggleDarkMode } = useApp()
+  const { clientAuth, logoutClient, lang, setLang, updateUserInContext, darkMode, toggleDarkMode, pushEnabled, requestPushPermission, disablePush } = useApp()
   const [speedAlerts, setSpeedAlerts]         = useState(true)
   const [geofenceAlerts, setGeofenceAlerts]   = useState(true)
   const [batteryAlerts, setBatteryAlerts]     = useState(true)
@@ -369,6 +370,31 @@ export default function Settings() {
                 <ToggleSwitch value={item.val} onChange={item.set} />
               </div>
             ))}
+            {/* Push notifications */}
+            <div className="flex items-center justify-between px-4 py-3.5 border-t border-gray-50 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-slate-700 flex items-center justify-center">
+                  <Bell size={15} className="text-primary-500 dark:text-accent" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-primary-500 dark:text-white">
+                    {lang === 'ar' ? 'إشعارات المتصفح' : 'Notifications navigateur'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                    {pushEnabled
+                      ? (lang === 'ar' ? 'مفعّلة' : 'Activées')
+                      : (lang === 'ar' ? 'غير مفعّلة' : 'Désactivées')}
+                  </p>
+                </div>
+              </div>
+              <ToggleSwitch
+                value={pushEnabled}
+                onChange={async (val) => {
+                  if (val) await requestPushPermission()
+                  else disablePush()
+                }}
+              />
+            </div>
             <div className="px-4 py-3">
               <button
                 onClick={saveSettings}
@@ -383,6 +409,41 @@ export default function Settings() {
                     : t(lang, 'save')}
               </button>
             </div>
+          </div>
+
+          {/* Tools shortcuts */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 dark:border-slate-700">
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                {lang === 'ar' ? 'الأدوات' : 'Outils'}
+              </p>
+            </div>
+            {[
+              {
+                icon: MapPin, label: lang === 'ar' ? 'السياجات الجغرافية' : 'Géofences',
+                sub: lang === 'ar' ? 'إدارة مناطق التنبيه' : 'Gérer les zones d\'alerte',
+                path: '/client/geofences',
+              },
+              {
+                icon: Smartphone, label: lang === 'ar' ? 'معالج الجهاز' : 'Assistant appareil',
+                sub: lang === 'ar' ? 'تكوين جهاز GPS جديد' : 'Configurer un nouveau tracker',
+                path: '/client/device-wizard',
+              },
+            ].map((item, i) => (
+              <button key={i} onClick={() => navigate(item.path)}
+                className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-50 dark:border-slate-700 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-slate-700 flex items-center justify-center">
+                    <item.icon size={15} className="text-primary-500 dark:text-accent" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-primary-500 dark:text-white">{item.label}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{item.sub}</p>
+                  </div>
+                </div>
+                <ChevronRight size={15} className="text-slate-300 dark:text-slate-600" />
+              </button>
+            ))}
           </div>
 
           {/* Account */}

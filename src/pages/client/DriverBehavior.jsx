@@ -112,7 +112,15 @@ export default function DriverBehavior() {
         }
 
         score = Math.max(0, Math.min(100, score))
-        setStats({ score, speedingEvents, idleTime, currentSpeed: speed, tripCount: trips.length })
+        const finalScore = Math.max(0, Math.min(100, score))
+        setStats({ score: finalScore, speedingEvents, idleTime, currentSpeed: speed, tripCount: trips.length })
+        // Persist score to backend (fire-and-forget)
+        api.driverBehavior?.saveScore(selectedDevice.id, {
+          score: finalScore,
+          speedingEvents,
+          idleMin: idleTime,
+          tripCount: trips.length,
+        }).catch(() => {})
       })
       .catch(() => {
         // Fallback to live-only data if API fails
@@ -122,8 +130,11 @@ export default function DriverBehavior() {
         else if (speed > 100) { score -= 10; speedingEvents++ }
         if (selectedDevice.engineOn && speed === 0 && selectedDevice.status === 'online') { score -= 10; idleTime = 15 }
         if (selectedDevice.status === 'offline') score = Math.max(score, 70)
-        score = Math.max(0, Math.min(100, score))
-        setStats({ score, speedingEvents, idleTime, currentSpeed: speed, tripCount: 0 })
+        const finalScore = Math.max(0, Math.min(100, score))
+        setStats({ score: finalScore, speedingEvents, idleTime, currentSpeed: speed, tripCount: 0 })
+        api.driverBehavior?.saveScore(selectedDevice.id, {
+          score: finalScore, speedingEvents, idleMin: idleTime, tripCount: 0,
+        }).catch(() => {})
       })
       .finally(() => setHistoryLoading(false))
   }, [selectedDeviceId]) // eslint-disable-line

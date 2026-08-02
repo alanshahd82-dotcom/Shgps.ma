@@ -72,6 +72,19 @@ export const api = {
     add:    (data)     => apiFetch('/maintenance', { method: 'POST', body: JSON.stringify(data) }),
     remove: (id)       => apiFetch(`/maintenance/${id}`, { method: 'DELETE' }),
   },
+  driverBehavior: {
+    saveScore: (deviceId, payload) =>
+      fetch(`/api/driver-behavior/scores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ deviceId, ...payload }),
+      }).then(r => r.json()),
+    getScores: (deviceId, days = 30) =>
+      fetch(`/api/driver-behavior/scores?deviceId=${deviceId}&days=${days}`, { credentials: 'include' }).then(r => r.json()),
+    getSummary: (deviceId) =>
+      fetch(`/api/driver-behavior/summary?deviceId=${deviceId}`, { credentials: 'include' }).then(r => r.json()),
+  },
   sharing: {
     create: (deviceId, expireHours = 24) => apiFetch('/sharing', { method: 'POST', body: JSON.stringify({ deviceId, expireHours }) }),
     get:    (token)    => apiFetch(`/sharing/${token}`),

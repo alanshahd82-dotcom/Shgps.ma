@@ -73,6 +73,63 @@ function hasValidCoords(device) {
   )
 }
 
+// ── Simple marker clustering ──────────────────────────────────────────────────
+// Groups markers that fall within CLUSTER_PX pixels of each other at given zoom.
+function clusterDevices(devs, zoom) {
+  // At high zoom, no clustering needed
+  if (zoom >= 13 || devs.length <= 3) return devs.map(d => ({ ...d, _clustered: false, _count: 1 }))
+
+  // Convert lat/lng to pixel space (Mercator approximation)
+  const CLUSTER_RADIUS = 60 // px
+  const scale = 256 * Math.pow(2, zoom)
+  function toPixel(lat, lng) {
+    const x = ((lng + 180) / 360) * scale
+    const sinLat = Math.sin((lat * Math.PI) / 180)
+    const y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale
+    return { x, y }
+  }
+
+  const result = []
+  const assigned = new Set()
+
+  for (let i = 0; i < devs.length; i++) {
+    if (assigned.has(i)) continue
+    const pi = toPixel(devs[i].lat, devs[i].lng)
+    const group = [i]
+    for (let j = i + 1; j < devs.length; j++) {
+      if (assigned.has(j)) continue
+      const pj = toPixel(devs[j].lat, devs[j].lng)
+      const dist = Math.sqrt((pi.x - pj.x) ** 2 + (pi.y - pj.y) ** 2)
+      if (dist < CLUSTER_RADIUS) { group.push(j); assigned.add(j) }
+    }
+    assigned.add(i)
+    if (group.length === 1) {
+      result.push({ ...devs[i], _clustered: false, _count: 1 })
+    } else {
+      // Use the first device as cluster center, show count badge
+      const avgLat = group.reduce((s, idx) => s + devs[idx].lat, 0) / group.length
+      const avgLng = group.reduce((s, idx) => s + devs[idx].lng, 0) / group.length
+      const onlineCount = group.filter(idx => devs[idx].status === 'online').length
+      result.push({ ...devs[i], lat: avgLat, lng: avgLng, _clustered: true, _count: group.length, _onlineCount: onlineCount })
+    }
+  }
+  return result
+}
+
+function createClusterIcon(count, onlineCount) {
+  const allOnline = onlineCount === count
+  const bg = allOnline ? '#00D97E' : onlineCount > 0 ? '#f97316' : '#64748b'
+  return L.divIcon({
+    html: `<div style="width:44px;height:44px;border-radius:50%;background:${bg};border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;flex-direction:column;">
+      <span style="font-size:15px;font-weight:900;color:white;line-height:1">${count}</span>
+      <span style="font-size:7px;color:white;opacity:.85;line-height:1">${onlineCount}✓</span>
+    </div>`,
+    className: '',
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  })
+}
+
 export default function MapView({
   deviceId = null,
   showAllDevices = false,
@@ -166,33 +223,47 @@ export default function MapView({
         />
       )}
 
-      {/* Device markers — only rendered for devices with a real GPS fix */}
-      {displayDevices.map(device => (
+      {/* Device markers — clustered when showing many devices at low zoom */}
+      {(showAllDevices && displayDevices.length > 3
+        ? clusterDevices(displayDevices, zoom)
+        : displayDevices.map(d => ({ ...d, _clustered: false, _count: 1 }))
+      ).map(device => (
         <Marker
           key={device.id}
           position={[device.lat, device.lng]}
-          icon={createDeviceIcon(device.type, device.id === deviceId)}
+          icon={device._clustered
+            ? createClusterIcon(device._count, device._onlineCount)
+            : createDeviceIcon(device.type, device.id === deviceId)}
         >
           <Popup>
-            <div style={{ minWidth: 160, fontFamily: 'Cairo, Inter, sans-serif', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#0F2044' }}>{device.name}</div>
-              <div style={{ fontSize: 11, color: '#64748B', marginBottom: 3 }}>
-                {device.plate}
+            {device._clustered ? (
+              <div style={{ fontFamily: 'Cairo, Inter, sans-serif', padding: '4px' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#0F2044', marginBottom: 4 }}>
+                  {device._count} {lang === 'ar' ? 'أجهزة' : 'appareils'}
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>
+                  {device._onlineCount} {lang === 'ar' ? 'متصل' : 'en ligne'}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
-                <span style={{ color: device.status === 'online' ? '#00D97E' : '#94A3B8', fontWeight: 600 }}>
-                  ● {device.status === 'online' ? t(lang, 'online') : t(lang, 'offline')}
-                </span>
+            ) : (
+              <div style={{ minWidth: 160, fontFamily: 'Cairo, Inter, sans-serif', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#0F2044' }}>{device.name}</div>
+                <div style={{ fontSize: 11, color: '#64748B', marginBottom: 3 }}>{device.plate}</div>
+                <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
+                  <span style={{ color: device.status === 'online' ? '#00D97E' : '#94A3B8', fontWeight: 600 }}>
+                    ● {device.status === 'online' ? t(lang, 'online') : t(lang, 'offline')}
+                  </span>
+                  {device.status === 'online' && (
+                    <span style={{ color: '#0F2044', fontWeight: 600 }}>{device.speed} {t(lang, 'kmh')}</span>
+                  )}
+                </div>
                 {device.status === 'online' && (
-                  <span style={{ color: '#0F2044', fontWeight: 600 }}>{device.speed} {t(lang, 'kmh')}</span>
+                  <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
+                    {lang === 'ar' ? `بطارية ${device.battery}% · إشارة ${device.signal}/4` : `Batt. ${device.battery}% · Signal ${device.signal}/4`}
+                  </div>
                 )}
               </div>
-              {device.status === 'online' && (
-                <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
-                  {lang === 'ar' ? `بطارية ${device.battery}% · إشارة ${device.signal}/4` : `Batt. ${device.battery}% · Signal ${device.signal}/4`}
-                </div>
-              )}
-            </div>
+            )}
           </Popup>
         </Marker>
       ))}

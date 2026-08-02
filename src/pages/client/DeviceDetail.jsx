@@ -761,9 +761,26 @@ export default function DeviceDetail() {
                 {shareLink && (
                   <motion.div className="bg-slate-800/60 rounded-2xl p-4 border border-accent/30"
                     initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                    <p className="text-xs text-slate-400 mb-2">
+                    <p className="text-xs text-slate-400 mb-3">
                       {lang === 'ar' ? '✅ الرابط جاهز — صالح لـ 24 ساعة:' : '✅ Lien prêt — valable 24h :'}
                     </p>
+
+                    {/* QR Code */}
+                    <div className="flex justify-center mb-3">
+                      <div className="bg-white p-3 rounded-2xl shadow-sm">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareLink)}&color=0F2044&bgcolor=FFFFFF`}
+                          alt="QR Code"
+                          width={160}
+                          height={160}
+                          className="rounded-lg"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-500 text-center mb-3">
+                      {lang === 'ar' ? 'امسح رمز QR لفتح الخريطة مباشرة' : 'Scannez le QR pour ouvrir la carte'}
+                    </p>
+
                     <div className="flex gap-2 items-center">
                       <p className="flex-1 text-[11px] text-accent break-all leading-relaxed">{shareLink}</p>
                       <button onClick={handleCopyLink}

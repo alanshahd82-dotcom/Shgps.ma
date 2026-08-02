@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Wrench, Plus, AlertCircle, CheckCircle, Trash2, X } from 'lucide-react'
+import { ChevronLeft, Wrench, Plus, AlertCircle, CheckCircle, Trash2, X, FileText } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -141,6 +141,49 @@ export default function Maintenance() {
     await loadLogs()
   }
 
+  const exportPDF = () => {
+    const dir = lang === 'ar' ? 'rtl' : 'ltr'
+    const deviceById2 = (id) => devices.find(d => String(d.id) === String(id))
+    const printLogs = filterDevice === 'all' ? logs : logs.filter(l => String(l.device_id) === filterDevice)
+    const rows = printLogs.map(log => {
+      const dev = deviceById2(log.device_id)
+      return `<tr>
+        <td>${typeLabel(log.type, lang)}</td>
+        <td>${dev?.name || log.device_id}</td>
+        <td>${new Date(log.date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA')}</td>
+        <td>${log.mileage ? Number(log.mileage).toLocaleString() + ' km' : '—'}</td>
+        <td>${log.next_due_mileage ? Number(log.next_due_mileage).toLocaleString() + ' km' : '—'}</td>
+        <td>${log.note || '—'}</td>
+      </tr>`
+    }).join('')
+    const html = `<!DOCTYPE html><html dir="${dir}"><head><meta charset="UTF-8">
+<title>${isAr ? 'سجل الصيانة' : 'Registre d\'entretien'}</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;direction:${dir}}
+  h1{color:#0F2044;font-size:18px;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:#0F2044;color:#fff;padding:8px 6px;text-align:${lang === 'ar' ? 'right' : 'left'}}
+  td{padding:7px 6px;border-bottom:1px solid #e2e8f0}
+  tr:nth-child(even) td{background:#f8fafc}
+  @media print{body{margin:0}}
+</style></head><body>
+<h1>AtharGPS — ${isAr ? 'سجل الصيانة' : 'Registre d\'entretien'}</h1>
+<table><thead><tr>
+  <th>${isAr ? 'النوع' : 'Type'}</th>
+  <th>${isAr ? 'الجهاز' : 'Appareil'}</th>
+  <th>${isAr ? 'التاريخ' : 'Date'}</th>
+  <th>${isAr ? 'الكيلومتر' : 'Kilométrage'}</th>
+  <th>${isAr ? 'القادم' : 'Prochain'}</th>
+  <th>${isAr ? 'ملاحظة' : 'Note'}</th>
+</tr></thead><tbody>${rows}</tbody></table>
+<div style="margin-top:20px;font-size:10px;color:#94a3b8;text-align:center">AtharGPS © ${new Date().getFullYear()}</div>
+</body></html>`
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(html); win.document.close(); win.focus()
+    setTimeout(() => { win.print(); win.close() }, 400)
+  }
+
   const handleDelete = async () => {
     if (!confirmDeleteId) return
     try {
@@ -169,10 +212,16 @@ export default function Maintenance() {
               <p className="text-blue-200/70 text-xs">{isAr ? 'سجّل وتابع صيانة مركباتك' : 'Suivez l\'entretien de vos véhicules'}</p>
             </div>
           </div>
-          <button onClick={() => setShowAdd(true)}
-            className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/25 active:scale-95 transition-transform">
-            <Plus size={18} className="text-slate-900 font-bold" />
-          </button>
+          <div className="flex gap-2">
+            <button onClick={exportPDF} title={isAr ? 'طباعة PDF' : 'Imprimer PDF'}
+              className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-transform">
+              <FileText size={17} className="text-white/70" />
+            </button>
+            <button onClick={() => setShowAdd(true)}
+              className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/25 active:scale-95 transition-transform">
+              <Plus size={18} className="text-slate-900 font-bold" />
+            </button>
+          </div>
         </div>
       </div>
 

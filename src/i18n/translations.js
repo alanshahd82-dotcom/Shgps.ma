@@ -228,7 +228,34 @@ export const translations = {
     plate: 'لوحة الترقيم',
     wsConnected: 'متصل مباشرة',
     wsDisconnected: 'جاري إعادة الاتصال...',
+
+    // Geofences page
+    geofencesPage: 'السياجات الجغرافية',
+    geofencesDesc: 'إدارة مناطق التنبيه الجغرافية',
+    addGeofence: 'إضافة سياج',
+    noGeofences: 'لا توجد سياجات جغرافية',
+
+    // Device Wizard
+    deviceWizard: 'معالج الجهاز',
+    deviceWizardDesc: 'تكوين جهاز GPS جديد',
+
+    // Notifications
+    notificationsTitle: 'الإشعارات',
+    enablePush: 'تفعيل الإشعارات الفورية',
+    pushEnabled: 'الإشعارات الفورية مفعّلة',
+    pushDenied: 'تم رفض الإذن من المتصفح',
+
+    // Export
+    exportPdf: 'تصدير PDF',
+    exportExcel: 'تصدير Excel',
+
+    // Driver behavior history
+    scoreHistory: 'سجل النقاط',
+    todayScore: 'نقاط اليوم',
+    weekAvg: 'متوسط الأسبوع',
   },
+
+  fr: {
 
   fr: {
     // Common
@@ -459,6 +486,31 @@ export const translations = {
     plate: 'Immatriculation',
     wsConnected: 'Connecté en direct',
     wsDisconnected: 'Reconnexion...',
+
+    // Geofences page
+    geofencesPage: 'Géofences',
+    geofencesDesc: 'Gestion des zones d\'alerte',
+    addGeofence: 'Ajouter une zone',
+    noGeofences: 'Aucune géofence configurée',
+
+    // Device Wizard
+    deviceWizard: 'Assistant appareil',
+    deviceWizardDesc: 'Configurer un nouveau tracker GPS',
+
+    // Notifications
+    notificationsTitle: 'Notifications',
+    enablePush: 'Activer les notifications push',
+    pushEnabled: 'Notifications push activées',
+    pushDenied: 'Permission refusée par le navigateur',
+
+    // Export
+    exportPdf: 'Exporter PDF',
+    exportExcel: 'Exporter Excel',
+
+    // Driver behavior history
+    scoreHistory: 'Historique des scores',
+    todayScore: "Score d'aujourd'hui",
+    weekAvg: 'Moy. 7 jours',
   }
 }
 

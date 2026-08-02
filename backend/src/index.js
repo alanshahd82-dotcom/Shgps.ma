@@ -14,7 +14,8 @@ import { reportsRouter }     from './routes/reports.js'
 import { adminRouter }       from './routes/admin.js'
 import { maintenanceRouter } from './routes/maintenance.js'
 import { sharingRouter }     from './routes/sharing.js'
-import { leadsRouter }       from './routes/leads.js'
+import { leadsRouter }           from './routes/leads.js'
+import { driverBehaviorRouter } from './routes/driverBehavior.js'
 import { config }        from './config.js'
 import { db }            from './db.js'
 
@@ -72,6 +73,20 @@ async function runMigrations() {
       )
     `)
     await db.query(`
+      CREATE TABLE IF NOT EXISTS driver_behavior_scores (
+        id               SERIAL PRIMARY KEY,
+        device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+        user_id          INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        score            INTEGER NOT NULL DEFAULT 100,
+        speeding_events  INTEGER DEFAULT 0,
+        idle_min         INTEGER DEFAULT 0,
+        trip_count       INTEGER DEFAULT 0,
+        recorded_date    DATE NOT NULL DEFAULT CURRENT_DATE,
+        updated_at       TIMESTAMP DEFAULT NOW(),
+        UNIQUE (device_id, recorded_date)
+      )
+    `)
+    await db.query(`
       CREATE TABLE IF NOT EXISTS leads (
         id         SERIAL PRIMARY KEY,
         name       VARCHAR(255) NOT NULL,
@@ -104,7 +119,8 @@ app.use('/api/reports',     reportsRouter)
 app.use('/api/admin',       adminRouter)
 app.use('/api/maintenance', maintenanceRouter)
 app.use('/api/sharing',     sharingRouter)
-app.use('/api/leads',       leadsRouter)
+app.use('/api/leads',           leadsRouter)
+app.use('/api/driver-behavior', driverBehaviorRouter)
 
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'disconnected'
