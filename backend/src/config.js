@@ -1,8 +1,11 @@
 // backend/src/config.js
 const jwtSecret = process.env.JWT_SECRET
-if (!jwtSecret || jwtSecret.length < 32) {
-  console.error('[FATAL] JWT_SECRET must be set and at least 32 characters long.')
+if (!jwtSecret) {
+  console.error('[FATAL] JWT_SECRET is not set. Please set it in your .env file.')
   process.exit(1)
+}
+if (jwtSecret.length < 32) {
+  console.warn('[WARN] JWT_SECRET is shorter than 32 characters. Consider using a longer secret.')
 }
 
 export const config = {
