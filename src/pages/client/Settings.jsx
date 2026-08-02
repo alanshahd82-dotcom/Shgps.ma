@@ -5,7 +5,6 @@ import {
   User, Lock, Bell, Globe, LogOut, ChevronRight, Eye, EyeOff,
   CheckCircle2, XCircle, Save, X, Moon, Sun, Shield, Smartphone, MapPin
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
