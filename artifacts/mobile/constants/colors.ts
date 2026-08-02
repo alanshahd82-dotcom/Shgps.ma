@@ -1,0 +1,55 @@
+/**
+ * Fleet Tracker color tokens — dark theme inspired by Waze/FleetComplete.
+ */
+
+const colors = {
+  light: {
+    text: '#0f172a',
+    tint: '#2f81f7',
+    background: '#f1f5f9',
+    foreground: '#0f172a',
+    card: '#ffffff',
+    cardForeground: '#0f172a',
+    primary: '#2f81f7',
+    primaryForeground: '#ffffff',
+    secondary: '#e2e8f0',
+    secondaryForeground: '#1e293b',
+    muted: '#e2e8f0',
+    mutedForeground: '#64748b',
+    accent: '#dbeafe',
+    accentForeground: '#1e3a8a',
+    destructive: '#ef4444',
+    destructiveForeground: '#ffffff',
+    border: '#e2e8f0',
+    input: '#e2e8f0',
+    online: '#22c55e',
+    warning: '#f59e0b',
+    offline: '#94a3b8',
+  },
+  dark: {
+    text: '#e6edf3',
+    tint: '#2f81f7',
+    background: '#0d1117',
+    foreground: '#e6edf3',
+    card: '#161b22',
+    cardForeground: '#e6edf3',
+    primary: '#2f81f7',
+    primaryForeground: '#ffffff',
+    secondary: '#21262d',
+    secondaryForeground: '#c9d1d9',
+    muted: '#21262d',
+    mutedForeground: '#8b949e',
+    accent: '#1f3a5f',
+    accentForeground: '#90c0ff',
+    destructive: '#f85149',
+    destructiveForeground: '#ffffff',
+    border: '#30363d',
+    input: '#30363d',
+    online: '#3fb950',
+    warning: '#d29922',
+    offline: '#6e7681',
+  },
+  radius: 10,
+};
+
+export default colors;

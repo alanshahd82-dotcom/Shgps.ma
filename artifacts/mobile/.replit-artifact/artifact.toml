@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "Fleet Tracker Mobile"
+description = "A native mobile app for real-time fleet GPS tracking. Shows live vehicle positions on a map, lists all fleet devices with online/stale/offline status, streams position updates over WebSocket from the shared API server, tracks the driver's own location in the background, and fires local push notifications when a vehicle goes stale or crosses a geofence boundary."
+version = "1.0.0"
+id = "artifacts/mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/mobile/" ]
+localPort = 18115
+
+[services.development]
+run = "pnpm --filter @workspace/mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/mobile", "run", "serve" ]
+
+[services.env]
+PORT = "18115"
+BASE_PATH = "/mobile/"

@@ -3,6 +3,8 @@ import { WebSocketServer } from "ws";
 import app from "./app.js";
 import { logger } from "./lib/logger.js";
 import { startStalenessScanner, recordPosition } from "./ws/deviceStaleness.js";
+import { storePosition } from "./ws/positionStore.js";
+import { setWss, broadcastPosition as _broadcast } from "./ws/broadcast.js";
 
 const rawPort = process.env["PORT"];
 
@@ -31,7 +33,11 @@ const httpServer = createServer(app);
 //   { type: "position", deviceId, lat, lng, ts }
 //   { type: "deviceStale", deviceId, lastSeenAt, staleForMs }
 //
-const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+// Path is /api/ws so it aligns with the /api proxy prefix used in Replit routing.
+const wss = new WebSocketServer({ server: httpServer, path: "/api/ws" });
+
+// Share the WSS instance so HTTP routes can also broadcast position events.
+setWss(wss);
 
 wss.on("connection", (ws, req) => {
   const ip = req.socket.remoteAddress;
@@ -67,8 +73,12 @@ wss.on("connection", (ws, req) => {
       // Record the arrival time for staleness tracking
       recordPosition(deviceId);
 
+      // Persist latest position so REST clients can bootstrap device state
+      const ts = Date.now();
+      storePosition({ deviceId, lat, lng, speed: 0, heading: 0, ts });
+
       // Broadcast the position to all connected clients
-      const outbound = JSON.stringify({ type: "position", deviceId, lat, lng, ts: Date.now() });
+      const outbound = JSON.stringify({ type: "position", deviceId, lat, lng, ts });
       wss.clients.forEach((client) => {
         if (client.readyState === client.OPEN) {
           client.send(outbound);
