@@ -45,8 +45,34 @@ import { Router } from 'express'
         ? await db.query('SELECT d.*,u.name AS client_name FROM devices d LEFT JOIN users u ON d.user_id=u.id ORDER BY d.created_at DESC')
         : await db.query('SELECT * FROM devices WHERE user_id=$1 ORDER BY created_at DESC', [req.user.id])
 
+      // Build position map by Traccar device ID
       let pm = {}
-      try { for (const p of await traccar.getAllPositions()) pm[p.deviceId]=p } catch {}
+      // Build Traccar device map by IMEI (uniqueId) — fallback for devices with null traccar_id
+      let traccarByImei = {}
+      let positionByImei = {}
+      try {
+        const [allPositions, allTraccarDevs] = await Promise.all([
+          traccar.getAllPositions(),
+          traccar.getAllDevices(),
+        ])
+        for (const p of allPositions) pm[p.deviceId] = p
+        for (const td of allTraccarDevs) {
+          if (td.uniqueId) traccarByImei[td.uniqueId] = td
+        }
+        for (const p of allPositions) {
+          const td = allTraccarDevs.find(d => d.id === p.deviceId)
+          if (td?.uniqueId) positionByImei[td.uniqueId] = p
+        }
+      } catch {}
+
+      // Auto-repair: devices with null traccar_id that exist in Traccar by IMEI
+      const repairs = rows
+        .filter(d => !d.traccar_id && d.imei && traccarByImei[d.imei])
+        .map(d => db.query('UPDATE devices SET traccar_id=$1 WHERE id=$2', [traccarByImei[d.imei].id, d.id])
+          .then(() => { d.traccar_id = traccarByImei[d.imei].id })
+          .catch(() => {})
+        )
+      if (repairs.length) await Promise.all(repairs)
 
       // Load active geofences from local DB for all devices
       let geofenceMap = {}
@@ -59,11 +85,12 @@ import { Router } from 'express'
       } catch {}
 
       res.json(rows.map(d => {
-        const p = pm[d.traccar_id]
+        // Try by traccar_id first, fallback to IMEI match
+        const p = pm[d.traccar_id] ?? positionByImei[d.imei] ?? null
         const localGeo = geofenceMap[d.id] || null
         return {
           id:        d.id,
-          traccarId: d.traccar_id,   // ← required for WebSocket live-update matching
+          traccarId: d.traccar_id,
           name:      d.name,
           imei:      d.imei,
           type:      d.type,
