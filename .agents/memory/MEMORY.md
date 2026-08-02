@@ -1,0 +1,1 @@
+- [Docker Alpine npm install breakage](docker-alpine-npm.md) — package-lock.json from non-Alpine env breaks npm install inside Docker; always use COPY package.json (not package*.json) and add .dockerignore
