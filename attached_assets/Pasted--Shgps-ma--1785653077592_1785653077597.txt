@@ -1,0 +1,488 @@
+# 🛠️ بروميت إصلاح مشاكل Shgps.ma — موجه للأداة الذكية
+# ✅ نسخة مُدقَّقة — مضمونة لا تؤثر على الروابط أو الواجهة
+
+أنت مهندس backend خبير. لديك مستودع Node.js/Express لتطبيق تتبع GPS باسم Shgps.ma.
+قم بإصلاح المشاكل التالية بالترتيب الموضح، مع كتابة الكود الكامل لكل ملف تُعدّله.
+
+⚠️ قواعد صارمة:
+- لا تمس أي ملف في مجلد src/ (الواجهة الأمامية)
+- لا تمس مجلد dist/ — هو متعمَّد في Git للنشر المباشر
+- لا تعدّل الروابط أو التوجيه (Routes) بأي شكل
+- الإصلاحات تقتصر على: backend/ وnginx/ وdocker-compose.yml فقط
+
+---
+
+## 🔴 CRITICAL FIX 1 — tokenBlacklist.js
+
+**الملف:** `backend/src/services/tokenBlacklist.js`
+
+**المشكلة:** `setInterval(() => revokedTokens.clear(), ...)` يمسح كل التوكنات كل ساعة،
+فيُعيد صلاحية التوكنات الملغاة. مستخدم سجّل خروجه يمكن لتوكنه أن يُستخدم مجدداً بعد ساعة.
+
+**الإصلاح:** اكتب الملف بالكامل هكذا:
+
+```js
+// backend/src/services/tokenBlacklist.js
+const revokedTokens = new Map() // token -> expiresAt (ms)
+const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 أيام (مطابق لـ jwtExpiry)
+
+export function revokeToken(token) {
+  revokedTokens.set(token, Date.now() + TOKEN_TTL_MS)
+}
+
+export function isRevoked(token) {
+  const exp = revokedTokens.get(token)
+  if (!exp) return false
+  if (Date.now() > exp) { revokedTokens.delete(token); return false }
+  return true
+}
+
+// تنظيف دوري: احذف المنتهية فقط (ليس الكل)
+setInterval(() => {
+  const now = Date.now()
+  for (const [token, exp] of revokedTokens) {
+    if (now > exp) revokedTokens.delete(token)
+  }
+}, 60 * 60 * 1000)
+```
+
+**تحديثات مرتبطة — يجب تطبيقها في نفس الوقت:**
+
+في `backend/src/routes/auth.js`:
+- السطر 10: استبدل `import { revokedTokens } from '../services/tokenBlacklist.js'`
+  بـ: `import { revokeToken, isRevoked } from '../services/tokenBlacklist.js'`
+- السطر 146: استبدل `revokedTokens.add(token)`
+  بـ: `revokeToken(token)`
+
+في `backend/src/middleware/auth.js`:
+- السطر 4: استبدل `import { revokedTokens } from '../services/tokenBlacklist.js'`
+  بـ: `import { isRevoked } from '../services/tokenBlacklist.js'`
+- السطر 12: استبدل `revokedTokens.has(token)`
+  بـ: `isRevoked(token)`
+
+---
+
+## 🔴 CRITICAL FIX 2 — WebSocket يتجاهل القائمة السوداء
+
+**الملف:** `backend/src/index.js` السطر 167–176
+
+**المشكلة:** اتصال WebSocket يتحقق من صحة التوكن لكنه لا يراجع القائمة السوداء.
+مستخدم سجّل خروجه يظل قادراً على استقبال بيانات المواقع في الوقت الحقيقي.
+
+**الإصلاح:**
+
+أضف الاستيراد في أعلى `backend/src/index.js` مع الاستيرادات الموجودة:
+```js
+import { isRevoked } from './services/tokenBlacklist.js'
+```
+
+ثم ابحث عن `wss.on('connection', (ws, req) => {` وعدّل الكتلة لتصبح:
+```js
+wss.on('connection', (ws, req) => {
+  try {
+    const url   = new URL(req.url, 'http://localhost')
+    const token = url.searchParams.get('token')
+    if (!token) { ws.close(1008, 'Unauthorized'); return }
+    jwt.verify(token, config.jwtSecret)
+    if (isRevoked(token)) { ws.close(1008, 'Token revoked'); return } // ← السطر الجديد
+  } catch {
+    ws.close(1008, 'Invalid token')
+    return
+  }
+  // ... باقي الكود بدون أي تغيير
+})
+```
+
+---
+
+## 🔴 CRITICAL FIX 3 — JWT_SECRET بدون قيمة افتراضية خطرة
+
+**الملف:** `backend/src/config.js`
+
+**المشكلة:** `process.env.JWT_SECRET || 'dev-secret-change-in-production'`
+إذا لم يُضبط المتغير البيئي، يعمل التطبيق بسر معروف — أي شخص يستطيع توليد JWT وهمية.
+
+**الإصلاح — اكتب الملف بالكامل هكذا:**
+
+```js
+// backend/src/config.js
+const jwtSecret = process.env.JWT_SECRET
+if (!jwtSecret || jwtSecret.length < 32) {
+  console.error('[FATAL] JWT_SECRET must be set and at least 32 characters long.')
+  process.exit(1)
+}
+
+export const config = {
+  port:        process.env.PORT || 3001,
+  jwtSecret,
+  jwtExpiry:   '7d', // يبقى 7 أيام — لا تغيّر هذا حتى لا تُطلب إعادة تسجيل الدخول الفورية
+  databaseUrl: process.env.DATABASE_URL,
+  traccar: {
+    url:      process.env.TRACCAR_URL            || 'http://localhost:8082',
+    email:    process.env.TRACCAR_ADMIN_EMAIL    || '',
+    password: process.env.TRACCAR_ADMIN_PASSWORD || '',
+  },
+  frontendUrl: process.env.FRONTEND_URL || '',
+}
+```
+
+---
+
+## 🔴 CRITICAL FIX 4 — Certbot --force-renewal يستنفد حد Let's Encrypt
+
+**الملف:** `docker-compose.yml`
+
+**المشكلة:** `--force-renewal` يجدد الشهادة مرتين يومياً (كل 12 ساعة). Let's Encrypt يحد
+النطاق بـ5 شهادات أسبوعياً — الإعداد الحالي سيستنفدها في 2.5 يوم ثم يحظر النطاق.
+
+**الإصلاح:** ابحث عن قسم `certbot:` في docker-compose.yml وعدّل `entrypoint` فقط:
+
+```yaml
+  certbot:
+    image: certbot/certbot
+    container_name: shgps-certbot-1
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
+    networks:
+      - shgps
+```
+
+التغيير الوحيد: حذف `--force-renewal` من السطر. باقي الملف لا يُمس.
+
+---
+
+## 🟠 HIGH FIX 5 — Rate Limiting للـ Leads (حماية من Spam)
+
+**الملف:** `backend/src/routes/leads.js`
+
+**المشكلة:** `POST /api/leads` عام بلا أي حماية من الإرسال المتكرر.
+
+**الإصلاح — اكتب الملف بالكامل هكذا:**
+
+```js
+// backend/src/routes/leads.js
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+
+export const leadsRouter = Router()
+
+// Rate limiting in-memory
+const leadsAttempts = new Map()
+const LEADS_LIMIT  = 3               // 3 محاولات
+const LEADS_WINDOW = 60 * 60 * 1000  // خلال ساعة واحدة
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, val] of leadsAttempts)
+    if (now - val.first > LEADS_WINDOW) leadsAttempts.delete(key)
+}, LEADS_WINDOW)
+
+function leadsRateLimit(req, res, next) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+           || req.socket?.remoteAddress || 'unknown'
+  const now = Date.now()
+  const entry = leadsAttempts.get(ip)
+  if (entry && now - entry.first < LEADS_WINDOW && entry.count >= LEADS_LIMIT) {
+    return res.status(429).json({ error: 'Too many requests. Try again later.' })
+  }
+  if (!entry || now - entry.first >= LEADS_WINDOW) {
+    leadsAttempts.set(ip, { count: 1, first: now })
+  } else {
+    entry.count++
+  }
+  next()
+}
+
+// POST /api/leads — public مع rate limit
+leadsRouter.post('/', leadsRateLimit, async (req, res) => {
+  try {
+    const { name, phone, email, package: pkg, message } = req.body
+    if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' })
+    if (!/^\+?[\d\s\-]{8,15}$/.test(phone))
+      return res.status(400).json({ error: 'Invalid phone number' })
+    const { rows } = await db.query(
+      `INSERT INTO leads (name, phone, email, package, message) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [
+        name.trim().slice(0, 100),
+        phone.trim().slice(0, 20),
+        email?.slice(0, 100) || null,
+        pkg?.slice(0, 50)    || null,
+        message?.slice(0, 1000) || null,
+      ]
+    )
+    res.status(201).json({ success: true, id: rows[0].id })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+
+// GET /api/leads — admin only
+leadsRouter.get('/', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
+    const { rows } = await db.query('SELECT * FROM leads ORDER BY created_at DESC LIMIT 200')
+    res.json(rows)
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+```
+
+---
+
+## 🟠 HIGH FIX 6 — حد حجم JSON وإضافة Helmet (بدون كسر الخرائط)
+
+**الملف:** `backend/src/index.js`
+
+**المشكلة:** لا يوجد حد لحجم الطلبات، ولا رأسيات أمان HTTP.
+
+⚠️ **تنبيه مهم:** يجب تعطيل CSP داخل helmet لأن nginx يتولى CSP مسبقاً.
+تفعيل CSP من مكانين يكسر الخرائط وأيقونات Leaflet.
+
+**الخطوة 1 — ثبّت helmet:**
+```bash
+cd backend && npm install helmet
+```
+
+**الخطوة 2 — عدّل backend/src/index.js:**
+
+أضف الاستيراد في أعلى الملف:
+```js
+import helmet from 'helmet'
+```
+
+ابحث عن الأسطر:
+```js
+app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }))
+app.use(express.json())
+```
+
+واستبدلها بـ:
+```js
+// Helmet: تُفعَّل كل الرأسيات إلا CSP (يديرها nginx لتدعم Leaflet وOpenStreetMap)
+app.use(helmet({ contentSecurityPolicy: false }))
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || false, // لا نقبل * مع credentials
+  credentials: true,
+}))
+
+app.use(express.json({ limit: '1mb' })) // حد حجم الطلب يمنع هجمات الذاكرة
+```
+
+---
+
+## 🟠 HIGH FIX 7 — تصحيح nginx.conf (نطاق خاطئ + تفعيل CSP)
+
+**الملف:** `nginx/nginx.conf`
+
+**المشكلة:** مضبوط على `athargps.com` بدلاً من `shgps.ma`، وCSP معطّل.
+
+**الإصلاح — اكتب الملف بالكامل هكذا:**
+
+```nginx
+events { worker_connections 1024; }
+
+http {
+  include       /etc/nginx/mime.types;
+  default_type  application/octet-stream;
+
+  upstream backend {
+    server backend:3001;
+  }
+
+  # ── HTTP: redirect + Certbot challenge ──────────────────────────────────────
+  server {
+    listen 80;
+    server_name shgps.ma www.shgps.ma;
+
+    location ~ /\.(env|git|htaccess|htpasswd|DS_Store) {
+      deny all;
+      return 403;
+    }
+
+    location /.well-known/acme-challenge/ {
+      root /var/www/certbot;
+    }
+
+    location / {
+      return 301 https://$host$request_uri;
+    }
+  }
+
+  # ── HTTPS: main server ───────────────────────────────────────────────────────
+  server {
+    listen 443 ssl;
+    server_name shgps.ma www.shgps.ma;
+
+    ssl_certificate     /etc/letsencrypt/live/shgps.ma/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/shgps.ma/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # ── Security headers ───────────────────────────────────────────────────────
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    # CSP مفصّل لدعم Leaflet + OpenStreetMap + Framer Motion + WebSocket
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src * data: blob: https://unpkg.com; connect-src 'self' ws: wss: https://*.tile.openstreetmap.org; worker-src blob:;" always;
+
+    # ── Block sensitive files ──────────────────────────────────────────────────
+    location ~ /\.(env|git|htaccess|htpasswd|DS_Store) {
+      deny all;
+      return 403;
+    }
+
+    # index.html — no cache
+    location = /index.html {
+      root /usr/share/nginx/html;
+      add_header Cache-Control "no-cache, no-store, must-revalidate";
+      add_header Pragma "no-cache";
+      add_header Expires "0";
+    }
+
+    # Static assets — long cache
+    location /assets/ {
+      root /usr/share/nginx/html;
+      add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    # Backend API + WebSocket
+    location /api/ {
+      proxy_pass http://backend;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_read_timeout 3600s;
+    }
+
+    # React SPA
+    location / {
+      root /usr/share/nginx/html;
+      try_files $uri $uri/ /index.html;
+      add_header Cache-Control "no-cache, no-store, must-revalidate";
+      add_header Pragma "no-cache";
+      add_header Expires "0";
+    }
+  }
+}
+```
+
+---
+
+## 🟠 HIGH FIX 8 — إصلاح سكريبت Deploy
+
+**الملف:** `.github/workflows/deploy.yml`
+
+**المشكلة:** سكريبت النشر يعدّل `src/App.jsx` بـ`sed` عند كل deployment.
+ملف `App.jsx` موجود يستخدم `BrowserRouter` بالفعل، فالأمر غير مبرر.
+
+**الإصلاح:**
+
+**أولاً:** تحقق من `src/App.jsx` — ابحث عن السطر:
+```js
+import { BrowserRouter, Routes, Route, ...
+```
+إذا كان يستخدم `BrowserRouter` بالفعل (وهو كذلك)، فالأمر الثاني يؤكد ذلك.
+
+**ثانياً:** احذف هذا السطر من `.github/workflows/deploy.yml`:
+```yaml
+# احذف هذا السطر فقط:
+sed -i 's/HashRouter/BrowserRouter/g' src/App.jsx
+```
+
+لا تمس باقي الـ workflow.
+
+---
+
+## 🟡 MEDIUM FIX 9 — Pagination على قوائم البيانات
+
+**الملف:** `backend/src/routes/clients.js`
+
+**المشكلة:** `GET /api/clients` يُرجع جميع السجلات بدون حد، قد يُثقل الذاكرة مع النمو.
+
+**الإصلاح:** ابحث عن `clientsRouter.get('/', requireAuth, requireAdmin, async (_req, res) => {`
+وعدّل المعامل `_req` إلى `req` ثم أضف pagination:
+
+```js
+clientsRouter.get('/', requireAuth, requireAdmin, async (req, res) => {
+  const page   = Math.max(1, parseInt(req.query.page)  || 1)
+  const limit  = Math.min(100, parseInt(req.query.limit) || 50)
+  const offset = (page - 1) * limit
+  try {
+    const { rows } = await db.query(`
+      SELECT u.id,u.name,u.email,u.phone,u.city,u.subscription,u.is_active,
+             u.max_devices,u.expiry_date,u.avatar,u.created_at,
+             COUNT(d.id)::int AS devices_count
+      FROM users u LEFT JOIN devices d ON u.id=d.user_id
+      WHERE u.is_admin=false GROUP BY u.id ORDER BY u.created_at DESC
+      LIMIT $1 OFFSET $2`, [limit, offset])
+    const { rows: countRows } = await db.query(
+      `SELECT COUNT(*)::int AS total FROM users WHERE is_admin=false`)
+    res.json({
+      data: rows.map(u => ({
+        id: u.id, name: u.name, email: u.email, phone: u.phone, city: u.city,
+        subscription: u.subscription, status: u.is_active ? 'active' : 'inactive',
+        isActive: u.is_active, maxDevices: u.max_devices ?? 5, expiryDate: u.expiry_date,
+        devicesCount: u.devices_count, joinDate: u.created_at, avatar: u.avatar || u.name?.charAt(0),
+      })),
+      total: countRows[0].total,
+      page,
+      limit,
+    })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+```
+
+---
+
+## ✅ خطوات التحقق بعد كل الإصلاحات
+
+```bash
+# 1. تثبيت المكتبة الجديدة
+cd backend && npm install helmet
+
+# 2. تأكد من وجود JWT_SECRET في .env (32+ حرف عشوائي)
+grep JWT_SECRET .env
+# يجب أن تظهر قيمة — إذا لم تظهر، الخادم سيرفض الإقلاع
+
+# 3. تأكد من FRONTEND_URL في .env
+grep FRONTEND_URL .env
+# يجب أن يكون: FRONTEND_URL=https://shgps.ma
+
+# 4. أعد بناء backend فقط
+docker compose build backend
+docker compose up -d --no-deps backend
+
+# 5. تحقق من logs
+docker logs shgps-backend-1 --tail=50
+
+# 6. اختبر تسجيل الخروج (اختبار أمان الـ token blacklist)
+# a) سجّل دخولاً واحصل على token
+# b) سجّل خروجاً
+# c) استخدم نفس الـ token في طلب GET /api/auth/me
+# d) يجب أن يُرجع 401 فوراً
+
+# 7. اختبر Certbot (تأكد لا يوجد --force-renewal)
+docker logs shgps-certbot-1 --tail=20
+
+# 8. اختبر nginx بعد تغيير النطاق
+docker exec shgps-nginx-1 nginx -t
+docker exec shgps-nginx-1 nginx -s reload
+```
+
+---
+
+> ⚠️ **تحذيرات مهمة:**
+> - لا تمس مجلد `dist/` — هو متعمَّد في Git لأن nginx يخدم منه مباشرة
+> - لا تعدّل أي ملف في `src/` — الواجهة تعمل بشكل صحيح
+> - لا تغيّر `jwtExpiry` من `7d` إلا إذا كنت تريد إعادة تسجيل دخول جميع المستخدمين
+> - اكتب الكود الكامل لكل ملف تُعدّله، لا تترك أي TODO أو placeholder
+> - ابدأ بالإصلاحات الحرجة (🔴) قبل الانتقال للأخرى
