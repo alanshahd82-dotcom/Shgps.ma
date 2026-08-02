@@ -204,9 +204,9 @@
 }
 
 /* Native mobile viewport and safe-area handling */
-html { background: #F0F4F8; }
-body { min-height: 100dvh; overscroll-behavior-y: none; }
-#root { min-height: 100dvh; }
+html { background: #F0F4F8; overscroll-behavior: none; }
+body { min-height: 100dvh; overscroll-behavior: none; touch-action: pan-x pan-y; }
+#root { min-height: 100dvh; overscroll-behavior: none; }
 .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
 
 /* Prevent image drag / long-press save on mobile */
@@ -218,13 +218,12 @@ img {
   -webkit-touch-callout: none;
 }
 
-/* Prevent pull-to-refresh on horizontal scroll containers */
+/* Prevent pull-to-refresh on all scroll containers */
 .overflow-x-auto {
-  overscroll-behavior-x: contain;
+  overscroll-behavior-x: none;
 }
 
-/* Prevent bounce/pull on inner scroll containers */
 .overflow-y-auto,
 .mobile-scroll {
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
 }
