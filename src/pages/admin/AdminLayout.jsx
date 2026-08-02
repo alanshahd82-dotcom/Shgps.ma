@@ -14,27 +14,34 @@ import ForcePasswordModal from '../../components/ForcePasswordModal'
 /* ─── Quick Add Device Modal ──────────────────────────────────────────────── */
 function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
   const isAr = lang === 'ar'
-  const [imei,      setImei]      = useState('')
+
+  // ── required fields
+  const [imei,    setImei]    = useState('')
+  const [phone,   setPhone]   = useState('')
+
+  // ── optional (expandable)
+  const [expanded,  setExpanded]  = useState(false)
   const [clientId,  setClientId]  = useState('')
   const [maxDev,    setMaxDev]    = useState('1')
   const [expires,   setExpires]   = useState('')
   const [search,    setSearch]    = useState('')
-  const [loading,   setLoading]   = useState(false)
-  const [error,     setError]     = useState('')
-  const [done,      setDone]      = useState(null) // { name, imei }
+
+  // ── ui state
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const [done,    setDone]    = useState(null)
 
   const filtered = clientList.filter(c =>
     c.name?.toLowerCase().includes(search.toLowerCase()) ||
     c.email?.toLowerCase().includes(search.toLowerCase())
-  ).slice(0, 8)
+  ).slice(0, 6)
 
   const selectedClient = clientList.find(c => String(c.id) === String(clientId))
 
   const reset = () => {
-    setImei(''); setClientId(''); setMaxDev('1'); setExpires('')
-    setSearch(''); setError(''); setDone(null)
+    setImei(''); setPhone(''); setClientId(''); setMaxDev('1')
+    setExpires(''); setSearch(''); setError(''); setDone(null); setExpanded(false)
   }
-
   const handleClose = () => { reset(); onClose() }
 
   const handleSubmit = async (e) => {
@@ -42,10 +49,11 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
     setError(''); setLoading(true)
     try {
       const result = await api.devices.quickAdd({
-        imei: imei.trim(),
-        clientId: Number(clientId),
-        maxDevices: Number(maxDev),
-        expiresAt: expires || null,
+        imei:      imei.trim(),
+        phone:     phone.trim() || null,
+        clientId:  clientId ? Number(clientId) : null,
+        maxDevices: clientId ? Number(maxDev) : null,
+        expiresAt:  clientId ? (expires || null) : null,
       })
       setDone(result)
       onSuccess(result)
@@ -63,23 +71,23 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
           onClick={handleClose}
         >
           <motion.div
-            className="w-full md:max-w-[460px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden"
+            className="w-full md:max-w-[440px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden"
             initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-primary-500">
+            <div className="flex items-center justify-between px-5 py-4 bg-primary-500">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
                   <Smartphone size={18} className="text-white" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-base leading-tight">
-                    {isAr ? 'إضافة جهاز سريعة' : 'Ajout rapide d\'appareil'}
+                    {isAr ? 'إضافة جهاز' : 'Ajouter un appareil'}
                   </h3>
-                  <p className="text-white/60 text-xs">
-                    {isAr ? '4 حقول فقط' : '4 champs seulement'}
+                  <p className="text-white/60 text-[11px]">
+                    {isAr ? 'حقلان فقط — سريع وبسيط' : 'Deux champs seulement'}
                   </p>
                 </div>
               </div>
@@ -88,147 +96,186 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
               </button>
             </div>
 
-            {/* Success state */}
+            {/* ── Success ── */}
             {done ? (
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 size={32} className="text-green-500" />
+              <div className="p-7 text-center">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 size={28} className="text-green-500" />
                 </div>
-                <h4 className="font-bold text-primary-500 text-lg mb-1">
-                  {isAr ? 'تم إضافة الجهاز ✓' : 'Appareil ajouté ✓'}
+                <h4 className="font-bold text-primary-500 text-base mb-0.5">
+                  {isAr ? 'تم تسجيل الجهاز ✓' : 'Appareil enregistré ✓'}
                 </h4>
-                <p className="text-slate-500 text-sm mb-1">{done.name}</p>
-                <p className="text-slate-400 text-xs font-mono mb-6">{done.imei}</p>
+                <p className="text-slate-500 text-sm mb-0.5">{done.name}</p>
+                <p className="text-slate-400 text-xs font-mono mb-1">{done.imei}</p>
+                {done.phone && (
+                  <p className="text-slate-400 text-xs mb-4">📞 {done.phone}</p>
+                )}
+                {!done.clientId && (
+                  <p className="text-xs text-amber-500 bg-amber-50 rounded-xl px-3 py-2 mb-4">
+                    {isAr ? '⚠️ الجهاز غير مربوط بعميل — يمكن ربطه لاحقاً من قائمة الأجهزة' : '⚠️ Appareil non assigné — à lier depuis la liste'}
+                  </p>
+                )}
                 <div className="flex gap-3">
                   <button onClick={handleClose}
-                    className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-slate-500 hover:bg-gray-50">
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-slate-500 hover:bg-gray-50">
                     {isAr ? 'إغلاق' : 'Fermer'}
                   </button>
                   <button onClick={reset}
-                    className="flex-1 py-3 rounded-xl bg-primary-500 text-white text-sm font-bold hover:bg-primary-600">
-                    {isAr ? 'إضافة جهاز آخر' : 'Ajouter un autre'}
+                    className="flex-1 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-bold hover:bg-primary-600">
+                    {isAr ? '+ جهاز آخر' : '+ Autre'}
                   </button>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
+
                 {error && (
-                  <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-3 rounded-xl">
-                    <AlertCircle size={15} className="shrink-0" />
-                    {error}
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-2.5 rounded-xl">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{error}</span>
                   </div>
                 )}
 
-                {/* IMEI */}
+                {/* ① IMEI — required */}
                 <div>
                   <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
-                    <Smartphone size={12} />
-                    {isAr ? 'رقم IMEI (15 رقم)' : 'Numéro IMEI (15 chiffres)'}
+                    <Smartphone size={11} />
+                    {isAr ? 'معرّف الجهاز — IMEI' : 'Identifiant — IMEI'}
+                    <span className="text-red-400 text-[10px] font-normal ml-1">{isAr ? '(إلزامي)' : '(requis)'}</span>
                   </label>
                   <input
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent"
-                    placeholder="358900001234567"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-primary-300"
+                    placeholder="865190075236599"
+                    inputMode="numeric"
                     value={imei}
                     maxLength={15}
                     onChange={e => setImei(e.target.value.replace(/\D/g, ''))}
                     required
                   />
-                  {imei.length > 0 && imei.length !== 15 && (
-                    <p className="text-xs text-amber-500 mt-1">
-                      {isAr ? `${imei.length}/15 رقم` : `${imei.length}/15 chiffres`}
-                    </p>
-                  )}
+                  <div className="flex justify-between mt-1 px-0.5">
+                    {imei.length > 0 && imei.length < 15
+                      ? <p className="text-[11px] text-amber-500">{imei.length}/15</p>
+                      : imei.length === 15
+                        ? <p className="text-[11px] text-green-500">✓ {isAr ? 'صحيح' : 'Valide'}</p>
+                        : <span />
+                    }
+                  </div>
                 </div>
 
-                {/* Client search */}
+                {/* ② Phone — required */}
                 <div>
                   <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
-                    <User2 size={12} />
-                    {isAr ? 'العميل' : 'Client'}
+                    <span className="text-base leading-none">📞</span>
+                    {isAr ? 'رقم الهاتف (شريحة الجهاز)' : 'Numéro de téléphone (SIM)'}
+                    <span className="text-red-400 text-[10px] font-normal ml-1">{isAr ? '(إلزامي)' : '(requis)'}</span>
                   </label>
-                  {selectedClient ? (
-                    <div className="flex items-center justify-between border border-primary-300 bg-primary-50 rounded-xl px-4 py-2.5">
-                      <div>
-                        <p className="text-sm font-bold text-primary-500">{selectedClient.name}</p>
-                        <p className="text-xs text-slate-400">{selectedClient.email}</p>
-                      </div>
-                      <button type="button" onClick={() => { setClientId(''); setSearch('') }}
-                        className="text-slate-400 hover:text-red-400">
-                        <X size={15} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <input
-                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
-                        placeholder={isAr ? 'ابحث باسم العميل...' : 'Rechercher le client...'}
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        autoComplete="off"
-                      />
-                      {search && filtered.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
-                          {filtered.map(c => (
-                            <button key={c.id} type="button"
-                              onClick={() => { setClientId(String(c.id)); setSearch('') }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-primary-50 border-b border-gray-50 last:border-0">
-                              <p className="text-sm font-semibold text-primary-500">{c.name}</p>
-                              <p className="text-xs text-slate-400">{c.email}</p>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {search && filtered.length === 0 && (
-                        <p className="text-xs text-slate-400 mt-1 px-1">
-                          {isAr ? 'لم يُوجد عميل' : 'Aucun client trouvé'}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <input type="hidden" value={clientId} required onChange={() => {}} />
+                  <input
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-300"
+                    placeholder={isAr ? '0698324394' : '+2126XXXXXXXX'}
+                    inputMode="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    required
+                  />
                 </div>
 
-                {/* Max devices + Expiry */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
-                      <Hash size={12} />
-                      {isAr ? 'عدد الأجهزة المسموح' : 'Appareils max'}
-                    </label>
-                    <input
-                      type="number" min="1" max="50"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
-                      value={maxDev}
-                      onChange={e => setMaxDev(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
-                      <CalendarDays size={12} />
-                      {isAr ? 'تاريخ الانتهاء' : 'Date d\'expiration'}
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
-                      value={expires}
-                      min={new Date().toISOString().split('T')[0]}
-                      onChange={e => setExpires(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+                {/* ── Optional section toggle ── */}
+                <button
+                  type="button"
+                  onClick={() => setExpanded(v => !v)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs font-semibold text-slate-400 hover:bg-slate-100 transition-colors"
+                >
+                  <span>{isAr ? '⚙️ إعدادات إضافية (اختياري)' : '⚙️ Options supplémentaires (facultatif)'}</span>
+                  <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>▾</motion.span>
+                </button>
+
+                {/* ── Optional fields ── */}
+                <AnimatePresence>
+                  {expanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden space-y-3"
+                    >
+                      {/* Client */}
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
+                          <User2 size={11} />
+                          {isAr ? 'ربط بعميل' : 'Assigner à un client'}
+                        </label>
+                        {selectedClient ? (
+                          <div className="flex items-center justify-between border border-primary-300 bg-primary-50 rounded-xl px-3 py-2">
+                            <div>
+                              <p className="text-sm font-bold text-primary-500">{selectedClient.name}</p>
+                              <p className="text-xs text-slate-400">{selectedClient.email}</p>
+                            </div>
+                            <button type="button" onClick={() => { setClientId(''); setSearch('') }}
+                              className="text-slate-400 hover:text-red-400"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <input
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                              placeholder={isAr ? 'اسم العميل...' : 'Nom du client...'}
+                              value={search}
+                              onChange={e => setSearch(e.target.value)}
+                              autoComplete="off"
+                            />
+                            {search && filtered.length > 0 && (
+                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
+                                {filtered.map(c => (
+                                  <button key={c.id} type="button"
+                                    onClick={() => { setClientId(String(c.id)); setSearch('') }}
+                                    className="w-full text-left px-3 py-2 hover:bg-primary-50 border-b border-gray-50 last:border-0">
+                                    <p className="text-sm font-semibold text-primary-500">{c.name}</p>
+                                    <p className="text-[11px] text-slate-400">{c.email}</p>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Max devices + Expiry — only if client selected */}
+                      {clientId && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
+                              <Hash size={10} />{isAr ? 'عدد الأجهزة' : 'Max appareils'}
+                            </label>
+                            <input type="number" min="1" max="50"
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                              value={maxDev} onChange={e => setMaxDev(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
+                              <CalendarDays size={10} />{isAr ? 'تاريخ الانتهاء' : 'Expiration'}
+                            </label>
+                            <input type="date"
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                              value={expires} min={new Date().toISOString().split('T')[0]}
+                              onChange={e => setExpires(e.target.value)} />
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Submit */}
                 <button
                   type="submit"
-                  disabled={loading || imei.length !== 15 || !clientId}
-                  className="w-full py-3.5 rounded-xl bg-primary-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-primary-600 transition-colors mt-2"
+                  disabled={loading || imei.length !== 15 || !phone.trim()}
+                  className="w-full py-3.5 rounded-xl bg-primary-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-primary-600 active:scale-[0.98] transition-all"
                 >
                   {loading
-                    ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{isAr ? 'جاري الإضافة...' : 'Ajout en cours...'}</>
+                    ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{isAr ? 'جاري الإضافة...' : 'Ajout...'}</>
                     : <><Plus size={16} />{isAr ? 'إضافة الجهاز' : 'Ajouter l\'appareil'}</>}
                 </button>
+
               </form>
             )}
           </motion.div>

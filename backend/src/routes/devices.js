@@ -98,68 +98,72 @@ import { Router } from 'express'
       }
     })
 
-    // POST /quick-add — إضافة سريعة: IMEI + عميل + عدد أجهزة + تاريخ انتهاء
+    // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone. العميل/الاشتراك اختياريان
     devicesRouter.post('/quick-add', requireAuth, async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
-      const { imei, clientId, maxDevices, expiresAt } = req.body
-      if (!imei)     return res.status(400).json({ error: 'IMEI required' })
-      if (!clientId) return res.status(400).json({ error: 'Client required' })
+      const { imei, phone, clientId, maxDevices, expiresAt } = req.body
+      if (!imei)  return res.status(400).json({ error: 'IMEI required' })
+      if (!phone) return res.status(400).json({ error: 'Phone required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
 
       try {
-        // جلب بيانات العميل
-        const { rows: clientRows } = await db.query(
-          `SELECT id, name, max_devices,
-                  (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
-           FROM users WHERE id=$1 AND is_admin=false`,
-          [clientId]
-        )
-        const client = clientRows[0]
-        if (!client) return res.status(404).json({ error: 'Client not found' })
+        let deviceName = `GPS-${imei.slice(-6)}` // اسم افتراضي
+        let finalClientId = clientId ? Number(clientId) : null
+        let newMax = null
 
-        const newMax = maxDevices ? Number(maxDevices) : (client.max_devices ?? 5)
+        if (finalClientId) {
+          const { rows: clientRows } = await db.query(
+            `SELECT id, name, max_devices,
+                    (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
+             FROM users WHERE id=$1 AND is_admin=false`,
+            [finalClientId]
+          )
+          const client = clientRows[0]
+          if (!client) return res.status(404).json({ error: 'Client not found' })
+          const seq = client.devices_count + 1
+          deviceName = `${client.name} - #${seq}`
+          newMax = maxDevices ? Number(maxDevices) : (client.max_devices ?? 5)
+        }
 
-        // اسم الجهاز تلقائي: "اسم العميل - #N"
-        const seq = client.devices_count + 1
-        const deviceName = `${client.name} - #${seq}`
-
-        // إنشاء الجهاز في Traccar
+        // سجّل في Traccar
         let traccarId = null
         try {
           const td = await traccar.createDevice(deviceName, imei)
           traccarId = td.id
-          const { rows: ur } = await db.query('SELECT traccar_id FROM users WHERE id=$1', [clientId])
-          if (ur[0]?.traccar_id) await traccar.linkDevice(ur[0].traccar_id, traccarId)
+          if (finalClientId) {
+            const { rows: ur } = await db.query('SELECT traccar_id FROM users WHERE id=$1', [finalClientId])
+            if (ur[0]?.traccar_id) await traccar.linkDevice(ur[0].traccar_id, traccarId)
+          }
         } catch (e) { console.warn('Traccar skipped:', e.message) }
 
-        // معاملة واحدة: إدراج الجهاز + تحديث الاشتراك
+        // إدراج الجهاز + تحديث الاشتراك في معاملة واحدة
         await db.query('BEGIN')
         try {
+          // أضف عمود phone إن لم يكن موجوداً (يُشغَّل مرة واحدة)
+          await db.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`).catch(() => {})
+
           const { rows } = await db.query(
-            `INSERT INTO devices (name,imei,type,plate,user_id,traccar_id)
-             VALUES ($1,$2,'car',null,$3,$4) RETURNING *`,
-            [deviceName, imei, clientId, traccarId]
+            `INSERT INTO devices (name,imei,type,plate,user_id,traccar_id,phone)
+             VALUES ($1,$2,'car',null,$3,$4,$5) RETURNING *`,
+            [deviceName, imei, finalClientId, traccarId, phone || null]
           )
-          await db.query(
-            `UPDATE users SET max_devices=$1, expiry_date=$2 WHERE id=$3`,
-            [newMax, expiresAt || null, clientId]
-          )
+          if (finalClientId && newMax !== null) {
+            await db.query(
+              `UPDATE users SET max_devices=$1, expiry_date=$2 WHERE id=$3`,
+              [newMax, expiresAt || null, finalClientId]
+            )
+          }
           await db.query('COMMIT')
           const d = rows[0]
           res.status(201).json({
-            id: d.id, name: d.name, imei: d.imei, type: 'car',
+            id: d.id, name: d.name, imei: d.imei, type: 'car', phone: d.phone,
             clientId: d.user_id, status: 'offline',
             lat: 0, lng: 0, speed: 0, lastUpdate: null,
             engineOn: false, battery: null, signal: null, fuel: null,
             geofenceActive: false, activeGeofenceId: null, geofence: null,
-            // subscription info updated
-            maxDevices: newMax,
-            expiresAt: expiresAt || null,
           })
-        } catch (e) {
-          await db.query('ROLLBACK')
-          throw e
-        }
+        } catch (e) { await db.query('ROLLBACK'); throw e }
+
       } catch (err) {
         if (err.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
         console.error(err); res.status(500).json({ error: 'Server error' })
