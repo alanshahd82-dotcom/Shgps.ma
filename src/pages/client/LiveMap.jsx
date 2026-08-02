@@ -60,6 +60,14 @@ export default function LiveMap() {
     return () => { if (watcher) navigator.geolocation.clearWatch(watcher) }
   }, [])
 
+  function locateMe() {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      p => setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => {}
+    )
+  }
+
   const filtered = useMemo(() => {
     if (!search.trim()) return devices
     const q = search.toLowerCase()
@@ -118,12 +126,13 @@ export default function LiveMap() {
 
       {/* Locate me button */}
       <div className="absolute z-20" style={{ bottom: panelOpen ? (PANEL_OPEN + 16) : (PANEL_PEEK + 16), right: 16 }}>
-        <motion_button
-          onClick={() => userPos && setSelected(null)}
+        <motion.button
+          onClick={locateMe}
+          whileTap={{ scale: 0.9 }}
           style={{ width:42, height:42, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
             background:'rgba(8,15,31,0.9)', border:'1px solid rgba(255,255,255,0.12)', backdropFilter:'blur(16px)' }}>
           <LocateFixed size={18} style={{ color:'#00D97E' }}/>
-        </motion_button>
+        </motion.button>
       </div>
 
       {/* Sliding panel */}

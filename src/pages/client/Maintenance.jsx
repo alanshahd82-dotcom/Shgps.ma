@@ -50,7 +50,7 @@ export default function Maintenance() {
   async function handleAdd(e) {
     e.preventDefault(); setSaving(true)
     try {
-      await api.maintenance.add(deviceId, formData)
+      await api.maintenance.add({ ...formData, deviceId })
       setShowForm(false)
       setFormData({ type: 'oil_change', date: '', mileage: '', notes: '', next_mileage: '' })
       load()

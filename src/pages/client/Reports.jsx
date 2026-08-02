@@ -55,7 +55,13 @@ export default function Reports() {
     if (!deviceId) return
     setLoading(true); setError('')
     try {
-      const res = await api.reports.get(deviceId, range)
+      // Convert range key to ISO from/to dates
+      const now = new Date()
+      const from = new Date(now)
+      if (range === 'today')      { from.setHours(0,0,0,0) }
+      else if (range === 'week')  { from.setDate(now.getDate() - 7) }
+      else if (range === 'month') { from.setDate(now.getDate() - 30) }
+      const res = await api.reports.get(deviceId, from.toISOString(), now.toISOString())
       setData(res)
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }

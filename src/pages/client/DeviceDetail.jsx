@@ -76,9 +76,11 @@ export default function DeviceDetail() {
     async function loadTrips() {
       setTripsLoading(true)
       try {
-        const data = await api.devices.get(id)
-        setTrips(data.trips || data.route || [])
-      } catch (e) { console.error(e) }
+        const now  = new Date()
+        const from = new Date(now); from.setHours(0, 0, 0, 0)
+        const data = await api.reports.get(id, from.toISOString(), now.toISOString())
+        setTrips(data.trips || [])
+      } catch (e) { setTrips([]) }
       finally { setTripsLoading(false) }
     }
     loadTrips()
@@ -92,8 +94,8 @@ export default function DeviceDetail() {
 
   async function generateShareLink() {
     try {
-      const data = await api.devices.get(id)
-      const token = data.share_token || data.shareToken
+      const data = await api.sharing.create(id, 24)
+      const token = data.token || data.share_token || data.shareToken
       if (token) setShareLink(window.location.origin + '/share/' + token)
     } catch (e) { alert(e.message) }
   }

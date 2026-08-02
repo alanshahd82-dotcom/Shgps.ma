@@ -53,8 +53,10 @@ export default function Geofences() {
     if (!deviceId) return
     setLoading(true)
     try {
-      const data = await api.geofences.list(deviceId)
-      setGeofences(Array.isArray(data) ? data : data.geofences || [])
+      const data = await api.geofences.list()
+      const all  = Array.isArray(data) ? data : data.geofences || []
+      // filter client-side to show only zones for the selected device
+      setGeofences(deviceId ? all.filter(g => !g.device_id || String(g.device_id) === String(deviceId)) : all)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [deviceId])
@@ -65,7 +67,7 @@ export default function Geofences() {
     if (!center || !name.trim()) return
     setSaving(true)
     try {
-      await api.geofences.create(deviceId, { name, lat: center.lat, lng: center.lng, radius, alert_enter: alertEnter, alert_exit: alertExit })
+      await api.geofences.create({ name, center: { lat: center.lat, lng: center.lng }, radius, deviceId, notifyEnter: alertEnter, notifyExit: alertExit })
       setShowMap(false); setCenter(null); setName(''); setRadius(500)
       load()
     } catch (e) { alert(e.message) }
@@ -74,7 +76,7 @@ export default function Geofences() {
 
   async function handleDelete(geofenceId) {
     if (!window.confirm(isAr ? 'حذف السياج؟' : 'Supprimer la zone ?')) return
-    try { await api.geofences.remove(deviceId, geofenceId); load() } catch (e) { alert(e.message) }
+    try { await api.geofences.remove(geofenceId); load() } catch (e) { alert(e.message) }
   }
 
   const cardStyle = { background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }
