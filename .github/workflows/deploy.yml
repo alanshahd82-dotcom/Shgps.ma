@@ -25,9 +25,6 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
-            # شبكة أمان: فرض BrowserRouter
-            sed -i 's/HashRouter/BrowserRouter/g' src/App.jsx
-            
             # تثبيت الاعتمادات وبناء الواجهة
             npm install
             npm run build
