@@ -77,16 +77,14 @@ export const api = {
   },
   driverBehavior: {
     saveScore: (deviceId, payload) =>
-      fetch(`/api/driver-behavior/scores`, {
+      apiFetch('/driver-behavior/scores', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ deviceId, ...payload }),
-      }).then(r => r.json()),
+      }),
     getScores: (deviceId, days = 30) =>
-      fetch(`/api/driver-behavior/scores?deviceId=${deviceId}&days=${days}`, { credentials: 'include' }).then(r => r.json()),
+      apiFetch(`/driver-behavior/scores?deviceId=${deviceId}&days=${days}`),
     getSummary: (deviceId) =>
-      fetch(`/api/driver-behavior/summary?deviceId=${deviceId}`, { credentials: 'include' }).then(r => r.json()),
+      apiFetch(`/driver-behavior/summary?deviceId=${deviceId}`),
   },
   sharing: {
     create: (deviceId, expireHours = 24) => apiFetch('/sharing', { method: 'POST', body: JSON.stringify({ deviceId, expireHours }) }),

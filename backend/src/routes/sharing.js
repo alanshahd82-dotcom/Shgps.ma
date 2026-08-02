@@ -9,7 +9,7 @@ export const sharingRouter = Router()
 // POST /api/sharing — create share link for a device (24h)
 sharingRouter.post('/', requireAuth, async (req, res) => {
   try {
-    const { deviceId } = req.body
+    const { deviceId, expireHours = 24 } = req.body
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
@@ -19,7 +19,8 @@ sharingRouter.post('/', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' })
 
     const token = crypto.randomBytes(24).toString('hex')
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const hours = Math.min(Math.max(Number(expireHours) || 24, 1), 168)
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000)
 
     await db.query(
       `INSERT INTO share_links (token, device_id, expires_at) VALUES ($1,$2,$3)`,

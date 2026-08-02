@@ -8,7 +8,12 @@ import { defineConfig } from 'vite'
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:3001',
+          target: `http://localhost:${process.env.BACKEND_PORT || 3001}`,
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: `ws://localhost:${process.env.BACKEND_PORT || 3001}`,
+          ws: true,
           changeOrigin: true,
         },
       },

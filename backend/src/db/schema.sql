@@ -13,9 +13,56 @@
     max_devices   INTEGER DEFAULT 5,
     expiry_date   TIMESTAMP,
     traccar_id    INTEGER UNIQUE,
-    avatar        VARCHAR(10),
-    created_at    TIMESTAMP DEFAULT NOW(),
-    updated_at    TIMESTAMP DEFAULT NOW()
+    avatar                  VARCHAR(10),
+    must_change_password    BOOLEAN DEFAULT FALSE,
+    notification_prefs      JSONB DEFAULT '{}',
+    created_at              TIMESTAMP DEFAULT NOW(),
+    updated_at              TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS local_geofences (
+      id           SERIAL PRIMARY KEY,
+      user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      device_id    INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+      name         VARCHAR(255) NOT NULL,
+      type         VARCHAR(20) NOT NULL DEFAULT 'circle',
+      coords       JSONB NOT NULL,
+      radius       NUMERIC(10,2),
+      notify_enter BOOLEAN DEFAULT TRUE,
+      notify_exit  BOOLEAN DEFAULT TRUE,
+      created_at   TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS maintenance_logs (
+      id               SERIAL PRIMARY KEY,
+      device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+      type             VARCHAR(50) NOT NULL,
+      note             TEXT,
+      mileage          NUMERIC(12,2),
+      date             TIMESTAMP DEFAULT NOW(),
+      next_due_mileage NUMERIC(12,2),
+      created_at       TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS share_links (
+      id         SERIAL PRIMARY KEY,
+      token      VARCHAR(64) UNIQUE NOT NULL,
+      device_id  INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS driver_behavior_scores (
+      id               SERIAL PRIMARY KEY,
+      device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+      user_id          INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      score            INTEGER NOT NULL DEFAULT 100,
+      speeding_events  INTEGER DEFAULT 0,
+      idle_min         INTEGER DEFAULT 0,
+      trip_count       INTEGER DEFAULT 0,
+      recorded_date    DATE NOT NULL DEFAULT CURRENT_DATE,
+      updated_at       TIMESTAMP DEFAULT NOW(),
+      UNIQUE (device_id, recorded_date)
     );
 
     CREATE TABLE IF NOT EXISTS devices (

@@ -3,7 +3,7 @@
 -- ═══════════════════════════════════════════════════
 
 -- Maintenance table
-CREATE TABLE IF NOT EXISTS maintenance (
+CREATE TABLE IF NOT EXISTS maintenance_logs (
   id          SERIAL PRIMARY KEY,
   device_id   INTEGER NOT NULL,
   client_id   INTEGER NOT NULL,
@@ -50,8 +50,8 @@ CREATE TABLE IF NOT EXISTS driver_behavior_scores (
 );
 
 -- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_maintenance_device   ON maintenance(device_id);
-CREATE INDEX IF NOT EXISTS idx_maintenance_client   ON maintenance(client_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_device   ON maintenance_logs(device_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_client   ON maintenance_logs(client_id);
 CREATE INDEX IF NOT EXISTS idx_share_links_token    ON share_links(token);
 CREATE INDEX IF NOT EXISTS idx_share_links_device   ON share_links(device_id);
 CREATE INDEX IF NOT EXISTS idx_driver_scores_device ON driver_behavior_scores(device_id, date);

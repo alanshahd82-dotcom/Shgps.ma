@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Check, Smartphone, Wifi, Server,
-  MessageSquare, Copy, CheckCheck, Info, Zap
+  MessageSquare, Copy, CheckCheck, Info, Zap, CheckCircle2, AlertCircle
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
+import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 
 const DEVICE_TYPES = [
@@ -56,6 +57,63 @@ function copyText(text) {
     ta.value = text; document.body.appendChild(ta); ta.select()
     document.execCommand('copy'); document.body.removeChild(ta)
   }
+}
+
+// ── Step: Vehicle Data ────────────────────────────────────────────────────────
+function StepVehicleData({ imei, setImei, vehicleName, setVehicleName, plate, setPlate, lang }) {
+  const isAr = lang === 'ar'
+  const isIMEIValid = /^\d{15}$/.test(imei.trim())
+  return (
+    <div className="space-y-4">
+      <h2 className="text-white font-bold text-base">
+        {isAr ? 'بيانات الجهاز' : 'Informations de l\'appareil'}
+      </h2>
+      <p className="text-slate-400 text-xs">
+        {isAr ? 'أدخل رقم IMEI واسم المركبة' : 'Entrez l\'IMEI et le nom du véhicule'}
+      </p>
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">IMEI</label>
+        <div className="relative">
+          <input
+            type="tel"
+            maxLength={15}
+            value={imei}
+            onChange={e => setImei(e.target.value.replace(/\D/g, '').slice(0, 15))}
+            placeholder="358900001234567"
+            className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm focus:outline-none focus:border-accent pr-10"
+          />
+          <span className={`absolute left-3 top-3 text-lg ${imei.length === 15 ? (isIMEIValid ? 'text-accent' : 'text-red-400') : 'text-slate-600'}`}>
+            {imei.length === 15 ? (isIMEIValid ? '✅' : '❌') : '⬜'}
+          </span>
+        </div>
+        <p className="text-slate-500 text-[11px] mt-1">
+          {isAr ? `${imei.length}/15 رقم` : `${imei.length}/15 chiffres`}
+        </p>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
+          {isAr ? 'اسم المركبة' : 'Nom du véhicule'}
+        </label>
+        <input
+          value={vehicleName}
+          onChange={e => setVehicleName(e.target.value)}
+          placeholder={isAr ? 'مثال: سيارة الشركة' : 'Ex: Voiture société'}
+          className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none focus:border-accent"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
+          {isAr ? 'رقم اللوحة' : 'Plaque d\'immatriculation'}
+        </label>
+        <input
+          value={plate}
+          onChange={e => setPlate(e.target.value.toUpperCase())}
+          placeholder="A 12345 XX"
+          className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm uppercase focus:outline-none focus:border-accent"
+        />
+      </div>
+    </div>
+  )
 }
 
 // ── Step components ───────────────────────────────────────────────────────────
@@ -235,20 +293,25 @@ function StepCommands({ commands, lang }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const STEPS = ['device', 'network', 'server', 'commands']
+const STEPS = ['device', 'vehicleData', 'network', 'server', 'commands']
 
 export default function DeviceWizard() {
   const navigate = useNavigate()
   const { lang } = useApp()
   const isAr = lang === 'ar'
 
-  const [step, setStep]           = useState(0)
-  const [deviceType, setDeviceType] = useState('wanway')
-  const [carrier, setCarrier]     = useState('iam')
-  const [customApn, setCustomApn] = useState('')
-  const [server, setServer]       = useState('')
-  const [port, setPort]           = useState('5055')
-  const [pass, setPass]           = useState('0000')
+  const [step, setStep]               = useState(0)
+  const [deviceType, setDeviceType]   = useState('wanway')
+  const [imei, setImei]               = useState('')
+  const [vehicleName, setVehicleName] = useState('')
+  const [plate, setPlate]             = useState('')
+  const [saving, setSaving]           = useState(false)
+  const [saveError, setSaveError]     = useState(null)
+  const [carrier, setCarrier]         = useState('iam')
+  const [customApn, setCustomApn]     = useState('')
+  const [server, setServer]           = useState('')
+  const [port, setPort]               = useState('5055')
+  const [pass, setPass]               = useState('0000')
 
   const selectedCarrier = CARRIERS.find(c => c.value === carrier)
   const apn = carrier === 'custom' ? customApn : selectedCarrier?.apn || ''
@@ -257,14 +320,15 @@ export default function DeviceWizard() {
 
   const canNext = () => {
     if (step === 0) return !!deviceType
-    if (step === 1) return !!carrier && (carrier !== 'custom' || !!customApn.trim())
-    if (step === 2) return !!server.trim()
+    if (step === 1) return /^\d{15}$/.test(imei.trim()) && vehicleName.trim().length > 0
+    if (step === 2) return !!carrier && (carrier !== 'custom' || !!customApn.trim())
+    if (step === 3) return !!server.trim()
     return true
   }
 
   const stepLabels = isAr
-    ? ['نوع الجهاز', 'الشبكة', 'الخادم', 'الأوامر']
-    : ['Appareil', 'Réseau', 'Serveur', 'Commandes']
+    ? ['نوع الجهاز', 'بيانات الجهاز', 'الشبكة', 'الخادم', 'الأوامر']
+    : ['Appareil', 'Données', 'Réseau', 'Serveur', 'Commandes']
 
   return (
     <div className="min-h-[100dvh] flex flex-col" style={{ background: 'linear-gradient(180deg,#0d1b33 0%,#0a1225 100%)' }}>
@@ -302,9 +366,10 @@ export default function DeviceWizard() {
             exit={{ opacity: 0, x: isAr ? 20 : -20 }}
             transition={{ duration: 0.2 }}>
             {step === 0 && <StepDeviceType value={deviceType} onChange={setDeviceType} lang={lang} />}
-            {step === 1 && <StepNetwork carrier={carrier} setCarrier={setCarrier} customApn={customApn} setCustomApn={setCustomApn} lang={lang} />}
-            {step === 2 && <StepServer server={server} setServer={setServer} port={port} setPort={setPort} pass={pass} setPass={setPass} lang={lang} />}
-            {step === 3 && <StepCommands commands={commands} lang={lang} />}
+            {step === 1 && <StepVehicleData imei={imei} setImei={setImei} vehicleName={vehicleName} setVehicleName={setVehicleName} plate={plate} setPlate={setPlate} lang={lang} />}
+            {step === 2 && <StepNetwork carrier={carrier} setCarrier={setCarrier} customApn={customApn} setCustomApn={setCustomApn} lang={lang} />}
+            {step === 3 && <StepServer server={server} setServer={setServer} port={port} setPort={setPort} pass={pass} setPass={setPass} lang={lang} />}
+            {step === 4 && <StepCommands commands={commands} lang={lang} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -326,11 +391,36 @@ export default function DeviceWizard() {
               <ChevronRight size={15} />
             </button>
           ) : (
-            <button onClick={() => navigate('/client/devices')}
-              className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
-              <Check size={15} />
-              {isAr ? 'إنهاء' : 'Terminer'}
-            </button>
+            <div className="flex-1 flex flex-col gap-2">
+              <button
+                onClick={async () => {
+                  setSaving(true)
+                  setSaveError(null)
+                  try {
+                    await api.devices.quickAdd({
+                      name: vehicleName.trim(),
+                      imei: imei.trim(),
+                      type: 'car',
+                      plate: plate.trim() || null,
+                    })
+                    navigate('/client/devices')
+                  } catch (e) {
+                    setSaveError(e.message)
+                    setSaving(false)
+                  }
+                }}
+                disabled={saving}
+                className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-transform disabled:opacity-60"
+              >
+                <Check size={15} />
+                {saving
+                  ? (isAr ? 'جاري الحفظ...' : 'Enregistrement...')
+                  : (isAr ? '✅ حفظ الجهاز' : '✅ Enregistrer')}
+              </button>
+              {saveError && (
+                <p className="text-red-400 text-xs text-center">{saveError}</p>
+              )}
+            </div>
           )}
         </div>
       </div>
