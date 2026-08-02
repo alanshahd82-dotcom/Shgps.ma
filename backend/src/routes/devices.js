@@ -85,19 +85,24 @@ import { Router } from 'express'
       } catch {}
 
       res.json(rows.map(d => {
-        // Try by traccar_id first, fallback to IMEI match
+        // Position: by traccarId first, then IMEI fallback
         const p = pm[d.traccar_id] ?? positionByImei[d.imei] ?? null
+        // Traccar device entry (for authoritative status field)
+        const td = traccarById[d.traccar_id] ?? traccarByImei[d.imei] ?? null
+        // Status: Traccar device.status is the single source of truth (same as admin dashboard)
+        // Fallback: if device not in Traccar at all, derive from position presence
+        const status = td ? (td.status === 'online' ? 'online' : 'offline') : (p ? 'online' : 'offline')
         const localGeo = geofenceMap[d.id] || null
         return {
           id:        d.id,
-          traccarId: d.traccar_id,
+          traccarId: d.traccar_id ?? td?.id ?? null,
           name:      d.name,
           imei:      d.imei,
           type:      d.type,
           plate:     d.plate,
           clientId:  d.user_id,
           clientName:d.client_name ?? null,
-          status:    p ? 'online' : 'offline',
+          status,
           lat:       p?.latitude  ?? 0,
           lng:       p?.longitude ?? 0,
           speed:     p?.speed     ?? 0,
