@@ -55,12 +55,89 @@ geofencesRouter.get('/', requireAuth, async (req, res) => {
 // GET /api/geofences/:id — يجلب سياجاً واحداً بالـ ID
 geofencesRouter.get('/:id', requireAuth, async (req, res) => {
   try {
-    const geofences = await traccar.getGeofencesByDevice('')
-    const geofence = geofences.find(g => String(g.id) === String(req.params.id))
+    // Try local DB first
+    const { rows } = await db.query(
+      'SELECT * FROM local_geofences WHERE id=$1 AND user_id=$2',
+      [req.params.id, req.user.id]
+    )
+    if (rows[0]) return res.json(rows[0])
+    // Fallback to Traccar
+    const geofences = await traccar.getGeofencesByDevice('').catch(() => [])
+    const geofence  = geofences.find(g => String(g.id) === String(req.params.id))
     if (!geofence) return res.status(404).json({ error: 'Geofence not found' })
     res.json(geofence)
   } catch (err) {
     console.error('[geofences GET/:id]', err.message)
     res.status(500).json({ error: 'Failed to fetch geofence' })
+  }
+})
+
+// POST /api/geofences — create a geofence (local + attempt Traccar sync)
+geofencesRouter.post('/', requireAuth, async (req, res) => {
+  try {
+    const { name, center, radius, deviceId, notifyEnter, notifyExit } = req.body
+    if (!name || !center || !radius) {
+      return res.status(400).json({ error: 'name, center, and radius are required' })
+    }
+
+    let dbDeviceId = null
+    if (deviceId) {
+      const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+      const dev = devRows[0]
+      if (dev) {
+        if (!req.user.is_admin && dev.user_id !== req.user.id) {
+          return res.status(403).json({ error: 'Access denied' })
+        }
+        dbDeviceId = dev.id
+      }
+    }
+
+    // Save locally
+    const coords = JSON.stringify({ lat: center.lat, lng: center.lng })
+    const { rows } = await db.query(
+      `INSERT INTO local_geofences (user_id, device_id, name, type, coords, radius, notify_enter, notify_exit)
+       VALUES ($1, $2, $3, 'circle', $4, $5, $6, $7)
+       RETURNING *`,
+      [req.user.id, dbDeviceId, name.trim(), coords, Number(radius), notifyEnter !== false, notifyExit !== false]
+    )
+    const saved = rows[0]
+
+    // Attempt Traccar sync (non-blocking, don't fail on error)
+    let syncFailed = false
+    try {
+      await traccar.createGeofence(name.trim(), center.lat, center.lng, Number(radius))
+    } catch (syncErr) {
+      console.warn('[geofences POST] Traccar sync failed:', syncErr.message)
+      syncFailed = true
+    }
+
+    res.status(201).json({ ...saved, syncFailed })
+  } catch (err) {
+    console.error('[geofences POST]', err.message)
+    res.status(500).json({ error: 'Failed to create geofence' })
+  }
+})
+
+// DELETE /api/geofences/:id
+geofencesRouter.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM local_geofences WHERE id=$1 AND user_id=$2',
+      [req.params.id, req.user.id]
+    )
+    if (!rows[0] && !req.user.is_admin) {
+      return res.status(404).json({ error: 'Geofence not found' })
+    }
+    await db.query('DELETE FROM local_geofences WHERE id=$1', [req.params.id])
+
+    // Attempt Traccar delete (non-blocking)
+    if (rows[0]) {
+      traccar.deleteGeofence(req.params.id).catch(() => {})
+    }
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[geofences DELETE]', err.message)
+    res.status(500).json({ error: 'Failed to delete geofence' })
   }
 })

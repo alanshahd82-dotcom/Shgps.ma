@@ -1,306 +1,404 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Wrench, Plus, AlertCircle, CheckCircle, Trash2, X, FileText } from 'lucide-react'
+import {
+  Plus, Trash2, ChevronDown, Wrench, Cpu, AlertTriangle,
+  Calendar, Gauge, FileText, X, CheckCircle
+} from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
-import ConfirmModal from '../../components/ConfirmModal'
+import {
+  VehicleIcon, PageHeader, Card, Section, SectionTitle,
+  EmptyState, ErrorState, Spinner
+} from '../../components/ui'
 
-const TYPES_AR = [
-  { value: 'oil', label: 'تغيير الزيت' },
-  { value: 'tires', label: 'تغيير الإطارات' },
-  { value: 'brakes', label: 'فرامل' },
-  { value: 'battery', label: 'بطارية' },
-  { value: 'filter', label: 'فلتر الهواء' },
-  { value: 'other', label: 'أخرى' },
-]
-const TYPES_FR = [
-  { value: 'oil', label: 'Vidange huile' },
-  { value: 'tires', label: 'Changement pneus' },
-  { value: 'brakes', label: 'Freins' },
-  { value: 'battery', label: 'Batterie' },
-  { value: 'filter', label: 'Filtre à air' },
-  { value: 'other', label: 'Autre' },
+// ── Service type config ───────────────────────────────────────────────────────
+const SERVICE_TYPES = [
+  { key: 'oil_change',   ar: 'تغيير الزيت',       fr: 'Vidange',          color: '#f59e0b' },
+  { key: 'tires',        ar: 'إطارات',             fr: 'Pneus',            color: '#3b82f6' },
+  { key: 'brake',        ar: 'الفرامل',             fr: 'Freins',           color: '#ef4444' },
+  { key: 'inspection',   ar: 'فحص دوري',            fr: 'Visite technique', color: '#22c55e' },
+  { key: 'battery',      ar: 'بطارية',              fr: 'Batterie',         color: '#8b5cf6' },
+  { key: 'ac',           ar: 'تكييف',               fr: 'Climatisation',    color: '#06b6d4' },
+  { key: 'repair',       ar: 'إصلاح',               fr: 'Réparation',       color: '#0F2044' },
+  { key: 'other',        ar: 'أخرى',                fr: 'Autre',            color: '#94a3b8' },
 ]
 
-function typeLabel(type, lang) {
-  const list = lang === 'ar' ? TYPES_AR : TYPES_FR
-  return list.find(t => t.value === type)?.label || type
+function typeInfo(key, lang) {
+  const found = SERVICE_TYPES.find(s => s.key === key)
+  return {
+    label: found ? (lang === 'ar' ? found.ar : found.fr) : key,
+    color: found?.color ?? '#94a3b8',
+  }
 }
 
-function MaintenanceBadge({ log, device, lang }) {
+// ── Log card ──────────────────────────────────────────────────────────────────
+function LogCard({ log, lang, onDelete, index }) {
   const isAr = lang === 'ar'
-  if (!log.next_due_mileage || !device) return null
-  const current = device.totalDistance || 0
-  const diff = log.next_due_mileage - current
-  if (diff > 500) return null
-  const urgent = diff <= 0
+  const info = typeInfo(log.type, lang)
+  const date = log.date
+    ? new Date(log.date).toLocaleDateString(isAr ? 'ar-MA' : 'fr-MA')
+    : '—'
+  const isDue = log.next_due_mileage && log.mileage
+    && (log.next_due_mileage - log.mileage) < 500
+
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${urgent ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-400'}`}>
-      <AlertCircle size={10} />
-      {urgent
-        ? (isAr ? 'متأخر!' : 'En retard!')
-        : (isAr ? `${diff} كم متبق` : `${diff} km restants`)}
-    </span>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.04, 0.2) }}
+      className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden"
+    >
+      <div className="h-1" style={{ background: info.color }} />
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div
+            className="w-10 h-10 rounded-2xl flex-shrink-0 flex items-center justify-center"
+            style={{ background: `${info.color}18` }}
+          >
+            <Wrench size={16} style={{ color: info.color }} strokeWidth={1.8} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-primary-500 dark:text-white text-sm">{info.label}</p>
+              {isDue && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-[9px] font-bold">
+                  <AlertTriangle size={9} />
+                  {isAr ? 'موعد قريب' : 'Bientôt'}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-3 mt-1.5">
+              <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <Calendar size={10} strokeWidth={2} />
+                {date}
+              </span>
+              {log.mileage != null && (
+                <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  <Gauge size={10} strokeWidth={2} />
+                  {log.mileage.toLocaleString()} {t(lang, 'km')}
+                </span>
+              )}
+              {log.next_due_mileage != null && (
+                <span className="flex items-center gap-1 text-[11px] text-accent font-semibold">
+                  <Gauge size={10} strokeWidth={2} />
+                  {isAr ? 'موعد: ' : 'Prochain: '}
+                  {log.next_due_mileage.toLocaleString()} {t(lang, 'km')}
+                </span>
+              )}
+            </div>
+            {log.note && (
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 leading-relaxed">{log.note}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+          >
+            <Trash2 size={13} className="text-red-500" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
   )
 }
 
-/* ── Add Modal ─────────────────────────────────────────────── */
-function AddModal({ open, onClose, onAdd, devices, lang }) {
+// ── Add form sheet ─────────────────────────────────────────────────────────────
+function AddForm({ lang, devices, onSave, onClose }) {
   const isAr = lang === 'ar'
-  const types = isAr ? TYPES_AR : TYPES_FR
-  const [form, setForm] = useState({ deviceId: devices[0]?.id || '', type: 'oil', note: '', mileage: '', date: new Date().toISOString().split('T')[0], nextDueMileage: '' })
-  const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState(null)
+  const [form, setForm] = useState({
+    deviceId:       devices[0]?.id ? String(devices[0].id) : '',
+    type:           'oil_change',
+    date:           new Date().toISOString().slice(0, 10),
+    mileage:        '',
+    nextDueMileage: '',
+    note:           '',
+  })
+  const [saving, setSaving]   = useState(false)
+  const [err,    setErr]      = useState('')
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.deviceId) return setErr(isAr ? 'اختر الجهاز' : 'Sélectionnez un appareil')
-    setLoading(true); setErr(null)
+    if (!form.deviceId || !form.type || !form.date) {
+      setErr(isAr ? 'يرجى ملء الحقول المطلوبة' : 'Champs obligatoires manquants'); return
+    }
+    setSaving(true); setErr('')
     try {
-      await onAdd(form)
-      onClose()
-    } catch (e) { setErr(e.message) }
-    finally { setLoading(false) }
+      await onSave({
+        deviceId:       form.deviceId,
+        type:           form.type,
+        date:           form.date,
+        mileage:        form.mileage ? Number(form.mileage)        : null,
+        nextDueMileage: form.nextDueMileage ? Number(form.nextDueMileage) : null,
+        note:           form.note || null,
+      })
+    } catch (ex) { setErr(ex.message) }
+    finally { setSaving(false) }
   }
 
-  if (!open) return null
+  const inputCls = 'w-full bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm text-primary-500 dark:text-white placeholder-slate-400 outline-none focus:border-accent transition-colors'
+
   return (
-    <AnimatePresence>
-      <motion.div className="fixed inset-0 z-50 flex items-end justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-        <motion.div
-          className="relative w-full max-w-lg bg-slate-900 rounded-t-3xl p-5 pb-10"
-          initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white font-bold text-base">{isAr ? 'إضافة سجل صيانة' : 'Ajouter un entretien'}</h2>
-            <button onClick={onClose} className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center"><X size={14} className="text-slate-300" /></button>
+    <div className="fixed inset-0 z-50 flex flex-col">
+      {/* Scrim */}
+      <div className="flex-1 bg-black/40" onClick={onClose} />
+      {/* Sheet */}
+      <motion.div
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        className="bg-white dark:bg-slate-900 rounded-t-3xl px-4 pb-8 pt-4 shadow-2xl"
+        style={{ maxHeight: '88dvh', overflowY: 'auto' }}
+      >
+        {/* Handle */}
+        <div className="w-9 h-1 rounded-full bg-slate-300 dark:bg-slate-600 mx-auto mb-4" />
+
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-bold text-primary-500 dark:text-white text-base">
+            {t(lang, 'add_maintenance_log')}
+          </h2>
+          <button onClick={onClose} className="text-slate-400"><X size={18} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Device */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              {t(lang, 'device')} *
+            </label>
+            <select value={form.deviceId} onChange={e => set('deviceId', e.target.value)}
+              className={inputCls}>
+              {devices.map(d => (
+                <option key={d.id} value={String(d.id)}>{d.name}</option>
+              ))}
+            </select>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <select value={form.deviceId} onChange={e => setForm(f => ({ ...f, deviceId: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-accent">
-              {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-accent">
-              {types.map(tp => <option key={tp.value} value={tp.value}>{tp.label}</option>)}
-            </select>
-            <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-accent" />
-            <input type="number" placeholder={isAr ? 'المسافة الحالية (كم)' : 'Kilométrage actuel'} value={form.mileage}
-              onChange={e => setForm(f => ({ ...f, mileage: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-accent placeholder:text-slate-500" />
-            <input type="number" placeholder={isAr ? 'الكيلومتر القادم (اختياري)' : 'Prochain km (optionnel)'} value={form.nextDueMileage}
-              onChange={e => setForm(f => ({ ...f, nextDueMileage: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-accent placeholder:text-slate-500" />
-            <textarea rows={2} placeholder={isAr ? 'ملاحظة (اختياري)' : 'Note (optionnel)'} value={form.note}
-              onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-accent placeholder:text-slate-500 resize-none" />
-            {err && <p className="text-red-400 text-xs">{err}</p>}
-            <button type="submit" disabled={loading}
-              className="w-full py-3 bg-accent text-slate-900 rounded-xl text-sm font-bold disabled:opacity-60 active:scale-95 transition-transform">
-              {loading ? (isAr ? 'جاري الحفظ...' : 'Enregistrement...') : (isAr ? 'حفظ' : 'Enregistrer')}
-            </button>
-          </form>
-        </motion.div>
+
+          {/* Service type */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              {isAr ? 'نوع الخدمة' : 'Type de service'} *
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {SERVICE_TYPES.map(st => (
+                <button key={st.key} type="button"
+                  onClick={() => set('type', st.key)}
+                  className="py-2 rounded-xl text-[10px] font-semibold text-center transition-all"
+                  style={{
+                    background: form.type === st.key ? st.color : `${st.color}12`,
+                    color:      form.type === st.key ? 'white' : st.color,
+                    border:     form.type === st.key ? '1px solid transparent' : `1px solid ${st.color}30`,
+                  }}
+                >
+                  {isAr ? st.ar : st.fr}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              {isAr ? 'التاريخ' : 'Date'} *
+            </label>
+            <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputCls} />
+          </div>
+
+          {/* Mileage row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                {isAr ? 'العداد الحالي (كم)' : 'Kilométrage actuel'}
+              </label>
+              <input type="number" value={form.mileage} onChange={e => set('mileage', e.target.value)}
+                placeholder="150000" min="0" className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                {isAr ? 'الموعد القادم (كم)' : 'Prochain (km)'}
+              </label>
+              <input type="number" value={form.nextDueMileage} onChange={e => set('nextDueMileage', e.target.value)}
+                placeholder="155000" min="0" className={inputCls} />
+            </div>
+          </div>
+
+          {/* Note */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              {isAr ? 'ملاحظة' : 'Note'} ({isAr ? 'اختياري' : 'optionnel'})
+            </label>
+            <textarea value={form.note} onChange={e => set('note', e.target.value)}
+              rows={2} placeholder={isAr ? 'وصف الصيانة...' : 'Description…'}
+              className={`${inputCls} resize-none`} />
+          </div>
+
+          {err && <p className="text-xs text-red-500 text-center">{err}</p>}
+
+          <button type="submit" disabled={saving}
+            className="w-full py-3.5 bg-accent text-slate-900 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60">
+            {saving
+              ? <><div className="w-4 h-4 border-2 border-slate-900/40 border-t-slate-900 rounded-full animate-spin" />{isAr ? 'جاري الحفظ...' : 'Enregistrement...'}</>
+              : <><CheckCircle size={16} />{t(lang, 'save')}</>
+            }
+          </button>
+        </form>
       </motion.div>
-    </AnimatePresence>
+    </div>
   )
 }
 
-/* ── Main ─────────────────────────────────────────────────────── */
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function Maintenance() {
-  const navigate = useNavigate()
   const { devices, lang } = useApp()
   const isAr = lang === 'ar'
-  const [logs, setLogs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showAdd, setShowAdd] = useState(false)
-  const [filterDevice, setFilterDevice] = useState('all')
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
-  const loadLogs = async () => {
-    setLoading(true)
+  const [selectedId, setSelectedId]   = useState('')
+  const [logs,       setLogs]         = useState([])
+  const [loading,    setLoading]      = useState(false)
+  const [error,      setError]        = useState(null)
+  const [showAdd,    setShowAdd]      = useState(false)
+  const [deleting,   setDeleting]     = useState(null)
+  const [toast,      setToast]        = useState('')
+
+  const selectedDevice = devices.find(d => String(d.id) === String(selectedId))
+
+  const loadLogs = useCallback(async () => {
+    if (!selectedId) return
+    setLoading(true); setError(null)
+    try { setLogs(await api.maintenance.list(selectedId)) }
+    catch (err) { setError(err.message) }
+    finally { setLoading(false) }
+  }, [selectedId])
+
+  useEffect(() => { loadLogs() }, [loadLogs])
+  useEffect(() => {
+    if (!selectedId && devices.length > 0) setSelectedId(String(devices[0].id))
+  }, [devices]) // eslint-disable-line
+
+  const handleAdd = async (data) => {
+    const created = await api.maintenance.add(data)
+    setLogs(prev => [created, ...prev])
+    setShowAdd(false)
+    showToast(isAr ? 'تم إضافة السجل' : 'Entrée ajoutée')
+  }
+
+  const handleDelete = async (id) => {
+    setDeleting(id)
     try {
-      const all = await Promise.all(
-        devices.map(d => api.maintenance.list(d.id).catch(() => []))
-      )
-      setLogs(all.flat())
-    } catch {}
-    setLoading(false)
+      await api.maintenance.remove(id)
+      setLogs(prev => prev.filter(l => l.id !== id))
+      showToast(isAr ? 'تم الحذف' : 'Supprimé')
+    } catch { /* ignore */ }
+    finally { setDeleting(null) }
   }
 
-  useEffect(() => { loadLogs() }, []) // eslint-disable-line
-
-  const handleAdd = async (form) => {
-    await api.maintenance.add(form)
-    await loadLogs()
+  const showToast = (msg) => {
+    setToast(msg); setTimeout(() => setToast(''), 2500)
   }
-
-  const exportPDF = () => {
-    const dir = lang === 'ar' ? 'rtl' : 'ltr'
-    const deviceById2 = (id) => devices.find(d => String(d.id) === String(id))
-    const printLogs = filterDevice === 'all' ? logs : logs.filter(l => String(l.device_id) === filterDevice)
-    const rows = printLogs.map(log => {
-      const dev = deviceById2(log.device_id)
-      return `<tr>
-        <td>${typeLabel(log.type, lang)}</td>
-        <td>${dev?.name || log.device_id}</td>
-        <td>${new Date(log.date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA')}</td>
-        <td>${log.mileage ? Number(log.mileage).toLocaleString() + ' km' : '—'}</td>
-        <td>${log.next_due_mileage ? Number(log.next_due_mileage).toLocaleString() + ' km' : '—'}</td>
-        <td>${log.note || '—'}</td>
-      </tr>`
-    }).join('')
-    const html = `<!DOCTYPE html><html dir="${dir}"><head><meta charset="UTF-8">
-<title>${isAr ? 'سجل الصيانة' : 'Registre d\'entretien'}</title>
-<style>
-  body{font-family:Arial,sans-serif;margin:24px;color:#1e293b;direction:${dir}}
-  h1{color:#0F2044;font-size:18px;margin-bottom:16px}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th{background:#0F2044;color:#fff;padding:8px 6px;text-align:${lang === 'ar' ? 'right' : 'left'}}
-  td{padding:7px 6px;border-bottom:1px solid #e2e8f0}
-  tr:nth-child(even) td{background:#f8fafc}
-  @media print{body{margin:0}}
-</style></head><body>
-<h1>AtharGPS — ${isAr ? 'سجل الصيانة' : 'Registre d\'entretien'}</h1>
-<table><thead><tr>
-  <th>${isAr ? 'النوع' : 'Type'}</th>
-  <th>${isAr ? 'الجهاز' : 'Appareil'}</th>
-  <th>${isAr ? 'التاريخ' : 'Date'}</th>
-  <th>${isAr ? 'الكيلومتر' : 'Kilométrage'}</th>
-  <th>${isAr ? 'القادم' : 'Prochain'}</th>
-  <th>${isAr ? 'ملاحظة' : 'Note'}</th>
-</tr></thead><tbody>${rows}</tbody></table>
-<div style="margin-top:20px;font-size:10px;color:#94a3b8;text-align:center">AtharGPS © ${new Date().getFullYear()}</div>
-</body></html>`
-    const win = window.open('', '_blank')
-    if (!win) return
-    win.document.write(html); win.document.close(); win.focus()
-    setTimeout(() => { win.print(); win.close() }, 400)
-  }
-
-  const handleDelete = async () => {
-    if (!confirmDeleteId) return
-    try {
-      await api.maintenance.remove(confirmDeleteId)
-      setLogs(prev => prev.filter(l => l.id !== confirmDeleteId))
-    } catch { /* silent */ } finally {
-      setConfirmDeleteId(null)
-    }
-  }
-
-  const filtered = filterDevice === 'all' ? logs : logs.filter(l => String(l.device_id) === filterDevice)
-
-  const deviceById = (id) => devices.find(d => String(d.id) === String(id))
 
   return (
-    <div className="min-h-[100dvh] flex flex-col" style={{ background: 'linear-gradient(180deg,#0d1b33 0%,#0a1225 100%)' }}>
-      {/* Header */}
-      <div className="pt-14 px-4 pb-4" style={{ background: 'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
+    <div className="min-h-[100dvh] flex flex-col bg-gray-50 dark:bg-slate-900">
+
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <PageHeader>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-              <ChevronLeft size={18} className="text-white" />
-            </button>
-            <div>
-              <h1 className="text-white text-lg font-bold leading-tight">{isAr ? 'الصيانة' : 'Maintenance'}</h1>
-              <p className="text-blue-200/70 text-xs">{isAr ? 'سجّل وتابع صيانة مركباتك' : 'Suivez l\'entretien de vos véhicules'}</p>
-            </div>
+          <div>
+            <h1 className="text-white font-bold text-xl">{t(lang, 'maintenance')}</h1>
+            <p className="text-white/50 text-xs mt-0.5">
+              {logs.length} {isAr ? 'سجل صيانة' : 'entrée(s)'}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={exportPDF} title={isAr ? 'طباعة PDF' : 'Imprimer PDF'}
-              className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-transform">
-              <FileText size={17} className="text-white/70" />
+          <button
+            onClick={() => setShowAdd(true)}
+            className="w-9 h-9 rounded-full bg-accent flex items-center justify-center active:scale-90 transition-transform"
+            aria-label={t(lang, 'add_maintenance_log')}
+          >
+            <Plus size={18} className="text-slate-900" strokeWidth={2.5} />
+          </button>
+        </div>
+      </PageHeader>
+
+      {/* ── Device selector ─────────────────────────────────────────── */}
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          {devices.map(d => (
+            <button key={d.id} type="button"
+              onClick={() => setSelectedId(String(d.id))}
+              className="flex items-center gap-2 px-3 py-2 rounded-2xl text-[11px] font-semibold flex-shrink-0 transition-all"
+              style={{
+                background: String(d.id) === selectedId ? '#0F2044'       : 'rgba(255,255,255,0.9)',
+                color:      String(d.id) === selectedId ? 'white'         : '#64748b',
+                border:     String(d.id) === selectedId ? '1px solid transparent' : '1px solid #e2e8f0',
+              }}
+            >
+              <VehicleIcon type={d.type} iconSize={10} className="opacity-80" />
+              {d.name}
             </button>
-            <button onClick={() => setShowAdd(true)}
-              className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/25 active:scale-95 transition-transform">
-              <Plus size={18} className="text-slate-900 font-bold" />
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4 space-y-3">
-        {/* Filter */}
-        {devices.length > 1 && (
-          <select value={filterDevice} onChange={e => setFilterDevice(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-accent">
-            <option value="all">{isAr ? 'جميع الأجهزة' : 'Tous les appareils'}</option>
-            {devices.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-        )}
-
-        {loading ? (
-          <div className="text-center text-slate-500 py-16">{t(lang, 'loading')}</div>
-        ) : filtered.length === 0 ? (
-          <motion.div className="text-center py-20" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto mb-3">
-              <Wrench size={28} className="text-slate-600" />
-            </div>
-            <p className="text-slate-400 text-sm">{isAr ? 'لا توجد سجلات صيانة بعد' : 'Aucun entretien enregistré'}</p>
-            <button onClick={() => setShowAdd(true)}
-              className="mt-4 px-4 py-2 bg-accent text-slate-900 rounded-xl text-sm font-bold active:scale-95 transition-transform">
-              {isAr ? 'إضافة أول سجل' : 'Ajouter le premier'}
-            </button>
-          </motion.div>
-        ) : (
-          filtered.map((log, i) => {
-            const dev = deviceById(log.device_id)
-            return (
-              <motion.div key={log.id}
-                className="bg-slate-800/70 rounded-2xl p-4 border border-slate-700/40"
-                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+      {/* ── List ─────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto pb-24 px-4 pt-2 space-y-3">
+        {!selectedId ? (
+          <EmptyState icon={Cpu} title={isAr ? 'اختر مركبة' : 'Choisissez un véhicule'} />
+        ) : loading ? (
+          <div className="flex justify-center py-16"><Spinner size={32} /></div>
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadLogs} lang={lang} />
+        ) : logs.length === 0 ? (
+          <EmptyState
+            icon={Wrench}
+            title={t(lang, 'noMaintenanceLogs')}
+            subtitle={isAr
+              ? 'أضف أول سجل صيانة لتتبع تاريخ الخدمة'
+              : 'Ajoutez la première entrée pour suivre l\'historique d\'entretien'}
+            action={
+              <button
+                onClick={() => setShowAdd(true)}
+                className="px-5 py-2.5 bg-accent text-slate-900 rounded-xl text-sm font-bold active:scale-95 transition-transform"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                      <Wrench size={16} className="text-accent" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white leading-tight">{typeLabel(log.type, lang)}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5 truncate">{dev?.name || `#${log.device_id}`} · {new Date(log.date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA')}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setConfirmDeleteId(log.id)} className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 active:scale-90 transition-transform">
-                    <Trash2 size={13} className="text-red-400" />
-                  </button>
-                </div>
-                <div className="mt-2.5 flex flex-wrap gap-2 items-center">
-                  {log.mileage && (
-                    <span className="text-[11px] bg-slate-700/60 text-slate-400 px-2 py-0.5 rounded-full">
-                      {log.mileage.toLocaleString()} km
-                    </span>
-                  )}
-                  {log.next_due_mileage && (
-                    <span className="text-[11px] bg-slate-700/60 text-slate-400 px-2 py-0.5 rounded-full">
-                      {isAr ? 'القادم:' : 'Prochain:'} {log.next_due_mileage.toLocaleString()} km
-                    </span>
-                  )}
-                  <MaintenanceBadge log={log} device={dev} lang={lang} />
-                </div>
-                {log.note && <p className="text-[12px] text-slate-400 mt-2 leading-relaxed">{log.note}</p>}
-              </motion.div>
-            )
-          })
+                {t(lang, 'add_maintenance_log')}
+              </button>
+            }
+          />
+        ) : (
+          <AnimatePresence>
+            {logs.map((log, i) => (
+              <LogCard
+                key={log.id}
+                log={log}
+                lang={lang}
+                index={i}
+                onDelete={() => handleDelete(log.id)}
+              />
+            ))}
+          </AnimatePresence>
         )}
       </div>
 
-      <AddModal open={showAdd} onClose={() => setShowAdd(false)} onAdd={handleAdd} devices={devices} lang={lang} />
-      <ConfirmModal
-        open={!!confirmDeleteId}
-        title={isAr ? 'حذف سجل الصيانة' : 'Supprimer l\'entretien'}
-        message={isAr ? 'هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع عن هذا الإجراء.' : 'Êtes-vous sûr de vouloir supprimer cet entretien ? Cette action est irréversible.'}
-        confirmLabel={isAr ? 'حذف' : 'Supprimer'}
-        cancelLabel={isAr ? 'إلغاء' : 'Annuler'}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmDeleteId(null)}
-        danger
-      />
+      {/* ── Add sheet ──────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showAdd && (
+          <AddForm lang={lang} devices={devices} onSave={handleAdd} onClose={() => setShowAdd(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Toast ──────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-24 inset-x-4 bg-primary-500 text-white rounded-2xl px-4 py-3 text-center text-sm font-semibold shadow-xl z-50"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <ClientNav />
     </div>
   )

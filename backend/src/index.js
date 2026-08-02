@@ -16,6 +16,7 @@ import { maintenanceRouter } from './routes/maintenance.js'
 import { sharingRouter }     from './routes/sharing.js'
 import { leadsRouter }           from './routes/leads.js'
 import { driverBehaviorRouter } from './routes/driverBehavior.js'
+import { subUsersRouter }       from './routes/subUsers.js'
 import { config }        from './config.js'
 import { db }            from './db.js'
 
@@ -97,6 +98,24 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `)
+    // Sub-users support
+    await db.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS parent_client_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'owner'
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_parent_client_id ON users(parent_client_id)
+    `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS user_device_access (
+        id          SERIAL PRIMARY KEY,
+        sub_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        device_id   INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+        created_at  TIMESTAMP DEFAULT NOW(),
+        UNIQUE(sub_user_id, device_id)
+      )
+    `)
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)
@@ -121,6 +140,7 @@ app.use('/api/maintenance', maintenanceRouter)
 app.use('/api/sharing',     sharingRouter)
 app.use('/api/leads',           leadsRouter)
 app.use('/api/driver-behavior', driverBehaviorRouter)
+app.use('/api/sub-users',       subUsersRouter)
 
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'disconnected'

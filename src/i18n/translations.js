@@ -348,6 +348,32 @@ export const translations = {
     filterExpired:        'منتهي',
     filterSuspended:      'موقوف',
 
+    // Sub-users
+    subUsers:           'المستخدمون الفرعيون',
+    addSubUser:         'إضافة مستخدم',
+    subUserRole:        'الصلاحية',
+    roleOwner:          'مالك',
+    roleManager:        'مدير',
+    roleViewer:         'مشاهد',
+    roleReports:        'تقارير',
+    roleAlerts:         'تنبيهات',
+
+    // Geofences
+    notifyEnter:        'تنبيه الدخول',
+    notifyExit:         'تنبيه الخروج',
+
+    // Alert types (full list)
+    speeding:           'تجاوز السرعة',
+    geofence_enter:     'دخول منطقة',
+    geofence_exit:      'خروج من منطقة',
+    low_battery:        'بطارية منخفضة',
+    power_cut:          'انقطاع الطاقة',
+    engine_on:          'تشغيل المحرك',
+    engine_off:         'إيقاف المحرك',
+    long_stop:          'توقف طويل',
+    device_offline:     'الجهاز غير متصل',
+    unusual_movement:   'حركة غير اعتيادية',
+
     // Device setup wizard
     deviceSetupTitle:   'تركيب جهاز جديد',
     deviceSetupWizard:  'معالج التركيب',
@@ -609,6 +635,32 @@ export const translations = {
     filterSoon:                'Expirent bientôt',
     filterExpired:             'Expirés',
     filterSuspended:           'Suspendus',
+
+    // Sub-users
+    subUsers:           'Sous-utilisateurs',
+    addSubUser:         'Ajouter un utilisateur',
+    subUserRole:        'Rôle',
+    roleOwner:          'Propriétaire',
+    roleManager:        'Gestionnaire',
+    roleViewer:         'Observateur',
+    roleReports:        'Rapports',
+    roleAlerts:         'Alertes',
+
+    // Geofences
+    notifyEnter:        'Alerte entrée',
+    notifyExit:         'Alerte sortie',
+
+    // Alert types (full list)
+    speeding:           'Excès de vitesse',
+    geofence_enter:     "Entrée dans la zone",
+    geofence_exit:      'Sortie de zone',
+    low_battery:        'Batterie faible',
+    power_cut:          'Coupure alimentation',
+    engine_on:          'Moteur allumé',
+    engine_off:         'Moteur éteint',
+    long_stop:          'Arrêt prolongé',
+    device_offline:     'Appareil hors ligne',
+    unusual_movement:   'Mouvement inhabituel',
 
     // Device setup wizard
     deviceSetupTitle:   'Installer un appareil',

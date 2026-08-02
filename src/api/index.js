@@ -94,4 +94,16 @@ export const api = {
     submit: (data) => apiFetch('/leads', { method: 'POST', body: JSON.stringify(data) }),
     list:   ()     => apiFetch('/leads'),
   },
+  geofences: {
+    list:   ()     => apiFetch('/geofences'),
+    get:    (id)   => apiFetch(`/geofences/${id}`),
+    create: (data) => apiFetch('/geofences', { method: 'POST', body: JSON.stringify(data) }),
+    remove: (id)   => apiFetch(`/geofences/${id}`, { method: 'DELETE' }),
+  },
+  subUsers: {
+    list:   ()           => apiFetch('/sub-users'),
+    create: (data)       => apiFetch('/sub-users',       { method: 'POST',   body: JSON.stringify(data) }),
+    update: (id, data)   => apiFetch(`/sub-users/${id}`, { method: 'PATCH',  body: JSON.stringify(data) }),
+    remove: (id)         => apiFetch(`/sub-users/${id}`, { method: 'DELETE' }),
+  },
 }
