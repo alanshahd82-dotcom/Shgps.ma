@@ -1,5 +1,5 @@
 /**
- * أداة إنشاء مستخدم جديد في قاعدة البيانات
+ * إنشاء أو تحديث مستخدم في قاعدة البيانات
  * الاستخدام:
  *   node backend/src/db/create-user.js EMAIL PASSWORD "الاسم الكامل"
  * مثال:
@@ -20,10 +20,13 @@ if (!email || !password) {
 const hash = await bcrypt.hash(password, 10)
 
 const { rows } = await db.query(
-  `INSERT INTO users (email, password_hash, full_name, role, is_active)
-   VALUES ($1, $2, $3, 'client', true)
-   ON CONFLICT (email) DO UPDATE SET password_hash=$2, full_name=$3, is_active=true
-   RETURNING id, email, full_name`,
+  `INSERT INTO users (email, password_hash, name, is_active)
+   VALUES ($1, $2, $3, true)
+   ON CONFLICT (email) DO UPDATE
+     SET password_hash = EXCLUDED.password_hash,
+         name          = EXCLUDED.name,
+         is_active     = true
+   RETURNING id, email, name`,
   [email.toLowerCase().trim(), hash, name]
 )
 
