@@ -1,426 +1,250 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Plus, Trash2, MapPin, Circle, Bell, BellOff, Check,
-  X, Loader2, TriangleAlert, AlertCircle, ChevronDown
-} from 'lucide-react'
+import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Car, Loader2 } from 'lucide-react'
 import { MapContainer, TileLayer, Circle as LeafletCircle, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
-import {
-  VehicleIcon, PageHeader, Card, Section, SectionTitle,
-  EmptyState, ErrorState, Spinner
-} from '../../components/ui'
 
-// ── Leaflet marker icon ───────────────────────────────────────────────────────
 const centerIcon = L.divIcon({
   className: '',
-  html: `<div style="width:20px;height:20px;border-radius:50%;background:#0F2044;border:3px solid #00D97E;box-shadow:0 0 0 4px rgba(0,217,126,0.25)"></div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
+  html: '<div style="width:18px;height:18px;border-radius:50%;background:#0F2044;border:3px solid #00D97E;box-shadow:0 0 0 5px rgba(0,217,126,0.22)"></div>',
+  iconSize: [18,18], iconAnchor: [9,9],
 })
 
-// ── Click handler inside map ──────────────────────────────────────────────────
 function MapClickHandler({ onMapClick, enabled }) {
-  useMapEvents({
-    click: (e) => { if (enabled) onMapClick(e.latlng) },
-  })
+  useMapEvents({ click: e => { if (enabled) onMapClick(e.latlng) } })
   return null
 }
 
-// ── Auto-fit bounds ───────────────────────────────────────────────────────────
 function FitBounds({ center, radius }) {
   const map = useMap()
   useEffect(() => {
-    if (center) {
-      map.fitBounds(
-        L.latLng(center).toBounds(radius * 2.5),
-        { padding: [40, 40], maxZoom: 16, animate: true }
-      )
-    }
-  }, [center, radius]) // eslint-disable-line
+    if (center) map.fitBounds(L.latLng(center).toBounds(radius * 2.5), { padding:[40,40], maxZoom:16, animate:true })
+  }, [center, radius])
   return null
 }
 
-// ── Geofence map drawer ───────────────────────────────────────────────────────
-function GeofenceMap({ center, radius, drawing, onMapClick }) {
-  return (
-    <MapContainer
-      center={center || [33.5731, -7.5898]}
-      zoom={center ? 14 : 11}
-      style={{ height: '100%', width: '100%' }}
-      zoomControl={false}
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution=""
-      />
-      <MapClickHandler onMapClick={onMapClick} enabled={drawing} />
-      {center && (
-        <>
-          <FitBounds center={center} radius={radius} />
-          <LeafletCircle
-            center={center}
-            radius={radius}
-            pathOptions={{
-              color: '#0F2044',
-              fillColor: '#0F2044',
-              fillOpacity: 0.12,
-              weight: 2.5,
-              dashArray: drawing ? '6 4' : undefined,
-            }}
-          />
-          <Marker position={center} icon={centerIcon} />
-        </>
-      )}
-    </MapContainer>
-  )
-}
-
-// ── Geofence list card ────────────────────────────────────────────────────────
-function GeofenceCard({ geofence, lang, onDelete, deleting }) {
+export default function Geofences() {
+  const { devices, lang } = useApp()
+  const [geofences, setGeofences] = useState([])
+  const [deviceId, setDeviceId]   = useState('')
+  const [loading, setLoading]     = useState(false)
+  const [showMap, setShowMap]     = useState(false)
+  const [drawing, setDrawing]     = useState(false)
+  const [center, setCenter]       = useState(null)
+  const [radius, setRadius]       = useState(500)
+  const [name, setName]           = useState('')
+  const [alertEnter, setAlertEnter] = useState(true)
+  const [alertExit, setAlertExit]   = useState(true)
+  const [saving, setSaving]         = useState(false)
+  const [showDevices, setShowDevices] = useState(false)
   const isAr = lang === 'ar'
-  const coords = (() => {
+
+  const selectedDevice = devices.find(d => String(d.id) === String(deviceId))
+
+  useEffect(() => {
+    if (devices.length && !deviceId) setDeviceId(String(devices[0].id))
+  }, [devices])
+
+  const load = useCallback(async () => {
+    if (!deviceId) return
+    setLoading(true)
     try {
-      if (typeof geofence.coords === 'string') return JSON.parse(geofence.coords)
-      return geofence.coords
-    } catch { return null }
-  })()
-  const radius = geofence.radius || (geofence.area?.replace(/[^0-9.]/g, '') ?? '—')
+      const data = await api.geofences.list(deviceId)
+      setGeofences(Array.isArray(data) ? data : data.geofences || [])
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }, [deviceId])
 
-  return (
-    <Card className="!p-0 overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-accent to-emerald-400" />
-      <div className="p-4 flex items-start gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-          <Circle size={18} className="text-accent" strokeWidth={2} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-primary-500 dark:text-white text-sm truncate">
-            {geofence.name || (isAr ? 'منطقة بلا اسم' : 'Zone sans nom')}
-          </p>
-          <div className="flex flex-wrap gap-2 mt-1.5">
-            {radius && (
-              <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-full px-2 py-0.5">
-                {isAr ? `نصف القطر: ${radius} م` : `Rayon: ${radius} m`}
-              </span>
-            )}
-            {geofence.notify_enter && (
-              <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 rounded-full px-2 py-0.5 flex items-center gap-1">
-                <Bell size={8} />{isAr ? 'دخول' : 'Entrée'}
-              </span>
-            )}
-            {geofence.notify_exit && (
-              <span className="text-[10px] font-medium text-orange-600 bg-orange-50 dark:bg-orange-900/20 rounded-full px-2 py-0.5 flex items-center gap-1">
-                <Bell size={8} />{isAr ? 'خروج' : 'Sortie'}
-              </span>
-            )}
-          </div>
-        </div>
-        <button type="button" onClick={onDelete} disabled={deleting}
-          className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center active:scale-90 transition-transform disabled:opacity-50">
-          {deleting ? <Loader2 size={13} className="text-red-500 animate-spin" /> : <Trash2 size={13} className="text-red-500" />}
-        </button>
-      </div>
-    </Card>
-  )
-}
+  useEffect(() => { load() }, [load])
 
-// ── Add geofence sheet ────────────────────────────────────────────────────────
-function AddSheet({ lang, devices, onClose, onCreate }) {
-  const isAr = lang === 'ar'
-  const [step,          setStep]          = useState('draw')  // 'draw' | 'details'
-  const [center,        setCenter]        = useState(null)
-  const [radius,        setRadius]        = useState(500)
-  const [name,          setName]          = useState('')
-  const [deviceId,      setDeviceId]      = useState(devices[0]?.id ? String(devices[0].id) : '')
-  const [notifyEnter,   setNotifyEnter]   = useState(true)
-  const [notifyExit,    setNotifyExit]    = useState(true)
-  const [saving,        setSaving]        = useState(false)
-  const [err,           setErr]           = useState('')
-
-  const handleMapClick = (latlng) => {
-    setCenter([latlng.lat, latlng.lng])
-  }
-
-  const handleSave = async () => {
-    if (!center) { setErr(isAr ? 'انقر على الخريطة لتحديد مركز المنطقة' : 'Cliquez sur la carte pour placer le centre'); return }
-    if (!name.trim()) { setErr(isAr ? 'اسم المنطقة مطلوب' : 'Nom requis'); return }
-    if (!deviceId) { setErr(isAr ? 'اختر المركبة' : 'Choisissez le véhicule'); return }
-    setSaving(true); setErr('')
+  async function handleSave() {
+    if (!center || !name.trim()) return
+    setSaving(true)
     try {
-      await onCreate({ name: name.trim(), center, radius, deviceId, notifyEnter, notifyExit })
-    } catch (ex) { setErr(ex.message) }
+      await api.geofences.create(deviceId, { name, lat: center.lat, lng: center.lng, radius, alert_enter: alertEnter, alert_exit: alertExit })
+      setShowMap(false); setCenter(null); setName(''); setRadius(500)
+      load()
+    } catch (e) { alert(e.message) }
     finally { setSaving(false) }
   }
 
+  async function handleDelete(geofenceId) {
+    if (!window.confirm(isAr ? 'حذف السياج؟' : 'Supprimer la zone ?')) return
+    try { await api.geofences.remove(deviceId, geofenceId); load() } catch (e) { alert(e.message) }
+  }
+
+  const cardStyle = { background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col">
-      <div className="flex-1 flex flex-col">
-        {/* Map */}
-        <div style={{ height: '52%', minHeight: 240, position: 'relative' }}>
-          <GeofenceMap center={center} radius={radius} drawing onMapClick={handleMapClick} />
-          {!center && (
-            <div className="absolute inset-x-4 bottom-4 z-20 bg-primary-500/90 backdrop-blur-sm text-white text-xs font-semibold rounded-2xl px-4 py-2.5 text-center shadow-lg">
-              {isAr ? 'انقر على الخريطة لتحديد مركز المنطقة' : 'Cliquez sur la carte pour placer le centre'}
-            </div>
-          )}
-          {center && (
-            <div className="absolute top-3 inset-x-4 z-20 flex items-center gap-2 bg-accent/90 backdrop-blur-sm text-slate-900 text-xs font-bold rounded-2xl px-4 py-2.5 shadow-lg">
-              <Check size={12} />
-              {isAr ? 'المركز محدد — اضبط نصف القطر أدناه' : 'Centre placé — ajustez le rayon ci-dessous'}
-            </div>
-          )}
-          {/* Close */}
-          <button type="button" onClick={onClose}
-            className="absolute top-3 start-3 z-20 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow">
-            <X size={14} className="text-primary-500" />
-          </button>
-        </div>
+    <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
+      style={{ background:'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
 
-        {/* Bottom sheet */}
-        <div className="flex-1 bg-white dark:bg-slate-900 overflow-y-auto px-4 pt-4 pb-8">
-          {/* Radius slider */}
-          {center && (
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {isAr ? 'نصف القطر' : 'Rayon'}
-                </span>
-                <span className="text-xs font-bold text-accent">{radius} م</span>
-              </div>
-              <input type="range" min={100} max={10000} step={100} value={radius}
-                onChange={e => setRadius(Number(e.target.value))}
-                className="w-full accent-accent" />
-              <div className="flex justify-between text-[9px] text-slate-400 mt-0.5">
-                <span>100م</span><span>10كم</span>
-              </div>
-            </div>
-          )}
+      {/* Header */}
+      <div className="px-5 pt-12 pb-4 flex items-center justify-between">
+        <h1 className="text-white font-bold text-xl">{isAr ? 'المناطق الجغرافية' : 'Géofences'}</h1>
+        <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowMap(true)}
+          className="w-10 h-10 rounded-full flex items-center justify-center"
+          style={{ background:'#00D97E', boxShadow:'0 4px 16px rgba(0,217,126,0.4)' }}>
+          <Plus size={20} color="#0F2044"/>
+        </motion.button>
+      </div>
 
-          {/* Zone name */}
-          <div className="mb-4">
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-              {isAr ? 'اسم المنطقة' : 'Nom de la zone'} *
-            </label>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder={isAr ? 'مثل: المنزل، المكتب...' : 'Ex: Maison, Bureau…'}
-              className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm text-primary-500 dark:text-white placeholder-slate-400 outline-none focus:border-accent transition-colors"
-            />
+      {/* Device picker */}
+      <div className="px-5 mb-4">
+        <button onClick={() => setShowDevices(s => !s)}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl"
+          style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)' }}>
+          <div className="flex items-center gap-2">
+            <Car size={15} style={{ color:'#00D97E' }}/>
+            <span className="text-white text-sm font-medium">
+              {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
+            </span>
           </div>
-
-          {/* Device */}
-          <div className="mb-4">
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-              {t(lang, 'device')} *
-            </label>
-            <select value={deviceId} onChange={e => setDeviceId(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm text-primary-500 dark:text-white outline-none focus:border-accent transition-colors">
+          <ChevronDown size={15} style={{ color:'rgba(255,255,255,0.4)', transform: showDevices ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}/>
+        </button>
+        <AnimatePresence>
+          {showDevices && (
+            <motion.div initial={{ height:0,opacity:0 }} animate={{ height:'auto',opacity:1 }} exit={{ height:0,opacity:0 }}
+              className="overflow-hidden rounded-xl mt-1"
+              style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)' }}>
               {devices.map(d => (
-                <option key={d.id} value={String(d.id)}>{d.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Notifications */}
-          <div className="mb-5">
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
-              {isAr ? 'التنبيهات' : 'Notifications'}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: 'enter', ar: 'دخول المنطقة', fr: 'Entrée',  checked: notifyEnter, toggle: () => setNotifyEnter(v => !v) },
-                { key: 'exit',  ar: 'خروج المنطقة', fr: 'Sortie',  checked: notifyExit,  toggle: () => setNotifyExit(v => !v)  },
-              ].map(item => (
-                <button key={item.key} type="button" onClick={item.toggle}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all"
-                  style={{
-                    background: item.checked ? 'rgba(0,217,126,0.1)' : 'rgba(241,245,249,1)',
-                    color:      item.checked ? '#059669'              : '#94a3b8',
-                    border:     item.checked ? '1.5px solid rgba(0,217,126,0.3)' : '1.5px solid #e2e8f0',
-                  }}
-                >
-                  {item.checked ? <Bell size={12} /> : <BellOff size={12} />}
-                  {isAr ? item.ar : item.fr}
+                <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
+                  className="w-full px-4 py-3 text-left text-sm"
+                  style={{ color: String(d.id)===deviceId ? '#00D97E' : 'rgba(255,255,255,0.7)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+                  {d.name}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {err && (
-            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 rounded-xl p-3 mb-4">
-              <AlertCircle size={13} className="text-red-500 flex-shrink-0" />
-              <p className="text-xs text-red-600 dark:text-red-400">{err}</p>
-            </div>
+            </motion.div>
           )}
-
-          <button type="button" onClick={handleSave} disabled={saving || !center}
-            className="w-full py-3.5 bg-accent text-slate-900 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50">
-            {saving
-              ? <><Loader2 size={16} className="animate-spin" />{isAr ? 'جاري الحفظ...' : 'Enregistrement...'}</>
-              : <><Check size={16} />{isAr ? 'حفظ المنطقة' : 'Enregistrer la zone'}</>
-            }
-          </button>
-        </div>
+        </AnimatePresence>
       </div>
-    </div>
-  )
-}
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-export default function Geofences() {
-  const { devices, lang } = useApp()
-  const isAr = lang === 'ar'
-
-  const [geofences, setGeofences] = useState([])
-  const [loading,   setLoading]   = useState(true)
-  const [error,     setError]     = useState(null)
-  const [showAdd,   setShowAdd]   = useState(false)
-  const [deleting,  setDeleting]  = useState(null)
-  const [toast,     setToast]     = useState('')
-  const [syncWarn,  setSyncWarn]  = useState(false)
-
-  const loadGeofences = useCallback(async () => {
-    setLoading(true); setError(null)
-    try { setGeofences(await api.geofences.list()) }
-    catch (err) { setError(err.message) }
-    finally { setLoading(false) }
-  }, [])
-
-  useEffect(() => { loadGeofences() }, [loadGeofences])
-
-  const showToast = (msg) => {
-    setToast(msg); setTimeout(() => setToast(''), 2500)
-  }
-
-  const handleCreate = async ({ name, center, radius, deviceId, notifyEnter, notifyExit }) => {
-    const data = {
-      name,
-      deviceId,
-      center: { lat: center[0], lng: center[1] },
-      radius,
-      notifyEnter,
-      notifyExit,
-    }
-    const created = await api.geofences.create(data)
-    if (created?.syncFailed) setSyncWarn(true)
-    await loadGeofences()
-    setShowAdd(false)
-    showToast(isAr ? 'تم إنشاء المنطقة' : 'Zone créée')
-  }
-
-  const handleDelete = async (id) => {
-    setDeleting(id)
-    try {
-      await api.geofences.remove(id)
-      setGeofences(prev => prev.filter(g => String(g.id) !== String(id)))
-      showToast(isAr ? 'تم الحذف' : 'Supprimé')
-    } catch { /* ignore */ }
-    finally { setDeleting(null) }
-  }
-
-  return (
-    <div className="min-h-[100dvh] flex flex-col bg-gray-50 dark:bg-slate-900">
-
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <PageHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-white font-bold text-xl">{t(lang, 'geofencesPage')}</h1>
-            <p className="text-white/50 text-xs mt-0.5">
-              {geofences.length} {isAr ? 'منطقة محددة' : 'zone(s)'}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="w-9 h-9 rounded-full bg-accent flex items-center justify-center active:scale-90 transition-transform"
-            aria-label={t(lang, 'addGeofence')}
-          >
-            <Plus size={18} className="text-slate-900" strokeWidth={2.5} />
-          </button>
-        </div>
-      </PageHeader>
-
-      {/* ── Sync warning ─────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {syncWarn && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="mx-4 mt-3 flex items-start gap-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl px-4 py-3">
-            <TriangleAlert size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 dark:text-amber-400 flex-1 leading-relaxed">
-              {isAr
-                ? 'تم حفظ المنطقة محلياً. فشل المزامنة مع Traccar — ستعمل التنبيهات عند استعادة الاتصال.'
-                : 'Zone enregistrée localement. Synchronisation Traccar échouée — les alertes fonctionneront dès que la connexion sera rétablie.'}
-            </p>
-            <button onClick={() => setSyncWarn(false)}><X size={12} className="text-amber-500" /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── List ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto pb-24 px-4 pt-3 space-y-3">
+      {/* List */}
+      <div className="px-4 space-y-2.5">
         {loading ? (
-          <div className="flex justify-center py-16"><Spinner size={32} /></div>
-        ) : error ? (
-          <ErrorState message={error} onRetry={loadGeofences} lang={lang} />
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#00D97E', borderTopColor:'transparent' }}/>
+          </div>
         ) : geofences.length === 0 ? (
-          <EmptyState
-            icon={MapPin}
-            title={t(lang, 'noGeofences')}
-            subtitle={isAr
-              ? 'أنشئ منطقة جغرافية لتلقّي تنبيهات الدخول والخروج'
-              : 'Créez une zone pour recevoir des alertes d\'entrée/sortie'}
-            action={
-              <button
-                onClick={() => setShowAdd(true)}
-                className="px-5 py-2.5 bg-accent text-slate-900 rounded-xl text-sm font-bold active:scale-95 transition-transform"
-              >
-                {t(lang, 'addGeofence')}
+          <div className="flex flex-col items-center py-16 gap-3">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background:'rgba(255,255,255,0.05)' }}>
+              <MapPin size={26} style={{ color:'rgba(255,255,255,0.2)' }}/>
+            </div>
+            <p className="text-sm" style={{ color:'rgba(255,255,255,0.28)' }}>{isAr ? 'لا توجد مناطق جغرافية' : 'Aucune zone'}</p>
+            <button onClick={() => setShowMap(true)}
+              className="px-4 py-2 rounded-full text-xs font-semibold"
+              style={{ background:'rgba(0,217,126,0.12)', color:'#00D97E', border:'1px solid rgba(0,217,126,0.25)' }}>
+              {isAr ? '+ إضافة منطقة' : '+ Ajouter zone'}
+            </button>
+          </div>
+        ) : geofences.map((geo, i) => (
+          <motion.div key={geo.id || i} initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} transition={{ delay:i*0.04 }}
+            className="p-4 rounded-2xl" style={cardStyle}>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background:'rgba(0,217,126,0.1)' }}>
+                <MapPin size={20} style={{ color:'#00D97E' }}/>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm">{geo.name}</p>
+                <p className="text-xs mt-0.5" style={{ color:'rgba(255,255,255,0.35)' }}>{geo.radius} m</p>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="flex items-center gap-1 text-[10px]"
+                    style={{ color: geo.alert_enter ? '#00D97E' : 'rgba(255,255,255,0.25)' }}>
+                    <Bell size={10}/>{isAr ? 'دخول' : 'Entrée'}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px]"
+                    style={{ color: geo.alert_exit ? '#FF9500' : 'rgba(255,255,255,0.25)' }}>
+                    <Bell size={10}/>{isAr ? 'خروج' : 'Sortie'}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => handleDelete(geo.id)} className="p-2">
+                <Trash2 size={15} style={{ color:'rgba(255,59,48,0.6)' }}/>
               </button>
-            }
-          />
-        ) : (
-          <AnimatePresence>
-            {geofences.map((g, i) => (
-              <GeofenceCard
-                key={g.id ?? i}
-                geofence={g}
-                lang={lang}
-                deleting={deleting === g.id}
-                onDelete={() => handleDelete(g.id)}
-              />
-            ))}
-          </AnimatePresence>
-        )}
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* ── Add sheet ──────────────────────────────────────────────── */}
+      {/* Draw modal */}
       <AnimatePresence>
-        {showAdd && (
-          <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <AddSheet lang={lang} devices={devices} onClose={() => setShowAdd(false)} onCreate={handleCreate} />
+        {showMap && (
+          <motion.div className="fixed inset-0 z-50" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            style={{ background:'#080f1f' }}>
+            <div className="flex items-center justify-between px-5 pt-12 pb-3">
+              <h2 className="text-white font-bold text-base">{isAr ? 'رسم منطقة جديدة' : 'Nouvelle zone'}</h2>
+              <button onClick={() => { setShowMap(false); setCenter(null) }}>
+                <X size={22} style={{ color:'rgba(255,255,255,0.5)' }}/>
+              </button>
+            </div>
+
+            {/* Map */}
+            <div style={{ height:280, margin:'0 16px', borderRadius:16, overflow:'hidden', border:'1px solid rgba(255,255,255,0.1)' }}>
+              <MapContainer center={[31.7917,-7.0926]} zoom={5} style={{ height:'100%',width:'100%' }} zoomControl={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                <MapClickHandler onMapClick={ll => setCenter(ll)} enabled={true}/>
+                {center && (
+                  <>
+                    <Marker position={center} icon={centerIcon}/>
+                    <LeafletCircle center={center} radius={radius} pathOptions={{ color:'#00D97E', fillColor:'#00D97E', fillOpacity:0.1, weight:2 }}/>
+                    <FitBounds center={center} radius={radius}/>
+                  </>
+                )}
+              </MapContainer>
+            </div>
+
+            <p className="text-center text-xs mt-2 mb-3" style={{ color:'rgba(255,255,255,0.35)' }}>
+              {isAr ? 'اضغط على الخريطة لتحديد المركز' : 'Appuyez sur la carte pour centrer'}
+            </p>
+
+            <div className="px-5 space-y-3">
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.38)' }}>{isAr ? 'اسم المنطقة' : 'Nom de la zone'}</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder={isAr ? 'مثال: المنزل، المكتب...' : 'Ex: Maison, Bureau...'}
+                  className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                  style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs" style={{ color:'rgba(255,255,255,0.38)' }}>{isAr ? 'نصف القطر' : 'Rayon'}</label>
+                  <span className="text-xs font-bold" style={{ color:'#00D97E' }}>{radius} m</span>
+                </div>
+                <input type="range" min="100" max="5000" step="50" value={radius} onChange={e => setRadius(Number(e.target.value))}
+                  className="w-full" style={{ accentColor:'#00D97E' }}/>
+              </div>
+
+              <div className="flex items-center gap-4 py-2">
+                {[
+                  { key:'enter', label: isAr?'تنبيه دخول':'Alerte entrée', val:alertEnter, set:setAlertEnter },
+                  { key:'exit',  label: isAr?'تنبيه خروج':'Alerte sortie', val:alertExit,  set:setAlertExit  },
+                ].map(({ key, label, val, set }) => (
+                  <button key={key} onClick={() => set(v => !v)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                    style={val ? { background:'rgba(0,217,126,0.15)', color:'#00D97E', border:'1px solid rgba(0,217,126,0.3)' }
+                              : { background:'rgba(255,255,255,0.07)', color:'rgba(255,255,255,0.4)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                    {val ? <Bell size={11}/> : <BellOff size={11}/>}
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <motion.button disabled={!center || !name.trim() || saving} onClick={handleSave} whileTap={{ scale:0.97 }}
+                className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-40"
+                style={{ background:'linear-gradient(135deg,#00D97E,#00b86a)', boxShadow:'0 4px 16px rgba(0,217,126,0.3)' }}>
+                {saving ? '...' : (isAr ? 'حفظ المنطقة' : 'Enregistrer la zone')}
+              </motion.button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Toast ──────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 inset-x-4 bg-primary-500 text-white rounded-2xl px-4 py-3 text-center text-sm font-semibold shadow-xl z-50"
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <ClientNav />
+      <ClientNav/>
     </div>
   )
 }
