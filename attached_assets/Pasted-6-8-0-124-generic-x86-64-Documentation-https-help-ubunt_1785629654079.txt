@@ -1,0 +1,74 @@
+6.8.0-124-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Sun Aug  2 00:13:20 UTC 2026
+
+  System load:  0.16               Processes:             143
+  Usage of /:   28.4% of 32.86GB   Users logged in:       1
+  Memory usage: 49%                IPv4 address for eth0: 64.226.103.251
+  Swap usage:   19%                IPv4 address for eth0: 10.19.0.5
+
+Expanded Security Maintenance for Applications is not enabled.
+
+15 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+*** System restart required ***
+Last login: Sat Aug  1 21:58:28 2026 from 162.243.188.66
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:~# cd /opt/shgps && git pull origin main && npm install && npm run build
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+
+up to date, audited 280 packages in 2s
+
+36 packages are looking for funding
+  run `npm fund` for details
+
+6 vulnerabilities (3 moderate, 2 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+> athargps@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+✓ 22 modules transformed.
+x Build failed in 4.23s
+error during build:
+[vite:esbuild] Transform failed with 1 error:
+/opt/shgps/src/pages/client/Settings.jsx:8:9: ERROR: The symbol "useNavigate" has already been declared
+file: /opt/shgps/src/pages/client/Settings.jsx:8:9
+
+The symbol "useNavigate" has already been declared
+6  |    CheckCircle2, XCircle, Save, X, Moon, Sun, Shield, Smartphone, MapPin
+7  |  } from 'lucide-react'
+8  |  import { useNavigate } from 'react-router-dom'
+   |           ^
+9  |  import { useApp } from '../../context/AppContext'
+10 |  import { api } from '../../api/index.js'
+
+    at failureErrorWithLog (/opt/shgps/node_modules/esbuild/lib/main.js:1472:15)
+    at /opt/shgps/node_modules/esbuild/lib/main.js:755:50
+    at responseCallbacks.<computed> (/opt/shgps/node_modules/esbuild/lib/main.js:622:9)
+    at handleIncomingPacket (/opt/shgps/node_modules/esbuild/lib/main.js:677:12)
+    at Socket.readFromStdout (/opt/shgps/node_modules/esbuild/lib/main.js:600:7)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
