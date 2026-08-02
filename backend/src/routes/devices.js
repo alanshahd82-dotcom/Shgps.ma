@@ -47,8 +47,8 @@ import { Router } from 'express'
 
       // Build position map by Traccar device ID
       let pm = {}
-      // Build Traccar device map by IMEI (uniqueId) — fallback for devices with null traccar_id
-      let traccarByImei = {}
+      let traccarById  = {}   // Traccar device by numeric Traccar ID
+      let traccarByImei = {}  // Traccar device by IMEI (uniqueId) — fallback for null traccar_id
       let positionByImei = {}
       try {
         const [allPositions, allTraccarDevs] = await Promise.all([
@@ -57,10 +57,11 @@ import { Router } from 'express'
         ])
         for (const p of allPositions) pm[p.deviceId] = p
         for (const td of allTraccarDevs) {
+          traccarById[td.id] = td
           if (td.uniqueId) traccarByImei[td.uniqueId] = td
         }
         for (const p of allPositions) {
-          const td = allTraccarDevs.find(d => d.id === p.deviceId)
+          const td = traccarById[p.deviceId]
           if (td?.uniqueId) positionByImei[td.uniqueId] = p
         }
       } catch {}
