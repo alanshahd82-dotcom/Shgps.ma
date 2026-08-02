@@ -173,6 +173,8 @@ export default function AlertsScreen() {
           { paddingBottom: Platform.OS === 'web' ? 34 + 60 : insets.bottom + 80 },
         ]}
         scrollEnabled={!!alerts.length}
+        bounces={false}
+        overScrollMode="never"
         ListHeaderComponent={<PermissionsCard />}
         renderItem={({ item }) => <AlertRow alert={item} />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
