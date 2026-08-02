@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Battery, Signal, Clock, Plus, Cpu } from 'lucide-react'
+import { Search, X, Battery, Signal, Clock, Plus, Car } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -148,7 +148,8 @@ export default function DeviceList() {
       </PageHeader>
 
       {/* ── Sticky search + filter ──────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900 px-4 pt-3 pb-2 space-y-2.5 border-b border-gray-100 dark:border-slate-800">
+      <div className="sticky top-0 z-10 px-4 pt-3 pb-2 space-y-2.5 border-b border-gray-100 dark:border-slate-800"
+           style={{ background: 'rgba(249,250,251,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
         {/* Search bar */}
         <div className="flex items-center gap-2.5 bg-white dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-100 dark:border-slate-700 shadow-sm">
           <Search size={15} className="text-slate-400 flex-shrink-0" strokeWidth={2} />
@@ -215,7 +216,7 @@ export default function DeviceList() {
           {filtered.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <EmptyState
-                icon={Cpu}
+                icon={Car}
                 title={
                   search
                     ? (isAr ? 'لا توجد نتائج للبحث' : 'Aucun résultat')

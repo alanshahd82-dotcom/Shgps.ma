@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Bell, ChevronRight, Navigation, PauseCircle,
-  WifiOff, Map, BarChart2, Wrench, Car, Cpu
+  WifiOff, Map, BarChart2, Wrench, Car
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useApp } from '../../context/AppContext'
@@ -174,7 +174,7 @@ export default function ClientHome() {
 
         {/* Stat cards */}
         <div className="grid grid-cols-4 gap-2">
-          <StatCard Icon={Cpu}         label={isAr ? 'الكل' : 'Total'}       count={counts.total}   r={148} g={163} b={184} dimmed />
+          <StatCard Icon={Car}          label={isAr ? 'الكل' : 'Total'}       count={counts.total}   r={148} g={163} b={184} dimmed />
           <StatCard Icon={Navigation}  label={isAr ? 'يتحرك' : 'En mouv.'}   count={counts.moving}  r={34}  g={197} b={94}  />
           <StatCard Icon={PauseCircle} label={isAr ? 'متوقف' : 'Arrêté'}     count={counts.stopped} r={239} g={68}  b={68}  />
           <StatCard Icon={WifiOff}     label={isAr ? 'غير متصل' : 'H. ligne'} count={counts.offline} r={148} g={163} b={184} dimmed />
@@ -291,7 +291,7 @@ export default function ClientHome() {
           {recentDevices.length === 0 ? (
             <Card>
               <EmptyState
-                icon={Cpu}
+                icon={Car}
                 title={isAr ? 'لا توجد مركبات' : 'Aucun véhicule'}
                 subtitle={isAr ? 'ابدأ بإضافة جهاز تتبع' : 'Commencez par ajouter un tracker'}
                 action={

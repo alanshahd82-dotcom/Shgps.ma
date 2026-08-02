@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Plus, Trash2, ChevronDown, Wrench, Cpu, AlertTriangle,
+  Plus, Trash2, ChevronDown, Wrench, Car, AlertTriangle,
   Calendar, Gauge, FileText, X, CheckCircle
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
@@ -344,7 +344,7 @@ export default function Maintenance() {
       {/* ── List ─────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto pb-24 px-4 pt-2 space-y-3">
         {!selectedId ? (
-          <EmptyState icon={Cpu} title={isAr ? 'اختر مركبة' : 'Choisissez un véhicule'} />
+          <EmptyState icon={Car} title={isAr ? 'اختر مركبة' : 'Choisissez un véhicule'} />
         ) : loading ? (
           <div className="flex justify-center py-16"><Spinner size={32} /></div>
         ) : error ? (

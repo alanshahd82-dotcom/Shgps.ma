@@ -52,9 +52,9 @@ function formatDuration(minutes) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 
-function formatTime(iso) {
+function formatTime(iso, lang = 'ar') {
   if (!iso) return '—'
-  return new Date(iso).toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function Reports() {
@@ -100,7 +100,7 @@ export default function Reports() {
        lang === 'ar' ? 'أقصى سرعة' : 'Vit. max.',
        lang === 'ar' ? 'وقت التوقف (د)' : 'Arrêt (min)'],
       ...(data.trips || []).map(tr => [
-        tr.index, formatTime(tr.startTime), formatTime(tr.endTime),
+        tr.index, formatTime(tr.startTime, lang), formatTime(tr.endTime, lang),
         tr.durationMin, tr.distanceKm, tr.avgSpeed, tr.maxSpeed, tr.stopMin ?? 0,
       ])
     ]
@@ -389,7 +389,7 @@ export default function Reports() {
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-primary-500">
-                              {formatTime(trip.startTime)} — {formatTime(trip.endTime)}
+                              {formatTime(trip.startTime, lang)} — {formatTime(trip.endTime, lang)}
                             </p>
                             <p className="text-[10px] text-slate-400">
                               {formatDuration(trip.durationMin)} · {trip.avgSpeed} km/h {lang === 'ar' ? 'متوسط' : 'moy.'}

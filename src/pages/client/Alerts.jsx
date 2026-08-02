@@ -8,7 +8,7 @@ import {
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
-import { Card, EmptyState, Section, SectionTitle, PageHeader, StatusDot } from '../../components/ui'
+import { Card, EmptyState, Section, SectionTitle, PageHeader } from '../../components/ui'
 
 // ── Alert type config ─────────────────────────────────────────────────────────
 const ALERT_CFG = {

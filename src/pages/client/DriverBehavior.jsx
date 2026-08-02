@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Gauge, Clock, Navigation, AlertTriangle, TrendingUp, TrendingDown,
-  Info, ChevronDown, BarChart2, Cpu
+  Info, ChevronDown, BarChart2, Car
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
@@ -158,7 +158,7 @@ export default function DriverBehavior() {
               {selectedDevice
                 ? <VehicleIcon type={selectedDevice.type} iconSize={14} />
                 : <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                    <Cpu size={14} className="text-slate-400" />
+                    <Car size={14} className="text-slate-400" />
                   </div>
               }
               <span className="flex-1 text-start text-sm font-semibold text-primary-500 dark:text-white">
