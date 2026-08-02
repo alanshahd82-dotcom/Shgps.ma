@@ -1,68 +1,86 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Cpu, Bell, Settings, Wrench, ShieldCheck, Wifi, WifiOff } from 'lucide-react'
+import { Home, Cpu, Map, Bell, Settings, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
-export default function ClientNav() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { unreadCount, lang, wsConnected } = useApp()
-  const isAr = lang === 'ar'
+const NAV_ITEMS = [
+  { path: '/client/home',     icon: Home,     labelKey: 'home'     },
+  { path: '/client/devices',  icon: Cpu,      labelKey: 'devices'  },
+  { path: '/client/map',      icon: Map,      labelKey: 'liveMap', exact: true },
+  { path: '/client/alerts',   icon: Bell,     labelKey: 'alerts',  badge: true },
+  { path: '/client/settings', icon: Settings, labelKey: 'settings' },
+]
 
-  const items = [
-    { path: '/client/home',            icon: Home,        label: t(lang, 'home') },
-    { path: '/client/devices',         icon: Cpu,         label: t(lang, 'devices') },
-    { path: '/client/alerts',          icon: Bell,        label: t(lang, 'alerts'), badge: unreadCount },
-    { path: '/client/maintenance',     icon: Wrench,      label: isAr ? 'الصيانة' : 'Entretien' },
-    { path: '/client/driver-behavior', icon: ShieldCheck, label: isAr ? 'السائق' : 'Conduite' },
-    { path: '/client/settings',        icon: Settings,    label: t(lang, 'settings') },
-  ]
+export default function ClientNav() {
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  const { unreadCount, lang, wsConnected } = useApp()
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200/80 dark:border-slate-700/80 z-30 pb-safe">
-      {/* WebSocket connection indicator */}
-      <div className={`flex items-center justify-center gap-1.5 py-1 text-[9px] font-semibold transition-all duration-500 ${
+    <div
+      className="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-slate-900 border-t border-gray-200/80 dark:border-slate-700/80"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
+      {/* WS status strip */}
+      <div className={`flex items-center justify-center gap-1.5 py-[3px] text-[9px] font-semibold transition-colors ${
         wsConnected
-          ? 'text-emerald-500 bg-emerald-50/60 dark:bg-emerald-900/20'
-          : 'text-amber-500 bg-amber-50/60 dark:bg-amber-900/20'
+          ? 'text-emerald-500 bg-emerald-50/70 dark:bg-emerald-900/20'
+          : 'text-amber-500 bg-amber-50/70 dark:bg-amber-900/20'
       }`}>
         {wsConnected
-          ? <><Wifi size={9} />{t(lang, 'wsConnected')}</>
-          : <><WifiOff size={9} className="animate-pulse" />{t(lang, 'wsDisconnected')}</>
+          ? <><Wifi size={8} />{t(lang, 'wsConnected')}</>
+          : <><WifiOff size={8} className="animate-pulse" />{t(lang, 'wsDisconnected')}</>
         }
       </div>
 
-      <div className="flex items-center justify-around px-1 py-2">
-        {items.map(item => {
-          const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
-          const Icon = item.icon
+      {/* Nav items */}
+      <div className="flex items-center justify-around px-1 py-1.5">
+        {NAV_ITEMS.map(item => {
+          const active = item.exact
+            ? location.pathname === item.path
+            : location.pathname === item.path ||
+              location.pathname.startsWith(item.path + '/')
+          const Icon  = item.icon
+          const badge = item.badge ? unreadCount : 0
+
           return (
             <button
               key={item.path}
+              type="button"
               onClick={() => navigate(item.path)}
-              className={`flex min-w-[50px] min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-2xl transition-all duration-200 relative ${
-                active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'
-              }`}
+              className="relative flex flex-col items-center justify-center gap-0.5 min-w-[52px] min-h-[44px] rounded-2xl transition-all duration-200"
             >
-              <div className="relative">
-                <Icon
-                  size={18}
-                  strokeWidth={active ? 2.5 : 2}
-                  className={`transition-all duration-200 ${active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'}`}
+              {/* Active highlight */}
+              {active && (
+                <span
+                  className="absolute inset-x-1 inset-y-0.5 rounded-xl pointer-events-none"
+                  style={{ background: 'rgba(0,217,126,0.10)' }}
                 />
-                {item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
-                    {item.badge > 9 ? '9+' : item.badge}
+              )}
+
+              {/* Icon */}
+              <div className="relative z-10">
+                <Icon
+                  size={19}
+                  strokeWidth={active ? 2.5 : 1.8}
+                  className={`transition-colors duration-200 ${active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'}`}
+                />
+                {badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                    {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </div>
-              <span className={`text-[8px] font-medium transition-colors duration-200 leading-tight text-center ${active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'}`}>
-                {item.label}
+
+              {/* Label */}
+              <span
+                className={`text-[8px] font-semibold z-10 transition-colors duration-200 leading-tight ${
+                  active ? 'text-accent' : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                {t(lang, item.labelKey)}
               </span>
-              {active && (
-                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-accent" />
-              )}
             </button>
           )
         })}

@@ -1,107 +1,111 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bell, ChevronRight, Zap } from 'lucide-react'
+import {
+  Bell, ChevronRight, Navigation, PauseCircle,
+  WifiOff, Map, BarChart2, Wrench, Car, Cpu
+} from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
-import Carousel from '../../components/Carousel'
 import MapView from '../../components/MapView'
 import Logo from '../../components/Logo'
+import {
+  VehicleIcon, StatusBadge, getDeviceStatusKey, timeAgo,
+  Card, Section, SectionTitle, EmptyState
+} from '../../components/ui'
 
-// ── SVG Circular gauge ────────────────────────────────────────────────────────
-function CircularGauge({ value, max, label, unit, color = '#00D97E' }) {
-  const r  = 38
-  const cx = 50
-  const cy = 50
-  const circumference = 2 * Math.PI * r
-  const safeMax  = max > 0 ? max : 1
-  const ratio    = Math.min(value / safeMax, 1)
-  const dashOffset = circumference * (1 - ratio)
-
+// ── Stat card (header) ────────────────────────────────────────────────────────
+function StatCard({ Icon, label, count, r, g, b, dimmed }) {
   return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width="100" height="100" viewBox="0 0 100 100">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" className="dark:opacity-20" />
-        <circle
-          cx={cx} cy={cy} r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="10"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          strokeLinecap="round"
-          style={{ transform: 'rotate(-90deg)', transformOrigin: '50px 50px', transition: 'stroke-dashoffset 0.6s ease' }}
-        />
-        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="15" fontWeight="bold" fill={color}>{value}</text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="8" fill="#94a3b8">{unit}</text>
-      </svg>
-      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-center">{label}</p>
+    <div
+      className="flex-1 rounded-2xl px-2 py-2.5 flex flex-col items-center gap-0.5"
+      style={{
+        background: dimmed ? 'rgba(255,255,255,0.07)' : `rgba(${r},${g},${b},0.18)`,
+        border:     dimmed ? '1px solid rgba(255,255,255,0.08)' : `1px solid rgba(${r},${g},${b},0.28)`,
+      }}
+    >
+      <Icon size={14} color={dimmed ? 'rgba(255,255,255,0.45)' : `rgb(${r},${g},${b})`} strokeWidth={2} />
+      <p className="text-[22px] font-black text-white leading-none mt-0.5">{count}</p>
+      <p className="text-[8px] font-semibold text-white/65 uppercase tracking-wide text-center leading-tight">{label}</p>
     </div>
   )
 }
 
-// ── Device status badge ────────────────────────────────────────────────────────
-function getDeviceStatus(device) {
-  if (device.status !== 'online') return 'noSignal'
-  const speed = device.speed || 0
-  if (speed > 2) return 'running'
-  if (device.engineOn) return 'idle'
-  return 'stopped'
+// ── Shortcut button ───────────────────────────────────────────────────────────
+function Shortcut({ icon: Icon, label, to, color }) {
+  const navigate = useNavigate()
+  return (
+    <button
+      onClick={() => navigate(to)}
+      className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl active:scale-95 transition-transform"
+      style={{ background: `${color}12`, border: `1px solid ${color}22` }}
+    >
+      <Icon size={18} style={{ color }} strokeWidth={1.8} />
+      <span className="text-[10px] font-semibold" style={{ color }}>{label}</span>
+    </button>
+  )
 }
 
-// ── Status card ───────────────────────────────────────────────────────────────
-function StatusCard({ emoji, label, count, color }) {
+// ── Alert row ─────────────────────────────────────────────────────────────────
+const ALERT_DOT_COLORS = {
+  speeding: '#ef4444', geofence_enter: '#3b82f6', geofence_exit: '#f97316',
+  low_battery: '#f59e0b', power_cut: '#8b5cf6', engine_on: '#22c55e',
+  engine_off: '#94a3b8', long_stop: '#64748b', unusual_movement: '#ef4444',
+  device_offline: '#94a3b8', geofence_alert: '#3b82f6', battery_alert: '#f59e0b',
+  engine_alert: '#22c55e',
+}
+
+function AlertRow({ alert, lang }) {
+  const color = ALERT_DOT_COLORS[alert.type] || '#94a3b8'
+  const time  = alert.createdAt
+    ? new Date(alert.createdAt).toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA',
+        { hour: '2-digit', minute: '2-digit' })
+    : '—'
   return (
-    <div className={`flex-1 rounded-2xl px-2 py-2.5 text-center ${color}`}>
-      <p className="text-base leading-none mb-1">{emoji}</p>
-      <p className="text-lg font-black text-white leading-none">{count}</p>
-      <p className="text-[9px] font-semibold text-white/80 mt-0.5 leading-tight">{label}</p>
+    <div className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-xl px-3.5 py-2.5 border border-gray-100 dark:border-slate-700">
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-primary-500 dark:text-white truncate">
+          {t(lang, alert.type) || alert.type}
+        </p>
+        <p className="text-[10px] text-slate-400">{time}</p>
+      </div>
+      {!alert.read && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
     </div>
   )
 }
 
-// ── Device list card ──────────────────────────────────────────────────────────
-function DeviceCard({ device, onClick, lang }) {
-  const statusKey = getDeviceStatus(device)
-  const statusConfig = {
-    running:  { dot: 'bg-emerald-500', text: 'text-emerald-500', label: t(lang, 'running') },
-    idle:     { dot: 'bg-yellow-400',  text: 'text-yellow-500',  label: t(lang, 'idle')    },
-    stopped:  { dot: 'bg-red-500',     text: 'text-red-500',     label: t(lang, 'stopped') },
-    noSignal: { dot: 'bg-slate-400',   text: 'text-slate-400',   label: t(lang, 'noSignal')},
-  }
-  const st = statusConfig[statusKey]
-
+// ── Device row ────────────────────────────────────────────────────────────────
+function DeviceRow({ device, onClick, lang }) {
+  const st = getDeviceStatusKey(device)
   return (
     <motion.div
-      className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl p-3.5 shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer active:scale-98"
       onClick={onClick}
       whileTap={{ scale: 0.98 }}
+      className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl p-3.5 shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer"
     >
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${statusKey !== 'noSignal' ? 'bg-primary-50 dark:bg-primary-900/30' : 'bg-gray-100 dark:bg-slate-700'}`}>
-        {device.type === 'car' ? '🚗' : device.type === 'bike' ? '🏍️' : '🚚'}
-      </div>
-
+      <VehicleIcon type={device.type} iconSize={18} />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-primary-500 dark:text-white text-sm truncate">{device.name}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className={`text-xs font-medium flex items-center gap-1 ${st.text}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-            {st.label}
-          </span>
-          {statusKey === 'running' && (
-            <span className="text-xs text-slate-400 dark:text-slate-500">{device.speed} {t(lang, 'kmh')}</span>
+          <StatusBadge status={st} lang={lang} />
+          {st === 'moving' && (
+            <span className="text-[10px] text-slate-400 font-medium">{device.speed} {t(lang, 'kmh')}</span>
           )}
         </div>
       </div>
-
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-col items-end gap-1 flex-shrink-0">
         {device.battery != null && (
-          <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusKey !== 'noSignal' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'bg-gray-100 dark:bg-slate-700 text-gray-400'}`}>
-            🔋 {device.battery}%
-          </div>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+            device.battery < 30
+              ? 'text-red-500 bg-red-50 dark:bg-red-900/30'
+              : 'text-slate-500 bg-slate-100 dark:bg-slate-700'
+          }`}>
+            {device.battery}%
+          </span>
         )}
         <ChevronRight size={14} className="text-slate-300 dark:text-slate-600" />
       </div>
@@ -109,202 +113,209 @@ function DeviceCard({ device, onClick, lang }) {
   )
 }
 
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function ClientHome() {
   const navigate = useNavigate()
-  const { clientAuth, devices, alertsList, unreadCount, lang } = useApp()
+  const { clientAuth, devices, alertsList, unreadCount, lang, networkError } = useApp()
+  const isAr = lang === 'ar'
 
-  const clientDevices = devices
+  const counts = useMemo(() => ({
+    total:   devices.length,
+    moving:  devices.filter(d => getDeviceStatusKey(d) === 'moving').length,
+    stopped: devices.filter(d => getDeviceStatusKey(d) === 'stopped' || getDeviceStatusKey(d) === 'idle').length,
+    offline: devices.filter(d => getDeviceStatusKey(d) === 'offline').length,
+  }), [devices])
 
-  // Compute status breakdown
-  const statusCounts = useMemo(() => {
-    const running  = clientDevices.filter(d => getDeviceStatus(d) === 'running').length
-    const idle     = clientDevices.filter(d => getDeviceStatus(d) === 'idle').length
-    const stopped  = clientDevices.filter(d => getDeviceStatus(d) === 'stopped').length
-    const noSignal = clientDevices.filter(d => getDeviceStatus(d) === 'noSignal').length
-    return { running, idle, stopped, noSignal }
-  }, [devices]) // eslint-disable-line
-
-  // Daily km summary
-  const [summaryData, setSummaryData] = useState(null)
+  const [summary, setSummary] = useState(null)
 
   useEffect(() => {
-    api.reports.summary(7)
-      .then(data => setSummaryData(data))
-      .catch(() => { /* non-critical */ })
+    api.reports.summary(7).then(setSummary).catch(() => {})
   }, []) // eslint-disable-line
 
-  // Last 5 events from alertsList
-  const recentEvents = useMemo(() => alertsList.slice(0, 5), [alertsList])
-
-  const todayKm  = summaryData?.todayKm  ?? 0
-  const maxKm    = summaryData?.dailyData ? Math.max(...summaryData.dailyData.map(d => d.km), 1) : 1
-  const chartData = summaryData?.dailyData?.map(d => ({
-    name: new Date(d.date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { weekday: 'short' }),
+  const todayKm   = summary?.todayKm ?? 0
+  const chartData = summary?.dailyData?.map(d => ({
+    name: new Date(d.date).toLocaleDateString(isAr ? 'ar-MA' : 'fr-MA', { weekday: 'short' }),
     km:   d.km,
   })) || []
 
+  const recentAlerts  = alertsList.slice(0, 5)
+  const recentDevices = devices.slice(0, 3)
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-gray-50 dark:bg-slate-900">
-      <div className="h-full flex flex-col">
-        {/* Header */}
-        <div
-          className="flex-shrink-0 pt-14 pb-4 px-4"
-          style={{ background: 'linear-gradient(160deg, #0F2044 0%, #162d5e 100%)' }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <Logo size="sm" white />
-            <button
-              onClick={() => navigate('/client/alerts')}
-              className="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
-            >
-              <Bell size={18} className="text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-          </div>
 
-          <p className="text-white/60 text-xs">{t(lang, 'welcome')}،</p>
-          <p className="text-white font-bold text-lg mt-0.5">{clientAuth?.name || ''} 👋</p>
-
-          {/* 4 status cards */}
-          <div className="flex gap-2 mt-3">
-            <StatusCard emoji="🟢" label={t(lang, 'running')}  count={statusCounts.running}  color="bg-emerald-600/80" />
-            <StatusCard emoji="🟡" label={t(lang, 'idle')}     count={statusCounts.idle}     color="bg-yellow-500/80" />
-            <StatusCard emoji="🔴" label={t(lang, 'stopped')}  count={statusCounts.stopped}  color="bg-red-600/80" />
-            <StatusCard emoji="⚫" label={t(lang, 'noSignal')} count={statusCounts.noSignal} color="bg-slate-600/80" />
-          </div>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div
+        className="flex-shrink-0 pb-4 px-4"
+        style={{
+          paddingTop: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
+          background: 'linear-gradient(160deg, #071629 0%, #0F2044 55%, #162d5e 100%)',
+        }}
+      >
+        {/* Top row */}
+        <div className="flex items-center justify-between mb-4">
+          <Logo size="sm" white />
+          <button
+            onClick={() => navigate('/client/alerts')}
+            className="relative w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <Bell size={18} className="text-white" strokeWidth={1.8} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto mobile-scroll pb-20">
-          <Carousel />
+        {/* Greeting */}
+        <p className="text-white/50 text-xs">{t(lang, 'welcome')}</p>
+        <p className="text-white font-bold text-lg mb-4">{clientAuth?.name || ''}</p>
 
-          {/* Today KM gauge + 7-day chart */}
-          <div className="mx-3 mb-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-4">
-            <p className="font-bold text-primary-500 dark:text-white text-sm mb-3">{t(lang, 'kmToday')}</p>
+        {/* Stat cards */}
+        <div className="grid grid-cols-4 gap-2">
+          <StatCard Icon={Cpu}         label={isAr ? 'الكل' : 'Total'}       count={counts.total}   r={148} g={163} b={184} dimmed />
+          <StatCard Icon={Navigation}  label={isAr ? 'يتحرك' : 'En mouv.'}   count={counts.moving}  r={34}  g={197} b={94}  />
+          <StatCard Icon={PauseCircle} label={isAr ? 'متوقف' : 'Arrêté'}     count={counts.stopped} r={239} g={68}  b={68}  />
+          <StatCard Icon={WifiOff}     label={isAr ? 'غير متصل' : 'H. ligne'} count={counts.offline} r={148} g={163} b={184} dimmed />
+        </div>
+      </div>
+
+      {/* ── Scrollable body ─────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto pb-24 pt-3">
+
+        {/* Network error banner */}
+        {networkError && (
+          <div className="mx-3 mb-3 flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl px-4 py-3">
+            <WifiOff size={14} className="text-amber-500 flex-shrink-0" />
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+              {isAr ? 'تعذّر الاتصال بالخادم' : 'Impossible de joindre le serveur'}
+            </p>
+          </div>
+        )}
+
+        {/* Quick shortcuts */}
+        <Section>
+          <div className="grid grid-cols-4 gap-2">
+            <Shortcut icon={Map}      label={isAr ? 'الخريطة'  : 'Carte'}     to="/client/map"         color="#0F2044" />
+            <Shortcut icon={BarChart2} label={isAr ? 'التقارير' : 'Rapports'}  to="/client/reports"     color="#3b82f6" />
+            <Shortcut icon={Wrench}   label={isAr ? 'الصيانة'  : 'Entretien'} to="/client/maintenance" color="#f97316" />
+            <Shortcut icon={Car}      label={isAr ? 'المركبات' : 'Appareils'} to="/client/devices"     color="#8b5cf6" />
+          </div>
+        </Section>
+
+        {/* KM Today + 7-day chart */}
+        <Section>
+          <Card>
+            <SectionTitle>{t(lang, 'kmToday')}</SectionTitle>
             <div className="flex items-center gap-4">
-              <CircularGauge value={todayKm} max={Math.max(maxKm * 7, 100)} label={t(lang, 'todayKm')} unit={t(lang, 'km')} />
-              <div className="flex-1 h-[80px]">
+              <div className="flex flex-col items-center gap-1 flex-shrink-0 w-16">
+                <p className="text-3xl font-black text-accent leading-none">{todayKm}</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{t(lang, 'km')}</p>
+                <p className="text-[9px] text-slate-400">{isAr ? 'اليوم' : 'auj.'}</p>
+              </div>
+              <div className="flex-1 h-[72px]">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                      <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
-                      <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                    <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 8 }} tickLine={false} axisLine={false} />
                       <Tooltip
-                        contentStyle={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, border: 'none', background: '#0F2044', color: '#fff' }}
-                        formatter={(v) => [`${v} ${t(lang, 'km')}`, '']}
+                        contentStyle={{ fontSize: 10, padding: '3px 8px', borderRadius: 10, border: 'none', background: '#0F2044', color: '#fff' }}
+                        formatter={v => [`${v} ${t(lang, 'km')}`, '']}
                         labelStyle={{ display: 'none' }}
                       />
-                      <Line
-                        type="monotone"
-                        dataKey="km"
-                        stroke="#00D97E"
-                        strokeWidth={2}
-                        dot={{ r: 3, fill: '#00D97E', strokeWidth: 0 }}
-                        activeDot={{ r: 4 }}
-                      />
+                      <Line type="monotone" dataKey="km" stroke="#00D97E" strokeWidth={2.5}
+                        dot={{ r: 3, fill: '#00D97E', strokeWidth: 0 }} activeDot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-full flex items-center justify-center">
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {lang === 'ar' ? 'جاري تحميل البيانات...' : 'Chargement...'}
-                    </p>
+                    <p className="text-[10px] text-slate-400">{isAr ? 'جاري التحميل...' : 'Chargement...'}</p>
                   </div>
                 )}
               </div>
             </div>
-            {chartData.length > 0 && (
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-2 text-center">
-                {lang === 'ar' ? 'كيلومترات آخر 7 أيام' : 'Km des 7 derniers jours'}
-              </p>
-            )}
-          </div>
+          </Card>
+        </Section>
 
-          {/* Live Map */}
-          <div className="mx-3 mb-3">
-            <div className="flex items-center justify-between mb-2 px-1">
-              <p className="font-bold text-primary-500 dark:text-white text-sm">{t(lang, 'liveMap')}</p>
-              <span className="flex items-center gap-1 text-xs text-emerald-500 font-semibold">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                LIVE
-              </span>
-            </div>
-            <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-slate-700" style={{ height: 180 }}>
-              <MapView height="100%" zoom={11} />
-            </div>
-          </div>
-
-          {/* Recent events */}
-          {recentEvents.length > 0 && (
-            <div className="mx-3 mb-3">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <p className="font-bold text-primary-500 dark:text-white text-sm">{t(lang, 'lastEvents')}</p>
-                <button
-                  onClick={() => navigate('/client/alerts')}
-                  className="text-xs text-accent font-semibold flex items-center gap-0.5"
-                >
-                  {t(lang, 'viewAll')} <ChevronRight size={12} />
-                </button>
-              </div>
-              <div className="space-y-2">
-                {recentEvents.map((event, i) => (
-                  <div key={event.id || i}
-                    className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-xl px-3 py-2.5 border border-gray-100 dark:border-slate-700">
-                    <div className="w-2 h-2 rounded-full bg-accent flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-primary-500 dark:text-white truncate">
-                        {t(lang, event.type) || event.type}
-                      </p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                        {event.createdAt
-                          ? new Date(event.createdAt).toLocaleTimeString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' })
-                          : '—'}
-                      </p>
-                    </div>
-                    {!event.read && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Devices list */}
-          <div className="mx-3 mb-3">
-            <div className="flex items-center justify-between mb-2 px-1">
-              <p className="font-bold text-primary-500 dark:text-white text-sm">{t(lang, 'myDevices')}</p>
-              <button
-                onClick={() => navigate('/client/devices')}
-                className="text-xs text-accent font-semibold flex items-center gap-0.5"
-              >
+        {/* Live map mini */}
+        <Section>
+          <SectionTitle
+            action={
+              <button onClick={() => navigate('/client/map')} className="text-xs text-accent font-semibold flex items-center gap-0.5">
                 {t(lang, 'viewAll')} <ChevronRight size={12} />
               </button>
-            </div>
-            <div className="space-y-2">
-              {clientDevices.slice(0, 3).map(device => (
-                <DeviceCard
-                  key={device.id}
-                  device={device}
-                  lang={lang}
-                  onClick={() => navigate(`/client/device/${device.id}`)}
-                />
-              ))}
-              {clientDevices.length === 0 && (
-                <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">
-                  {lang === 'ar' ? 'لا توجد أجهزة مسجلة' : 'Aucun appareil enregistré'}
-                </div>
-              )}
-            </div>
+            }
+          >
+            {t(lang, 'liveMap')}
+          </SectionTitle>
+          <div
+            className="rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-700 shadow-sm cursor-pointer"
+            style={{ height: 175 }}
+            onClick={() => navigate('/client/map')}
+          >
+            <MapView height="100%" zoom={10} showAllDevices />
           </div>
-        </div>
+        </Section>
 
-        <ClientNav />
+        {/* Recent alerts */}
+        {recentAlerts.length > 0 && (
+          <Section>
+            <SectionTitle
+              action={
+                <button onClick={() => navigate('/client/alerts')} className="text-xs text-accent font-semibold flex items-center gap-0.5">
+                  {t(lang, 'viewAll')} <ChevronRight size={12} />
+                </button>
+              }
+            >
+              {t(lang, 'lastEvents')}
+            </SectionTitle>
+            <div className="space-y-2">
+              {recentAlerts.map((a, i) => <AlertRow key={a.id || i} alert={a} lang={lang} />)}
+            </div>
+          </Section>
+        )}
+
+        {/* Recent devices */}
+        <Section>
+          <SectionTitle
+            action={
+              <button onClick={() => navigate('/client/devices')} className="text-xs text-accent font-semibold flex items-center gap-0.5">
+                {t(lang, 'viewAll')} <ChevronRight size={12} />
+              </button>
+            }
+          >
+            {t(lang, 'myDevices')}
+          </SectionTitle>
+          {recentDevices.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Cpu}
+                title={isAr ? 'لا توجد مركبات' : 'Aucun véhicule'}
+                subtitle={isAr ? 'ابدأ بإضافة جهاز تتبع' : 'Commencez par ajouter un tracker'}
+                action={
+                  <button
+                    onClick={() => navigate('/client/device-wizard')}
+                    className="px-5 py-2.5 bg-accent text-slate-900 rounded-xl text-sm font-bold active:scale-95 transition-transform"
+                  >
+                    {isAr ? 'إضافة جهاز' : 'Ajouter un appareil'}
+                  </button>
+                }
+              />
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {recentDevices.map(d => (
+                <DeviceRow key={d.id} device={d} lang={lang}
+                  onClick={() => navigate(`/client/device/${d.id}`)} />
+              ))}
+            </div>
+          )}
+        </Section>
       </div>
+
+      <ClientNav />
     </div>
   )
 }

@@ -1,6 +1,3 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import * as XLSX from 'xlsx'
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -120,49 +117,52 @@ export default function Reports() {
     URL.revokeObjectURL(url)
   }
 
-  function exportExcel() {
+  async function exportExcel() {
     if (!data?.trips?.length) return
     const deviceLabel = devices.find(d => String(d.id) === String(selectedDevice))?.name || 'device'
+    const XLSX = window.XLSX
+    if (!XLSX) { alert(lang === 'ar' ? 'مكتبة Excel غير متاحة' : 'Bibliothèque Excel non disponible'); return }
 
     const rows = data.trips.map((trip, i) => ({
       '#':             i + 1,
       'البداية':       trip.startTime ? new Date(trip.startTime).toLocaleString('ar-MA') : '—',
       'النهاية':       trip.endTime   ? new Date(trip.endTime).toLocaleString('ar-MA')   : '—',
-      'المدة (د)':     trip.durationMin  ? Math.round(trip.durationMin)                  : 0,
+      'المدة (د)':     trip.durationMin  ? Math.round(trip.durationMin)  : 0,
       'المسافة (كم)':  trip.distanceKm   ? parseFloat(parseFloat(trip.distanceKm).toFixed(1)) : 0,
-      'متوسط السرعة':  trip.avgSpeed  ? Math.round(trip.avgSpeed)                        : 0,
-      'أقصى سرعة':    trip.maxSpeed  ? Math.round(trip.maxSpeed)                         : 0,
-      'التوقف (د)':    trip.stopMin   ? Math.round(trip.stopMin)                          : 0,
+      'متوسط السرعة':  trip.avgSpeed  ? Math.round(trip.avgSpeed)        : 0,
+      'أقصى سرعة':    trip.maxSpeed  ? Math.round(trip.maxSpeed)         : 0,
+      'التوقف (د)':    trip.stopMin   ? Math.round(trip.stopMin)          : 0,
     }))
 
     const ws = XLSX.utils.json_to_sheet(rows)
     ws['!cols'] = [{ wch: 4 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 10 }]
-
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'الرحلات')
 
     if (data.summary) {
-      const summaryData = [{
+      const ws2 = XLSX.utils.json_to_sheet([{
         'إجمالي الرحلات':   data.trips.length,
         'إجمالي المسافة':   data.summary.totalDistance?.toFixed(1) || '0',
         'إجمالي الوقت (د)': data.summary.totalDuration ? Math.round(data.summary.totalDuration) : 0,
         'متوسط السرعة':     data.summary.avgSpeed ? Math.round(data.summary.avgSpeed) : 0,
-      }]
-      const ws2 = XLSX.utils.json_to_sheet(summaryData)
+      }])
       XLSX.utils.book_append_sheet(wb, ws2, 'الملخص')
     }
-
     XLSX.writeFile(wb, `taqrir-${deviceLabel}-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  function exportPDF() {
+  async function exportPDF() {
     if (!data?.trips?.length) return
+    const jsPDFLib = window.jspdf
+    const jsPDF = jsPDFLib?.jsPDF
+    const autoTable = jsPDF?.autoTable || window.jspdfAutoTable
+    if (!jsPDF) { alert(lang === 'ar' ? 'مكتبة PDF غير متاحة' : 'Bibliothèque PDF non disponible'); return }
+
     const deviceLabel = devices.find(d => String(d.id) === String(selectedDevice))?.name || selectedDevice
     const fromLabel   = new Date(dateFrom).toISOString().slice(0, 10)
     const toLabelStr  = new Date(dateTo).toISOString().slice(0, 10)
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-
     doc.setFontSize(16)
     doc.setTextColor(15, 32, 68)
     doc.text('Shgps.ma — تقرير الرحلات', 105, 18, { align: 'center' })
@@ -171,29 +171,25 @@ export default function Reports() {
     doc.text(`الجهاز: ${deviceLabel}`, 15, 28)
     doc.text(`الفترة: ${fromLabel} — ${toLabelStr}`, 15, 34)
 
-    autoTable(doc, {
-      startY: 42,
-      head: [['#', 'البداية', 'النهاية', 'المدة', 'المسافة (كم)', 'متوسط السرعة', 'أقصى سرعة']],
-      body: data.trips.map((trip, i) => [
-        i + 1,
-        trip.startTime ? new Date(trip.startTime).toLocaleString('ar-MA') : '—',
-        trip.endTime   ? new Date(trip.endTime).toLocaleString('ar-MA')   : '—',
-        trip.durationMin  ? `${Math.round(trip.durationMin)} د`           : '—',
-        trip.distanceKm   ? parseFloat(trip.distanceKm).toFixed(1)        : '0',
-        trip.avgSpeed  ? `${Math.round(trip.avgSpeed)} كم/س`              : '—',
-        trip.maxSpeed  ? `${Math.round(trip.maxSpeed)} كم/س`              : '—',
-      ]),
-      styles:           { font: 'helvetica', fontSize: 8, halign: 'center' },
-      headStyles:       { fillColor: [15, 32, 68], textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      foot: [[
-        '', '', 'الإجمالي',
-        data.summary?.totalDuration ? `${Math.round(data.summary.totalDuration)} د` : '—',
-        data.summary?.totalDistance ? `${parseFloat(data.summary.totalDistance).toFixed(1)} كم` : '—',
-        '', ''
-      ]],
-      footStyles: { fillColor: [0, 217, 126], textColor: [15, 32, 68], fontStyle: 'bold' },
-    })
+    if (autoTable) {
+      autoTable(doc, {
+        startY: 42,
+        head: [['#', 'البداية', 'النهاية', 'المدة', 'المسافة (كم)', 'متوسط السرعة', 'أقصى سرعة']],
+        body: data.trips.map((trip, i) => [
+          i + 1,
+          trip.startTime ? new Date(trip.startTime).toLocaleString('ar-MA') : '—',
+          trip.endTime   ? new Date(trip.endTime).toLocaleString('ar-MA')   : '—',
+          trip.durationMin  ? `${Math.round(trip.durationMin)} د` : '—',
+          trip.distanceKm   ? parseFloat(trip.distanceKm).toFixed(1) : '0',
+          trip.avgSpeed  ? `${Math.round(trip.avgSpeed)} كم/س` : '—',
+          trip.maxSpeed  ? `${Math.round(trip.maxSpeed)} كم/س` : '—',
+        ]),
+        styles:             { font: 'helvetica', fontSize: 8, halign: 'center' },
+        headStyles:         { fillColor: [15, 32, 68], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        footStyles:         { fillColor: [0, 217, 126], textColor: [15, 32, 68], fontStyle: 'bold' },
+      })
+    }
 
     const pageCount = doc.internal.getNumberOfPages()
     for (let i = 1; i <= pageCount; i++) {
@@ -202,7 +198,6 @@ export default function Reports() {
       doc.setTextColor(148, 163, 184)
       doc.text(`Shgps.ma — صفحة ${i} من ${pageCount}`, 105, 290, { align: 'center' })
     }
-
     doc.save(`taqrir-${deviceLabel}-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 

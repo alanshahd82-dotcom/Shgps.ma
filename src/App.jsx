@@ -16,6 +16,7 @@ import DriverBehavior from './pages/client/DriverBehavior'
 import Maintenance from './pages/client/Maintenance'
 import Geofences from './pages/client/Geofences'
 import DeviceWizard from './pages/client/DeviceWizard'
+import LiveMap from './pages/client/LiveMap'
 import AdminLogin from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/Dashboard'
 import Clients from './pages/admin/Clients'
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="/client/maintenance"     element={<ClientRoute><Maintenance /></ClientRoute>} />
           <Route path="/client/geofences"       element={<ClientRoute><Geofences /></ClientRoute>} />
           <Route path="/client/device-wizard"   element={<ClientRoute><DeviceWizard /></ClientRoute>} />
+          <Route path="/client/map"             element={<ClientRoute><LiveMap /></ClientRoute>} />
 
           {/* ── Admin app ──────────────────────────────────────────────── */}
           <Route path="/admin/login" element={<AdminLogin />} />

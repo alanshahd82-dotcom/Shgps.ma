@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Lock, Mail, Satellite, AlertCircle, LogOut } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Satellite, AlertCircle, LogOut, Phone } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 
@@ -130,7 +130,7 @@ function ExpiredScreen({ lang, onLogout }) {
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-sm text-center">
         <div className="w-20 h-20 rounded-full bg-red-500/15 border-2 border-red-500/30 flex items-center justify-center mx-auto mb-6">
-          <span className="text-4xl">🔒</span>
+          <Lock size={32} className="text-red-400" strokeWidth={1.5} />
         </div>
         <h2 className="text-white font-black text-2xl mb-2">
           {isAr ? 'انتهت صلاحية اشتراكك' : 'Abonnement expiré'}
@@ -142,12 +142,14 @@ function ExpiredScreen({ lang, onLogout }) {
           <a href="tel:+212600000000"
             className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white/80 text-sm font-semibold"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
-            📞 {isAr ? 'اتصل بنا' : 'Appelez-nous'}
+            <Phone size={15} className="text-accent" />
+            {isAr ? 'اتصل بنا' : 'Appelez-nous'}
           </a>
           <a href="mailto:admin@shgps.ma"
             className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white/80 text-sm font-semibold"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
-            📧 admin@shgps.ma
+            <Mail size={15} className="text-accent" />
+            admin@shgps.ma
           </a>
         </div>
         <button onClick={onLogout}

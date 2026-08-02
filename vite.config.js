@@ -4,7 +4,12 @@ import { defineConfig } from 'vite'
     export default defineConfig({
     plugins: [react()],
     base: '/',
-    build: { outDir: 'dist' },
+    build: {
+      outDir: 'dist',
+      rollupOptions: {
+        external: ['xlsx', 'jspdf', 'jspdf-autotable'],
+      },
+    },
     server: {
       proxy: {
         '/api': {

@@ -378,15 +378,15 @@ export default function DeviceDetail() {
 
           <div className="grid grid-cols-4 gap-2">
             {[
-              { label: t(lang, 'speed'),   val: `${device.speed}`,   unit: t(lang, 'kmh'), icon: '⚡' },
-              { label: t(lang, 'battery'), val: `${device.battery}`, unit: '%',             icon: '🔋' },
-              { label: t(lang, 'signal'),  val: `${device.signal}`,  unit: '/4',            icon: '📶' },
-              { label: t(lang, 'fuel'),    val: `${device.fuel}`,    unit: '%',             icon: '⛽' },
+              { label: t(lang, 'speed'),   val: `${device.speed ?? '—'}`,   unit: t(lang, 'kmh'), dotColor: '#00D97E' },
+              { label: t(lang, 'battery'), val: `${device.battery ?? '—'}`, unit: '%',            dotColor: (device.battery ?? 100) < 30 ? '#ef4444' : '#00D97E' },
+              { label: t(lang, 'signal'),  val: `${device.signal ?? '—'}`,  unit: '/4',           dotColor: '#3b82f6' },
+              { label: t(lang, 'fuel'),    val: device.fuel != null ? `${device.fuel}` : '—', unit: device.fuel != null ? '%' : '', dotColor: '#f97316' },
             ].map(s => (
               <div key={s.label} className="bg-white/10 rounded-xl p-2 text-center">
-                <div className="text-base">{s.icon}</div>
-                <div className="text-white font-bold text-sm">{s.val}<span className="text-[10px] font-normal opacity-60">{s.unit}</span></div>
-                <div className="text-white/40 text-[9px]">{s.label}</div>
+                <div className="w-2 h-2 rounded-full mx-auto mb-1" style={{ background: s.dotColor }} />
+                <div className="text-white font-bold text-sm leading-none">{s.val}<span className="text-[10px] font-normal opacity-60">{s.unit}</span></div>
+                <div className="text-white/40 text-[9px] mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
