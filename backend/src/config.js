@@ -1,11 +1,7 @@
 // backend/src/config.js
-const jwtSecret = process.env.JWT_SECRET
-if (!jwtSecret) {
-  console.error('[FATAL] JWT_SECRET is not set. Please set it in your .env file.')
-  process.exit(1)
-}
-if (jwtSecret.length < 32) {
-  console.warn('[WARN] JWT_SECRET is shorter than 32 characters. Consider using a longer secret.')
+const jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-in-production'
+if (!process.env.JWT_SECRET) {
+  console.warn('[WARN] JWT_SECRET not set in environment. Using insecure default — set it in .env for production!')
 }
 
 export const config = {
