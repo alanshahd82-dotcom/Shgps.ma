@@ -347,6 +347,18 @@ export function AppProvider({ children }) {
     return created
   }
 
+  const deleteDevice = async (deviceId) => {
+    const dev = devices.find(d => d.id === deviceId)
+    await api.devices.delete(deviceId)
+    setDevices(prev => prev.filter(d => d.id !== deviceId))
+    if (dev?.clientId || dev?.user_id) {
+      const ownerId = dev.clientId || dev.user_id
+      setClientList(prev => prev.map(c =>
+        c.id === ownerId ? { ...c, devicesCount: Math.max(0, (c.devicesCount ?? 1) - 1) } : c
+      ))
+    }
+  }
+
   const deleteClient = async (clientId) => {
     await api.clients.delete(clientId)
     setClientList(prev => prev.filter(c => c.id !== clientId))
@@ -364,7 +376,7 @@ export function AppProvider({ children }) {
       saveGeofence, removeGeofence,
       getClientDevices, getOnlineDevices,
       unreadCount, markAlertRead, markAllAlertsRead,
-      addClient, updateClient, addDevice, addDeviceDirect, deleteClient,
+      addClient, updateClient, addDevice, addDeviceDirect, deleteDevice, deleteClient,
       refreshDevices: loadDevices,
       updateUserInContext,
       networkError,

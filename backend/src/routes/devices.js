@@ -301,6 +301,27 @@ import { Router } from 'express'
       }
     })
 
+    // DELETE /:id — admin only — حذف الجهاز نهائياً
+    devicesRouter.delete('/:id', requireAuth, async (req, res) => {
+      if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
+      try {
+        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
+        const dev = rows[0]
+        if (!dev) return res.status(404).json({ error: 'Device not found' })
+        // حذف من Traccar (اختياري — لا يُفشل الطلب)
+        if (dev.traccar_id) {
+          try { await traccar.deleteDevice(dev.traccar_id) } catch (e) {
+            console.warn('[Device] Traccar delete skipped:', e.message)
+          }
+        }
+        // حذف من قاعدة البيانات (CASCADE يعالج الجداول الفرعية)
+        await db.query('DELETE FROM devices WHERE id=$1', [dev.id])
+        res.json({ success: true })
+      } catch (err) {
+        console.error(err); res.status(500).json({ error: 'Failed to delete device' })
+      }
+    })
+
     // DELETE /:id/geofence — يحذف السياج الجغرافي من المحلي ومن Traccar (إن أمكن)
     devicesRouter.delete('/:id/geofence', requireAuth, async (req, res) => {
       try {

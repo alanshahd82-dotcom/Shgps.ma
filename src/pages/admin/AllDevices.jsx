@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Search, Battery, Wifi, WifiOff, Plus, X, AlertCircle,
-  RefreshCw, CheckCircle2, AlertTriangle
+  Search, Wifi, WifiOff, Plus, X, AlertCircle,
+  RefreshCw, CheckCircle2, AlertTriangle, Trash2
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
+import ConfirmModal from '../../components/ConfirmModal'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -215,11 +216,21 @@ function SyncResultModal({ open, onClose, result, lang }) {
 }
 
 export default function AllDevices() {
-  const { devices, clientList, addDeviceDirect, lang } = useApp()
-  const [search, setSearch]     = useState('')
-  const [showAdd, setShowAdd]   = useState(false)
-  const [syncing, setSyncing]   = useState(false)
+  const { devices, clientList, addDeviceDirect, deleteDevice, lang } = useApp()
+  const [search, setSearch]         = useState('')
+  const [showAdd, setShowAdd]       = useState(false)
+  const [syncing, setSyncing]       = useState(false)
   const [syncResult, setSyncResult] = useState(null)
+  const [toDelete, setToDelete]     = useState(null)
+  const [deleting, setDeleting]     = useState(false)
+
+  const handleDelete = async () => {
+    if (!toDelete) return
+    setDeleting(true)
+    try { await deleteDevice(toDelete.id) } catch {}
+    setDeleting(false)
+    setToDelete(null)
+  }
 
   const filtered = devices.filter(d =>
     !search ||
@@ -247,6 +258,18 @@ export default function AllDevices() {
         onClose={() => setSyncResult(null)}
         result={syncResult}
         lang={lang}
+      />
+
+      <ConfirmModal
+        open={!!toDelete}
+        title={lang === 'ar' ? 'حذف الجهاز' : 'Supprimer l\'appareil'}
+        message={lang === 'ar'
+          ? `هل أنت متأكد من حذف "${toDelete?.name}"؟ لا يمكن التراجع عن هذا الإجراء.`
+          : `Supprimer "${toDelete?.name}" ? Cette action est irréversible.`}
+        onConfirm={handleDelete}
+        onCancel={() => setToDelete(null)}
+        lang={lang}
+        loading={deleting}
       />
 
       <div className="p-6 max-w-7xl mx-auto">
@@ -290,7 +313,8 @@ export default function AllDevices() {
               <thead className="bg-slate-50 border-b border-gray-100">
                 <tr>
                   {[t(lang,'device'), 'IMEI', t(lang,'plate'), lang === 'ar' ? 'العميل' : 'Client',
-                    t(lang,'speed'), t(lang,'battery'), t(lang,'status'), t(lang,'lastUpdate')].map((h, i) => (
+                    t(lang,'speed'), t(lang,'battery'), t(lang,'status'), t(lang,'lastUpdate'),
+                    lang === 'ar' ? 'إجراءات' : 'Actions'].map((h, i) => (
                     <th key={i} className="px-4 py-3 text-start text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -339,6 +363,15 @@ export default function AllDevices() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-400">{timeAgo(device.lastUpdate, lang)}</td>
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => setToDelete(device)}
+                          className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
+                          title={lang === 'ar' ? 'حذف الجهاز' : 'Supprimer'}
+                        >
+                          <Trash2 size={14} className="text-red-500" />
+                        </button>
+                      </td>
                     </motion.tr>
                   )
                 })}
@@ -370,6 +403,12 @@ export default function AllDevices() {
                       {device.battery != null && <span className="text-xs text-slate-400">🔋 {device.battery}%</span>}
                     </div>
                   </div>
+                  <button
+                    onClick={() => setToDelete(device)}
+                    className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors flex-shrink-0"
+                  >
+                    <Trash2 size={15} className="text-red-500" />
+                  </button>
                 </motion.div>
               )
             })}
