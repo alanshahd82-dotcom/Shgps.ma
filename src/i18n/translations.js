@@ -256,8 +256,6 @@ export const translations = {
   },
 
   fr: {
-
-  fr: {
     // Common
     appName: 'AtharGPS',
     tagline: 'Suivi GPS professionnel',
