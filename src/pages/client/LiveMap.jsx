@@ -88,7 +88,7 @@ export default function LiveMap() {
       <MapContainer
         center={[31.7917, -7.0926]}
         zoom={6}
-        style={{ width:'100%', height:'100%', position:'absolute', inset:0 }}
+        style={{ width:'100%', height:'100%', position:'absolute', inset:0, zIndex:0 }}
         zoomControl={false}
       >
         <TileLayer
