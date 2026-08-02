@@ -50,6 +50,7 @@ interface FleetContextValue {
   connected: boolean;
   sendPosition: (deviceId: string, lat: number, lng: number) => void;
   clearAlerts: () => void;
+  refresh: () => void;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -370,8 +371,12 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
 
   const clearAlerts = useCallback(() => setAlerts([]), []);
 
+  const refresh = useCallback(() => {
+    wsRef.current?.close();
+  }, []);
+
   return (
-    <FleetContext.Provider value={{ vehicles, alerts, connected, sendPosition, clearAlerts }}>
+    <FleetContext.Provider value={{ vehicles, alerts, connected, sendPosition, clearAlerts, refresh }}>
       {children}
     </FleetContext.Provider>
   );

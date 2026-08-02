@@ -66,7 +66,11 @@ export function FleetMap() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={[styles.grid, { paddingBottom: Platform.OS === 'web' ? 34 + 60 : insets.bottom + 80 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.grid, { paddingBottom: Platform.OS === 'web' ? 34 + 60 : insets.bottom + 80 }]}
+        bounces={false}
+        overScrollMode="never"
+      >
         {vehicles.map((v) => {
           const color = STATUS_COLORS[v.status];
           return (

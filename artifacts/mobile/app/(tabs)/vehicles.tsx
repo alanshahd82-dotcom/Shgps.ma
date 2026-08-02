@@ -21,7 +21,7 @@ import { VehicleCard } from '@/components/VehicleCard';
 export default function VehiclesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { vehicles, connected } = useFleet();
+  const { vehicles, connected, refresh } = useFleet();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -39,7 +39,8 @@ export default function VehiclesScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
+    refresh();
+    setTimeout(() => setRefreshing(false), 1500);
   };
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
@@ -137,6 +138,8 @@ export default function VehiclesScreen() {
           { paddingBottom: Platform.OS === 'web' ? 34 + 60 : insets.bottom + 80 },
         ]}
         scrollEnabled={!!filtered.length}
+        bounces={false}
+        overScrollMode="never"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
