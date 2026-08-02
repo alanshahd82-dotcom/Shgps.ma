@@ -120,7 +120,7 @@ export default function Login() {
                     className="rounded-xl px-4 py-2.5 text-xs text-center"
                     style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)', color: '#ff6b60' }}
                   >
-                    {t(lang, 'invalidCredentials')}
+                    {error}
                   </div>
                 </motion.div>
               )}
