@@ -208,3 +208,23 @@ html { background: #F0F4F8; }
 body { min-height: 100dvh; overscroll-behavior-y: none; }
 #root { min-height: 100dvh; }
 .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+
+/* Prevent image drag / long-press save on mobile */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Prevent pull-to-refresh on horizontal scroll containers */
+.overflow-x-auto {
+  overscroll-behavior-x: contain;
+}
+
+/* Prevent bounce/pull on inner scroll containers */
+.overflow-y-auto,
+.mobile-scroll {
+  overscroll-behavior-y: contain;
+}

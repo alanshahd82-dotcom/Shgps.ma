@@ -16,7 +16,8 @@ export default function Logo({ size = 'md', white = false }) {
         alt="AtharGPS"
         width={s.img}
         height={s.img}
-        style={{ borderRadius: 10, objectFit: 'cover' }}
+        draggable={false}
+        style={{ borderRadius: 10, objectFit: 'cover', WebkitUserDrag: 'none', userSelect: 'none' }}
       />
       <div className="flex flex-col leading-none">
         <span className={`font-bold ${s.text} ${white ? 'text-white' : 'text-primary-500'} tracking-tight`}>
