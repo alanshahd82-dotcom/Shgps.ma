@@ -1,257 +1,179 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Battery, Signal, Clock, Plus, Car } from 'lucide-react'
+import { Search, X, ChevronRight, Car, Clock } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
-import {
-  VehicleIcon, StatusBadge, getDeviceStatusKey, timeAgo,
-  EmptyState, PageHeader
-} from '../../components/ui'
+import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 
-// ── Filter config ─────────────────────────────────────────────────────────────
 const FILTERS = [
-  { key: 'all',     ar: 'الكل',       fr: 'Tous'       },
-  { key: 'moving',  ar: 'يتحرك',      fr: 'En mvt'     },
-  { key: 'stopped', ar: 'متوقف',      fr: 'Arrêté'     },
-  { key: 'offline', ar: 'غير متصل',   fr: 'Hors ligne' },
+  { key: 'all',     ar: 'الكل',     fr: 'Tous'      },
+  { key: 'moving',  ar: 'يتحرك',    fr: 'En mvt'    },
+  { key: 'stopped', ar: 'متوقف',    fr: 'Arrêté'    },
+  { key: 'offline', ar: 'غير متصل', fr: 'Hors ligne' },
 ]
 
-// ── Device card ───────────────────────────────────────────────────────────────
-function DeviceCard({ device, lang, onClick, index }) {
-  const st     = getDeviceStatusKey(device)
-  const isAr   = lang === 'ar'
-  const batLow = device.battery != null && device.battery < 30
+const ST_COLOR = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }
+const ST_BG    = { moving:'rgba(0,217,126,0.1)', idle:'rgba(255,149,0,0.1)', stopped:'rgba(255,59,48,0.1)', offline:'rgba(107,114,128,0.1)' }
+const ST_LABEL_AR = { moving:'يتحرك', idle:'خمول', stopped:'متوقف', offline:'غير متصل' }
+const ST_LABEL_FR = { moving:'En mvt', idle:'Ralenti', stopped:'Arrêté', offline:'Hors ligne' }
 
-  const barColor = {
-    moving:  'linear-gradient(90deg,#22c55e,#00D97E)',
-    idle:    'linear-gradient(90deg,#f59e0b,#fbbf24)',
-    stopped: 'linear-gradient(90deg,#ef4444,#f97316)',
-    offline: '#e2e8f0',
-  }[st] || '#e2e8f0'
+function DeviceCard({ device, lang, onClick, index }) {
+  const st   = getDeviceStatusKey(device)
+  const isAr = lang === 'ar'
+  const c    = ST_COLOR[st] || '#6b7280'
+  const stLabel = isAr ? (ST_LABEL_AR[st] || st) : (ST_LABEL_FR[st] || st)
 
   return (
-    <motion.div
-      className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden cursor-pointer"
-      onClick={onClick}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.045, 0.25) }}
-      whileTap={{ scale: 0.98 }}
+    <motion.button
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.04, 0.22) }}
+      whileTap={{ scale: 0.97 }} onClick={onClick}
+      className="w-full text-left rounded-2xl overflow-hidden"
+      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
     >
-      {/* Color bar */}
-      <div className="h-1" style={{ background: barColor }} />
-
-      <div className="p-4">
-        {/* Name + status */}
-        <div className="flex items-start gap-3 mb-3">
-          <VehicleIcon type={device.type} iconSize={20} />
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-primary-500 dark:text-white text-sm truncate">{device.name}</p>
+      {/* Top status bar */}
+      <div className="h-0.5" style={{ background: c }}/>
+      <div className="p-4 flex items-center gap-3">
+        {/* Icon */}
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{ background: ST_BG[st] || 'rgba(255,255,255,0.06)' }}>
+          <VehicleIcon type={device.type} iconSize={22}/>
+        </div>
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-sm truncate mb-0.5">{device.name}</p>
+          <div className="flex items-center gap-2 flex-wrap">
             {device.plate && (
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-mono tracking-wide">{device.plate}</p>
+              <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>{device.plate}</span>
+            )}
+            {device.driver && (
+              <span className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.28)' }}>{device.driver}</span>
             )}
           </div>
-          <StatusBadge status={st} lang={lang} />
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="flex items-center gap-1.5">
-            <Battery size={12} className={batLow ? 'text-red-500' : 'text-slate-400'} strokeWidth={1.8} />
-            <span className={`text-xs font-semibold ${batLow ? 'text-red-500' : 'text-slate-600 dark:text-slate-300'}`}>
-              {device.battery != null ? `${device.battery}%` : '—'}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Signal size={12} className="text-slate-400" strokeWidth={1.8} />
-            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-              {device.signal != null ? `${device.signal}/4` : '—'}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock size={12} className="text-slate-400" strokeWidth={1.8} />
-            <span className="text-xs text-slate-400 dark:text-slate-500">{timeAgo(device.lastUpdate, lang)}</span>
+          <div className="flex items-center gap-1.5 mt-1">
+            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c }}/>
+            <span className="text-xs font-semibold" style={{ color: c }}>{stLabel}</span>
+            {device.last_update && (
+              <>
+                <span className="text-xs mx-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+                <Clock size={10} style={{ color: 'rgba(255,255,255,0.2)' }}/>
+                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.22)' }}>{timeAgo(device.last_update)}</span>
+              </>
+            )}
           </div>
         </div>
-
-        {/* Speed (moving only) */}
-        {st === 'moving' && (
-          <div
-            className="mt-3 rounded-xl px-3 py-2 flex items-center justify-between"
-            style={{ background: 'rgba(0,217,126,0.08)', border: '1px solid rgba(0,217,126,0.15)' }}
-          >
-            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{t(lang, 'speed')}</span>
-            <span className="text-sm font-bold text-accent">{device.speed} {t(lang, 'kmh')}</span>
-          </div>
-        )}
+        {/* Speed + arrow */}
+        <div className="flex-shrink-0 flex flex-col items-end gap-1">
+          {device.speed != null && device.speed > 0 ? (
+            <div>
+              <span className="font-bold text-base" style={{ color: '#00D97E' }}>{Math.round(device.speed)}</span>
+              <span className="text-xs ml-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>km/h</span>
+            </div>
+          ) : (
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>
+          )}
+          <ChevronRight size={14} style={{ color: 'rgba(255,255,255,0.2)', transform: isAr ? 'rotate(180deg)' : 'none' }}/>
+        </div>
       </div>
-    </motion.div>
+    </motion.button>
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 export default function DeviceList() {
   const navigate = useNavigate()
   const { devices, lang } = useApp()
-  const isAr = lang === 'ar'
-
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const isAr = lang === 'ar'
 
   const counts = useMemo(() => ({
     all:     devices.length,
     moving:  devices.filter(d => getDeviceStatusKey(d) === 'moving').length,
-    stopped: devices.filter(d => ['stopped', 'idle'].includes(getDeviceStatusKey(d))).length,
+    stopped: devices.filter(d => getDeviceStatusKey(d) === 'stopped').length,
     offline: devices.filter(d => getDeviceStatusKey(d) === 'offline').length,
   }), [devices])
 
   const filtered = useMemo(() => {
     let list = devices
-    if (filter === 'stopped') {
-      list = list.filter(d => ['stopped', 'idle'].includes(getDeviceStatusKey(d)))
-    } else if (filter !== 'all') {
-      list = list.filter(d => getDeviceStatusKey(d) === filter)
-    }
-    const q = search.trim().toLowerCase()
-    if (q) {
+    if (filter !== 'all') list = list.filter(d => getDeviceStatusKey(d) === filter)
+    if (search.trim()) {
+      const q = search.toLowerCase()
       list = list.filter(d =>
-        (d.name  || '').toLowerCase().includes(q) ||
-        (d.plate || '').toLowerCase().includes(q) ||
-        (d.imei  || '').toLowerCase().includes(q)
+        d.name?.toLowerCase().includes(q) ||
+        d.plate?.toLowerCase().includes(q) ||
+        d.driver?.toLowerCase().includes(q)
       )
     }
     return list
   }, [devices, filter, search])
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-gray-50 dark:bg-slate-900">
+    <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
+      style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <PageHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-white font-bold text-xl">{t(lang, 'myDevices')}</h1>
-            <p className="text-white/50 text-xs mt-0.5">
-              {devices.length} {isAr ? 'مركبة مسجلة' : 'véhicules enregistrés'}
-            </p>
-          </div>
-          <button
-            onClick={() => navigate('/client/device-wizard')}
-            className="w-9 h-9 rounded-full bg-accent flex items-center justify-center active:scale-90 transition-transform"
-            aria-label={isAr ? 'إضافة جهاز' : 'Ajouter un appareil'}
-          >
-            <Plus size={18} className="text-slate-900" strokeWidth={2.5} />
-          </button>
-        </div>
-      </PageHeader>
-
-      {/* ── Sticky search + filter ──────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 px-4 pt-3 pb-2 space-y-2.5 border-b border-gray-100 dark:border-slate-800"
-           style={{ background: 'rgba(249,250,251,0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-        {/* Search bar */}
-        <div className="flex items-center gap-2.5 bg-white dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-100 dark:border-slate-700 shadow-sm">
-          <Search size={15} className="text-slate-400 flex-shrink-0" strokeWidth={2} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={isAr ? 'ابحث باسم أو لوحة...' : 'Chercher par nom ou plaque...'}
-            className="flex-1 bg-transparent text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 outline-none"
-            dir={isAr ? 'rtl' : 'ltr'}
-          />
-          <AnimatePresence>
-            {search && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.5 }}
-                onClick={() => setSearch('')}
-                className="text-slate-400"
-              >
-                <X size={14} />
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {FILTERS.map(f => {
-            const active = filter === f.key
-            const cnt    = counts[f.key]
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFilter(f.key)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold flex-shrink-0 transition-all"
-                style={{
-                  background: active ? '#0F2044'       : 'rgba(255,255,255,0.9)',
-                  color:      active ? 'white'         : '#64748b',
-                  border:     active ? '1px solid transparent' : '1px solid #e2e8f0',
-                }}
-              >
-                {isAr ? f.ar : f.fr}
-                {cnt > 0 && (
-                  <span
-                    className="rounded-full text-[9px] px-1.5 font-bold"
-                    style={{
-                      background: active ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
-                      color:      active ? 'white' : '#475569',
-                    }}
-                  >
-                    {cnt}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+      {/* Header */}
+      <div className="px-5 pt-12 pb-3">
+        <h1 className="text-white font-bold text-xl mb-4">{t(lang, 'myDevices')}</h1>
+        {/* Search */}
+        <div className="flex items-center gap-2.5 rounded-xl px-4 py-3"
+          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <Search size={16} style={{ color: 'rgba(255,255,255,0.3)' }} className="flex-shrink-0"/>
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={isAr ? 'بحث بالاسم أو اللوحة...' : 'Chercher par nom ou plaque...'}
+            className="flex-1 bg-transparent text-white text-sm outline-none"
+            style={{ caretColor: '#00D97E' }}/>
+          {search && (
+            <button onClick={() => setSearch('')}>
+              <X size={15} style={{ color: 'rgba(255,255,255,0.3)' }}/>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── List ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto pb-24 px-4 pt-3 space-y-3">
+      {/* Filter tabs */}
+      <div className="flex gap-2 px-5 pb-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        {FILTERS.map(f => {
+          const active = filter === f.key
+          return (
+            <motion.button key={f.key} whileTap={{ scale: 0.94 }} onClick={() => setFilter(f.key)}
+              className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all"
+              style={active
+                ? { background: '#00D97E', color: '#0F2044' }
+                : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.48)', border: '1px solid rgba(255,255,255,0.1)' }
+              }>
+              {f[lang === 'ar' ? 'ar' : 'fr']}
+              {counts[f.key] !== undefined && (
+                <span className="ml-1.5" style={{ opacity: 0.65 }}>{counts[f.key]}</span>
+              )}
+            </motion.button>
+          )
+        })}
+      </div>
+
+      {/* List */}
+      <div className="px-4 space-y-2.5">
         <AnimatePresence mode="popLayout">
           {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <EmptyState
-                icon={Car}
-                title={
-                  search
-                    ? (isAr ? 'لا توجد نتائج للبحث' : 'Aucun résultat')
-                    : (isAr ? 'لا توجد مركبات' : 'Aucun véhicule')
-                }
-                subtitle={
-                  search
-                    ? (isAr ? 'جرّب كلمة بحث مختلفة' : 'Essayez un autre terme')
-                    : (isAr ? 'ابدأ بإضافة جهاز تتبع GPS' : 'Ajoutez votre premier tracker GPS')
-                }
-                action={!search && (
-                  <button
-                    onClick={() => navigate('/client/device-wizard')}
-                    className="px-5 py-2.5 bg-accent text-slate-900 rounded-xl text-sm font-bold active:scale-95 transition-transform"
-                  >
-                    {isAr ? 'إضافة جهاز' : 'Ajouter un appareil'}
-                  </button>
-                )}
-              />
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.05)' }}>
+                <Car size={28} style={{ color: 'rgba(255,255,255,0.2)' }}/>
+              </div>
+              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                {isAr ? 'لا توجد أجهزة' : 'Aucun appareil'}
+              </p>
             </motion.div>
-          ) : (
-            filtered.map((device, i) => (
-              <DeviceCard
-                key={device.id}
-                device={device}
-                lang={lang}
-                index={i}
-                onClick={() => navigate(`/client/device/${device.id}`)}
-              />
-            ))
-          )}
+          ) : filtered.map((d, i) => (
+            <DeviceCard key={d.id} device={d} lang={lang} index={i}
+              onClick={() => navigate('/client/device/' + d.id)}/>
+          ))}
         </AnimatePresence>
       </div>
 
-      <ClientNav />
+      <ClientNav/>
     </div>
   )
 }
