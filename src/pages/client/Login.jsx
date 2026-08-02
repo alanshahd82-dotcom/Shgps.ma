@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Eye, EyeOff } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
-import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { setClientAuth, lang, setLang } = useApp()
+  const { loginClient, lang, setLang } = useApp()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -20,9 +19,7 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      const data = await api.auth.login(email, password)
-      localStorage.setItem('athargps_token', data.token)
-      setClientAuth(data)
+      await loginClient(email, password)
       navigate('/client/home')
     } catch (err) {
       setError(err.message)
@@ -123,7 +120,7 @@ export default function Login() {
                     className="rounded-xl px-4 py-2.5 text-xs text-center"
                     style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)', color: '#ff6b60' }}
                   >
-                    {error}
+                    {t(lang, 'invalidCredentials')}
                   </div>
                 </motion.div>
               )}
