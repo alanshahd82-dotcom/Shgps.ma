@@ -1,6 +1,5 @@
 import express from 'express'
 import cors from 'cors'
-import helmet from 'helmet'
 import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
@@ -126,9 +125,6 @@ async function runMigrations() {
 
 const app  = express()
 const PORT = process.env.PORT || 3001
-
-// Helmet: تُفعَّل كل الرأسيات إلا CSP (يديرها nginx لتدعم Leaflet وOpenStreetMap)
-app.use(helmet({ contentSecurityPolicy: false }))
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || false,
