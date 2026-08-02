@@ -35,11 +35,13 @@ export interface Vehicle {
 
 export interface FleetAlert {
   id: string;
-  type: 'stale' | 'recovered' | 'position';
+  type: 'stale' | 'recovered' | 'position' | 'geofence_enter' | 'geofence_exit';
   deviceId: string;
   deviceName: string;
   message: string;
   ts: number;
+  /** Only present for geofence_enter / geofence_exit alerts */
+  geofenceName?: string;
 }
 
 interface FleetContextValue {
@@ -311,6 +313,26 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
             ts: Date.now(),
           });
           onStaleAlert?.(deviceId, name);
+        } else if (msg.type === 'geofenceAlert') {
+          const { eventType, deviceId, deviceName, geofenceName, ts } = msg as {
+            type: string;
+            eventType: 'enter' | 'exit';
+            deviceId: string;
+            deviceName: string;
+            geofenceId: number;
+            geofenceName: string;
+            ts: number;
+          };
+          const alertType = eventType === 'enter' ? 'geofence_enter' : 'geofence_exit';
+          const verb = eventType === 'enter' ? 'entered' : 'exited';
+          addAlert({
+            type: alertType,
+            deviceId,
+            deviceName,
+            message: `${deviceName} ${verb} ${geofenceName}.`,
+            geofenceName,
+            ts,
+          });
         }
       };
 

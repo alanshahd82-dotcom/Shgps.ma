@@ -5,6 +5,7 @@ import { logger } from "./lib/logger.js";
 import { startStalenessScanner, recordPosition } from "./ws/deviceStaleness.js";
 import { storePosition } from "./ws/positionStore.js";
 import { setWss, broadcastPosition as _broadcast } from "./ws/broadcast.js";
+import { startGeofencePoller } from "./ws/geofencePoller.js";
 
 const rawPort = process.env["PORT"];
 
@@ -103,6 +104,10 @@ wss.on("connection", (ws, req) => {
 // has not reported a position within STALE_THRESHOLD_MS.
 const stopScanner = startStalenessScanner(wss);
 
+// Start geofence poller — polls Traccar for geofenceEnter/Exit events and
+// broadcasts `geofenceAlert` WS messages to all connected clients.
+const stopGeofencePoller = startGeofencePoller();
+
 // ─── Start server ────────────────────────────────────────────────────────────
 
 httpServer.listen(port, (err?: Error) => {
@@ -116,6 +121,7 @@ httpServer.listen(port, (err?: Error) => {
 // Graceful shutdown
 process.on("SIGTERM", () => {
   stopScanner();
+  stopGeofencePoller();
   httpServer.close(() => {
     logger.info("Server closed");
     process.exit(0);

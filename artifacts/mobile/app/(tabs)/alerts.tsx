@@ -28,11 +28,24 @@ function timeLabel(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
+type AlertMeta = { iconName: React.ComponentProps<typeof Feather>['name']; iconColor: string; borderTint: string };
+
+function useAlertMeta(type: FleetAlert['type'], colors: ReturnType<typeof useColors>): AlertMeta {
+  switch (type) {
+    case 'stale':
+      return { iconName: 'wifi-off', iconColor: colors.warning, borderTint: colors.warning + '30' };
+    case 'geofence_enter':
+      return { iconName: 'log-in', iconColor: colors.primary, borderTint: colors.primary + '30' };
+    case 'geofence_exit':
+      return { iconName: 'log-out', iconColor: '#F97316', borderTint: '#F9731630' };
+    default:
+      return { iconName: 'check-circle', iconColor: colors.online, borderTint: colors.border };
+  }
+}
+
 function AlertRow({ alert: a }: { alert: FleetAlert }) {
   const colors = useColors();
-  const isStale = a.type === 'stale';
-  const iconColor = isStale ? colors.warning : colors.online;
-  const iconName = isStale ? 'wifi-off' : 'check-circle';
+  const { iconName, iconColor, borderTint } = useAlertMeta(a.type, colors);
 
   return (
     <View
@@ -40,7 +53,7 @@ function AlertRow({ alert: a }: { alert: FleetAlert }) {
         styles.alertRow,
         {
           backgroundColor: colors.card,
-          borderColor: isStale ? colors.warning + '30' : colors.border,
+          borderColor: borderTint,
         },
       ]}
     >

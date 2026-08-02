@@ -31,3 +31,26 @@ export function broadcastPosition(
     }
   });
 }
+
+export interface GeofenceAlertPayload {
+  type: "geofenceAlert";
+  eventType: "enter" | "exit";
+  deviceId: string;
+  deviceName: string;
+  geofenceId: number;
+  geofenceName: string;
+  ts: number;
+}
+
+/**
+ * Broadcast a geofence enter/exit event to all connected WebSocket clients.
+ */
+export function broadcastGeofenceAlert(payload: GeofenceAlertPayload): void {
+  if (!_wss) return;
+  const msg = JSON.stringify(payload);
+  _wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg);
+    }
+  });
+}
