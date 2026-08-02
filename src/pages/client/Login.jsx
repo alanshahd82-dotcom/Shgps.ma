@@ -1,379 +1,190 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Lock, Mail, Satellite, AlertCircle, LogOut, Phone } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
+import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 
-/* ── خلفية الرادار المتحركة ───────────────────────────────────────────── */
-function RadarBackground() {
-  return (
-    <svg
-      className="absolute inset-0 w-full h-full opacity-[0.07] pointer-events-none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* شبكة أفقية وعمودية */}
-      <defs>
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00D97E" strokeWidth="0.5" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grid)" />
-    </svg>
-  )
-}
-
-/* ── دوائر الرادار ────────────────────────────────────────────────────── */
-function RadarRings() {
-  return (
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-      {[220, 160, 100].map((r, i) => (
-        <motion.div
-          key={r}
-          className="absolute rounded-full border border-accent/20"
-          style={{
-            width:  r * 2,
-            height: r * 2,
-            top:    -r,
-            left:   -r,
-          }}
-          animate={{ opacity: [0.15, 0.4, 0.15], scale: [1, 1.04, 1] }}
-          transition={{ duration: 3.5, repeat: Infinity, delay: i * 0.8, ease: 'easeInOut' }}
-        />
-      ))}
-      {/* نبضة مضيئة في المركز */}
-      <motion.div
-        className="absolute rounded-full bg-accent/30"
-        style={{ width: 12, height: 12, top: -6, left: -6 }}
-        animate={{ scale: [1, 2.5, 1], opacity: [0.8, 0, 0.8] }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeOut' }}
-      />
-      <div className="absolute rounded-full bg-accent" style={{ width: 8, height: 8, top: -4, left: -4 }} />
-    </div>
-  )
-}
-
-/* ── نقاط GPS المتحركة ────────────────────────────────────────────────── */
-function FloatingDots() {
-  const dots = [
-    { x: '15%', y: '25%', delay: 0 },
-    { x: '80%', y: '18%', delay: 1.2 },
-    { x: '70%', y: '72%', delay: 0.6 },
-    { x: '25%', y: '68%', delay: 1.8 },
-    { x: '88%', y: '45%', delay: 0.3 },
-  ]
-  return (
-    <>
-      {dots.map((d, i) => (
-        <motion.div
-          key={i}
-          className="absolute pointer-events-none"
-          style={{ left: d.x, top: d.y }}
-          animate={{ opacity: [0, 0.7, 0], scale: [0.5, 1, 0.5] }}
-          transition={{ duration: 3, repeat: Infinity, delay: d.delay, ease: 'easeInOut' }}
-        >
-          <div className="w-2 h-2 rounded-full bg-accent/60 relative">
-            <div className="absolute -inset-1 rounded-full border border-accent/30" />
-          </div>
-        </motion.div>
-      ))}
-    </>
-  )
-}
-
-/* ── حقل الإدخال ──────────────────────────────────────────────────────── */
-function InputField({ icon: Icon, type, value, onChange, placeholder, autoComplete, rightSlot }) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <div
-      className="relative rounded-2xl transition-all duration-300"
-      style={{
-        background: focused ? 'rgba(0,217,126,0.07)' : 'rgba(255,255,255,0.06)',
-        border: `1.5px solid ${focused ? 'rgba(0,217,126,0.5)' : 'rgba(255,255,255,0.1)'}`,
-        boxShadow: focused ? '0 0 0 4px rgba(0,217,126,0.08)' : 'none',
-      }}
-    >
-      <Icon
-        size={17}
-        className="absolute top-1/2 -translate-y-1/2 transition-colors duration-300"
-        style={{
-          left: 18,
-          color: focused ? '#00D97E' : 'rgba(255,255,255,0.35)',
-        }}
-      />
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        autoComplete={autoComplete}
-        required
-        placeholder={placeholder}
-        className="w-full bg-transparent text-white placeholder-white/30 py-4 text-sm outline-none"
-        style={{ paddingLeft: 46, paddingRight: rightSlot ? 48 : 18 }}
-      />
-      {rightSlot && (
-        <div className="absolute top-1/2 -translate-y-1/2 right-4">{rightSlot}</div>
-      )}
-    </div>
-  )
-}
-
-/* ── مكوّن الصفحة الرئيسي ─────────────────────────────────────────────── */
-/* ── شاشة انتهاء الاشتراك ───────────────────────────────────────────────── */
-function ExpiredScreen({ lang, onLogout }) {
-  const isAr = lang === 'ar'
-  return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center px-6"
-      style={{ background: 'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-sm text-center">
-        <div className="w-20 h-20 rounded-full bg-red-500/15 border-2 border-red-500/30 flex items-center justify-center mx-auto mb-6">
-          <Lock size={32} className="text-red-400" strokeWidth={1.5} />
-        </div>
-        <h2 className="text-white font-black text-2xl mb-2">
-          {isAr ? 'انتهت صلاحية اشتراكك' : 'Abonnement expiré'}
-        </h2>
-        <p className="text-white/50 text-sm mb-8 leading-relaxed">
-          {isAr ? 'للتجديد، تواصل مع المسؤول:' : 'Pour renouveler, contactez l\'administrateur :'}
-        </p>
-        <div className="space-y-3 mb-8">
-          <a href="tel:+212600000000"
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white/80 text-sm font-semibold"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
-            <Phone size={15} className="text-accent" />
-            {isAr ? 'اتصل بنا' : 'Appelez-nous'}
-          </a>
-          <a href="mailto:admin@shgps.ma"
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white/80 text-sm font-semibold"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
-            <Mail size={15} className="text-accent" />
-            admin@shgps.ma
-          </a>
-        </div>
-        <button onClick={onLogout}
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-red-400 font-bold text-sm"
-          style={{ background: 'rgba(255,59,48,0.10)', border: '1px solid rgba(255,59,48,0.20)' }}>
-          <LogOut size={16} />
-          {isAr ? 'تسجيل خروج' : 'Se déconnecter'}
-        </button>
-      </motion.div>
-    </div>
-  )
-}
-
-export default function ClientLogin() {
-  const navigate    = useNavigate()
-  const { loginClient, lang, setLang, subscriptionExpired, setSubscriptionExpired, logoutClient } = useApp()
-
-  const [email,    setEmail]    = useState('')
+export default function Login() {
+  const navigate = useNavigate()
+  const { setClientAuth, lang, setLang } = useApp()
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
-  const [error,    setError]    = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [shake,    setShake]    = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleLogin = async (e) => {
+  async function handleLogin(e) {
     e.preventDefault()
-    setError('')
     setLoading(true)
+    setError('')
     try {
-      const data = await loginClient(email, password)
-      // If subscription is expired loginClient sets subscriptionExpired=true and returns early
-      if (data?.user?.expiryDate) {
-        const daysLeft = Math.ceil((new Date(data.user.expiryDate) - new Date()) / 86400000)
-        if (daysLeft <= 0 || data.user.isActive === false) {
-          setLoading(false)
-          return // ExpiredScreen renders via subscriptionExpired state
-        }
-      }
-      navigate('/client/home', { replace: true })
-    } catch {
+      const data = await api.auth.login(email, password)
+      localStorage.setItem('athargps_token', data.token)
+      setClientAuth(data)
+      navigate('/client/home')
+    } catch (err) {
+      setError(err.message)
+    } finally {
       setLoading(false)
-      setError(t(lang, 'invalidCredentials') || 'البريد الإلكتروني أو كلمة المرور غير صحيحة')
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
     }
   }
 
-  const isRtl = lang === 'ar'
-
-  // ── Show expired subscription screen ──────────────────────────────────────
-  if (subscriptionExpired) {
-    return <ExpiredScreen lang={lang} onLogout={() => { logoutClient(); setSubscriptionExpired(false) }} />
-  }
+  const isAr = lang === 'ar'
 
   return (
     <div
-      className="min-h-[100dvh] w-full flex flex-col overflow-hidden relative"
-      dir={isRtl ? 'rtl' : 'ltr'}
-      style={{ background: 'linear-gradient(170deg, #071629 0%, #0F2044 50%, #0d2850 100%)' }}
+      className="min-h-screen flex flex-col"
+      style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 55%,#0a1833 100%)' }}
+      dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* ── الخلفية ── */}
-      <RadarBackground />
-      <FloatingDots />
-
-      {/* ── الرأس ── */}
-      <div className="relative z-10 flex items-center justify-end px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-2">
-        {/* اختيار اللغة */}
-        <div
-          className="flex items-center rounded-xl overflow-hidden"
-          style={{ border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)' }}
+      {/* Top bar */}
+      <div className="flex justify-between items-center px-5 pt-12 pb-4">
+        <button
+          onClick={() => setLang(isAr ? 'fr' : 'ar')}
+          className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.55)' }}
         >
-          {['ar', 'fr'].map((l) => (
-            <button
-              key={l}
-              onClick={() => setLang(l)}
-              className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-all duration-200"
+          {isAr ? 'FR' : 'AR'}
+        </button>
+        <a href="/admin/login" className="text-xs transition-colors" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          {t(lang, 'adminLogin')}
+        </a>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 flex flex-col items-center justify-center px-7">
+
+        {/* Logo */}
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 180, damping: 18 }}
+          className="mb-10 flex flex-col items-center"
+        >
+          <div className="relative mb-6">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
               style={{
-                color:      lang === l ? '#071629' : 'rgba(255,255,255,0.45)',
-                background: lang === l ? '#00D97E' : 'transparent',
+                position: 'absolute', inset: -4, borderRadius: '50%',
+                background: 'conic-gradient(from 0deg, transparent 55%, #00D97E 100%)',
+              }}
+            />
+            <div
+              className="relative w-28 h-28 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg,#0F2044 0%,#162952 100%)',
+                border: '2px solid rgba(0,217,126,0.45)',
+                boxShadow: '0 0 50px rgba(0,217,126,0.18),inset 0 1px 0 rgba(255,255,255,0.08)',
               }}
             >
-              {l}
-            </button>
-          ))}
-        </div>
-
-      </div>
-
-      {/* ── منطقة الرادار العلوية ── */}
-      <div className="relative z-10 flex justify-center mt-6" style={{ height: 110 }}>
-        <RadarRings />
-      </div>
-
-      {/* ── اللوغو والعنوان ── */}
-      <motion.div
-        className="relative z-10 flex flex-col items-center text-center px-6 mt-4"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-      >
-        <div className="flex flex-col items-center gap-1 mb-4">
-          <div className="flex items-end gap-0.5" dir="ltr">
-            <span className="font-black text-4xl text-white tracking-tight leading-none">Athar</span>
-            <span className="font-black text-4xl leading-none" style={{ color: '#00D97E' }}>GPS</span>
+              <svg width="54" height="54" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#00D97E" opacity="0.18"/>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#00D97E" strokeWidth="1.5" fill="none"/>
+                <circle cx="12" cy="9" r="3" fill="#00D97E"/>
+                <path d="M9.5 4.8 Q12 2.5 14.5 4.8" stroke="#00D97E" strokeWidth="1" fill="none" opacity="0.55" strokeLinecap="round"/>
+                <path d="M7.5 3.5 Q12 0.5 16.5 3.5" stroke="#00D97E" strokeWidth="0.8" fill="none" opacity="0.28" strokeLinecap="round"/>
+              </svg>
+            </div>
           </div>
-          <span
-            className="text-[11px] font-semibold tracking-[0.22em] uppercase mt-1"
-            style={{ color: 'rgba(0,217,126,0.55)', letterSpacing: '0.22em' }}
-          >
-            Système de Suivi GPS
-          </span>
-        </div>
+          <h1 className="text-3xl font-bold text-white tracking-widest">AtharGPS</h1>
+          <p className="text-xs mt-1.5 tracking-wide" style={{ color: 'rgba(255,255,255,0.38)' }}>{t(lang, 'tagline')}</p>
+        </motion.div>
 
-        <h1 className="text-white text-xl font-black">
-          {t(lang, 'clientLogin') || 'تسجيل دخول العميل'}
-        </h1>
-        <p className="text-white/40 text-sm mt-1.5">
-          {t(lang, 'clientLoginSubtitle') || 'أدخل بياناتك للوصول لأجهزتك'}
-        </p>
-      </motion.div>
-
-      {/* ── البطاقة الرئيسية ── */}
-      <motion.div
-        className="relative z-10 mx-5 mt-8 flex-1 flex flex-col"
-        initial={{ opacity: 0, y: 32 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
-      >
+        {/* Card */}
         <motion.div
-          animate={shake ? { x: [-6, 6, -5, 5, -3, 3, 0] } : { x: 0 }}
-          transition={{ duration: 0.4 }}
-          style={{
-            background:    'rgba(255,255,255,0.04)',
-            border:        '1px solid rgba(255,255,255,0.09)',
-            borderRadius:  28,
-            backdropFilter:'blur(20px)',
-            padding:       '28px 24px 24px',
-          }}
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.15, type: 'spring', stiffness: 120 }}
+          className="w-full max-w-sm"
         >
-          <form onSubmit={handleLogin} className="space-y-4">
-            {/* البريد */}
-            <InputField
-              icon={Mail}
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder={t(lang, 'emailPlaceholder') || 'example@email.com'}
-              autoComplete="email"
-            />
+          <div
+            className="rounded-3xl p-6"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(20px)',
+            }}
+          >
+            <h2 className="text-white font-semibold text-center mb-5 text-sm tracking-wide">
+              {t(lang, 'clientLogin')}
+            </h2>
 
-            {/* كلمة المرور */}
-            <InputField
-              icon={Lock}
-              type={showPass ? 'text' : 'password'}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder={t(lang, 'passwordPlaceholder') || '••••••••'}
-              autoComplete="current-password"
-              rightSlot={
-                <button
-                  type="button"
-                  onClick={() => setShowPass(v => !v)}
-                  className="text-white/30 hover:text-white/60 transition-colors"
-                >
-                  {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
-              }
-            />
-
-            {/* رسالة الخطأ */}
             <AnimatePresence>
               {error && (
                 <motion.div
-                  key="error"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 rounded-xl px-4 py-3"
-                  style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.25)' }}
+                  key="err"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden mb-4"
                 >
-                  <AlertCircle size={15} className="text-red-400 flex-shrink-0" />
-                  <span className="text-red-400 text-sm">{error}</span>
+                  <div
+                    className="rounded-xl px-4 py-2.5 text-xs text-center"
+                    style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)', color: '#ff6b60' }}
+                  >
+                    {t(lang, 'invalidCredentials')}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* زر الدخول */}
-            <motion.button
-              type="submit"
-              disabled={loading || !email || !password}
-              whileTap={{ scale: 0.97 }}
-              className="w-full font-black text-sm tracking-wide py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 mt-2"
-              style={{
-                background: loading || !email || !password
-                  ? 'rgba(0,217,126,0.3)'
-                  : 'linear-gradient(135deg, #00D97E 0%, #00b868 100%)',
-                color:      loading || !email || !password ? 'rgba(255,255,255,0.4)' : '#071629',
-                boxShadow:  !loading && email && password
-                  ? '0 8px 24px rgba(0,217,126,0.35), 0 2px 8px rgba(0,217,126,0.2)'
-                  : 'none',
-              }}
-            >
-              {loading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                  className="w-5 h-5 rounded-full border-2 border-transparent"
-                  style={{ borderTopColor: '#071629' }}
+            <form onSubmit={handleLogin} className="space-y-4">
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-medium tracking-widest uppercase mb-2" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  {t(lang, 'email')}
+                </label>
+                <input
+                  type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder={t(lang, 'emailPlaceholder')} required dir="ltr"
+                  className="w-full rounded-xl px-4 py-3.5 text-white text-sm outline-none transition-all"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
                 />
-              ) : (
-                <>
-                  <Satellite size={16} />
-                  <span>{t(lang, 'loginBtn') || (isRtl ? 'دخول' : 'Se connecter')}</span>
-                </>
-              )}
-            </motion.button>
-          </form>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-xs font-medium tracking-widest uppercase mb-2" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  {t(lang, 'password')}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPass ? 'text' : 'password'} value={password}
+                    onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
+                    className="w-full rounded-xl px-4 py-3.5 text-white text-sm outline-none transition-all"
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+                  />
+                  <button
+                    type="button" onClick={() => setShowPass(p => !p)}
+                    className="absolute top-1/2 -translate-y-1/2 transition-colors"
+                    style={{ [isAr ? 'left' : 'right']: '1rem', color: 'rgba(255,255,255,0.32)' }}
+                  >
+                    {showPass ? <EyeOff size={17}/> : <Eye size={17}/>}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit */}
+              <motion.button
+                type="submit" disabled={loading} whileTap={{ scale: 0.97 }}
+                className="w-full py-4 rounded-xl font-bold text-white text-sm tracking-widest mt-2 transition-all disabled:opacity-50"
+                style={{
+                  background: loading ? 'rgba(0,217,126,0.4)' : 'linear-gradient(135deg,#00D97E 0%,#00b86a 100%)',
+                  boxShadow: loading ? 'none' : '0 4px 20px rgba(0,217,126,0.38)',
+                }}
+              >
+                {loading ? '...' : t(lang, 'loginBtn')}
+              </motion.button>
+            </form>
+          </div>
         </motion.div>
+      </div>
 
-      </motion.div>
-
-      {/* ── تذييل ── */}
-      <div className="relative z-10 text-center pb-8 pt-4">
-        <p className="text-xs text-white/20">© 2025 AtharGPS · Powered by Shgps.ma</p>
+      <div className="pb-10 text-center">
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>© 2025 AtharGPS · Shgps.ma</p>
       </div>
     </div>
   )
