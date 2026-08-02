@@ -7,7 +7,7 @@ import { requireAuth } from '../middleware/auth.js'
 
 export const authRouter = Router()
 
-import { revokedTokens } from '../services/tokenBlacklist.js'
+import { revokeToken, isRevoked } from '../services/tokenBlacklist.js'
 
 // ── Rate limiting (in-memory) ──────────────────────────────────────────────
 const loginAttempts = new Map()
@@ -141,8 +141,10 @@ authRouter.get('/me', requireAuth, (req, res) => {
 })
 
 authRouter.post('/logout', requireAuth, (req, res) => {
-  // أضف الـ token للقائمة السوداء حتى لا يُستخدم مجدداً
-  const token = req.headers.authorization?.split(' ')[1]
-  if (token) revokedTokens.add(token)
+  const token   = req.headers.authorization?.split(' ')[1]
+  const decoded = jwt.decode(token)
+  if (token && decoded?.exp) {
+    revokeToken(token, decoded.exp) // يُضاف للقائمة السوداء حتى انتهاء صلاحيته الطبيعي
+  }
   res.json({ success: true })
 })

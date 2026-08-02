@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken'
     import { config } from '../config.js'
     import { db } from '../db.js'
-    import { revokedTokens } from '../services/tokenBlacklist.js'
+    import { isRevoked } from '../services/tokenBlacklist.js'
 
     export async function requireAuth(req, res, next) {
     const header = req.headers.authorization
@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken'
     const token = header.split(' ')[1]
 
     // ── رفض التوكن إذا كان في القائمة السوداء (تم تسجيل الخروج) ─────────────
-    if (revokedTokens.has(token)) return res.status(401).json({ error: 'Token revoked. Please login again.' })
+    if (isRevoked(token)) return res.status(401).json({ error: 'Token revoked. Please login again.' })
 
     try {
       const { userId } = jwt.verify(token, config.jwtSecret)

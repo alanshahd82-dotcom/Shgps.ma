@@ -6,23 +6,32 @@ import * as traccar from '../services/traccar.js'
 
 export const clientsRouter = Router()
 
-clientsRouter.get('/', requireAuth, requireAdmin, async (_req, res) => {
+clientsRouter.get('/', requireAuth, requireAdmin, async (req, res) => {
+  const page   = Math.max(1, parseInt(req.query.page)  || 1)
+  const limit  = Math.min(100, parseInt(req.query.limit) || 50)
+  const offset = (page - 1) * limit
   try {
     const { rows } = await db.query(`
       SELECT u.id,u.name,u.email,u.phone,u.city,u.subscription,u.is_active,
              u.max_devices,u.expiry_date,u.avatar,u.created_at,
              COUNT(d.id)::int AS devices_count
       FROM users u LEFT JOIN devices d ON u.id=d.user_id
-      WHERE u.is_admin=false GROUP BY u.id ORDER BY u.created_at DESC`)
-    res.json(rows.map(u=>({
-      id:u.id, name:u.name, email:u.email, phone:u.phone, city:u.city,
-      subscription:u.subscription, status: u.is_active?'active':'inactive',
-      isActive: u.is_active,
-      maxDevices: u.max_devices ?? 5,
-      expiryDate: u.expiry_date,
-      devicesCount:u.devices_count, joinDate:u.created_at, avatar:u.avatar||u.name?.charAt(0),
-    })))
-  } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
+      WHERE u.is_admin=false GROUP BY u.id ORDER BY u.created_at DESC
+      LIMIT $1 OFFSET $2`, [limit, offset])
+    const { rows: countRows } = await db.query(
+      `SELECT COUNT(*)::int AS total FROM users WHERE is_admin=false`)
+    res.json({
+      data: rows.map(u => ({
+        id: u.id, name: u.name, email: u.email, phone: u.phone, city: u.city,
+        subscription: u.subscription, status: u.is_active ? 'active' : 'inactive',
+        isActive: u.is_active, maxDevices: u.max_devices ?? 5, expiryDate: u.expiry_date,
+        devicesCount: u.devices_count, joinDate: u.created_at, avatar: u.avatar || u.name?.charAt(0),
+      })),
+      total: countRows[0].total,
+      page,
+      limit,
+    })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
 clientsRouter.post('/', requireAuth, requireAdmin, async (req, res) => {

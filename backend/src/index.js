@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
@@ -18,6 +19,7 @@ import { leadsRouter }           from './routes/leads.js'
 import { driverBehaviorRouter } from './routes/driverBehavior.js'
 import { subUsersRouter }       from './routes/subUsers.js'
 import { config }        from './config.js'
+import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 
 dotenv.config()
@@ -125,8 +127,15 @@ async function runMigrations() {
 const app  = express()
 const PORT = process.env.PORT || 3001
 
-app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }))
-app.use(express.json())
+// Helmet: تُفعَّل كل الرأسيات إلا CSP (يديرها nginx لتدعم Leaflet وOpenStreetMap)
+app.use(helmet({ contentSecurityPolicy: false }))
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || false,
+  credentials: true,
+}))
+
+app.use(express.json({ limit: '1mb' }))
 
 app.use('/api/auth',        authRouter)
 app.use('/api/devices',     devicesRouter)
@@ -170,6 +179,7 @@ wss.on('connection', (ws, req) => {
     const token = url.searchParams.get('token')
     if (!token) { ws.close(1008, 'Unauthorized'); return }
     jwt.verify(token, config.jwtSecret)
+    if (isRevoked(token)) { ws.close(1008, 'Token revoked'); return }
   } catch {
     ws.close(1008, 'Invalid token')
     return

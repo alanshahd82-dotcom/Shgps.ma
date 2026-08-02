@@ -95,7 +95,10 @@ export function AppProvider({ children }) {
     try { setAlertsList(await api.alerts.list()) } catch { /* non-critical */ }
   }
   async function loadClients() {
-    try { setClientList(await api.clients.list()) } catch { /* non-critical */ }
+    try {
+      const res = await api.clients.list()
+      setClientList(Array.isArray(res) ? res : (res.data || []))
+    } catch { /* non-critical */ }
   }
 
   // ── WebSocket live tracking ────────────────────────────────────────────────
