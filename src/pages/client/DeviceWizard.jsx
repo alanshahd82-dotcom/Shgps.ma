@@ -295,7 +295,7 @@ export default function DeviceWizard() {
   const handleSave = async () => {
     setSaving(true); setSaveError(null)
     try {
-      await api.devices.quickAdd({
+      await api.devices.clientAdd({
         name:  state.vehicleName.trim(),
         imei:  state.imei.trim(),
         type:  state.deviceType,

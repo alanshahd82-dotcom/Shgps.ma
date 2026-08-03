@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import {
   ChevronRight, MapPinned, Activity, CarFront, CircleHelp,
   BarChart3, CalendarDays, RefreshCw, ShieldCheck
@@ -37,10 +36,10 @@ function Stat({ label, value, color, icon: Icon }) {
 
 function QuickLink({ icon: Icon, title, description, onClick }) {
   return (
-    <motion.button
-      whileTap={{ scale: 0.985 }}
+    <button
+      type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-start shadow-sm transition hover:border-accent/50 hover:shadow-md"
+      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-start shadow-sm transition-colors hover:border-accent/50 hover:shadow-md"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-500">
         <Icon size={17} />
@@ -50,7 +49,7 @@ function QuickLink({ icon: Icon, title, description, onClick }) {
         <span className="mt-0.5 block truncate text-[10px] text-slate-500">{description}</span>
       </span>
       <ChevronRight size={15} className="shrink-0 text-slate-300" />
-    </motion.button>
+    </button>
   )
 }
 
@@ -90,7 +89,7 @@ export default function Home() {
   })
 
   return (
-    <div className="client-app relative h-[100dvh] overflow-hidden bg-[#f5f7f8]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app client-home-screen fixed inset-0 overflow-hidden bg-[#f5f7f8]" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader fixed showUser />
 
       <main
@@ -200,8 +199,8 @@ export default function Home() {
             {devices.slice(0, 3).map(device => {
               const status = STATUS[getDeviceStatusKey(device)] || STATUS.offline
               return (
-                <motion.button key={device.id} whileTap={{ scale: 0.99 }} onClick={() => navigate('/client/device/' + device.id)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-start shadow-sm">
+                <button key={device.id} type="button" onClick={() => navigate('/client/device/' + device.id)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-start shadow-sm transition-colors hover:border-accent/50">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ background: status.soft }}>
                     <VehicleIcon type={device.type} iconSize={19} />
                   </span>
@@ -219,7 +218,7 @@ export default function Home() {
                     {device.speed > 0 && <small className="font-normal text-slate-400">km/h</small>}
                     <ChevronRight size={14} className="ms-1 text-slate-300" />
                   </span>
-                </motion.button>
+                </button>
               )
             })}
             {!devices.length && (

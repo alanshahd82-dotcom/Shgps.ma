@@ -33,6 +33,7 @@ export const api = {
     list:           ()              => apiFetch('/devices'),
     get:            (id)            => apiFetch(`/devices/${id}`),
     create:         (data)          => apiFetch('/devices', { method: 'POST', body: JSON.stringify(data) }),
+    clientAdd:      (data)          => apiFetch('/devices/client-add', { method: 'POST', body: JSON.stringify(data) }),
     quickAdd:       (data)          => apiFetch('/devices/quick-add', { method: 'POST', body: JSON.stringify(data) }),
     renewSubscription: (id, subscriptionPlanId) =>
       apiFetch(`/devices/${id}/subscription`, { method: 'PATCH', body: JSON.stringify({ subscriptionPlanId }) }),
