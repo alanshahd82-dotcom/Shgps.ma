@@ -1,0 +1,145 @@
+name: shgps
+
+services:
+
+  # ── Backend (Fleet Tracker API + WebSocket) ──────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: shgps-backend:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3001"
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD}@postgres:5432/shgps"
+      TRACCAR_URL: "http://traccar:8082"
+      TRACCAR_EMAIL: "${TRACCAR_ADMIN_EMAIL}"
+      TRACCAR_PASSWORD: "${TRACCAR_ADMIN_PASSWORD}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      traccar:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - shgps
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shgps
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - shgps
+
+  # ── Traccar GPS Server ────────────────────────────────────────────────────
+  traccar:
+    image: traccar/traccar:ubuntu
+    restart: unless-stopped
+    volumes:
+      - traccar_data:/opt/traccar/data
+    ports:
+      - "5001:5001"
+      - "5023:5023"
+      - "5027:5027"
+      - "5029:5029"
+      - "5055:5055/udp"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - shgps
+
+  # ── nginx reverse proxy ───────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot
+    depends_on:
+      backend:
+        condition: service_healthy
+    stop_grace_period: 10s
+    networks:
+      - shgps
+
+  # ── Let's Encrypt auto-renewal ────────────────────────────────────────────
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c 'trap exit TERM;
+      while :; do
+        certbot renew;
+        sleep 12h & wait $${!};
+      done'
+
+  # ── Nightly PostgreSQL backup ─────────────────────────────────────────────
+  db-backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - backups_data:/backups
+    entrypoint: >
+      /bin/sh -c "while true; do
+        pg_dump -h postgres -U postgres -d shgps | gzip > /backups/shgps-$$(date +%Y%m%d-%H%M%S).sql.gz;
+        ls -t /backups/*.sql.gz 2>/dev/null | tail -n +8 | xargs -r rm -f;
+        sleep 86400;
+      done"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - shgps
+
+# ── Named volumes (external — data already exists from previous deploy) ─────
+volumes:
+  postgres_data:
+    external: true
+    name: shgps_postgres_data
+  traccar_data:
+    external: true
+    name: shgps_traccar_data
+  letsencrypt:
+    external: true
+    name: shgps_letsencrypt
+  certbot_www:
+    external: true
+    name: shgps_certbot_www
+  backups_data:
+    external: true
+    name: shgps_backups_data
+
+networks:
+  shgps:
+    driver: bridge

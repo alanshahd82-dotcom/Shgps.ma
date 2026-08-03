@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dockerfile.backend
+#
+# Multi-stage build for the Fleet Tracker API server (TypeScript monorepo).
+# esbuild bundles everything — including workspace packages — into a single
+# dist/index.mjs, so the final image only needs Node to run it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Stage 1: Build ────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+
+# Install pnpm
+RUN npm install -g pnpm@9 --silent
+
+WORKDIR /workspace
+
+# Copy workspace root config (own layer for cache efficiency)
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+
+# Copy shared library packages required by the api-server
+COPY lib/api-zod/     ./lib/api-zod/
+COPY lib/db/          ./lib/db/
+
+# Copy the api-server source
+COPY artifacts/api-server/ ./artifacts/api-server/
+
+# Install ALL workspace dependencies (pnpm resolves workspace: links)
+RUN pnpm install --frozen-lockfile
+
+# Build: esbuild bundles everything into artifacts/api-server/dist/index.mjs
+RUN pnpm --filter @workspace/api-server run build
+
+# ── Stage 2: Production image ─────────────────────────────────────────────────
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy only the bundled output — no source, no node_modules needed
+COPY --from=builder /workspace/artifacts/api-server/dist ./dist
+
+EXPOSE 3001
+
+CMD ["node", "--enable-source-maps", "./dist/index.mjs"]
