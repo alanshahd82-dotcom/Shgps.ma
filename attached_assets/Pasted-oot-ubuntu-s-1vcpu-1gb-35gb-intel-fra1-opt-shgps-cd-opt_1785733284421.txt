@@ -1,0 +1,75 @@
+oot@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cd /opt/shgps
+
+git pull origin main
+
+docker compose build --no-cache backend
+
+docker compose up -d
+
+docker compose ps
+docker compose logs backend --tail 30
+remote: Enumerating objects: 7, done.
+remote: Counting objects: 100% (7/7), done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 4 (delta 3), reused 4 (delta 3), pack-reused 0 (from 0)
+Unpacking objects: 100% (4/4), 411 bytes | 68.00 KiB/s, done.
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+ * branch            main       -> FETCH_HEAD
+   83b1a05..ae0c619  main       -> origin/main
+Updating 83b1a05..ae0c619
+Fast-forward
+ Dockerfile.backend | 2 +-
+ docker-compose.yml | 6 +-----
+ 2 files changed, 2 insertions(+), 6 deletions(-)
+[+] Building 20.3s (19/19) FINISHED                               
+ => [internal] load local bake definitions                   0.0s
+ => => reading from stdin 511B                               0.0s
+ => [internal] load build definition from Dockerfile.backen  0.0s
+ => => transferring dockerfile: 2.10kB                       0.0s
+ => [internal] load metadata for docker.io/library/node:20-  0.3s
+ => [internal] load .dockerignore                            0.0s
+ => => transferring context: 2B                              0.0s
+ => CACHED [builder  1/10] FROM docker.io/library/node:20-a  0.1s
+ => => resolve docker.io/library/node:20-alpine@sha256:fb4c  0.1s
+ => [internal] load build context                            0.0s
+ => => transferring context: 2.42kB                          0.0s
+ => [builder  2/10] RUN npm install -g pnpm@9 --silent       3.8s
+ => CACHED [stage-1 2/3] WORKDIR /app                        0.0s
+ => [builder  3/10] WORKDIR /workspace                       0.1s
+ => [builder  4/10] COPY package.json pnpm-workspace.yaml p  0.1s
+ => [builder  5/10] COPY tsconfig.base.json tsconfig.json .  0.0s
+ => [builder  6/10] COPY lib/api-zod/     ./lib/api-zod/     0.0s
+ => [builder  7/10] COPY lib/db/          ./lib/db/          0.0s
+ => [builder  8/10] COPY artifacts/api-server/ ./artifacts/  0.0s
+ => [builder  9/10] RUN pnpm install --no-frozen-lockfile   12.2s
+ => [builder 10/10] RUN pnpm --filter @workspace/api-server  2.2s 
+ => [stage-1 3/3] COPY --from=builder /workspace/artifacts/  0.1s 
+ => exporting to image                                       0.6s 
+ => => exporting layers                                      0.4s 
+ => => exporting manifest sha256:24d83462d4b7a3f50266ce2455  0.0s 
+ => => exporting config sha256:dd89e4f28b64e32a6056f5112fa7  0.0s 
+ => => exporting attestation manifest sha256:bdba764017607e  0.0s 
+ => => exporting manifest list sha256:09ffc3dfe2a4e8d3ce195  0.0s
+ => => naming to docker.io/library/shgps-backend:latest      0.0s
+ => => unpacking to docker.io/library/shgps-backend:latest   0.1s
+ => resolving provenance for metadata file                   0.2s
+[+] build 1/1
+ ✔ Image shgps-backend:latest Built                          20.4s
+[+] up 6/6
+ ✔ Container shgps-traccar-1   Healthy                       11.2s
+ ✔ Container shgps-certbot-1   Running                        0.0s
+ ✔ Container shgps-db-backup-1 Running                        0.0s
+ ✔ Container shgps-postgres-1  Healthy                       11.2s
+ ✔ Container shgps-backend-1   Started                       11.5s
+ ✔ Container shgps-nginx-1     Started                        0.5s
+NAME                IMAGE                    COMMAND                  SERVICE     CREATED          STATUS                                     PORTS
+shgps-backend-1     shgps-backend:latest     "docker-entrypoint.s…"   backend     12 seconds ago   Up Less than a second (health: starting)   3001/tcp
+shgps-certbot-1     certbot/certbot          "/bin/sh -c 'trap ex…"   certbot     4 minutes ago    Up 4 minutes                               80/tcp, 443/tcp
+shgps-db-backup-1   postgres:16-alpine       "/bin/sh -c 'while t…"   db-backup   4 minutes ago    Up 3 minutes                               5432/tcp
+shgps-nginx-1       nginx:alpine             "/docker-entrypoint.…"   nginx       4 minutes ago    Up Less than a second                      0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+shgps-postgres-1    postgres:16-alpine       "docker-entrypoint.s…"   postgres    4 minutes ago    Up 4 minutes (healthy)                     5432/tcp
+shgps-traccar-1     traccar/traccar:ubuntu   "/opt/traccar/jre/bi…"   traccar     4 minutes ago    Up 4 minutes (healthy)                     0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp, 0.0.0.0:5023->5023/tcp, [::]:5023->5023/tcp, 0.0.0.0:5027->5027/tcp, [::]:5027->5027/tcp, 0.0.0.0:5029->5029/tcp, [::]:5029->5029/tcp, 0.0.0.0:5055->5055/udp, [::]:5055->5055/udp
+backend-1  | {"level":30,"time":1785733238700,"pid":1,"hostname":"0fbffd4442f6","thresholdMs":300000,"scanIntervalMs":30000,"msg":"Device staleness scanner started"}
+backend-1  | {"level":30,"time":1785733238929,"pid":1,"hostname":"0fbffd4442f6","pollIntervalMs":15000,"traccarUrl":"http://traccar:8082","msg":"Geofence poller started"}
+backend-1  | {"level":30,"time":1785733238939,"pid":1,"hostname":"0fbffd4442f6","port":3001,"msg":"Server listening (HTTP + WebSocket)"}
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
