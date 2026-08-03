@@ -1,0 +1,46 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 1. أنشئ non-admin user — بدون administrator:true لتجنب checkAdmin
+docker compose exec backend node -e "
+(async()=>{
+  const r=await fetch('http://traccar:8082/api/users',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:'Admin',email:'admin@athargps.com',password:'Admin2026'})
+  });
+  const t=await r.text();
+  console.log('Status:',r.status);
+  console.log('Body:',t.slice(0,200));
+})();
+"
+Status: 400
+Body: java.lang.SecurityException: Registration disabled
+        at org.traccar.api.resource.UserResource.add(UserResource.java:120)
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Sou
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 2. بعد الإنشاء — ارفّعه admin في DB
+docker compose stop traccar && python3 << 'PYEOF'
+import subprocess
+sql = "UPDATE tc_users SET administrator=TRUE, devicelimit=-1, userlimit=-1 WHERE email='admin@athargps.com'; SELECT id,email,administrator,hashedpassword FROM tc_users WHERE email='admin@athargps.com';"
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout)
+PYEOF
+[+] stop 1/1
+ ✔ Container shgps-traccar-1 Stopped                          1.1s
+(Update count: 0, 26 ms)
+ID | EMAIL | ADMINISTRATOR | HASHEDPASSWORD
+(0 rows, 13 ms)
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 3. أعد التشغيل واختبر
+docker compose start traccar && sleep 30 && docker compose exec backend node -e "
+(async()=>{const r=await fetch('http://traccar:8082/api/session',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'email=admin%40athargps.com&password=Admin2026'});console.log('Status:',r.status,r.status===200?'SUCCESS':'FAIL');if(r.status!==200)console.log(await r.text().then(t=>t.slice(0,200)));})();
+"
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                          0.3s
+Status: 401 FAIL
+jakarta.ws.rs.WebApplicationException: HTTP 401 Unauthorized
+        at org.traccar.api.resource.SessionResource.add(SessionResource.java:134)
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.in
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
