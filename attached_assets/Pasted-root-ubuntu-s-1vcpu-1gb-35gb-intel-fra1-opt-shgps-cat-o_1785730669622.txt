@@ -1,0 +1,56 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cat /opt/shgps/backend/src/services/traccar.js | grep -n "createSession" -A 25
+14: * • createSession()           → throws TraccarUnavailableError on failure
+15- */
+16-
+17-import { config } from '../config.js'
+18-
+19-// ── Timeouts ──────────────────────────────────────────────────────────────────
+20-const CALL_TIMEOUT_MS    = 8_000  // regular API calls
+21-const CHECK_TIMEOUT_MS   = 3_000  // health / availability probe
+22-const SESSION_TIMEOUT_MS = 10_000 // session POST (Traccar may be slow at startup)
+23-
+24-// ── Custom error classes ──────────────────────────────────────────────────────
+25-
+26-export class TraccarUnavailableError extends Error {
+27-  constructor (reason) {
+28-    super(reason)
+29-    this.name = 'TraccarUnavailableError'
+30-    this.available = false
+31-  }
+32-}
+33-
+34-export class TraccarNotFoundError extends Error {
+35-  constructor (path) {
+36-    super(`Traccar resource not found: ${path}`)
+37-    this.name = 'TraccarNotFoundError'
+38-    this.statusCode = 404
+39-  }
+--
+149:export async function createSession (baseUrl, email, password) {
+150:  if (_t.createSession) return _t.createSession(baseUrl, email, password)
+151-  let res
+152-  try {
+153-    const formBody = 'email=' + encodeURIComponent(email)
+154-                   + '&password=' + encodeURIComponent(password)
+155-    res = await fetch(`${baseUrl}/api/session`, {
+156-      method: 'POST',
+157-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+158-      body: formBody,
+159-      signal: AbortSignal.timeout(SESSION_TIMEOUT_MS),
+160-    })
+161-  } catch (err) {
+162-    throw new TraccarUnavailableError(`Traccar session request failed: ${err.message}`)
+163-  }
+164-
+165-  if (!res.ok) {
+166-    throw new TraccarUnavailableError(`Traccar session POST failed: HTTP ${res.status}`)
+167-  }
+168-
+169-  const setCookie = res.headers.get('set-cookie') || ''
+170-  const sessionCookie = setCookie.split(';')[0]
+171-  const user = await res.json().catch(() => ({}))
+172-  return { sessionCookie, userToken: user.token || '' }
+173-}
+174-
+175-// ── Device management ─────────────────────────────────────────────────────────
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
