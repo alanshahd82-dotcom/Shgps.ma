@@ -1,0 +1,279 @@
+أنت مهندس برمجيات Senior وخبير في أنظمة GPS Fleet Management وPostgreSQL وTraccar وReact وExpress وCapacitor.
+
+أريدك أن تعمل على مستودع Shgps.ma الموجود في فرع main فقط:
+
+https://github.com/alanshahd82-dotcom/Shgps.ma
+
+لا تستخدم gh-pages كمصدر للمنتج. هذا الفرع يحتوي على ديمو قديم ببيانات وهمية فقط. الهدف هو تحويل فرع main إلى منصة حقيقية جاهزة للاختبار ثم للإنتاج.
+
+المشروع يتكون من:
+1. صفحة هبوط تسويقية.
+2. تطبيق العميل.
+3. لوحة تحكم Admin.
+4. Backend Express.
+5. PostgreSQL.
+6. Traccar.
+7. WebSocket للتحديثات المباشرة.
+8. Capacitor لتطبيق Android وiOS.
+
+مهم جدًا:
+- لا تستخدم بيانات وهمية في ميزات الإنتاج.
+- لا تخفِ الأخطاء خلف fallback صامت.
+- لا تعتبر التطبيق جاهزًا لمجرد أن npm run build نجح.
+- لا تضف مزايا جديدة قبل إصلاح التشغيل والأمان والبيانات.
+- لا تعرض أي Secrets أو كلمات مرور أو Tokens في الملفات أو الرد النهائي.
+- لا تضع بيانات دخول افتراضية ثابتة داخل الكود.
+- لا تغيّر مكتبة المصادقة عشوائيًا بدون تقييم واضح.
+- يجب أن تعمل كل صلاحية من Backend وليس من الواجهة فقط.
+- يجب أن يكون هناك فرق واضح بين staging وproduction.
+
+نفّذ العمل بالترتيب التالي:
+
+## المرحلة 1: فحص وتنظيف بنية المشروع
+
+- اعتمد فرع main كمصدر وحيد.
+- افحص package.json وbackend/package.json.
+- وحّد اسم المنتج والعلامة التجارية.
+- اختر اسمًا رسميًا واحدًا من Shgps.ma أو AtharGPS، ثم استخدمه في:
+  - عنوان الموقع.
+  - manifest.
+  - Capacitor.
+  - Service Worker.
+  - صفحة الخصوصية.
+  - صفحة الشروط.
+  - رسائل Backend.
+  - إعدادات Nginx.
+  - Docker.
+  - روابط التواصل.
+- لا تترك خلطًا بين Shgps.ma وAtharGPS وathargps.com وathargps.ma.
+- افصل الديمو الوهمي عن نسخة المنتج الحقيقية.
+
+## المرحلة 2: إصلاح قاعدة البيانات
+
+أصلح هذه المشاكل:
+
+- schema.sql ينشئ جداولًا تشير إلى devices قبل إنشاء devices.
+- migrations القديمة تتعارض مع بنية maintenance_logs.
+- migrations القديمة تتعارض مع بنية share_links.
+- بعض الحقول التي يقرأها Backend غير موجودة أو تختلف عن schema.
+- توجد بنية sub-users غير مكتملة.
+- توجد user_device_access لكنها لا تُستخدم فعليًا.
+
+أنشئ نظام migrations واحدًا فقط، واضحًا وقابلًا لإعادة التشغيل.
+
+يجب أن ينجح هذا الأمر على قاعدة بيانات فارغة:
+
+docker compose up -d postgres
+docker compose run --rm backend node src/db/init.js
+
+ويجب أن:
+- تنشأ كل الجداول بالترتيب الصحيح.
+- تنشأ المفاتيح الخارجية بعد إنشاء الجداول المطلوبة.
+- تكون migrations قابلة للتشغيل أكثر من مرة بدون تكرار أو تلف.
+- يمكن ترقية قاعدة قديمة بدون حذف بيانات العملاء.
+- توجد طريقة واضحة لمعرفة migration الحالي.
+
+## المرحلة 3: إصلاح Docker وReadiness
+
+أصلح docker-compose.yml بحيث:
+
+- PostgreSQL لديه healthcheck.
+- Backend ينتظر جاهزية PostgreSQL.
+- Traccar لديه healthcheck مناسب.
+- Backend لا يُعتبر healthy إلا بعد نجاح قاعدة البيانات.
+- `/api/health` يميز بين:
+  - startup
+  - ready
+  - degraded
+  - database unavailable
+  - traccar unavailable
+- لا يبدأ النظام على production إذا كانت JWT_SECRET أو كلمات المرور المطلوبة غير موجودة.
+- لا تستخدم أسرارًا افتراضية معروفة.
+
+## المرحلة 4: إصلاح المصادقة والأمان
+
+راجع المصادقة بالكامل:
+
+- أزل Default Admin Password من schema.sql وDEPLOY.md وsetup.sh.
+- أنشئ طريقة Setup آمنة لإنشاء أول Admin.
+- اجعل الإنتاج يفشل إذا كان JWT_SECRET غير موجود أو ضعيف.
+- راجع تخزين JWT في localStorage.
+- إذا أبقيت JWT، استخدم Cookie آمنة HttpOnly عند الإمكان.
+- أضف Session expiration وlogout فعلي.
+- لا تعتمد على بيانات localStorage وحدها لحماية routes.
+- تحقق من المستخدم من الخادم في كل طلب حساس.
+- احتفظ برسائل خطأ مفهومة بدون تسريب معلومات حساسة.
+
+## المرحلة 5: إصلاح الصلاحيات والملكية
+
+طبّق ownership وroles على الخادم.
+
+اختبر أن:
+- Admin يستطيع إدارة العملاء.
+- Client يرى أجهزته فقط.
+- Client لا يرى أجهزة عميل آخر.
+- Sub-user يرى فقط الأجهزة المسموح بها.
+- viewer لا يستطيع تنفيذ أوامر خطرة.
+- reports يستطيع التقارير فقط.
+- alerts يستطيع التنبيهات فقط.
+- manager لديه الصلاحيات المحددة له فقط.
+- لا يستطيع مستخدم إنشاء أو حذف Sub-user خارج حسابه.
+- لا يستطيع أي مستخدم الوصول إلى Geofence لا يملكه.
+- لا يستطيع مستخدم قراءة تقرير لجهاز لا يملكه.
+- لا يستطيع مستخدم حذف Maintenance Log لا يخصه.
+- Share Link لا يعرض إلا الجهاز المحدد وينتهي فعليًا.
+- أمر قطع المحرك محمي بالصلاحية والتأكيد والتدقيق.
+
+راجع تحديدًا:
+- backend/src/middleware/auth.js
+- backend/src/routes/subUsers.js
+- backend/src/routes/devices.js
+- backend/src/routes/geofences.js
+- backend/src/routes/reports.js
+- backend/src/routes/maintenance.js
+- backend/src/routes/sharing.js
+- backend/src/routes/alerts.js
+
+## المرحلة 6: إصلاح Traccar
+
+أنشئ طبقة واضحة للتعامل مع Traccar:
+
+- لا تجعل كل Route يتعامل مباشرة مع تفاصيل Traccar.
+- تعامل مع Traccar unavailable بشكل واضح.
+- ميّز بين:
+  - جهاز غير موجود.
+  - جهاز موجود لكن offline.
+  - جهاز موجود بدون position.
+  - جهاز لم تتم مزامنته.
+- اختبر IMEI.
+- اختبر إنشاء الجهاز.
+- اختبر ربط الجهاز بالعميل.
+- اختبر position.
+- اختبر history.
+- اختبر geofence.
+- اختبر engine command.
+- اختبر WebSocket.
+- لا تعرض بيانات وهمية في حالة فشل Traccar إلا إذا كان ذلك في وضع test معلن وواضح.
+
+## المرحلة 7: إصلاح الواجهات
+
+راجع:
+- صفحة الهبوط.
+- Client App.
+- Admin Dashboard.
+
+المطلوب:
+- صفحة الهبوط يجب أن تعكس ما يعمل فعليًا فقط.
+- أزرار Google Play وApp Store لا توحي بوجود تطبيق منشور إن لم يكن منشورًا.
+- استخدم نص “قريبًا” أو رابطًا صحيحًا.
+- وحّد اللغة العربية والفرنسية والإنجليزية إن كانت موجودة.
+- أزل النصوص التجريبية والبيانات الوهمية من الإنتاج.
+- أضف حالات واضحة:
+  - loading
+  - empty
+  - offline
+  - error
+  - permission denied
+  - expired subscription
+  - expired share link
+- لا تستخدم alert() للعمليات المهمة؛ استخدم إشعارات UI واضحة.
+- لا تسمح للواجهة بتحديد الصلاحيات وحدها.
+- راجع responsive behavior على الهاتف والتابلت والكمبيوتر.
+- أضف lazy loading للصفحات لتقليل حجم JavaScript.
+
+## المرحلة 8: توحيد النشر
+
+أصلح:
+- nginx/nginx.conf
+- nginx/nginx.conf.bootstrap
+- docker-compose.yml
+- setup.sh
+- DEPLOY.md
+- .github/workflows/deploy.yml
+
+يجب أن يكون هناك:
+- نطاق واحد.
+- HTTPS صحيح.
+- SPA fallback يعمل للمسارات الداخلية.
+- `/client/login` و`/admin/login` يعملان عند فتحهما مباشرة.
+- API وWebSocket يمران عبر النطاق نفسه.
+- secrets محفوظة خارج Git.
+- نسخ احتياطي يومي مجرب.
+- طريقة استرجاع مجربة.
+- staging وproduction منفصلان.
+
+لا تستخدم GitHub Pages كنسخة المنتج الحقيقية.
+
+## المرحلة 9: إصلاح Android
+
+وحّد كل حزم Capacitor على نفس الإصدار:
+- @capacitor/core
+- @capacitor/android
+- @capacitor/ios
+- @capacitor/cli
+- plugins
+
+ثم:
+- أصلح GitHub Actions.
+- اجعل npm install أو pnpm install ثابتًا.
+- نفّذ build Android من نسخة نظيفة.
+- نفّذ cap sync.
+- تأكد أن API URL وWebSocket URL يعملان داخل الهاتف.
+- لا تعتمد على localhost داخل التطبيق.
+- اختبر permissions الخاصة بالإشعارات والموقع.
+- أخرج APK تجريبيًا بعد نجاح البناء.
+
+## المرحلة 10: الاختبارات المطلوبة
+
+أضف اختبارات آلية أو Smoke Tests تغطي:
+
+1. فتح صفحة الهبوط.
+2. فتح Client Login مباشرة.
+3. فتح Admin Login مباشرة.
+4. تسجيل دخول عميل.
+5. تسجيل دخول Admin.
+6. منع العميل من Admin routes.
+7. إنشاء Client من Admin.
+8. إنشاء Device.
+9. قراءة Device.
+10. منع مستخدم من قراءة Device لا يملكه.
+11. قراءة position.
+12. قراءة trip report.
+13. إنشاء Geofence.
+14. منع قراءة Geofence لا يملكها المستخدم.
+15. إنشاء Share Link.
+16. انتهاء Share Link.
+17. إضافة Sub-user.
+18. تطبيق role فعليًا.
+19. logout.
+20. تغيير كلمة المرور.
+21. انتهاء الاشتراك.
+22. Traccar unavailable.
+23. PostgreSQL unavailable.
+24. WebSocket reconnect.
+25. حذف Device.
+26. التحقق من عدم تسريب البيانات بين الحسابات.
+
+## معايير القبول النهائية
+
+لا تعتبر العمل منتهيًا إلا إذا:
+
+- قاعدة بيانات جديدة تبدأ بنجاح.
+- Backend health يرجع ready عند توفر الخدمات.
+- فشل Traccar يظهر كحالة واضحة وليس كبيانات وهمية.
+- جميع صلاحيات الملكية مجربة.
+- لا توجد كلمات مرور افتراضية في المستودع.
+- لا يوجد JWT secret افتراضي في production.
+- صفحة الهبوط لا تحتوي على وعود غير متاحة.
+- المسارات الداخلية تعمل مباشرة في المتصفح.
+- Android build ينجح.
+- لا توجد تعارضات migrations.
+- لا توجد أخطاء TypeScript أو build.
+- تم تشغيل Smoke Tests.
+- تم توثيق طريقة تشغيل staging وproduction.
+- قدم تقريرًا نهائيًا يحتوي على:
+  - الملفات التي تم تعديلها.
+  - المشاكل التي تم إصلاحها.
+  - الاختبارات التي نجحت.
+  - الاختبارات غير الممكنة بسبب عدم توفر Traccar أو جهاز حقيقي.
+  - أي مخاطر متبقية.
