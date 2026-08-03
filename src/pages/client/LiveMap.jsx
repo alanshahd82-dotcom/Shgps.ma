@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Search, X, ChevronUp, LocateFixed, Navigation } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
+import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -92,10 +93,7 @@ export default function LiveMap() {
         style={{ width:'100%', height:'100%', position:'absolute', inset:0, zIndex:0 }}
         zoomControl={false}
       >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://openstreetmap.org">OSM</a>'
-        />
+        <GeoapifyTileLayer />
         {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon}/>}
         {positioned.map(d => (
           <Marker key={d.id} position={[d.lat, d.lng]} icon={makeVehicleIcon(d)}

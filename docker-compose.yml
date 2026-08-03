@@ -53,6 +53,8 @@ services:
       TRACCAR_URL:            http://traccar:8082
       TRACCAR_ADMIN_EMAIL:    ${TRACCAR_ADMIN_EMAIL}
       TRACCAR_ADMIN_PASSWORD: ${TRACCAR_ADMIN_PASSWORD}
+      GEOAPIFY_API_KEY:       ${GEOAPIFY_API_KEY}
+      GEOAPIFY_MAP_STYLE:     ${GEOAPIFY_MAP_STYLE:-osm-bright}
       FRONTEND_URL:           http://${DOMAIN}
       NODE_ENV:               production
     depends_on:

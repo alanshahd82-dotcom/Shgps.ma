@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { MapContainer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
+import GeoapifyTileLayer from '../components/GeoapifyTileLayer'
 import 'leaflet/dist/leaflet.css'
 import { Navigation, Car, Clock, AlertTriangle } from 'lucide-react'
 
@@ -112,10 +113,7 @@ export default function PublicMap() {
       <div className="flex-1" style={{ minHeight: 'calc(100vh - 120px)' }}>
         {pos ? (
           <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a>'
-            />
+            <GeoapifyTileLayer />
             <Marker position={center}>
               <Popup>
                 <div className="text-sm font-semibold">{data.deviceName}</div>

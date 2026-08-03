@@ -44,6 +44,7 @@ npm run dev
 - **React 18** + Vite
 - **Tailwind CSS** — نظام تصميم مخصص
 - **Leaflet / react-leaflet** — خرائط OpenStreetMap
+- **Geoapify** — مزود بلاطات الخرائط التجارية عبر وسيط الخادم، مع إبقاء مفتاح API خارج الواجهة والمستودع
 - **Recharts** — رسوم بيانية للـ Admin
 - **Framer Motion** — انتقالات ناعمة
 - **React Router v6** — التنقل بين الشاشات

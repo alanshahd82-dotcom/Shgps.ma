@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Car, Loader2 } from 'lucide-react'
-import { MapContainer, TileLayer, Circle as LeafletCircle, Marker, useMapEvents, useMap } from 'react-leaflet'
+import { MapContainer, Circle as LeafletCircle, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -188,7 +189,7 @@ export default function Geofences() {
             {/* Map */}
             <div style={{ height:280, margin:'0 16px', borderRadius:16, overflow:'hidden', border:'1px solid rgba(255,255,255,0.1)' }}>
               <MapContainer center={[31.7917,-7.0926]} zoom={5} style={{ height:'100%',width:'100%' }} zoomControl={false}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                <GeoapifyTileLayer />
                 <MapClickHandler onMapClick={ll => setCenter(ll)} enabled={true}/>
                 {center && (
                   <>

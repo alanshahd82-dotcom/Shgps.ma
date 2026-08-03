@@ -15,4 +15,8 @@ export const config = {
     password: process.env.TRACCAR_ADMIN_PASSWORD || '',
   },
   frontendUrl: process.env.FRONTEND_URL || '',
+  geoapify: {
+    apiKey: process.env.GEOAPIFY_API_KEY || '',
+    style: process.env.GEOAPIFY_MAP_STYLE || 'osm-bright',
+  },
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
   ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery,
@@ -17,6 +17,7 @@ import { getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
+import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
 
 function speedColor(s) {
   if (s > 120) return '#FF3B30'
@@ -195,7 +196,7 @@ export default function DeviceDetail() {
               {trackingEnabled && device.lat && device.lng && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
                   <MapContainer center={[device.lat, device.lng]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                    <GeoapifyTileLayer />
                     <Marker position={[device.lat, device.lng]}
                       icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:'+stColor+';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })}/>
                   </MapContainer>
@@ -234,7 +235,7 @@ export default function DeviceDetail() {
                   {positions.length > 0 && (
                     <div className="rounded-2xl overflow-hidden" style={{ height:200 }}>
                       <MapContainer center={positions[0]} zoom={12} style={{ height:'100%',width:'100%' }} zoomControl={false}>
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                        <GeoapifyTileLayer />
                         <Polyline positions={positions} color="#00D97E" weight={3} opacity={0.8}/>
                         <FitRoute positions={positions}/>
                       </MapContainer>

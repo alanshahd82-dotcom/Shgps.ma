@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import GeoapifyTileLayer from './GeoapifyTileLayer'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
@@ -208,10 +209,7 @@ export default function MapView({
       zoomControl={false}
       onClick={onMapClick}
     >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      />
+      <GeoapifyTileLayer />
 
       {primaryHasCoords && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
 
