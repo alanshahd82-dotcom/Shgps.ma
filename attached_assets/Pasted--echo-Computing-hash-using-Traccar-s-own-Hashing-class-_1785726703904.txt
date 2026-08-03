@@ -1,0 +1,61 @@
+
+echo "→ Computing hash using Traccar's own Hashing class and inserting admin..."
+docker compose run --rm --entrypoint="" traccar \
+  /opt/traccar/jre/bin/java \
+  -cp /opt/traccar/tracker-server.jar \
+  org.h2.tools.Shell \
+  -url "jdbc:h2:/opt/traccar/data/database" \
+  -user sa -password "" \
+  -sql "
+CREATE ALIAS IF NOT EXISTS TKHASH FOR \"org.traccar.helper.Hashing.createHash\";
+SELECT TKHASH('admin123') AS computed_hash;
+INSERT INTO tc_users (name, email, hashedpassword, administrator, devicelimit, userlimit, disabled, attributes)
+  SELECT 'Admin', 'admin@athargps.com', TKHASH('admin123'), TRUE, -1, -1, FALSE, '{}';
+SELECT id, email, hashedpassword, administrator FROM tc_users WHERE email='admin@athargps.com';
+"
+
+echo "→ Starting Traccar..."
+docker compose start traccar
+sleep 10
+
+echo "→ Testing session with admin123..."
+docker compose exec backend node -e "
+(async () => {
+  const res = await fetch('http://traccar:8082/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'email=admin%40athargps.com
+CREATE: command not found
+-bash: syntax error near unexpected token `('
+-bash: syntax error near unexpected token `('
+-bash: syntax error near unexpected token `('
+SELECT: command not found
+
+
+echo →: command not found
+-bash: syntax error near unexpected token `='
+-bash: syntax error near unexpected token `('
+method:: command not found
+headers:: command not found
+body:: command not found
+-bash: syntax error near unexpected token `}'
+-bash: syntax error near unexpected token `'Status:','
+-bash: syntax error near unexpected token `{'
+-bash: syntax error near unexpected token `('
+-bash: syntax error near unexpected token `'User:','
+-bash: syntax error near unexpected token `}'
+-bash: syntax error near unexpected token `}'
+> cd /opt/shgps && docker compose stop traccar
+> docker compose run --rm --entrypoint="" traccar /opt/traccar/jre/bin/java -cp /opt/traccar/tracker-server.jar org.h2.tools.Shell -url "jdbc:h2:/opt/traccar/data/database" -user sa -password "" -sql "CREATE ALIAS IF NOT EXISTS TKHASH FOR 'org.traccar.helper.Hashing.createHash'; INSERT INTO tc_users (name,email,hashedpassword,administrator,devicelimit,userlimit,disabled,attributes) SELECT 'Admin','admin@athargps.com',TKHASH('Admin2026'),TRUE,-1,-1,FALSE,'{}'; SELECT id,email,administrator FROM tc_users WHERE email='admin@athargps.com';"
+-bash: syntax error near unexpected token `('
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# sed -i 's/TRACCAR_ADMIN_PASSWORD=.*/TRACCAR_ADMIN_PASSWORD=Admin2026/' /opt/shgps/.env && docker compose start traccar && sleep 12 && docker compose restart backend
+[+] restart 0/1
+ ⠼ Container shgps-backend-1 Restarting                      10.3s
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# sleep 15 && docker compose logs backend --tail=6
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+backend-1  | [WS] Frontend client connected — total: 1
+backend-1  | [WS] Frontend client connected — total: 2
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
