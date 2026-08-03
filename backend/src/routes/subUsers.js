@@ -1,0 +1,66 @@
+import { Router } from 'express'
+import bcrypt from 'bcryptjs'
+import { db } from '../db.js'
+import { requireAuth } from '../middleware/auth.js'
+
+export const subUsersRouter = Router()
+
+subUsersRouter.get('/', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT id, email, name, role, is_active, created_at FROM users WHERE parent_client_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    )
+    res.json(rows.map(u => ({ id:u.id, email:u.email, name:u.name, role:u.role||'viewer', isActive:u.is_active, createdAt:u.created_at })))
+  } catch (err) { console.error('[sub-users GET]', err.message); res.status(500).json({ error: 'Server error' }) }
+})
+
+subUsersRouter.post('/', requireAuth, async (req, res) => {
+  try {
+    if (req.user.parent_client_id) return res.status(403).json({ error: 'Sub-users cannot create other sub-users' })
+    const { name, email, password, role } = req.body
+    if (!name || !email || !password) return res.status(400).json({ error: 'name, email, and password are required' })
+    const VALID_ROLES = ['manager', 'viewer', 'reports', 'alerts']
+    const assignedRole = VALID_ROLES.includes(role) ? role : 'viewer'
+    const { rows: existing } = await db.query('SELECT id FROM users WHERE email=$1', [email.toLowerCase().trim()])
+    if (existing.length > 0) return res.status(409).json({ error: 'Email already in use' })
+    const passwordHash = await bcrypt.hash(password, 10)
+    const { rows } = await db.query(
+      `INSERT INTO users (email, password_hash, name, role, parent_client_id, is_active, is_admin, subscription, max_devices)
+       VALUES ($1, $2, $3, $4, $5, true, false, 'sub', 0) RETURNING id, email, name, role, is_active, created_at`,
+      [email.toLowerCase().trim(), passwordHash, name.trim(), assignedRole, req.user.id]
+    )
+    const u = rows[0]
+    res.status(201).json({ id:u.id, email:u.email, name:u.name, role:u.role, isActive:u.is_active, createdAt:u.created_at })
+  } catch (err) { console.error('[sub-users POST]', err.message); res.status(500).json({ error: 'Server error' }) }
+})
+
+subUsersRouter.patch('/:id', requireAuth, async (req, res) => {
+  try {
+    const { role, isActive } = req.body
+    const { rows } = await db.query('SELECT * FROM users WHERE id=$1 AND parent_client_id=$2', [req.params.id, req.user.id])
+    if (!rows[0]) return res.status(404).json({ error: 'Sub-user not found' })
+    const VALID_ROLES = ['manager', 'viewer', 'reports', 'alerts']
+    const updates = [], params = []
+    let idx = 1
+    if (role !== undefined && VALID_ROLES.includes(role)) { updates.push(`role=$${idx++}`); params.push(role) }
+    if (isActive !== undefined) { updates.push(`is_active=$${idx++}`); params.push(Boolean(isActive)) }
+    if (updates.length === 0) return res.status(400).json({ error: 'Nothing to update' })
+    params.push(req.params.id, req.user.id)
+    const { rows: updated } = await db.query(
+      `UPDATE users SET ${updates.join(', ')}, updated_at=NOW() WHERE id=$${idx++} AND parent_client_id=$${idx} RETURNING id, email, name, role, is_active, created_at`,
+      params
+    )
+    const u = updated[0]
+    res.json({ id:u.id, email:u.email, name:u.name, role:u.role, isActive:u.is_active, createdAt:u.created_at })
+  } catch (err) { console.error('[sub-users PATCH]', err.message); res.status(500).json({ error: 'Server error' }) }
+})
+
+subUsersRouter.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT id FROM users WHERE id=$1 AND parent_client_id=$2', [req.params.id, req.user.id])
+    if (!rows[0]) return res.status(404).json({ error: 'Sub-user not found' })
+    await db.query('DELETE FROM users WHERE id=$1', [req.params.id])
+    res.json({ success: true })
+  } catch (err) { console.error('[sub-users DELETE]', err.message); res.status(500).json({ error: 'Server error' }) }
+})
