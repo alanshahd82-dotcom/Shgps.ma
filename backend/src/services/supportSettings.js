@@ -3,6 +3,8 @@ export const DEFAULT_SUPPORT_SETTINGS = Object.freeze({
   phone: '+212600000000',
   whatsapp: '212600000000',
   hours: 'كل يوم من 09:00 إلى 18:00',
+  googlePlayUrl: '',
+  appStoreUrl: '',
 })
 
 export async function getSupportSettings(db) {
@@ -25,6 +27,8 @@ export async function saveSupportSettings(db, input) {
     phone: String(input.phone ?? current.phone).trim(),
     whatsapp: String(input.whatsapp ?? current.whatsapp).replace(/[^\d+]/g, ''),
     hours: String(input.hours ?? current.hours).trim(),
+    googlePlayUrl: String(input.googlePlayUrl ?? current.googlePlayUrl ?? '').trim(),
+    appStoreUrl: String(input.appStoreUrl ?? current.appStoreUrl ?? '').trim(),
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next.email)) {
@@ -46,6 +50,13 @@ export async function saveSupportSettings(db, input) {
     const error = new Error('Support hours are required')
     error.code = 'INVALID_SUPPORT_HOURS'
     throw error
+  }
+  for (const [key, value] of [['googlePlayUrl', next.googlePlayUrl], ['appStoreUrl', next.appStoreUrl]]) {
+    if (value && !/^https?:\/\/\S+$/i.test(value)) {
+      const error = new Error(`${key} must be a valid store URL`)
+      error.code = 'INVALID_STORE_URL'
+      throw error
+    }
   }
 
   await db.query(

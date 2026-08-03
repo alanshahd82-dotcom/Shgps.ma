@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, BarChart3, BellRing, Check, ChevronDown,
   CircleHelp, Clock3, Mail, MapPinned, MessageCircle, Menu, ShieldCheck,
-  Smartphone, X
+  X, Apple, Play
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/index.js'
@@ -13,6 +13,8 @@ const DEFAULT_SUPPORT = {
   phone: '+212600000000',
   whatsapp: '212600000000',
   hours: 'كل يوم من 09:00 إلى 18:00',
+  googlePlayUrl: '',
+  appStoreUrl: '',
 }
 
 const COPY = {
@@ -21,7 +23,7 @@ const COPY = {
     nav: { features: 'المزايا', how: 'كيف يعمل', plans: 'الباقات', support: 'تواصل معنا', login: 'دخول العملاء' },
     hero: {
       eyebrow: 'تتبّع واضح لأسطولك',
-      title: 'اعرف أين توجد مركباتك، واتخذ القرار في الوقت المناسب.',
+      title: 'تتبّع مركباتك بوضوح، واتخذ القرار في الوقت المناسب.',
       body: 'ATHAR GPS يساعدك على متابعة المركبات، مراجعة الرحلات، استقبال التنبيهات وإدارة الصيانة من تطبيق واحد.',
       primary: 'اطلب تجربة مجانية',
       secondary: 'تعرّف على المزايا',
@@ -72,7 +74,7 @@ const COPY = {
     nav: { features: 'Fonctionnalités', how: 'Fonctionnement', plans: 'Forfaits', support: 'Contact', login: 'Espace client' },
     hero: {
       eyebrow: 'Le suivi qui reste lisible',
-      title: 'Sachez où sont vos véhicules et agissez au bon moment.',
+      title: 'Suivez vos véhicules clairement et agissez au bon moment.',
       body: 'ATHAR GPS vous aide à suivre vos véhicules, consulter les trajets, recevoir les alertes et gérer la maintenance depuis un seul espace.',
       primary: 'Demander un essai',
       secondary: 'Découvrir les fonctionnalités',
@@ -120,28 +122,46 @@ const COPY = {
   },
 }
 
-function whatsappLink(number, lang, plan = '') {
-  const message = lang === 'ar'
-    ? `مرحباً، أريد طلب اشتراك ATHAR GPS${plan ? ` — ${plan}` : ''}.`
-    : `Bonjour, je souhaite demander un abonnement ATHAR GPS${plan ? ` — ${plan}` : ''}.`
+function planRequestMessage(plan, lang) {
+  if (!plan) {
+    return lang === 'ar'
+      ? 'مرحباً، أود التعرف على خدمة ATHAR GPS وطلب تجربة 3 أشهر مجانية للعملاء الجدد. أرجو التواصل معي لتأكيد التفاصيل.'
+      : 'Bonjour, je souhaite découvrir ATHAR GPS et demander l’essai gratuit de 3 mois réservé aux nouveaux clients. Merci de me contacter pour confirmer les détails.'
+  }
+  return lang === 'ar'
+    ? `مرحباً فريق ATHAR GPS، أود طلب الاشتراك في باقة ${plan.label} بسعر ${plan.price} درهم. أرجو تزويدي بخطوات التفعيل ووسيلة الدفع المناسبة. شكراً.`
+    : `Bonjour l’équipe ATHAR GPS, je souhaite souscrire au forfait ${plan.labelFr} au prix de ${plan.price} MAD. Merci de m’indiquer les étapes d’activation et le mode de paiement.`
+}
+
+function whatsappLink(number, lang, plan = null) {
+  const message = planRequestMessage(plan, lang)
   return `https://wa.me/${String(number || '').replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
 }
 
-function supportEmail(email, lang, plan = '') {
-  const subject = lang === 'ar' ? `طلب اشتراك ATHAR GPS${plan ? ` — ${plan}` : ''}` : `Demande d’abonnement ATHAR GPS${plan ? ` — ${plan}` : ''}`
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}`
+function supportEmail(email, lang, plan = null) {
+  const subject = plan
+    ? (lang === 'ar' ? `طلب باقة ATHAR GPS — ${plan.label}` : `Demande de forfait ATHAR GPS — ${plan.labelFr}`)
+    : (lang === 'ar' ? 'طلب تجربة ATHAR GPS' : 'Demande d’essai ATHAR GPS')
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(planRequestMessage(plan, lang))}`
 }
 
-function ClientAppBadge({ label }) {
-  return (
-    <Link to="/client" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-start shadow-sm transition hover:border-accent">
-      <Smartphone size={18} className="text-primary-500" />
-      <span>
-        <span className="block text-[9px] text-slate-400">{label}</span>
-        <span className="block text-xs font-extrabold text-primary-500">ATHAR GPS</span>
+function StoreBadge({ href, kind, lang }) {
+  const isPlay = kind === 'play'
+  const Icon = isPlay ? Play : Apple
+  const storeName = isPlay ? 'Google Play' : 'App Store'
+  const content = (
+    <>
+      <Icon size={19} fill={isPlay ? 'currentColor' : 'none'} />
+      <span className="text-start">
+        <span className="block text-[9px] font-semibold opacity-70">{lang === 'ar' ? 'تحميل التطبيق' : 'Télécharger l’application'}</span>
+        <span className="block text-xs font-extrabold">{storeName}</span>
       </span>
-    </Link>
+    </>
   )
+  const className = `inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-white shadow-sm transition ${href ? 'bg-primary-500 hover:bg-[#244b6d]' : 'cursor-default bg-slate-400'}`
+  return href
+    ? <a href={href} target="_blank" rel="noreferrer" className={className}>{content}</a>
+    : <span aria-disabled="true" className={className}>{content}</span>
 }
 
 function FeatureVisual({ support, lang }) {
@@ -151,7 +171,7 @@ function FeatureVisual({ support, lang }) {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">ATHAR GPS</p>
-            <p className="mt-1 text-sm font-bold text-white">{lang === 'ar' ? 'الأسطول الآن' : 'Flotte en direct'}</p>
+             <p className="mt-1 text-sm font-bold text-white">{lang === 'ar' ? 'عرض توضيحي للمنصة' : 'Aperçu de la plateforme'}</p>
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10"><BellRing size={16} className="text-accent" /></div>
         </div>
@@ -159,16 +179,16 @@ function FeatureVisual({ support, lang }) {
           <div className="absolute inset-0 opacity-35" style={{ backgroundImage: 'linear-gradient(30deg, transparent 48%, #8fb1c8 49%, transparent 50%), linear-gradient(120deg, transparent 48%, #8fb1c8 49%, transparent 50%)', backgroundSize: '70px 70px' }} />
           <div className="absolute left-[22%] top-[30%] h-3 w-3 rounded-full border-2 border-white bg-accent shadow-[0_0_0_8px_rgba(228,181,107,.2)]" />
           <div className="absolute right-[27%] top-[56%] h-3 w-3 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_0_8px_rgba(52,211,153,.18)]" />
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl bg-white/95 px-3 py-2">
-            <span className="text-[10px] font-bold text-primary-500">{lang === 'ar' ? '3 مركبات متصلة' : '3 véhicules connectés'}</span>
-            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Live</span>
-          </div>
+           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl bg-white/95 px-3 py-2">
+             <span className="text-[10px] font-bold text-primary-500">{lang === 'ar' ? 'الخريطة المباشرة' : 'Carte en direct'}</span>
+             <span className="text-[10px] font-bold text-slate-500">{lang === 'ar' ? 'عرض توضيحي' : 'Démo'}</span>
+           </div>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
-          {[['12', lang === 'ar' ? 'تنبيه' : 'Alertes'], ['248', 'km'], ['96%', lang === 'ar' ? 'اتصال' : 'Signal']].map(([value, label]) => (
+           {[[MapPinned, lang === 'ar' ? 'موقع مباشر' : 'Position'], [BarChart3, lang === 'ar' ? 'تقارير الرحلات' : 'Rapports'], [BellRing, lang === 'ar' ? 'تنبيهات مهمة' : 'Alertes']].map(([Icon, label]) => (
             <div key={label} className="rounded-xl bg-white/10 px-2 py-2.5">
-              <p className="text-sm font-extrabold text-white">{value}</p>
-              <p className="mt-0.5 text-[9px] text-white/55">{label}</p>
+               <Icon size={15} className="text-accent" />
+               <p className="mt-1 text-[9px] font-bold text-white/75">{label}</p>
             </div>
           ))}
         </div>
@@ -230,7 +250,7 @@ export default function LandingPage() {
         <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pb-24 pt-16 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:pb-28 lg:pt-24">
           <div>
             <p className="mb-4 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.hero.eyebrow}</p>
-            <h1 className="max-w-2xl text-[clamp(2.3rem,5vw,4.25rem)] font-extrabold leading-[1.12] tracking-[-0.04em] text-primary-500">{copy.hero.title}</h1>
+             <h1 className="max-w-xl text-[clamp(2rem,4vw,3.35rem)] font-extrabold leading-[1.16] tracking-[-0.035em] text-primary-500">{copy.hero.title}</h1>
             <p className="mt-6 max-w-xl text-base leading-8 text-slate-500">{copy.hero.body}</p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <a href={whatsappLink(support.whatsapp, lang)} target="_blank" rel="noreferrer" className="athar-primary inline-flex items-center gap-2 rounded-xl bg-primary-500 px-5 py-3.5 text-sm font-bold text-white transition">{copy.hero.primary}<Arrow size={17} /></a>
@@ -264,13 +284,13 @@ export default function LandingPage() {
         <section id="plans" className="mx-auto max-w-6xl px-5 py-24 lg:px-8">
           <div className="max-w-2xl"><p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.plans.eyebrow}</p><h2 className="text-3xl font-extrabold leading-tight text-primary-500 md:text-4xl">{copy.plans.title}</h2><p className="mt-4 text-sm leading-7 text-slate-500">{copy.plans.body}</p></div>
           <div className="mt-12 grid gap-4 md:grid-cols-3">
-            {SUBSCRIPTION_PLANS.map((plan, index) => <article key={plan.id} className={`athar-card relative rounded-2xl border bg-white p-6 shadow-sm ${index === 1 ? 'border-accent ring-1 ring-accent/30' : 'border-slate-200'}`}>{index === 1 && <span className="absolute -top-3 start-5 rounded-full bg-accent px-3 py-1 text-[10px] font-extrabold text-primary-500">{copy.plans.popular}</span>}<p className="text-sm font-extrabold text-primary-500">{isAr ? plan.label : plan.labelFr}</p><div className="mt-5 flex items-end gap-2"><span className="text-4xl font-black text-primary-500">{plan.price}</span><span className="mb-1 text-xs font-bold text-slate-400">{copy.plans.currency}</span></div><p className="mt-2 text-xs text-slate-400">{isAr ? 'دفع نقدي' : 'Paiement comptant'}</p><a href={whatsappLink(support.whatsapp, lang, isAr ? plan.label : plan.labelFr)} target="_blank" rel="noreferrer" className="mt-7 flex items-center justify-center gap-2 rounded-xl bg-primary-500 px-4 py-3 text-xs font-bold text-white">{copy.plans.action}<Arrow size={14} /></a></article>)}
+             {SUBSCRIPTION_PLANS.map((plan, index) => <article key={plan.id} className={`athar-card relative rounded-2xl border bg-white p-6 shadow-sm ${index === 1 ? 'border-accent ring-1 ring-accent/30' : 'border-slate-200'}`}>{index === 1 && <span className="absolute -top-3 start-5 rounded-full bg-accent px-3 py-1 text-[10px] font-extrabold text-primary-500">{copy.plans.popular}</span>}<p className="text-sm font-extrabold text-primary-500">{isAr ? plan.label : plan.labelFr}</p><div className="mt-5 flex items-end gap-2"><span className="text-4xl font-black text-primary-500">{plan.price}</span><span className="mb-1 text-xs font-bold text-slate-400">{copy.plans.currency}</span></div><p className="mt-2 text-xs text-slate-400">{isAr ? 'دفع نقدي' : 'Paiement comptant'}</p><a href={whatsappLink(support.whatsapp, lang, plan)} target="_blank" rel="noreferrer" className="mt-7 flex items-center justify-center gap-2 rounded-xl bg-primary-500 px-4 py-3 text-xs font-bold text-white">{copy.plans.action}<Arrow size={14} /></a><a href={supportEmail(support.email, lang, plan)} className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-bold text-primary-500"><Mail size={13} />{copy.contact.email}</a></article>)}
           </div>
         </section>
 
         <section id="contact" className="bg-[#eef3f2]">
           <div className="mx-auto grid max-w-6xl gap-10 px-5 py-24 lg:grid-cols-[1.2fr_.8fr] lg:px-8">
-            <div><p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.contact.eyebrow}</p><h2 className="max-w-xl text-3xl font-extrabold leading-tight text-primary-500 md:text-4xl">{copy.contact.title}</h2><p className="mt-4 max-w-xl text-sm leading-7 text-slate-500">{copy.contact.body}</p><div className="mt-8 flex flex-wrap gap-3"><a href={whatsappLink(support.whatsapp, lang)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#1d9b69] px-5 py-3.5 text-sm font-bold text-white"><MessageCircle size={17} />{copy.contact.whatsapp}</a><a href={supportEmail(support.email, lang)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-primary-500"><Mail size={17} />{copy.contact.email}</a></div></div>
+             <div><p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.contact.eyebrow}</p><h2 className="max-w-xl text-3xl font-extrabold leading-tight text-primary-500 md:text-4xl">{copy.contact.title}</h2><p className="mt-4 max-w-xl text-sm leading-7 text-slate-500">{copy.contact.body}</p><div className="mt-8 flex flex-wrap gap-3"><a href={whatsappLink(support.whatsapp, lang)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#1d9b69] px-5 py-3.5 text-sm font-bold text-white"><MessageCircle size={17} />{copy.contact.whatsapp}</a><a href={supportEmail(support.email, lang)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-primary-500"><Mail size={17} />{copy.contact.email}</a></div><div className="mt-7 flex flex-wrap gap-2"><StoreBadge href={support.googlePlayUrl} kind="play" lang={lang} /><StoreBadge href={support.appStoreUrl} kind="apple" lang={lang} /></div></div>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50"><CircleHelp size={21} className="text-primary-500" /></div><h3 className="mt-5 text-sm font-extrabold text-primary-500">{copy.contact.hours}</h3><p className="mt-2 text-sm text-slate-500">{support.hours}</p><p className="mt-5 border-t border-slate-100 pt-4 text-xs leading-6 text-slate-400">{support.phone}<br />{support.email}</p></div>
           </div>
         </section>
@@ -279,7 +299,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><p className="text-sm font-extrabold tracking-[0.12em] text-primary-500">ATHAR GPS</p><p className="mt-1 text-xs text-slate-400">{copy.footer}</p></div><div className="flex flex-wrap items-center gap-3"><ClientAppBadge label={isAr ? 'افتح تطبيق العميل' : 'Ouvrir l’espace client'} /><Link to="/terms" className="text-xs font-bold text-slate-500"> {isAr ? 'الشروط' : 'CGU'} </Link><Link to="/privacy" className="text-xs font-bold text-slate-500">{isAr ? 'الخصوصية' : 'Confidentialité'}</Link></div></div>
+         <div className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><p className="text-sm font-extrabold tracking-[0.12em] text-primary-500">ATHAR GPS</p><p className="mt-1 text-xs text-slate-400">{copy.footer}</p></div><div className="flex flex-wrap items-center gap-3"><Link to="/terms" className="text-xs font-bold text-slate-500"> {isAr ? 'الشروط' : 'CGU'} </Link><Link to="/privacy" className="text-xs font-bold text-slate-500">{isAr ? 'الخصوصية' : 'Confidentialité'}</Link></div></div>
       </footer>
     </div>
   )

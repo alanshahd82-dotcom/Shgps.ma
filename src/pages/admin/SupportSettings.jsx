@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Mail, Phone, MessageCircle, Save, TriangleAlert } from 'lucide-react'
+import { Mail, Phone, MessageCircle, Save, TriangleAlert, Play, Apple } from 'lucide-react'
 import AdminLayout from './AdminLayout'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
@@ -9,6 +9,8 @@ const DEFAULT_SUPPORT = {
   phone: '+212600000000',
   whatsapp: '212600000000',
   hours: 'كل يوم من 09:00 إلى 18:00',
+  googlePlayUrl: '',
+  appStoreUrl: '',
 }
 
 export default function SupportSettings() {
@@ -56,14 +58,17 @@ export default function SupportSettings() {
             ['phone', isAr ? 'رقم الهاتف' : 'Téléphone', Phone, '+212600000000', 'tel'],
             ['whatsapp', 'WhatsApp', MessageCircle, '212600000000', 'text'],
             ['hours', isAr ? 'ساعات العمل' : 'Horaires', null, '09:00 - 18:00', 'text'],
+            ['googlePlayUrl', isAr ? 'رابط Google Play' : 'Lien Google Play', Play, 'https://play.google.com/store/apps/details?id=...', 'url'],
+            ['appStoreUrl', isAr ? 'رابط App Store' : 'Lien App Store', Apple, 'https://apps.apple.com/app/...', 'url'],
           ].map(([key, label, Icon, placeholder, type]) => (
             <label key={key} className="block">
               <span className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-2">
                 {Icon && <Icon size={15} className="text-accent" />}{label}
               </span>
-              <input required value={form[key] || ''} onChange={update(key)} type={type} placeholder={placeholder}
+              <input required={key !== 'googlePlayUrl' && key !== 'appStoreUrl'} value={form[key] || ''} onChange={update(key)} type={type} placeholder={placeholder}
                 disabled={loading} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-primary-500 outline-none focus:border-accent" />
               {key === 'whatsapp' && <span className="text-[11px] text-slate-400 mt-1 block">{isAr ? 'اكتب الرقم الدولي دون + أو مسافات' : 'Format international sans + ni espaces'}</span>}
+              {(key === 'googlePlayUrl' || key === 'appStoreUrl') && <span className="text-[11px] text-slate-400 mt-1 block">{isAr ? 'اتركه فارغاً حتى يصبح التطبيق منشوراً في المتجر.' : 'Laissez vide jusqu’à la publication de l’application.'}</span>}
             </label>
           ))}
           {message && <p className={`text-sm ${message.includes('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{message}</p>}
