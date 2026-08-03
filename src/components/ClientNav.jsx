@@ -1,17 +1,16 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Car, Map, Bell, Settings, CircleHelp, FileText } from 'lucide-react'
+import { Home, Car, Map, BarChart2, Bell, Settings } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
 const NAV_ITEMS = [
-  { path: '/client/home',     icon: Home,     labelKey: 'home'    },
-  { path: '/client/devices',  icon: Car,      labelKey: 'devices' },
-  { path: '/client/map',      icon: Map,      labelKey: 'liveMap' },
-  { path: '/client/reports',  icon: FileText, labelKey: 'reports' },
-  { path: '/client/alerts',   icon: Bell,     labelKey: 'alerts', badge: true },
-  { path: '/client/help',     icon: CircleHelp, labelKey: 'help' },
-  { path: '/client/settings', icon: Settings, labelKey: 'settings'},
+  { path: '/client/home',     icon: Home,      labelKey: 'home'    },
+  { path: '/client/devices',  icon: Car,       labelKey: 'devices' },
+  { path: '/client/map',      icon: Map,       labelKey: 'liveMap' },
+  { path: '/client/reports',  icon: BarChart2, labelKey: 'reports' },
+  { path: '/client/alerts',   icon: Bell,      labelKey: 'alerts', badge: true },
+  { path: '/client/settings', icon: Settings,  labelKey: 'settings'},
 ]
 
 export default function ClientNav() {

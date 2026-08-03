@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ChevronRight, Car, Clock } from 'lucide-react'
+import { Search, X, ChevronRight, Car, Clock, RefreshCw } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -27,21 +27,21 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const st   = getDeviceStatusKey(device)
   const isAr = lang === 'ar'
   const c    = ST_COLOR[st] || '#6b7280'
+  const sub  = getSubscriptionSnapshot(device)
+  const needsRenewal = sub.status === 'expiring_soon' || sub.status === 'expired'
   const stLabel = isAr ? (ST_LABEL_AR[st] || st) : (ST_LABEL_FR[st] || st)
-  const subscription = getSubscriptionSnapshot(device)
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.22) }}
-      whileTap={{ scale: 0.97 }} onClick={onClick} role="button" tabIndex={0}
-      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onClick() }}
-      className="w-full text-left rounded-2xl overflow-hidden"
+      className="w-full rounded-2xl overflow-hidden"
       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
     >
       {/* Top status bar */}
       <div className="h-0.5" style={{ background: c }}/>
-      <div className="p-4 flex items-center gap-3">
+      <motion.button whileTap={{ scale: 0.97 }} onClick={onClick}
+        className="w-full text-left p-4 flex items-center gap-3">
         {/* Icon */}
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
           style={{ background: ST_BG[st] || 'rgba(255,255,255,0.06)' }}>
@@ -69,17 +69,8 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
               </>
             )}
           </div>
-          <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="mt-2">
             <SubscriptionBadge device={device} lang={lang} dark />
-            {subscription.status !== 'active' && onRenew && (
-              <button
-                onClick={event => { event.stopPropagation(); onRenew() }}
-                className="flex-shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-bold"
-                style={{ background: 'rgba(0,217,126,0.14)', color: '#00D97E', border: '1px solid rgba(0,217,126,0.25)' }}
-              >
-                {isAr ? 'تجديد' : 'Renouveler'}
-              </button>
-            )}
           </div>
         </div>
         {/* Speed + arrow */}
@@ -94,7 +85,29 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
           )}
           <ChevronRight size={14} style={{ color: 'rgba(255,255,255,0.2)', transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </div>
-      </div>
+      </motion.button>
+
+      {/* Inline renewal row — shown only when subscription needs attention */}
+      {needsRenewal && (
+        <div className="px-4 pb-3 flex items-center justify-between gap-3"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <p className="text-xs" style={{ color: sub.status === 'expired' ? '#ff6b60' : '#ffb347' }}>
+            {sub.status === 'expired'
+              ? (isAr ? 'انتهى الاشتراك — التتبع موقوف' : 'Abonnement expiré — suivi arrêté')
+              : (isAr ? `ينتهي خلال ${sub.daysRemaining} يوم` : `Expire dans ${sub.daysRemaining} jours`)}
+          </p>
+          <motion.button whileTap={{ scale: 0.94 }} onClick={onRenew}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0"
+            style={{
+              background: sub.status === 'expired' ? 'rgba(255,59,48,0.15)' : 'rgba(255,149,0,0.15)',
+              border: `1px solid ${sub.status === 'expired' ? 'rgba(255,59,48,0.3)' : 'rgba(255,149,0,0.3)'}`,
+              color: sub.status === 'expired' ? '#ff6b60' : '#ffb347',
+            }}>
+            <RefreshCw size={12}/>
+            {isAr ? 'تجديد' : 'Renouveler'}
+          </motion.button>
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -194,7 +207,8 @@ export default function DeviceList() {
           ) : filtered.map((d, i) => (
             <DeviceCard key={d.id} device={d} lang={lang} index={i}
               onClick={() => navigate('/client/device/' + d.id)}
-              onRenew={() => setRenewDevice(d)}/>
+              onRenew={() => setRenewDevice(d)}
+            />
           ))}
         </AnimatePresence>
       </div>
