@@ -15,37 +15,18 @@ export default function SplashScreen() {
       className="fixed inset-0 flex flex-col items-center justify-center"
       style={{ background: 'linear-gradient(150deg, #0b1627 0%, #101d32 60%, #16283d 100%)' }}
     >
-      {/* Animated background rings */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[1, 2, 3].map(i => (
-          <motion.div
-            key={i}
-               className="absolute rounded-full border border-[#e4b56b]/20"
-            style={{
-              top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: i * 200, height: i * 200,
-            }}
-            animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 3, repeat: Infinity, delay: i * 0.5 }}
-          />
-        ))}
-      </div>
-
       {/* Logo area */}
       <motion.div
         className="relative z-10 flex flex-col items-center"
         initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 0.1 }}
+        transition={{ duration: 0.45, ease: 'easeOut', delay: 0.1 }}
       >
         {/* App icon */}
-        <motion.img
+        <img
           src="/athar-gps-mark.svg"
           alt="ATHAR GPS"
           style={{ borderRadius: 20, width: 100, height: 100 }}
-          animate={{ y: [0, -6, 0] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         />
 
         <motion.h1

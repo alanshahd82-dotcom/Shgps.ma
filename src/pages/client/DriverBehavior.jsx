@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon, getDeviceStatusKey } from '../../components/ui'
 
 const PERIODS = [
@@ -18,20 +19,20 @@ function ScoreRing({ score, size = 148 }) {
   const R    = (size - 18) / 2
   const circ = 2 * Math.PI * R
   const offset = circ - (score / 100) * circ
-  const color = score >= 80 ? '#00D97E' : score >= 60 ? '#FF9500' : '#FF3B30'
+  const color = score >= 80 ? '#16866d' : score >= 60 ? '#b06b1b' : '#b64949'
   const label = score >= 80 ? (score >= 90 ? '🏆 ممتاز' : '✅ جيد جداً') : score >= 60 ? '⚠️ مقبول' : '❌ ضعيف'
   return (
     <div className="flex flex-col items-center">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={"0 0 " + size + " " + size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size/2} cy={size/2} r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="14" strokeLinecap="round"/>
+          <circle cx={size/2} cy={size/2} r={R} fill="none" stroke="#e2e8f0" strokeWidth="14" strokeLinecap="round"/>
           <circle cx={size/2} cy={size/2} r={R} fill="none" stroke={color} strokeWidth="14" strokeLinecap="round"
             strokeDasharray={circ} strokeDashoffset={offset}
-            style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)', filter: 'drop-shadow(0 0 8px ' + color + '88)' }}/>
+            style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)' }}/>
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-black leading-none" style={{ fontSize: 38, color }}>{score}</span>
-          <span className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>/100</span>
+          <span className="text-xs mt-1 text-slate-400">/100</span>
         </div>
       </div>
       <p className="text-xs mt-2 font-semibold" style={{ color }}>{label}</p>
@@ -84,9 +85,10 @@ export default function DriverBehavior() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
 
       {/* Header */}
-      <div className="px-5 pt-12 pb-4">
+      <div className="px-5 pt-5 pb-4">
         <h1 className="text-primary-500 font-extrabold text-xl mb-4">{isAr ? 'سلوك السائق' : 'Comportement conducteur'}</h1>
 
         {/* Device picker */}
@@ -98,7 +100,7 @@ export default function DriverBehavior() {
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
-          <ChevronDown size={15} style={{ color: 'rgba(255,255,255,0.4)', transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
+           <ChevronDown size={15} className="text-slate-400" style={{ transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
         </button>
 
         <AnimatePresence>
@@ -140,7 +142,7 @@ export default function DriverBehavior() {
         <div className="px-5 space-y-5">
           {/* Score ring */}
              <div className="p-6 rounded-xl flex flex-col items-center bg-white border border-slate-200 shadow-sm">
-            <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
+             <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
               {isAr ? 'نقاط السلامة' : 'Score de sécurité'}
             </p>
             <ScoreRing score={score}/>
@@ -149,7 +151,7 @@ export default function DriverBehavior() {
           {/* Event chart */}
           {events.length > 0 && (
              <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
+               <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
                 {isAr ? 'الأحداث' : 'Événements'}
               </p>
               <ResponsiveContainer width="100%" height={120}>
@@ -171,7 +173,7 @@ export default function DriverBehavior() {
                 <div key={i} className="flex items-start gap-3 p-3.5 rounded-2xl"
                   style={{ background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.18)' }}>
                   <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" style={{ color: '#FF9500' }}/>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)' }}>{tip}</p>
+                   <p className="text-xs leading-relaxed text-slate-700">{tip}</p>
                 </div>
               ))}
             </div>

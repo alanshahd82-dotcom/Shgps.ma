@@ -7,6 +7,7 @@ import {
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 
 const ALERT_CFG = {
   speeding:       { Icon: Gauge,        color: '#FF3B30' },
@@ -60,9 +61,10 @@ export default function Alerts() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
 
       {/* Header */}
-      <div className="px-5 pt-12 pb-3 flex items-center justify-between">
+      <div className="px-5 pt-5 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <h1 className="text-primary-500 font-extrabold text-xl">{t(lang, 'alerts')}</h1>
           {unread > 0 && (
@@ -106,7 +108,7 @@ export default function Alerts() {
             <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white border border-slate-200">
               <Bell size={26} className="text-slate-300"/>
             </div>
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.28)' }}>
+            <p className="text-sm text-slate-500">
               {isAr ? 'لا توجد تنبيهات' : 'Aucune alerte'}
             </p>
           </div>
@@ -138,7 +140,7 @@ export default function Alerts() {
                       {!alert.read && (
                         <div className="w-2 h-2 rounded-full" style={{ background: cfg.color }}/>
                       )}
-                      <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                      <span className="text-[10px] text-slate-400">
                         {timeAgoShort(alert.created_at || alert.ts)}
                       </span>
                     </div>

@@ -12,6 +12,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 import ConfirmModal from '../../components/ConfirmModal'
 import { getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
@@ -132,9 +133,10 @@ export default function DeviceDetail() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
 
       {/* Header */}
-      <div className="px-4 pt-12 pb-3 flex items-center gap-3">
+      <div className="px-4 pt-4 pb-3 flex items-center gap-3">
          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200 bg-white"
            >
            <ChevronLeft size={20} className="text-primary-500" style={{ transform: isAr ? 'rotate(180deg)' : 'none' }}/>
@@ -197,7 +199,7 @@ export default function DeviceDetail() {
           {tab === 'info' && device && (
             <motion.div key="info" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-white/45">{isAr ? 'اشتراك الجهاز' : 'Abonnement appareil'}</span>
+                 <span className="text-xs text-slate-500">{isAr ? 'اشتراك الجهاز' : 'Abonnement appareil'}</span>
                 <SubscriptionBadge device={device} lang={lang} dark />
               </div>
               {/* Mini map */}
@@ -220,9 +222,9 @@ export default function DeviceDetail() {
                   { label: isAr?'IMEI':'IMEI', val: device.imei || '—' },
                 ].map((row,i,arr) => (
                   <div key={i} className="flex items-center justify-between px-4 py-3"
-                    style={{ borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                    <span className="text-xs" style={{ color:'rgba(255,255,255,0.38)' }}>{row.label}</span>
-                    <span className="text-xs font-semibold text-white text-right max-w-48 truncate">{row.val}</span>
+                     style={{ borderBottom: i<arr.length-1 ? '1px solid #f1f5f9' : 'none' }}>
+                     <span className="text-xs text-slate-500">{row.label}</span>
+                     <span className="text-xs font-semibold text-slate-800 text-right max-w-48 truncate">{row.val}</span>
                   </div>
                 ))}
               </div>
@@ -236,7 +238,7 @@ export default function DeviceDetail() {
                 <SubscriptionBanner device={device} lang={lang} onRenew={() => setShowRenew(true)} />
               ) : tripsLoading ? (
                 <div className="flex justify-center py-12">
-                  <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#00D97E', borderTopColor:'transparent' }}/>
+                  <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
                 </div>
               ) : (
                 <>
@@ -244,23 +246,23 @@ export default function DeviceDetail() {
                     <div className="rounded-2xl overflow-hidden" style={{ height:200 }}>
                       <MapContainer center={positions[0]} zoom={12} style={{ height:'100%',width:'100%' }} zoomControl={false}>
                         <GeoapifyTileLayer />
-                        <Polyline positions={positions} color="#00D97E" weight={3} opacity={0.8}/>
+                        <Polyline positions={positions} color="#16866d" weight={3} opacity={0.8}/>
                         <FitRoute positions={positions}/>
                       </MapContainer>
                     </div>
                   )}
                   {speedData.length > 0 && (
                     <div className="p-4 rounded-2xl" style={cardStyle}>
-                      <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color:'rgba(255,255,255,0.35)' }}>
+                      <p className="text-xs font-bold tracking-wide uppercase mb-3 text-slate-500">
                         {isAr ? 'منحنى السرعة' : 'Vitesse'}
                       </p>
                       <ResponsiveContainer width="100%" height={100}>
                         <LineChart data={speedData} margin={{ top:0,right:0,left:-20,bottom:0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
                           <XAxis dataKey="i" hide/>
-                          <YAxis tick={{ fill:'rgba(255,255,255,0.3)',fontSize:9 }} axisLine={false} tickLine={false}/>
-                          <Tooltip contentStyle={{ background:'#0F2044', border:'1px solid rgba(255,255,255,0.15)', borderRadius:12, color:'white', fontSize:11 }}/>
-                          <Line type="monotone" dataKey="speed" stroke="#00D97E" strokeWidth={2} dot={false}/>
+                          <YAxis tick={{ fill:'#94a3b8',fontSize:9 }} axisLine={false} tickLine={false}/>
+                          <Tooltip contentStyle={{ background:'#17324d', border:'1px solid #31516e', borderRadius:10, color:'white', fontSize:11 }}/>
+                          <Line type="monotone" dataKey="speed" stroke="#16866d" strokeWidth={2} dot={false}/>
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -283,8 +285,8 @@ export default function DeviceDetail() {
                     <Icon size={22} style={{ color }}/>
                   </div>
                   <div className="text-left">
-                    <p className="text-white font-bold text-sm">{isAr ? ar : fr}</p>
-                    <p className="text-xs mt-0.5" style={{ color:'rgba(255,255,255,0.35)' }}>
+                    <p className="text-slate-800 font-bold text-sm">{isAr ? ar : fr}</p>
+                    <p className="text-xs mt-0.5 text-slate-500">
                       {type === 'engine_stop' ? (isAr?'إيقاف المحرك عن بعد':'Coupure moteur à distance') : (isAr?'تشغيل المحرك عن بعد':'Démarrage moteur à distance')}
                     </p>
                   </div>
@@ -297,9 +299,9 @@ export default function DeviceDetail() {
           {tab === 'share' && (
             <motion.div key="share" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
               <div className="p-5 rounded-2xl text-center" style={cardStyle}>
-                <Share2 size={32} className="mx-auto mb-3" style={{ color:'#00D97E' }}/>
-                <p className="text-white font-semibold mb-1">{isAr ? 'مشاركة الموقع المباشر' : 'Partage de localisation live'}</p>
-                <p className="text-xs mb-4" style={{ color:'rgba(255,255,255,0.38)' }}>
+                 <Share2 size={32} className="mx-auto mb-3 text-primary-500"/>
+                 <p className="text-slate-800 font-extrabold mb-1">{isAr ? 'مشاركة الموقع المباشر' : 'Partage de localisation live'}</p>
+                 <p className="text-xs mb-4 text-slate-500">
                   {isAr ? 'أنشئ رابطاً مؤقتاً لمشاركة الموقع المباشر للجهاز' : 'Créez un lien temporaire pour partager la position en temps réel'}
                 </p>
                 {!trackingEnabled ? (
@@ -313,12 +315,12 @@ export default function DeviceDetail() {
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 p-3 rounded-xl text-left break-all"
-                      style={{ background:'rgba(0,217,126,0.08)', border:'1px solid rgba(0,217,126,0.2)' }}>
-                      <p className="flex-1 text-xs text-white break-all">{shareLink}</p>
+                     style={{ background:'#f0faf6', border:'1px solid #bfe4d7' }}>
+                       <p className="flex-1 text-xs text-slate-700 break-all">{shareLink}</p>
                     </div>
                     <button onClick={copyLink}
                       className="flex items-center gap-2 mx-auto px-4 py-2.5 rounded-xl text-xs font-semibold"
-                      style={{ background: copied ? 'rgba(0,217,126,0.15)' : 'rgba(255,255,255,0.08)', color: copied ? '#00D97E' : 'white' }}>
+                      style={{ background: copied ? '#e8f5f0' : '#f8fafc', color: copied ? '#16866d' : '#17324d', border: '1px solid #e2e8f0' }}>
                       {copied ? <CheckCheck size={14}/> : <Copy size={14}/>}
                       {copied ? (isAr?'تم النسخ!':'Copié !') : (isAr?'نسخ الرابط':'Copier le lien')}
                     </button>

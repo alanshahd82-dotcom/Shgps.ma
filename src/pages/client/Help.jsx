@@ -3,6 +3,7 @@ import { Mail, Phone, MessageCircle, ChevronDown, CircleHelp } from 'lucide-reac
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 
 const DEFAULT_SUPPORT = {
   email: 'support@athargps.ma',
@@ -42,7 +43,8 @@ export default function Help() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28 px-5" dir={isAr ? 'rtl' : 'ltr'}>
-      <header className="pt-12 pb-5">
+      <ClientHeader />
+      <header className="pt-5 pb-5">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
             style={{ background: 'rgba(0,217,126,0.13)' }}>

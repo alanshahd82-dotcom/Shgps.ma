@@ -2,13 +2,13 @@ import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Bell, ChevronRight, MapPinned, Activity, CarFront, CircleHelp,
+  ChevronRight, MapPinned, Activity, CarFront, CircleHelp,
   BarChart3, CalendarDays, RefreshCw, ShieldCheck
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
-import Logo from '../../components/Logo'
+import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
@@ -56,7 +56,7 @@ function QuickLink({ icon: Icon, title, description, onClick }) {
 
 export default function Home() {
   const navigate = useNavigate()
-  const { devices, unreadCount, lang, clientAuth } = useApp()
+  const { devices, lang, clientAuth } = useApp()
   const isAr = lang === 'ar'
 
   const stats = useMemo(() => ({
@@ -91,24 +91,7 @@ export default function Home() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
-      <header className="border-b border-slate-200 bg-white px-5 pb-4 pt-5">
-        <div className="mx-auto flex max-w-xl items-center justify-between">
-          <Logo size="sm" />
-          <motion.button
-            whileTap={{ scale: 0.92 }}
-            onClick={() => navigate('/client/alerts')}
-            aria-label={isAr ? 'التنبيهات' : 'Notifications'}
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-primary-500 shadow-sm"
-          >
-            <Bell size={18} />
-            {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </motion.button>
-        </div>
-      </header>
+      <ClientHeader />
 
       <main className="mx-auto max-w-xl space-y-5 px-5 py-5">
         <section>

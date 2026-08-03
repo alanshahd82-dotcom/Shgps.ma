@@ -8,6 +8,7 @@ import {
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 
 const DEVICE_TYPES = [
   { value: 'wanway',    label: 'WanWay / TK Series', emoji: '📡' },
@@ -69,14 +70,14 @@ function StepInfo({ state, setState, lang }) {
         <h2 className="text-primary-500 font-extrabold text-base">
           {isAr ? 'معلومات الجهاز' : 'Informations de l\'appareil'}
         </h2>
-        <p className="text-slate-400 text-xs mt-1">
+        <p className="text-slate-500 text-xs mt-1">
           {isAr ? 'أدخل بيانات الجهاز واختر شبكة الجوال' : 'Entrez les données du tracker et choisissez l\'opérateur'}
         </p>
       </div>
 
       {/* Device type */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase">
+         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">
           {isAr ? 'نوع الجهاز' : 'Type d\'appareil'}
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -85,10 +86,10 @@ function StepInfo({ state, setState, lang }) {
               className={`p-3 rounded-xl border-2 text-left transition-all active:scale-97 ${
                 state.deviceType === dt.value
                   ? 'border-accent bg-accent/10'
-                  : 'border-slate-700 bg-slate-800/60 hover:border-slate-600'
+                   : 'border-slate-200 bg-white hover:border-slate-300'
               }`}>
               <div className="text-xl mb-1">{dt.emoji}</div>
-              <p className={`text-xs font-bold ${state.deviceType === dt.value ? 'text-accent' : 'text-slate-300'}`}>
+               <p className={`text-xs font-bold ${state.deviceType === dt.value ? 'text-primary-500' : 'text-slate-600'}`}>
                 {dt.label}
               </p>
             </button>
@@ -98,7 +99,7 @@ function StepInfo({ state, setState, lang }) {
 
       {/* IMEI */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">IMEI</label>
+         <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">IMEI</label>
         <div className="relative">
           <input
             type="tel"
@@ -106,7 +107,7 @@ function StepInfo({ state, setState, lang }) {
             value={state.imei}
             onChange={e => setState(s => ({ ...s, imei: e.target.value.replace(/\D/g, '').slice(0, 15) }))}
             placeholder="358900001234567"
-            className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm focus:outline-none focus:border-accent pr-10"
+             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 font-mono text-sm focus:outline-none focus:border-accent pr-10"
           />
           {state.imei.length > 0 && (
             <span className="absolute right-3 top-3 text-lg">
@@ -121,33 +122,33 @@ function StepInfo({ state, setState, lang }) {
 
       {/* Vehicle name */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
+         <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">
           {isAr ? 'اسم المركبة' : 'Nom du véhicule'}
         </label>
         <input
           value={state.vehicleName}
           onChange={e => setState(s => ({ ...s, vehicleName: e.target.value }))}
           placeholder={isAr ? 'مثال: سيارة الشركة' : 'Ex: Voiture société'}
-          className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none focus:border-accent"
+           className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 text-sm focus:outline-none focus:border-accent"
         />
       </div>
 
       {/* Plate */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">
+         <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">
           {isAr ? 'رقم اللوحة' : 'Plaque d\'immatriculation'}
         </label>
         <input
           value={state.plate}
           onChange={e => setState(s => ({ ...s, plate: e.target.value.toUpperCase() }))}
           placeholder="A 12345 XX"
-          className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 font-mono text-sm uppercase focus:outline-none focus:border-accent"
+           className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 font-mono text-sm uppercase focus:outline-none focus:border-accent"
         />
       </div>
 
       {/* Carrier */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase">
+         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">
           {isAr ? 'شبكة الجوال' : 'Opérateur mobile'}
         </label>
         <div className="space-y-2">
@@ -156,10 +157,10 @@ function StepInfo({ state, setState, lang }) {
               className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
                 state.carrier === c.value
                   ? 'border-accent bg-accent/10'
-                  : 'border-slate-700 bg-slate-800/60'
+                   : 'border-slate-200 bg-white'
               }`}>
               <div className="text-left">
-                <p className={`text-sm font-bold ${state.carrier === c.value ? 'text-accent' : 'text-slate-300'}`}>{c.label}</p>
+                 <p className={`text-sm font-bold ${state.carrier === c.value ? 'text-primary-500' : 'text-slate-700'}`}>{c.label}</p>
                 <p className="text-[10px] text-slate-500 font-mono">{c.apn}</p>
               </div>
               {state.carrier === c.value && <Check size={16} className="text-accent" />}
@@ -194,7 +195,7 @@ function StepCommands({ commands, lang, onSave, saving, saveError }) {
         <h2 className="text-primary-500 font-extrabold text-base">
           {isAr ? 'أوامر إعداد الجهاز' : 'Commandes de configuration'}
         </h2>
-        <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+         <p className="text-slate-500 text-xs mt-1 leading-relaxed">
           {isAr
             ? 'أرسل هذه الأوامر بالترتيب إلى رقم شريحة الجهاز عبر SMS، ثم احفظ الجهاز'
             : 'Envoyez ces commandes dans l\'ordre au numéro SIM du tracker par SMS, puis enregistrez'}
@@ -309,8 +310,9 @@ export default function DeviceWizard() {
 
   return (
     <div className="client-app flex min-h-[100dvh] flex-col bg-[#f5f7f8]">
+      <ClientHeader />
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white px-4 pb-4 pt-8">
+      <div className="border-b border-slate-200 bg-white px-4 pb-4 pt-4">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => step === 0 ? navigate(-1) : setStep(s => s - 1)}
             className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white">

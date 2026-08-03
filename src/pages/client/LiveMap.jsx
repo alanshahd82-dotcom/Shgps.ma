@@ -8,6 +8,7 @@ import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon, StatusDot, timeAgo, getDeviceStatusKey } from '../../components/ui'
 
 const PANEL_PEEK = 90
@@ -101,9 +102,10 @@ export default function LiveMap() {
         ))}
         {sel?.lat && sel?.lng && <FlyTo lat={sel.lat} lng={sel.lng}/>}
       </MapContainer>
+      <ClientHeader overlay />
 
       {/* WS indicator */}
-      <div className="absolute top-4 left-4 z-20">
+      <div className="absolute top-20 left-4 z-20">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
           style={{ background: wsConnected ? 'rgba(0,217,126,0.85)' : 'rgba(255,59,48,0.85)', color:'white', backdropFilter:'blur(10px)' }}>
           <div className="w-1.5 h-1.5 rounded-full bg-white"/>
@@ -112,7 +114,7 @@ export default function LiveMap() {
       </div>
 
       {/* Search bar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-64">
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 w-64">
         <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
           style={{ background:'rgba(8,15,31,0.9)', border:'1px solid rgba(255,255,255,0.12)', backdropFilter:'blur(16px)' }}>
           <Search size={14} style={{ color:'rgba(255,255,255,0.4)' }} className="flex-shrink-0"/>

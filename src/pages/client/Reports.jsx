@@ -9,6 +9,7 @@ import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 
 const RANGES = [
@@ -80,9 +81,10 @@ export default function Reports() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
 
       {/* Header */}
-      <div className="px-5 pt-12 pb-4">
+      <div className="px-5 pt-5 pb-4">
         <h1 className="text-primary-500 font-extrabold text-xl mb-4">{t(lang, 'reports')}</h1>
 
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -109,7 +111,7 @@ export default function Reports() {
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
-          <ChevronDown size={15} style={{ color: 'rgba(255,255,255,0.4)', transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
+          <ChevronDown size={15} className="text-slate-400" style={{ transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
         </button>
         <AnimatePresence>
           {showDevices && (
@@ -151,10 +153,10 @@ export default function Reports() {
         <div className="px-5 space-y-5">
           {/* Stat grid */}
            <div className="grid grid-cols-2 gap-3">
-            <StatCard icon={Navigation} label={isAr ? 'المسافة' : 'Distance'} value={data?.total_km?.toFixed(1)} unit="km" color="#00D97E"/>
+        <StatCard icon={Navigation} label={isAr ? 'المسافة' : 'Distance'} value={data?.total_km?.toFixed(1)} unit="km" color="#16866d"/>
             <StatCard icon={Clock}      label={isAr ? 'المدة'   : 'Durée'}    value={data?.total_duration_h?.toFixed(1)} unit="h" color="#3B82F6"/>
-            <StatCard icon={Gauge}      label={isAr ? 'أقصى سرعة' : 'Vit. max'} value={data?.max_speed} unit="km/h" color="#FF3B30"/>
-            <StatCard icon={BarChart2}  label={isAr ? 'رحلات'  : 'Trajets'}   value={trips.length} unit="" color="#FF9500"/>
+        <StatCard icon={Gauge}      label={isAr ? 'أقصى سرعة' : 'Vit. max'} value={data?.max_speed} unit="km/h" color="#b64949"/>
+        <StatCard icon={BarChart2}  label={isAr ? 'رحلات'  : 'Trajets'}   value={trips.length} unit="" color="#b06b1b"/>
           </div>
 
           {/* Speed chart */}
@@ -167,8 +169,8 @@ export default function Reports() {
                 <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00D97E" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#00D97E" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#16866d" stopOpacity={0.22}/>
+                      <stop offset="95%" stopColor="#16866d" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
@@ -198,7 +200,7 @@ export default function Reports() {
                     <span className="text-[10px] font-bold text-[#16866d]">{i + 1}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-medium">{trip.start_time || trip.start}</p>
+                    <p className="text-slate-700 text-xs font-semibold">{trip.start_time || trip.start}</p>
                     <p className="text-[10px] text-slate-400">{trip.end_time || trip.end}</p>
                   </div>
                   <div className="text-right">

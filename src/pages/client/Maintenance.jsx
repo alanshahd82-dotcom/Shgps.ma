@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon } from '../../components/ui'
 
 const SERVICE_TYPES = [
@@ -67,9 +68,10 @@ export default function Maintenance() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
 
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 flex items-center justify-between">
+      <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowForm(true)}
           className="w-10 h-10 rounded-full flex items-center justify-center"
@@ -88,17 +90,16 @@ export default function Maintenance() {
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
-          <ChevronDown size={15} style={{ color: 'rgba(255,255,255,0.4)', transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
+          <ChevronDown size={15} className="text-slate-400" style={{ transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
         </button>
         <AnimatePresence>
           {showDevices && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden rounded-xl mt-1"
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
                   className="w-full px-4 py-3 text-left text-sm"
-                  style={{ color: String(d.id) === deviceId ? '#00D97E' : 'rgba(255,255,255,0.7)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  style={{ color: String(d.id) === deviceId ? '#17324d' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
                   {d.name}
                 </button>
               ))}
@@ -111,20 +112,19 @@ export default function Maintenance() {
       <div className="px-4 space-y-2.5">
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#00D97E', borderTopColor: 'transparent' }}/>
+            <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#e4b56b', borderTopColor: 'transparent' }}/>
           </div>
         ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center py-16 gap-3">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <Wrench size={26} style={{ color: 'rgba(255,255,255,0.2)' }}/>
+            <div className="flex flex-col items-center py-16 gap-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white">
+              <Wrench size={26} className="text-slate-300"/>
             </div>
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.28)' }}>
+            <p className="text-sm text-slate-500">
               {isAr ? 'لا توجد سجلات' : 'Aucun enregistrement'}
             </p>
             <button onClick={() => setShowForm(true)}
               className="px-4 py-2 rounded-full text-xs font-semibold"
-              style={{ background: 'rgba(0,217,126,0.12)', color: '#00D97E', border: '1px solid rgba(0,217,126,0.25)' }}>
+              style={{ background: '#e8f5f0', color: '#16866d', border: '1px solid #bfe4d7' }}>
               {isAr ? '+ إضافة سجل' : '+ Ajouter'}
             </button>
           </div>
@@ -169,7 +169,7 @@ export default function Maintenance() {
                       </span>
                     </div>
                   )}
-                  {log.notes && <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>{log.notes}</p>}
+                  {log.notes && <p className="text-xs mt-1 text-slate-500">{log.notes}</p>}
                 </div>
               </div>
             </motion.div>
@@ -182,12 +182,12 @@ export default function Maintenance() {
         {showForm && (
           <motion.div className="fixed inset-0 z-50 flex items-end" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setShowForm(false)}/>
-            <motion.div className="relative w-full rounded-t-3xl p-5"
+            <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              style={{ background: '#0e1f3d', border: '1px solid rgba(255,255,255,0.1)' }}>
+              className="relative w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-white font-bold text-base">{isAr ? 'إضافة سجل صيانة' : 'Ajouter maintenance'}</h3>
-                <button onClick={() => setShowForm(false)}><X size={20} style={{ color: 'rgba(255,255,255,0.4)' }}/></button>
+                <h3 className="text-primary-500 font-extrabold text-base">{isAr ? 'إضافة سجل صيانة' : 'Ajouter maintenance'}</h3>
+                <button onClick={() => setShowForm(false)} aria-label={isAr ? 'إغلاق' : 'Fermer'}><X size={20} className="text-slate-400"/></button>
               </div>
               <form onSubmit={handleAdd} className="space-y-3">
                 {/* Service type grid */}
@@ -197,8 +197,8 @@ export default function Maintenance() {
                       className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl text-[10px] font-medium transition-all"
                       style={formData.type === svc.key
                         ? { background: svc.color + '22', border: '1.5px solid ' + svc.color, color: svc.color }
-                        : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.45)' }}>
-                      <Wrench size={14} style={{ color: formData.type === svc.key ? svc.color : 'rgba(255,255,255,0.3)' }}/>
+                        : { background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b' }}>
+                      <Wrench size={14} style={{ color: formData.type === svc.key ? svc.color : '#94a3b8' }}/>
                       {svc[isAr ? 'ar' : 'fr']}
                     </button>
                   ))}
@@ -209,21 +209,19 @@ export default function Maintenance() {
                   { key: 'next_mileage', type: 'number', label: isAr ? 'الصيانة القادمة (كم)' : 'Prochain entretien (km)' },
                 ].map(field => (
                   <div key={field.key}>
-                    <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.38)' }}>{field.label}</label>
+                    <label className="block text-xs mb-1 font-bold text-slate-500">{field.label}</label>
                     <input type={field.type} value={formData[field.key]} onChange={e => setFormData(f => ({ ...f, [field.key]: e.target.value }))}
-                      className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
-                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}/>
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 text-sm outline-none focus:border-accent"/>
                   </div>
                 ))}
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.38)' }}>{isAr ? 'ملاحظات' : 'Notes'}</label>
+                  <label className="block text-xs mb-1 font-bold text-slate-500">{isAr ? 'ملاحظات' : 'Notes'}</label>
                   <textarea value={formData.notes} onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))} rows={2}
-                    className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none resize-none"
-                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}/>
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 text-sm outline-none focus:border-accent"/>
                 </div>
                 <motion.button type="submit" disabled={saving} whileTap={{ scale: 0.97 }}
                   className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-                  style={{ background: saving ? 'rgba(0,217,126,0.4)' : 'linear-gradient(135deg,#00D97E,#00b86a)', boxShadow: '0 4px 16px rgba(0,217,126,0.3)' }}>
+                  style={{ background: saving ? '#94a3b8' : '#17324d' }}>
                   {saving ? '...' : (isAr ? 'حفظ' : 'Enregistrer')}
                 </motion.button>
               </form>

@@ -5,7 +5,7 @@ import { Search, X, ChevronRight, Car, Clock, RefreshCw, Plus } from 'lucide-rea
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
-import Logo from '../../components/Logo'
+import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
@@ -102,12 +102,12 @@ export default function DeviceList() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
       <header className="border-b border-slate-200 bg-white px-5 pb-4 pt-5">
         <div className="mx-auto max-w-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <Logo size="sm" />
-              <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-primary-500">{t(lang, 'myDevices')}</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight text-primary-500">{t(lang, 'myDevices')}</h1>
               <p className="mt-1 text-xs text-slate-500">{devices.length} {isAr ? 'أجهزة مرتبطة بالحساب' : 'appareil(s) lié(s)'}</p>
             </div>
             <button onClick={() => navigate('/client/device-wizard')} className="flex h-10 items-center gap-1.5 rounded-xl bg-primary-500 px-3 text-xs font-bold text-white shadow-sm">

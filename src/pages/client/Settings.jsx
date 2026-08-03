@@ -9,6 +9,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 
 const TABS = [
   { key: 'profile',   Icon: User,  ar: 'الملف',       fr: 'Profil'      },
@@ -131,9 +132,10 @@ export default function Settings() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
 
       {/* Header */}
-      <div className="px-5 pt-12 pb-4">
+      <div className="px-5 pt-5 pb-4">
         <h1 className="text-primary-500 font-extrabold text-xl">{t(lang,'settings')}</h1>
       </div>
 
@@ -164,7 +166,7 @@ export default function Settings() {
             <Field label={t(lang,'email')}>
               <DarkInput value={email} onChange={e => setEmail(e.target.value)} type="email"/>
             </Field>
-            {profMsg && <p className="text-xs text-center" style={{ color: profMsg.includes('✓') ? '#00D97E' : '#ff6b60' }}>{profMsg}</p>}
+            {profMsg && <p className={`text-xs text-center ${profMsg.includes('✓') ? 'text-emerald-700' : 'text-danger'}`}>{profMsg}</p>}
             <motion.button type="submit" disabled={savingProf} whileTap={{ scale:0.97 }}
                className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
                style={{ background:'#17324d' }}>
@@ -189,15 +191,15 @@ export default function Settings() {
                     style={{ ...inputClass, paddingRight: isAr ? undefined : '3rem', paddingLeft: isAr ? '3rem' : undefined }}/>
                   {i === 0 && (
                     <button type="button" onClick={() => setShowP(p => !p)}
-                      className="absolute top-1/2 -translate-y-1/2"
-                      style={{ [isAr?'left':'right']:'1rem', color:'rgba(255,255,255,0.35)' }}>
+                       className="absolute top-1/2 -translate-y-1/2 text-slate-400"
+                       style={{ [isAr?'left':'right']:'1rem' }}>
                       {showP ? <EyeOff size={16}/> : <Eye size={16}/>}
                     </button>
                   )}
                 </div>
               </Field>
             ))}
-            {passMsg && <p className="text-xs text-center" style={{ color: passMsg.includes('✓') ? '#00D97E' : '#ff6b60' }}>{passMsg}</p>}
+            {passMsg && <p className={`text-xs text-center ${passMsg.includes('✓') ? 'text-emerald-700' : 'text-danger'}`}>{passMsg}</p>}
             <motion.button type="submit" disabled={savingPass} whileTap={{ scale:0.97 }}
                className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
                style={{ background:'#17324d' }}>
@@ -225,7 +227,7 @@ export default function Settings() {
               { Icon: Moon, label: isAr ? 'الوضع الليلي' : 'Mode sombre', ctrl: <Toggle checked={!!darkMode} onChange={toggleDarkMode}/> },
               { Icon: Bell, label: isAr ? 'الإشعارات' : 'Notifications', ctrl: <Toggle checked={!!pushEnabled} onChange={v => v ? requestPushPermission() : disablePush()}/> },
             ].map(({ Icon, label, ctrl }, i) => (
-              <div key={i} className="flex items-center justify-between py-2" style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+               <div key={i} className="flex items-center justify-between py-2" style={{ borderBottom: i < 2 ? '1px solid #f1f5f9' : 'none' }}>
                 <div className="flex items-center gap-2.5">
                    <Icon size={16} className="text-slate-400"/>
                    <span className="text-slate-800 text-sm">{label}</span>
@@ -240,38 +242,38 @@ export default function Settings() {
         {tab === 'subusers' && (
           <motion.div key="sub" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold tracking-widest uppercase" style={{ color:'rgba(255,255,255,0.35)' }}>
+               <p className="text-xs font-bold tracking-wide uppercase text-slate-500">
                 {isAr ? 'المستخدمون الفرعيون' : 'Sous-utilisateurs'}
               </p>
               <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowAdd(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ background:'rgba(0,217,126,0.12)', color:'#00D97E', border:'1px solid rgba(0,217,126,0.25)' }}>
+                 style={{ background:'#e8f5f0', color:'#16866d', border:'1px solid #bfe4d7' }}>
                 <Plus size={13}/>{isAr ? 'إضافة' : 'Ajouter'}
               </motion.button>
             </div>
 
             {loadingSub ? (
               <div className="flex justify-center py-8">
-                <div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor:'#00D97E', borderTopColor:'transparent' }}/>
+                 <div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
               </div>
             ) : subUsers.length === 0 ? (
               <div className="p-6 rounded-2xl text-center" style={cardClass}>
-                <Users size={28} className="mx-auto mb-2" style={{ color:'rgba(255,255,255,0.2)' }}/>
-                <p className="text-sm" style={{ color:'rgba(255,255,255,0.3)' }}>{isAr ? 'لا يوجد مستخدمون فرعيون' : 'Aucun sous-utilisateur'}</p>
+                 <Users size={28} className="mx-auto mb-2 text-slate-300"/>
+                 <p className="text-sm text-slate-500">{isAr ? 'لا يوجد مستخدمون فرعيون' : 'Aucun sous-utilisateur'}</p>
               </div>
             ) : subUsers.map(u => (
               <div key={u.id} className="flex items-center gap-3 p-4 rounded-2xl" style={cardClass}>
                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background:'rgba(0,217,126,0.12)' }}>
-                  <span className="text-sm font-bold" style={{ color:'#00D97E' }}>{(u.name||'?')[0].toUpperCase()}</span>
+                   style={{ background:'#e8f5f0' }}>
+                   <span className="text-sm font-bold text-[#16866d]">{(u.name||'?')[0].toUpperCase()}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">{u.name}</p>
-                  <p className="text-xs truncate" style={{ color:'rgba(255,255,255,0.35)' }}>{u.email}</p>
+                   <p className="text-slate-800 font-bold text-sm truncate">{u.name}</p>
+                   <p className="text-xs truncate text-slate-500">{u.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold"
-                    style={{ background:'rgba(0,217,126,0.12)', color:'#00D97E' }}>{u.role || 'viewer'}</span>
+                     style={{ background:'#e8f5f0', color:'#16866d' }}>{u.role || 'viewer'}</span>
                   <button onClick={() => removeSubUser(u.id)}><Trash2 size={14} style={{ color:'rgba(255,59,48,0.6)' }}/></button>
                 </div>
               </div>
@@ -292,12 +294,12 @@ export default function Settings() {
         {showAdd && (
           <motion.div className="fixed inset-0 z-50 flex items-end" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
             <div className="absolute inset-0" style={{ background:'rgba(0,0,0,0.6)' }} onClick={() => setShowAdd(false)}/>
-            <motion.div className="relative w-full rounded-t-3xl p-5"
+            <motion.div
               initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }} transition={{ type:'spring', stiffness:300, damping:30 }}
-              style={{ background:'#0e1f3d', border:'1px solid rgba(255,255,255,0.1)' }}>
+              className="relative w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-white font-bold text-base">{isAr ? 'إضافة مستخدم' : 'Ajouter utilisateur'}</h3>
-                <button onClick={() => setShowAdd(false)}><X size={20} style={{ color:'rgba(255,255,255,0.4)' }}/></button>
+                <h3 className="text-primary-500 font-extrabold text-base">{isAr ? 'إضافة مستخدم' : 'Ajouter utilisateur'}</h3>
+                <button onClick={() => setShowAdd(false)} aria-label={isAr ? 'إغلاق' : 'Fermer'}><X size={20} className="text-slate-400"/></button>
               </div>
               <form onSubmit={addSubUser} className="space-y-3">
                 {[
@@ -306,24 +308,22 @@ export default function Settings() {
                   { key:'password', label: isAr?'كلمة المرور':'Mot de passe', type:'password'},
                 ].map(f => (
                   <div key={f.key}>
-                    <label className="block text-xs mb-1" style={{ color:'rgba(255,255,255,0.38)' }}>{f.label}</label>
+                    <label className="block text-xs mb-1 font-bold text-slate-500">{f.label}</label>
                     <input type={f.type} value={newUser[f.key]} onChange={e => setNewUser(u => ({ ...u, [f.key]:e.target.value }))}
-                      className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
-                      style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 text-sm outline-none focus:border-accent"/>
                   </div>
                 ))}
                 <div>
-                  <label className="block text-xs mb-1" style={{ color:'rgba(255,255,255,0.38)' }}>{isAr?'الدور':'Rôle'}</label>
+                  <label className="block text-xs mb-1 font-bold text-slate-500">{isAr?'الدور':'Rôle'}</label>
                   <select value={newUser.role} onChange={e => setNewUser(u => ({ ...u, role:e.target.value }))}
-                    className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
-                    style={{ background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 text-sm outline-none focus:border-accent">
                     <option value="viewer">{isAr?'مشاهد':'Lecteur'}</option>
                     <option value="operator">{isAr?'مشغّل':'Opérateur'}</option>
                   </select>
                 </div>
                 <motion.button type="submit" disabled={savingSub} whileTap={{ scale:0.97 }}
                   className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-                  style={{ background:'linear-gradient(135deg,#00D97E,#00b86a)', boxShadow:'0 4px 16px rgba(0,217,126,0.3)' }}>
+                  style={{ background:'#17324d' }}>
                   {savingSub ? '...' : (isAr?'إضافة':'Ajouter')}
                 </motion.button>
               </form>

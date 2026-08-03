@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
+import ClientHeader from '../../components/ClientHeader'
 
 const centerIcon = L.divIcon({
   className: '',
@@ -84,9 +85,10 @@ export default function Geofences() {
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader />
 
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 flex items-center justify-between">
+      <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'المناطق الجغرافية' : 'Géofences'}</h1>
         <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowMap(true)}
           className="w-10 h-10 rounded-full flex items-center justify-center"
