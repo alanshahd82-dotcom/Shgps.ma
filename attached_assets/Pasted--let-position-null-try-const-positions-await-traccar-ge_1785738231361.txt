@@ -1,0 +1,924 @@
+  let position = null
+    try {
+      const positions = await traccar.getAllPositions()
+      position = positions.find(p => p.deviceId === link.traccar_id) || null
+    } catch {}
+
+    res.json({
+      deviceName: link.name,
+      plate: link.plate,
+      type: link.type,
+      expiresAt: link.expires_at,
+      position: position ? {
+        lat: position.latitude,
+        lng: position.longitude,
+        speed: position.speed,
+        fixTime: position.fixTime,
+      } : null,
+    })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+---REPORTS---
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+import * as traccar from '../services/traccar.js'
+
+export const reportsRouter = Router()
+
+// Haversine distance in km between two lat/lng points
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Traccar returns speed in knots; the AtharGPS UI displays km/h.
+function speedKmh(speed) {
+  return Math.max(0, Number(speed || 0) * 1.852)
+}
+
+// Group positions into trips separated by stops > GAP_MS milliseconds
+const GAP_MS = 5 * 60 * 1000 // 5-minute gap = new trip
+
+function buildTrips(positions) {
+  if (!positions || positions.length === 0) return []
+  const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+  const trips  = []
+  let current  = [sorted[0]]
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    const cur  = sorted[i]
+    const gap  = new Date(cur.fixTime) - new Date(prev.fixTime)
+    if (gap > GAP_MS) {
+      if (current.length > 1) trips.push(current)
+      current = [cur]
+    } else {
+      current.push(cur)
+    }
+  }
+  if (current.length > 1) trips.push(current)
+  return trips
+}
+
+// GET /api/reports/trips?deviceId=X&from=ISO&to=ISO
+// Keep the original /api/reports route as a backwards-compatible alias.
+reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
+  const { deviceId, from, to } = req.query
+  if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+
+  try {
+    // Check device ownership
+    const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = rows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id)
+      return res.status(403).json({ error: 'Access denied' })
+
+    // Fetch positions from Traccar
+    try {
+      const positions = await traccar.getHistory(
+        dev.traccar_id,
+        from || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        to   || new Date().toISOString()
+      )
+      if (!positions || positions.length === 0) {
+        return res.json({
+          totalDistanceKm: 0,
+          movingDurationMin: 0,
+          stoppedDurationMin: 0,
+          avgSpeed: 0,
+          maxSpeed: 0,
+          trips: [],
+          speedSeries: [],
+        })
+      }
+
+      // Compute overall stats
+      let totalDist = 0
+      let movingMs  = 0
+      let maxSpeed  = 0
+      const speedSeries = []
+
+      const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1]
+        const cur  = sorted[i]
+        const segDist = haversine(prev.latitude, prev.longitude, cur.latitude, cur.longitude)
+        const segMs   = new Date(cur.fixTime) - new Date(prev.fixTime)
+        const currentSpeed = speedKmh(cur.speed)
+        totalDist += segDist
+        if (currentSpeed > 2) movingMs += segMs
+        if (currentSpeed > maxSpeed) maxSpeed = currentSpeed
+        speedSeries.push({ time: cur.fixTime, speed: Math.round(currentSpeed) })
+      }
+
+      const allMs       = new Date(sorted[sorted.length - 1].fixTime) - new Date(sorted[0].fixTime)
+      const stoppedMs   = Math.max(0, allMs - movingMs)
+      const validSpeeds = sorted.map(p => speedKmh(p.speed)).filter(s => s > 0)
+      const avgSpeed    = validSpeeds.length ? validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length : 0
+
+      // Build trips and expose the real route points for the replay screen.
+      const rawTrips = buildTrips(positions)
+      const trips = rawTrips.map((pts, i) => {
+        let dist = 0
+        for (let j = 1; j < pts.length; j++) {
+          dist += haversine(pts[j-1].latitude, pts[j-1].longitude, pts[j].latitude, pts[j].longitude)
+        }
+        const durationMs  = new Date(pts[pts.length - 1].fixTime) - new Date(pts[0].fixTime)
+        const speeds      = pts.map(p => speedKmh(p.speed)).filter(s => s > 0)
+        const tripAvgSpd  = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0
+        const tripMaxSpd  = speeds.length ? Math.max(...speeds) : 0
+        // Compute stop time (segments where speed == 0)
+        let stopMs = 0
+        for (let j = 1; j < pts.length; j++) {
+          if (speedKmh(pts[j].speed) < 2) {
+            stopMs += new Date(pts[j].fixTime) - new Date(pts[j-1].fixTime)
+          }
+        }
+        return {
+          index:       i + 1,
+          startTime:   pts[0].fixTime,
+          endTime:     pts[pts.length - 1].fixTime,
+          durationMin: Math.round(durationMs / 60000),
+          distanceKm:  Math.round(dist * 10) / 10,
+          avgSpeed:    Math.round(tripAvgSpd),
+          maxSpeed:    Math.round(tripMaxSpd),
+          stopMin:     Math.round(stopMs / 60000),
+          points:      pts.length,
+          route:       pts.map(point => ({
+            latitude:  Number(point.latitude),
+            longitude: Number(point.longitude),
+            speed:     Math.round(speedKmh(point.speed)),
+            fixTime:   point.fixTime,
+            address:   point.address || null,
+          })),
+        }
+      })
+
+      return res.json({
+        totalDistanceKm:   Math.round(totalDist * 10) / 10,
+        movingDurationMin: Math.round(movingMs / 60000),
+        stoppedDurationMin:Math.round(stoppedMs / 60000),
+        avgSpeed:          Math.round(avgSpeed),
+        maxSpeed:          Math.round(maxSpeed),
+        trips,
+        speedSeries: speedSeries.slice(0, 200), // limit points for chart
+      })
+    } catch (e) {
+      console.error('[reports] Traccar history error:', e.message)
+      return res.status(502).json({ error: 'Unable to load trip history from Traccar' })
+    }
+  } catch (err) {
+    console.error('[reports]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/reports/daily-summary?days=7
+// Returns today's total km and daily km chart data for all client devices
+reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 7, 30)
+  try {
+    // Get all devices for this user
+    const { rows: deviceRows } = await db.query(
+      req.user.is_admin
+        ? 'SELECT id, traccar_id FROM devices WHERE traccar_id IS NOT NULL'
+        : 'SELECT id, traccar_id FROM devices WHERE user_id=$1 AND traccar_id IS NOT NULL',
+      req.user.is_admin ? [] : [req.user.id]
+    )
+
+    if (!deviceRows.length) {
+      return res.json({ todayKm: 0, dailyData: [] })
+    }
+
+    const now = new Date()
+    const todayStart = new Date(now)
+    todayStart.setHours(0, 0, 0, 0)
+
+    // Build daily buckets
+    const dailyData = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now)
+      d.setDate(d.getDate() - i)
+      d.setHours(0, 0, 0, 0)
+      dailyData.push({ date: d.toISOString().split('T')[0], km: 0 })
+    }
+
+    let todayKm = 0
+    const from = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString()
+    const to   = now.toISOString()
+
+    // Fetch each device in parallel (limit concurrency to avoid hammering Traccar)
+    const BATCH = 5
+    for (let b = 0; b < deviceRows.length; b += BATCH) {
+      const batch = deviceRows.slice(b, b + BATCH)
+      await Promise.allSettled(batch.map(async (dev) => {
+        try {
+          const positions = await traccar.getHistory(dev.traccar_id, from, to)
+          if (!positions || positions.length < 2) return
+          const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+          for (let i = 1; i < sorted.length; i++) {
+            const prev = sorted[i - 1]
+            const cur  = sorted[i]
+            const dist = haversine(prev.latitude, prev.longitude, cur.latitude, cur.longitude)
+            const dayStr = new Date(cur.fixTime).toISOString().split('T')[0]
+            const bucket = dailyData.find(d => d.date === dayStr)
+            if (bucket) bucket.km += dist
+            if (new Date(cur.fixTime) >= todayStart) todayKm += dist
+          }
+        } catch { /* skip individual device errors */ }
+      }))
+    }
+
+    dailyData.forEach(d => { d.km = Math.round(d.km * 10) / 10 })
+    todayKm = Math.round(todayKm * 10) / 10
+
+    return res.json({ todayKm, dailyData })
+  } catch (err) {
+    console.error('[reports/daily-summary]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+---INDEX---
+import express from 'express'
+import cors from 'cors'
+import dotenv from 'dotenv'
+import { createServer } from 'http'
+import { WebSocketServer, WebSocket } from 'ws'
+import jwt from 'jsonwebtoken'
+import { authRouter }        from './routes/auth.js'
+import { devicesRouter }     from './routes/devices.js'
+import { clientsRouter }     from './routes/clients.js'
+import { alertsRouter }      from './routes/alerts.js'
+import { mapRouter }         from './routes/map.js'
+import { geofencesRouter }   from './routes/geofences.js'
+import { reportsRouter }     from './routes/reports.js'
+import { adminRouter }       from './routes/admin.js'
+import { maintenanceRouter } from './routes/maintenance.js'
+import { sharingRouter }     from './routes/sharing.js'
+import { leadsRouter }           from './routes/leads.js'
+import { driverBehaviorRouter } from './routes/driverBehavior.js'
+import { subUsersRouter }       from './routes/subUsers.js'
+import { config }        from './config.js'
+import { isRevoked }    from './services/tokenBlacklist.js'
+import { db }            from './db.js'
+import { runMigrations } from './db/init.js'
+
+dotenv.config()
+
+const app  = express()
+const PORT = process.env.PORT || 3001
+
+// Tracks whether the app has completed startup (migrations done, ready to serve)
+let appReady = false
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || false,
+  credentials: true,
+}))
+
+app.use(express.json({ limit: '1mb' }))
+
+app.use('/api/auth',        authRouter)
+app.use('/api/devices',     devicesRouter)
+app.use('/api/clients',     clientsRouter)
+app.use('/api/alerts',      alertsRouter)
+app.use('/api/map',         mapRouter)
+app.use('/api/geofences',   geofencesRouter)
+app.use('/api/reports',     reportsRouter)
+app.use('/api/admin',       adminRouter)
+app.use('/api/maintenance', maintenanceRouter)
+app.use('/api/sharing',     sharingRouter)
+app.use('/api/leads',           leadsRouter)
+app.use('/api/driver-behavior', driverBehaviorRouter)
+app.use('/api/sub-users',       subUsersRouter)
+
+app.get('/api/health', async (_req, res) => {
+  // During startup (before migrations complete) report early so load-balancers
+  // and healthchecks know the process is alive but not yet ready.
+  if (!appReady) {
+    return res.status(503).json({
+      status: 'startup',
+      db: 'pending',
+      traccar: 'pending',
+      version: '1.2.0',
+      ts: new Date().toISOString(),
+    })
+  }
+
+  let dbOk = false
+  let traccarOk = false
+  let dbStatus = 'disconnected'
+  let traccarStatus = 'unreachable'
+
+  try {
+    await db.query('SELECT 1')
+    dbOk = true
+    dbStatus = 'connected'
+  } catch (err) {
+    dbStatus = 'error: ' + err.message.slice(0, 60)
+  }
+
+  try {
+    const probe = await traccar.checkServer()
+    traccarOk     = probe.available
+    traccarStatus = probe.available
+      ? `reachable${probe.version ? ' v' + probe.version : ''}`
+      : `unreachable: ${probe.reason ?? 'unknown'}`
+  } catch {
+    traccarStatus = 'unreachable'
+  }
+
+  // Derive a single top-level status label
+  let status
+  if (dbOk && traccarOk)   status = 'ready'
+  else if (!dbOk)           status = 'database_unavailable'
+  else if (!traccarOk)      status = 'traccar_unavailable'
+  else                      status = 'degraded'
+
+  const httpStatus = dbOk ? 200 : 503
+
+  res.status(httpStatus).json({
+    status,
+    db:      dbStatus,
+    traccar: traccarStatus,
+    version: '1.2.0',
+    ts: new Date().toISOString(),
+  })
+})
+
+// --- HTTP server ---------------------------------------------------------------
+const server = createServer(app)
+
+// --- WebSocket server (frontend clients) ---------------------------------------
+const wss = new WebSocketServer({ server, path: '/api/socket' })
+const frontendClients = new Set()
+
+wss.on('connection', (ws, req) => {
+  try {
+    const url   = new URL(req.url, 'http://localhost')
+    const token = url.searchParams.get('token')
+    if (!token) { ws.close(1008, 'Unauthorized'); return }
+    jwt.verify(token, config.jwtSecret)
+    if (isRevoked(token)) { ws.close(1008, 'Token revoked'); return }
+  } catch {
+    ws.close(1008, 'Invalid token')
+    return
+  }
+
+  frontendClients.add(ws)
+  console.log('[WS] Frontend client connected — total: ' + frontendClients.size)
+
+  ws.on('close', () => {
+    frontendClients.delete(ws)
+    console.log('[WS] Frontend client disconnected — total: ' + frontendClients.size)
+  })
+
+  ws.on('error', (err) => console.error('[WS] Frontend client error:', err.message))
+})
+
+// --- Traccar WebSocket bridge --------------------------------------------------
+async function connectTraccar() {
+  const baseUrl = config.traccar.url
+  const wsBase  = baseUrl.startsWith('https://')
+    ? baseUrl.replace('https://', 'wss://')
+    : baseUrl.replace('http://', 'ws://')
+
+  // Ensure admin user exists in Traccar (idempotent, never throws)
+  const adminResult = await traccar.ensureAdminUser(
+    baseUrl, config.traccar.email, config.traccar.password
+  )
+  if (adminResult.created) {
+    console.log('[Traccar WS] Admin user created successfully')
+  } else if (adminResult.reason === 'already_exists') {
+    console.log('[Traccar WS] Admin user already exists')
+  } else {
+    console.warn('[Traccar WS] Admin user creation skipped:', adminResult.reason)
+  }
+
+  // Authenticate and get session credentials for the WebSocket connection
+  let sessionCookie = ''
+  let userToken = ''
+  try {
+    const session = await traccar.createSession(
+      baseUrl, config.traccar.email, config.traccar.password
+    )
+    sessionCookie = session.sessionCookie
+    userToken     = session.userToken
+    console.log('[Traccar WS] Session OK')
+  } catch (err) {
+    console.error('[Traccar WS] Session error:', err.message)
+    setTimeout(connectTraccar, 10000)
+    return
+  }
+
+  const socketUrl = userToken
+    ? wsBase + '/api/socket?token=' + userToken
+    : wsBase + '/api/socket'
+  const wsOpts = (!userToken && sessionCookie) ? { headers: { Cookie: sessionCookie } } : {}
+
+  const traccarWs = new WebSocket(socketUrl, wsOpts)
+
+  traccarWs.on('open', () => console.log('[Traccar WS] Connected to', wsBase))
+
+  traccarWs.on('message', (data) => {
+    const msg = data.toString()
+    for (const client of frontendClients) {
+      if (client.readyState === WebSocket.OPEN) client.send(msg)
+    }
+  })
+
+  traccarWs.on('close', () => {
+    console.log('[Traccar WS] Disconnected — reconnecting in 5 s...')
+    setTimeout(connectTraccar, 5000)
+  })
+
+  traccarWs.on('error', (err) => console.error('[Traccar WS] Error:', err.message))
+}
+
+// --- Start --------------------------------------------------------------------
+server.listen(PORT, async () => {
+  console.log('AtharGPS Backend running on port ' + PORT)
+  try {
+    await runMigrations()
+    appReady = true
+    console.log('[App] Ready ✓')
+  } catch (err) {
+    console.error('[App] Migration failed — serving health checks only:', err.message)
+    // appReady stays false; /api/health will return 503 startup
+  }
+  if (config.traccar.email && config.traccar.password) {
+    connectTraccar()
+  } else {
+    console.warn('[Traccar WS] No credentials — bridge disabled')
+  }
+})
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # عرض الـ .env الحالي (نحتاج المتغيرات)
+cat /opt/shgps/.env
+cat: /opt/shgps/.env: No such file or directory
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# echo "===SUBUERS===" && cat /tmp/recovered_app2/src/routes/subUsers.js
+echo "===LEADS===" && cat /tmp/recovered_app2/src/routes/leads.js
+echo "===BLACKLIST===" && cat /tmp/recovered_app2/src/services/tokenBlacklist.js
+echo "===SCHEMA===" && cat /tmp/recovered_app2/src/db/schema.sql
+echo "===CONFIG===" && cat /tmp/recovered_app2/src/config.js
+echo "===PACKAGE===" && cat /tmp/recovered_app2/package.json
+===SUBUERS===
+import { Router } from 'express'
+import bcrypt from 'bcryptjs'
+import { db } from '../db.js'
+import { requireAuth } from '../middleware/auth.js'
+
+export const subUsersRouter = Router()
+
+// All routes require auth (client only — not admin creating sub-users for others)
+
+// GET /api/sub-users — list sub-users created by this client
+subUsersRouter.get('/', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, email, name, role, is_active, created_at
+       FROM users
+       WHERE parent_client_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.id]
+    )
+    res.json(rows.map(u => ({
+      id:        u.id,
+      email:     u.email,
+      name:      u.name,
+      role:      u.role || 'viewer',
+      isActive:  u.is_active,
+      createdAt: u.created_at,
+    })))
+  } catch (err) {
+    console.error('[sub-users GET]', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/sub-users — create a sub-user
+subUsersRouter.post('/', requireAuth, async (req, res) => {
+  try {
+    // Sub-users cannot create other sub-users
+    if (req.user.parent_client_id) {
+      return res.status(403).json({ error: 'Sub-users cannot create other sub-users' })
+    }
+
+    const { name, email, password, role } = req.body
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'name, email, and password are required' })
+    }
+
+    const VALID_ROLES = ['manager', 'viewer', 'reports', 'alerts']
+    const assignedRole = VALID_ROLES.includes(role) ? role : 'viewer'
+
+    // Check email is not already in use
+    const { rows: existing } = await db.query('SELECT id FROM users WHERE email=$1', [email.toLowerCase().trim()])
+    if (existing.length > 0) return res.status(409).json({ error: 'Email already in use' })
+
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    const { rows } = await db.query(
+      `INSERT INTO users
+         (email, password_hash, name, role, parent_client_id, is_active, is_admin, subscription, max_devices)
+       VALUES ($1, $2, $3, $4, $5, true, false, 'sub', 0)
+       RETURNING id, email, name, role, is_active, created_at`,
+      [email.toLowerCase().trim(), passwordHash, name.trim(), assignedRole, req.user.id]
+    )
+    const u = rows[0]
+    res.status(201).json({
+      id:        u.id,
+      email:     u.email,
+      name:      u.name,
+      role:      u.role,
+      isActive:  u.is_active,
+      createdAt: u.created_at,
+    })
+  } catch (err) {
+    console.error('[sub-users POST]', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/sub-users/:id — update role or active status
+subUsersRouter.patch('/:id', requireAuth, async (req, res) => {
+  try {
+    const { role, isActive } = req.body
+    const { rows } = await db.query(
+      'SELECT * FROM users WHERE id=$1 AND parent_client_id=$2',
+      [req.params.id, req.user.id]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Sub-user not found' })
+
+    const VALID_ROLES = ['manager', 'viewer', 'reports', 'alerts']
+    const updates = []
+    const params  = []
+    let   idx     = 1
+
+    if (role !== undefined && VALID_ROLES.includes(role)) {
+      updates.push(`role=$${idx++}`); params.push(role)
+    }
+    if (isActive !== undefined) {
+      updates.push(`is_active=$${idx++}`); params.push(Boolean(isActive))
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'Nothing to update' })
+
+    params.push(req.params.id, req.user.id)
+    const { rows: updated } = await db.query(
+      `UPDATE users SET ${updates.join(', ')}, updated_at=NOW()
+       WHERE id=$${idx++} AND parent_client_id=$${idx}
+       RETURNING id, email, name, role, is_active, created_at`,
+      params
+    )
+    const u = updated[0]
+    res.json({ id: u.id, email: u.email, name: u.name, role: u.role, isActive: u.is_active, createdAt: u.created_at })
+  } catch (err) {
+    console.error('[sub-users PATCH]', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/sub-users/:id
+subUsersRouter.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT id FROM users WHERE id=$1 AND parent_client_id=$2',
+      [req.params.id, req.user.id]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Sub-user not found' })
+
+    await db.query('DELETE FROM users WHERE id=$1', [req.params.id])
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[sub-users DELETE]', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+===LEADS===
+// backend/src/routes/leads.js
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+
+export const leadsRouter = Router()
+
+// Rate limiting in-memory
+const leadsAttempts = new Map()
+const LEADS_LIMIT  = 3               // 3 محاولات
+const LEADS_WINDOW = 60 * 60 * 1000  // خلال ساعة واحدة
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, val] of leadsAttempts)
+    if (now - val.first > LEADS_WINDOW) leadsAttempts.delete(key)
+}, LEADS_WINDOW)
+
+function leadsRateLimit(req, res, next) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+           || req.socket?.remoteAddress || 'unknown'
+  const now = Date.now()
+  const entry = leadsAttempts.get(ip)
+  if (entry && now - entry.first < LEADS_WINDOW && entry.count >= LEADS_LIMIT) {
+    return res.status(429).json({ error: 'Too many requests. Try again later.' })
+  }
+  if (!entry || now - entry.first >= LEADS_WINDOW) {
+    leadsAttempts.set(ip, { count: 1, first: now })
+  } else {
+    entry.count++
+  }
+  next()
+}
+
+// POST /api/leads — public مع rate limit
+leadsRouter.post('/', leadsRateLimit, async (req, res) => {
+  try {
+    const { name, phone, email, package: pkg, message } = req.body
+    if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' })
+    if (!/^\+?[\d\s\-]{8,15}$/.test(phone))
+      return res.status(400).json({ error: 'Invalid phone number' })
+    const { rows } = await db.query(
+      `INSERT INTO leads (name, phone, email, package, message) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [
+        name.trim().slice(0, 100),
+        phone.trim().slice(0, 20),
+        email?.slice(0, 100) || null,
+        pkg?.slice(0, 50)    || null,
+        message?.slice(0, 1000) || null,
+      ]
+    )
+    res.status(201).json({ success: true, id: rows[0].id })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+
+// GET /api/leads — admin only
+leadsRouter.get('/', requireAuth, async (req, res) => {
+  try {
+    if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
+    const { rows } = await db.query('SELECT * FROM leads ORDER BY created_at DESC LIMIT 200')
+    res.json(rows)
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+===BLACKLIST===
+// tokenBlacklist.js — blacklist بانتهاء تلقائي لكل token
+const blacklist = new Map() // token → expiryTimestamp (ms)
+
+let cleanupScheduled = false
+function scheduleCleanup() {
+  if (cleanupScheduled) return
+  cleanupScheduled = true
+  setTimeout(() => {
+    const now = Date.now()
+    for (const [token, exp] of blacklist) {
+      if (now > exp) blacklist.delete(token)
+    }
+    cleanupScheduled = false
+  }, 60 * 60 * 1000) // تنظيف بعد ساعة
+}
+
+/**
+ * يضيف token للقائمة السوداء حتى وقت انتهائه الطبيعي
+ * @param {string} token
+ * @param {number} expiresAt - Unix timestamp بالثواني (من حقل exp في JWT)
+ */
+export function revokeToken(token, expiresAt) {
+  blacklist.set(token, expiresAt * 1000) // نحوّل للميلي ثانية
+  scheduleCleanup()
+}
+
+/**
+ * يتحقق إذا كان الـ token مُبطَلاً
+ * @param {string} token
+ * @returns {boolean}
+ */
+export function isRevoked(token) {
+  const exp = blacklist.get(token)
+  if (exp === undefined) return false
+  if (Date.now() > exp) { blacklist.delete(token); return false }
+  return true
+}
+===SCHEMA===
+-- SHGPS Database Schema — Canonical Reference
+-- This file mirrors 001_baseline migration for documentation purposes.
+-- Do NOT run this file directly — use: node src/db/init.js
+-- Tables are in correct FK dependency order.
+--
+-- To create the first admin account after a fresh install:
+--   node src/db/create-user.js
+
+-- Track applied migrations (always first)
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version    VARCHAR(50) PRIMARY KEY,
+  applied_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 1. users (no FK dependencies)
+CREATE TABLE IF NOT EXISTS users (
+  id                   SERIAL PRIMARY KEY,
+  email                VARCHAR(255) UNIQUE NOT NULL,
+  password_hash        VARCHAR(255) NOT NULL,
+  name                 VARCHAR(255) NOT NULL,
+  phone                VARCHAR(50),
+  city                 VARCHAR(100),
+  subscription         VARCHAR(50) DEFAULT 'Basic',
+  is_admin             BOOLEAN DEFAULT FALSE,
+  is_active            BOOLEAN DEFAULT TRUE,
+  max_devices          INTEGER DEFAULT 5,
+  expiry_date          TIMESTAMP,
+  traccar_id           INTEGER UNIQUE,
+  avatar               VARCHAR(10),
+  must_change_password BOOLEAN DEFAULT FALSE,
+  notification_prefs   JSONB DEFAULT '{}',
+  parent_client_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  role                 VARCHAR(20) DEFAULT 'owner',
+  created_at           TIMESTAMP DEFAULT NOW(),
+  updated_at           TIMESTAMP DEFAULT NOW()
+);
+
+-- 2. devices (FK → users)
+CREATE TABLE IF NOT EXISTS devices (
+  id          SERIAL PRIMARY KEY,
+  traccar_id  INTEGER UNIQUE,
+  user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  name        VARCHAR(255) NOT NULL,
+  imei        VARCHAR(20)  UNIQUE NOT NULL,
+  type        VARCHAR(50)  DEFAULT 'car',
+  plate       VARCHAR(50),
+  phone       VARCHAR(20),
+  last_lat    DOUBLE PRECISION,
+  last_lng    DOUBLE PRECISION,
+  last_speed  NUMERIC(8,2),
+  last_update TIMESTAMP,
+  created_at  TIMESTAMP DEFAULT NOW(),
+  updated_at  TIMESTAMP DEFAULT NOW()
+);
+
+-- 3. local_geofences (FK → users, devices)
+CREATE TABLE IF NOT EXISTS local_geofences (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER REFERENCES users(id)   ON DELETE CASCADE,
+  device_id    INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+  name         VARCHAR(255) NOT NULL,
+  type         VARCHAR(20)  NOT NULL DEFAULT 'circle',
+  coords       JSONB        NOT NULL,
+  radius       NUMERIC(10,2),
+  notify_enter BOOLEAN DEFAULT TRUE,
+  notify_exit  BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMP DEFAULT NOW()
+);
+
+-- 4. maintenance_logs (FK → devices)
+CREATE TABLE IF NOT EXISTS maintenance_logs (
+  id               SERIAL PRIMARY KEY,
+  device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+  type             VARCHAR(50) NOT NULL,
+  note             TEXT,
+  mileage          NUMERIC(12,2),
+  date             TIMESTAMP DEFAULT NOW(),
+  next_due_mileage NUMERIC(12,2),
+  created_at       TIMESTAMP DEFAULT NOW()
+);
+
+-- 5. share_links (FK → devices)
+CREATE TABLE IF NOT EXISTS share_links (
+  id         SERIAL PRIMARY KEY,
+  token      VARCHAR(64) UNIQUE NOT NULL,
+  device_id  INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 6. driver_behavior_scores (FK → devices, users)
+CREATE TABLE IF NOT EXISTS driver_behavior_scores (
+  id               SERIAL PRIMARY KEY,
+  device_id        INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+  user_id          INTEGER REFERENCES users(id)   ON DELETE CASCADE,
+  score            INTEGER NOT NULL DEFAULT 100,
+  speeding_events  INTEGER DEFAULT 0,
+  idle_min         INTEGER DEFAULT 0,
+  trip_count       INTEGER DEFAULT 0,
+  recorded_date    DATE NOT NULL DEFAULT CURRENT_DATE,
+  updated_at       TIMESTAMP DEFAULT NOW(),
+  UNIQUE (device_id, recorded_date)
+);
+
+-- 7. alerts (FK → devices, users)
+CREATE TABLE IF NOT EXISTS alerts (
+  id         SERIAL PRIMARY KEY,
+  device_id  INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+  user_id    INTEGER REFERENCES users(id)   ON DELETE CASCADE,
+  type       VARCHAR(50) NOT NULL,
+  message    TEXT        NOT NULL,
+  data       JSONB,
+  is_read    BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 8. leads (no FK)
+CREATE TABLE IF NOT EXISTS leads (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(255) NOT NULL,
+  phone      VARCHAR(50)  NOT NULL,
+  email      VARCHAR(255),
+  package    VARCHAR(50),
+  message    TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 9. user_device_access (FK → users, devices)
+CREATE TABLE IF NOT EXISTS user_device_access (
+  id          SERIAL PRIMARY KEY,
+  sub_user_id INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  device_id   INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  created_at  TIMESTAMP DEFAULT NOW(),
+  UNIQUE(sub_user_id, device_id)
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_users_parent_client_id    ON users(parent_client_id);
+CREATE INDEX IF NOT EXISTS idx_devices_user_id           ON devices(user_id);
+CREATE INDEX IF NOT EXISTS idx_devices_traccar_id        ON devices(traccar_id);
+CREATE INDEX IF NOT EXISTS idx_devices_imei              ON devices(imei);
+CREATE INDEX IF NOT EXISTS idx_alerts_device_id          ON alerts(device_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_user_id            ON alerts(user_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_is_read            ON alerts(is_read);
+CREATE INDEX IF NOT EXISTS idx_geofences_device_id       ON local_geofences(device_id);
+CREATE INDEX IF NOT EXISTS idx_geofences_user_id         ON local_geofences(user_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_device_id     ON maintenance_logs(device_id);
+CREATE INDEX IF NOT EXISTS idx_share_links_token         ON share_links(token);
+CREATE INDEX IF NOT EXISTS idx_share_links_device_id     ON share_links(device_id);
+CREATE INDEX IF NOT EXISTS idx_driver_scores_device_date ON driver_behavior_scores(device_id, recorded_date);
+CREATE INDEX IF NOT EXISTS idx_user_device_access_sub    ON user_device_access(sub_user_id);
+===CONFIG===
+// backend/src/config.js
+
+const jwtSecret = process.env.JWT_SECRET || ''
+const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production'
+
+// ── JWT_SECRET validation ──────────────────────────────────────────────────
+const KNOWN_INSECURE_SECRETS = [
+  'dev-secret-change-in-production',
+  'dev-secret-change-in-production-min-32ch',
+  'secret', 'jwt-secret', 'changeme', 'your-secret-key',
+]
+
+if (!jwtSecret) {
+  if (isProduction) {
+    console.error('[FATAL] JWT_SECRET is not set. Refusing to start in production without a secret.')
+    process.exit(1)
+  } else {
+    console.warn('[WARN] JWT_SECRET not set — using insecure dev fallback. Never use this in production!')
+  }
+} else if (jwtSecret.length < 32) {
+  if (isProduction) {
+    console.error(`[FATAL] JWT_SECRET is too short (${jwtSecret.length} chars). Production requires at least 32 characters.`)
+    process.exit(1)
+  } else {
+    console.warn(`[WARN] JWT_SECRET is only ${jwtSecret.length} chars — use at least 32 chars in production.`)
+  }
+} else if (isProduction && KNOWN_INSECURE_SECRETS.some(k => jwtSecret === k)) {
+  console.error('[FATAL] JWT_SECRET is a known insecure placeholder. Generate a real secret: openssl rand -hex 32')
+  process.exit(1)
+}
+
+export const config = {
+  port:        process.env.PORT || 3001,
+  jwtSecret:   jwtSecret || 'dev-secret-change-in-production-min-32ch',
+  jwtExpiry:   '7d',
+  databaseUrl: process.env.DATABASE_URL,
+  traccar: {
+    url:      process.env.TRACCAR_URL            || 'http://localhost:8082',
+    email:    process.env.TRACCAR_ADMIN_EMAIL    || '',
+    password: process.env.TRACCAR_ADMIN_PASSWORD || '',
+  },
+  frontendUrl: process.env.FRONTEND_URL || '',
+}
+===PACKAGE===
+{
+  "name": "shgps-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "init-db": "node src/db/init.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.0",
+    "ws": "^8.18.0"
+  }
+}
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
