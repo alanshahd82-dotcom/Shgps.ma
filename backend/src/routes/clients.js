@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { db }       from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { addMonths, dateOnly, getSubscriptionPlan } from '../services/subscriptions.js'
 
 export const clientsRouter = Router()
 
@@ -153,8 +154,10 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
 })
 
 clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) => {
-  const { name, imei, type, plate } = req.body
+  const { name, imei, type, plate, subscriptionPlanId } = req.body
   if (!name||!imei) return res.status(400).json({ error:'Name and IMEI required' })
+  const plan = getSubscriptionPlan(subscriptionPlanId)
+  if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
   const clientId = req.params.id
   try {
     const { rows: clientRows } = await db.query(
@@ -171,6 +174,8 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
         error: `Device limit reached (${client.devices_count}/${client.max_devices ?? 5}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
       })
     }
+    const subscriptionStartDate = dateOnly(new Date())
+    const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
     let traccarId = null
     try {
       const td = await traccar.createDevice(name, imei)
@@ -179,15 +184,24 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
       if (ownerRows[0]?.traccar_id) await traccar.linkDevice(ownerRows[0].traccar_id, traccarId)
     } catch (e) { console.warn('Traccar device skipped:', e.message) }
     const { rows } = await db.query(
-      `INSERT INTO devices (name,imei,type,plate,user_id,traccar_id)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [name, imei, type || 'car', plate || null, clientId || null, traccarId]
+      `INSERT INTO devices (
+         name,imei,type,plate,user_id,traccar_id,
+         subscription_plan_id,subscription_start_date,subscription_end_date,subscription_status
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active') RETURNING *`,
+      [name, imei, type || 'car', plate || null, clientId || null, traccarId,
+        plan.id, subscriptionStartDate, subscriptionEndDate]
     )
     const d = rows[0]
     res.status(201).json({
       id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
       clientId: d.user_id, status: 'offline', lat: 0, lng: 0, speed: 0,
       lastUpdate: null, engineOn: false, battery: null, signal: null, fuel: null,
+      subscriptionPlanId: d.subscription_plan_id,
+      subscriptionStartDate: d.subscription_start_date,
+      subscriptionEndDate: d.subscription_end_date,
+      subscriptionStatus: 'active',
+      subscriptionDaysRemaining: plan.durationMonths * 30,
+      trackingEnabled: true,
     })
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })

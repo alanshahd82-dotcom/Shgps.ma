@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
 import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
+import SubscriptionBanner from '../../components/SubscriptionBanner'
 
 // ── SVG Circular Fleet Gauge ─────────────────────────────────────────────────
 function FleetGauge({ active, total, isAr }) {
@@ -101,6 +102,7 @@ export default function Home() {
   }), [devices])
 
   const recent = devices.slice(0, 3)
+  const attentionDevice = devices.find(d => d.subscriptionStatus && d.subscriptionStatus !== 'active')
   const stColor = { moving:'#00D97E', stopped:'#FF3B30', idle:'#FF9500', offline:'#6b7280' }
 
   return (
@@ -140,6 +142,17 @@ export default function Home() {
 
       {/* Separator */}
       <div className="h-px mx-5 my-1" style={{ background: 'rgba(255,255,255,0.06)' }}/>
+
+      {attentionDevice && (
+        <div className="px-5 mt-4">
+          <SubscriptionBanner
+            device={attentionDevice}
+            lang={lang}
+            dark
+            onRenew={() => navigate('/client/device/' + attentionDevice.id)}
+          />
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="px-5 mt-5">

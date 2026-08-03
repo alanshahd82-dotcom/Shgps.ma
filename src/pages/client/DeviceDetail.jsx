@@ -14,6 +14,9 @@ import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ConfirmModal from '../../components/ConfirmModal'
 import { getDeviceStatusKey, timeAgo } from '../../components/ui'
+import SubscriptionBanner from '../../components/SubscriptionBanner'
+import SubscriptionBadge from '../../components/SubscriptionBadge'
+import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 
 function speedColor(s) {
   if (s > 120) return '#FF3B30'
@@ -54,7 +57,9 @@ export default function DeviceDetail() {
   const [copied, setCopied] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [sending, setSending] = useState(false)
+  const [showRenew, setShowRenew] = useState(false)
   const isAr = lang === 'ar'
+  const trackingEnabled = device?.trackingEnabled !== false
 
   const st = getDeviceStatusKey(device || {})
   const stColor = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }[st] || '#6b7280'
@@ -72,7 +77,7 @@ export default function DeviceDetail() {
   }, [id])
 
   useEffect(() => {
-    if (tab !== 'route') return
+    if (tab !== 'route' || !trackingEnabled) return
     async function loadTrips() {
       setTripsLoading(true)
       try {
@@ -84,7 +89,7 @@ export default function DeviceDetail() {
       finally { setTripsLoading(false) }
     }
     loadTrips()
-  }, [tab, id])
+  }, [tab, id, trackingEnabled])
 
   async function sendCommand(type) {
     setSending(true)
@@ -140,6 +145,10 @@ export default function DeviceDetail() {
       {/* Status bar */}
       <div className="h-0.5 mx-5 rounded-full mb-4" style={{ background: stColor, opacity:0.6 }}/>
 
+      <div className="px-5 mb-4">
+        <SubscriptionBanner device={device} lang={lang} onRenew={() => setShowRenew(true)} />
+      </div>
+
       {/* Quick stats */}
       {device && (
         <div className="flex gap-2.5 px-5 mb-4 overflow-x-auto" style={{ scrollbarWidth:'none' }}>
@@ -178,8 +187,12 @@ export default function DeviceDetail() {
           {/* INFO */}
           {tab === 'info' && device && (
             <motion.div key="info" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-white/45">{isAr ? 'اشتراك الجهاز' : 'Abonnement appareil'}</span>
+                <SubscriptionBadge device={device} lang={lang} dark />
+              </div>
               {/* Mini map */}
-              {device.lat && device.lng && (
+              {trackingEnabled && device.lat && device.lng && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
                   <MapContainer center={[device.lat, device.lng]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
@@ -210,7 +223,9 @@ export default function DeviceDetail() {
           {/* ROUTE */}
           {tab === 'route' && (
             <motion.div key="route" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
-              {tripsLoading ? (
+              {!trackingEnabled ? (
+                <SubscriptionBanner device={device} lang={lang} onRenew={() => setShowRenew(true)} />
+              ) : tripsLoading ? (
                 <div className="flex justify-center py-12">
                   <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#00D97E', borderTopColor:'transparent' }}/>
                 </div>
@@ -278,7 +293,9 @@ export default function DeviceDetail() {
                 <p className="text-xs mb-4" style={{ color:'rgba(255,255,255,0.38)' }}>
                   {isAr ? 'أنشئ رابطاً مؤقتاً لمشاركة الموقع المباشر للجهاز' : 'Créez un lien temporaire pour partager la position en temps réel'}
                 </p>
-                {!shareLink ? (
+                {!trackingEnabled ? (
+                  <SubscriptionBanner device={device} lang={lang} onRenew={() => setShowRenew(true)} />
+                ) : !shareLink ? (
                   <motion.button whileTap={{ scale:0.96 }} onClick={generateShareLink}
                     className="px-6 py-3 rounded-xl text-sm font-bold text-white"
                     style={{ background:'linear-gradient(135deg,#00D97E,#00b86a)', boxShadow:'0 4px 16px rgba(0,217,126,0.3)' }}>
@@ -314,6 +331,14 @@ export default function DeviceDetail() {
           lang={lang}
         />
       )}
+
+      <SubscriptionRenewalModal
+        open={showRenew}
+        device={device}
+        lang={lang}
+        onClose={() => setShowRenew(false)}
+        onSaved={result => setDevice(current => ({ ...current, ...result, trackingEnabled: true, subscriptionStatus: 'active' }))}
+      />
 
       <ClientNav/>
     </div>

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { getSubscriptionSnapshot } from '../services/subscriptions.js'
 
 export const reportsRouter = Router()
 
@@ -60,6 +61,18 @@ reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
     if (!dev) return res.status(404).json({ error: 'Device not found' })
     if (!req.user.is_admin && dev.user_id !== req.user.id)
       return res.status(403).json({ error: 'Access denied' })
+    if (!getSubscriptionSnapshot(dev).trackingEnabled) {
+      return res.json({
+        totalDistanceKm: 0,
+        movingDurationMin: 0,
+        stoppedDurationMin: 0,
+        avgSpeed: 0,
+        maxSpeed: 0,
+        trips: [],
+        speedSeries: [],
+        trackingEnabled: false,
+      })
+    }
 
     // Fetch positions from Traccar
     try {
@@ -170,8 +183,12 @@ reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
     // Get all devices for this user
     const { rows: deviceRows } = await db.query(
       req.user.is_admin
-        ? 'SELECT id, traccar_id FROM devices WHERE traccar_id IS NOT NULL'
-        : 'SELECT id, traccar_id FROM devices WHERE user_id=$1 AND traccar_id IS NOT NULL',
+        ? `SELECT id, traccar_id, subscription_end_date FROM devices
+           WHERE traccar_id IS NOT NULL
+             AND (subscription_end_date IS NULL OR subscription_end_date >= CURRENT_DATE)`
+        : `SELECT id, traccar_id, subscription_end_date FROM devices
+           WHERE user_id=$1 AND traccar_id IS NOT NULL
+             AND (subscription_end_date IS NULL OR subscription_end_date >= CURRENT_DATE)`,
       req.user.is_admin ? [] : [req.user.id]
     )
 

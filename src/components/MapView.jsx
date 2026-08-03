@@ -160,12 +160,12 @@ export default function MapView({
   }))
 
   // Only place markers for devices that have a real GPS fix
-  const displayDevices = normalised.filter(hasValidCoords)
+  const displayDevices = normalised.filter(d => d.trackingEnabled !== false && hasValidCoords(d))
 
   const primaryDevice = deviceId
     ? normalised.find(d => d.id === deviceId)
     : null
-  const primaryHasCoords = hasValidCoords(primaryDevice)
+  const primaryHasCoords = primaryDevice?.trackingEnabled !== false && hasValidCoords(primaryDevice)
 
   // If the primary device has no coordinates yet, show a "waiting" overlay instead of a broken map
   if (deviceId && primaryDevice && !primaryHasCoords && !showAllDevices) {

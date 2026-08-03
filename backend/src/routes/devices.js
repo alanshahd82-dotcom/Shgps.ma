@@ -2,6 +2,13 @@ import { Router } from 'express'
     import { requireAuth } from '../middleware/auth.js'
     import { db }          from '../db.js'
     import * as traccar    from '../services/traccar.js'
+import {
+  addMonths,
+  dateOnly,
+  getSubscriptionPlan,
+  getSubscriptionSnapshot,
+  syncSubscriptionState,
+} from '../services/subscriptions.js'
 
     export const devicesRouter = Router()
 
@@ -75,6 +82,12 @@ import { Router } from 'express'
         )
       if (repairs.length) await Promise.all(repairs)
 
+      await Promise.all(rows.map(d =>
+        syncSubscriptionState(db, d, d.client_name ?? req.user.name ?? null)
+          .then(snapshot => { d.subscription_status = snapshot.subscriptionStatus })
+          .catch(err => console.warn('[Subscription] state sync skipped:', err.message))
+      ))
+
       // Load active geofences from local DB for all devices
       let geofenceMap = {}
       try {
@@ -94,6 +107,8 @@ import { Router } from 'express'
         // Fallback: if device not in Traccar at all, derive from position presence
         const status = td ? (td.status === 'online' ? 'online' : 'offline') : (p ? 'online' : 'offline')
         const localGeo = geofenceMap[d.id] || null
+        const subscription = getSubscriptionSnapshot(d)
+        const trackingEnabled = subscription.trackingEnabled
         return {
           id:        d.id,
           traccarId: d.traccar_id ?? td?.id ?? null,
@@ -104,14 +119,20 @@ import { Router } from 'express'
           clientId:  d.user_id,
           clientName:d.client_name ?? null,
           status,
-          lat:       p?.latitude  ?? 0,
-          lng:       p?.longitude ?? 0,
-          speed:     p?.speed     ?? 0,
-          lastUpdate:p?.fixTime   ?? null,
-          engineOn:  p?.attributes?.ignition ?? false,
-          battery:   p?.attributes?.battery  ?? null,
-          signal:    p?.attributes?.rssi     ?? null,
-          fuel:      p?.attributes?.fuel     ?? null,
+          lat:       trackingEnabled ? (p?.latitude  ?? 0) : null,
+          lng:       trackingEnabled ? (p?.longitude ?? 0) : null,
+          speed:     trackingEnabled ? (p?.speed     ?? 0) : null,
+          lastUpdate:trackingEnabled ? (p?.fixTime   ?? null) : null,
+          engineOn:  trackingEnabled ? (p?.attributes?.ignition ?? false) : false,
+          battery:   trackingEnabled ? (p?.attributes?.battery  ?? null) : null,
+          signal:    trackingEnabled ? (p?.attributes?.rssi     ?? null) : null,
+          fuel:      trackingEnabled ? (p?.attributes?.fuel     ?? null) : null,
+          subscriptionPlanId: subscription.subscriptionPlanId,
+          subscriptionStartDate: subscription.subscriptionStartDate,
+          subscriptionEndDate: subscription.subscriptionEndDate,
+          subscriptionStatus: subscription.subscriptionStatus,
+          subscriptionDaysRemaining: subscription.subscriptionDaysRemaining,
+          trackingEnabled,
           geofenceActive:   !!localGeo,
           activeGeofenceId: localGeo?.id ?? null,
           geofence: localGeo ? { id: localGeo.id, name: localGeo.name } : null,
@@ -123,9 +144,11 @@ import { Router } from 'express'
     // POST / — إنشاء جهاز جديد مباشرة (أدمن فقط)
     devicesRouter.post('/', requireAuth, async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
-      const { name, imei, type, plate, clientId } = req.body
+      const { name, imei, type, plate, clientId, subscriptionPlanId } = req.body
       if (!name || !imei) return res.status(400).json({ error: 'Name and IMEI required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
+      const plan = getSubscriptionPlan(subscriptionPlanId)
+      if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
       try {
         if (clientId) {
           const { rows: clientRows } = await db.query(
@@ -143,6 +166,8 @@ import { Router } from 'express'
             })
           }
         }
+        const subscriptionStartDate = dateOnly(new Date())
+        const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
         let traccarId = null
         try {
           const td = await traccar.createDevice(name, imei)
@@ -157,11 +182,28 @@ import { Router } from 'express'
            VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
           [name, imei, type || 'car', plate || null, clientId || null, traccarId]
         )
+        await db.query(
+          `UPDATE devices
+           SET subscription_plan_id=$1, subscription_start_date=$2,
+               subscription_end_date=$3, subscription_status='active'
+           WHERE id=$4`,
+          [plan.id, subscriptionStartDate, subscriptionEndDate, rows[0].id]
+        )
+        rows[0].subscription_plan_id = plan.id
+        rows[0].subscription_start_date = subscriptionStartDate
+        rows[0].subscription_end_date = subscriptionEndDate
+        rows[0].subscription_status = 'active'
         const d = rows[0]
         res.status(201).json({
           id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
           clientId: d.user_id, status: 'offline', lat: 0, lng: 0, speed: 0,
           lastUpdate: null, engineOn: false, battery: null, signal: null, fuel: null,
+          subscriptionPlanId: d.subscription_plan_id,
+          subscriptionStartDate: d.subscription_start_date,
+          subscriptionEndDate: d.subscription_end_date,
+          subscriptionStatus: 'active',
+          subscriptionDaysRemaining: plan.durationMonths * 30,
+          trackingEnabled: true,
           geofenceActive: false, activeGeofenceId: null, geofence: null,
         })
       } catch (err) {
@@ -170,19 +212,19 @@ import { Router } from 'express'
       }
     })
 
-    // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone. العميل/الاشتراك اختياريان
+    // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone، مع خطة الجهاز.
     devicesRouter.post('/quick-add', requireAuth, async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
-      const { imei, phone, clientId, maxDevices, expiresAt } = req.body
+      const { imei, phone, clientId, maxDevices, subscriptionPlanId } = req.body
       if (!imei)  return res.status(400).json({ error: 'IMEI required' })
       if (!phone) return res.status(400).json({ error: 'Phone required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
+      const plan = getSubscriptionPlan(subscriptionPlanId)
+      if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
 
       try {
         let deviceName = `GPS-${imei.slice(-6)}` // اسم افتراضي
         let finalClientId = clientId ? Number(clientId) : null
-        let newMax = null
-
         if (finalClientId) {
           const { rows: clientRows } = await db.query(
             `SELECT id, name, max_devices,
@@ -194,7 +236,6 @@ import { Router } from 'express'
           if (!client) return res.status(404).json({ error: 'Client not found' })
           const seq = client.devices_count + 1
           deviceName = `${client.name} - #${seq}`
-          newMax = maxDevices ? Number(maxDevices) : (client.max_devices ?? 5)
         }
 
         // سجّل في Traccar
@@ -208,21 +249,27 @@ import { Router } from 'express'
           }
         } catch (e) { console.warn('Traccar skipped:', e.message) }
 
-        // إدراج الجهاز + تحديث الاشتراك في معاملة واحدة
+        const subscriptionStartDate = dateOnly(new Date())
+        const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
+
+        // إدراج الجهاز + تحديث حد الأجهزة في معاملة واحدة
         await db.query('BEGIN')
         try {
           // أضف عمود phone إن لم يكن موجوداً (يُشغَّل مرة واحدة)
           await db.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`).catch(() => {})
 
           const { rows } = await db.query(
-            `INSERT INTO devices (name,imei,type,plate,user_id,traccar_id,phone)
-             VALUES ($1,$2,'car',null,$3,$4,$5) RETURNING *`,
-            [deviceName, imei, finalClientId, traccarId, phone || null]
+            `INSERT INTO devices (
+               name,imei,type,plate,user_id,traccar_id,phone,
+               subscription_plan_id,subscription_start_date,subscription_end_date,subscription_status
+             ) VALUES ($1,$2,'car',null,$3,$4,$5,$6,$7,$8,'active') RETURNING *`,
+            [deviceName, imei, finalClientId, traccarId, phone || null,
+              plan.id, subscriptionStartDate, subscriptionEndDate]
           )
-          if (finalClientId && newMax !== null) {
+          if (finalClientId && maxDevices !== undefined && maxDevices !== null && maxDevices !== '') {
             await db.query(
-              `UPDATE users SET max_devices=$1, expiry_date=$2 WHERE id=$3`,
-              [newMax, expiresAt || null, finalClientId]
+              `UPDATE users SET max_devices=$1 WHERE id=$2`,
+              [Number(maxDevices), finalClientId]
             )
           }
           await db.query('COMMIT')
@@ -232,6 +279,12 @@ import { Router } from 'express'
             clientId: d.user_id, status: 'offline',
             lat: 0, lng: 0, speed: 0, lastUpdate: null,
             engineOn: false, battery: null, signal: null, fuel: null,
+            subscriptionPlanId: d.subscription_plan_id,
+            subscriptionStartDate: d.subscription_start_date,
+            subscriptionEndDate: d.subscription_end_date,
+            subscriptionStatus: 'active',
+            subscriptionDaysRemaining: plan.durationMonths * 30,
+            trackingEnabled: true,
             geofenceActive: false, activeGeofenceId: null, geofence: null,
           })
         } catch (e) { await db.query('ROLLBACK'); throw e }
@@ -242,14 +295,57 @@ import { Router } from 'express'
       }
     })
 
+    // PATCH /:id/subscription — admin or the device owner can renew by plan.
+    // Renewal starts at the later of today or the current end date so active
+    // time is never lost. This endpoint never changes user-level subscriptions.
+    devicesRouter.patch('/:id/subscription', requireAuth, async (req, res) => {
+      const { subscriptionPlanId } = req.body
+      const plan = getSubscriptionPlan(subscriptionPlanId)
+      if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
+      try {
+        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
+        const device = rows[0]
+        if (!device) return res.status(404).json({ error: 'Device not found' })
+        if (!req.user.is_admin && device.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+
+        const today = dateOnly(new Date())
+        const currentEnd = dateOnly(device.subscription_end_date)
+        const startDate = currentEnd && currentEnd >= today ? currentEnd : today
+        const endDate = addMonths(startDate, plan.durationMonths)
+        const result = await db.query(
+          `UPDATE devices
+           SET subscription_plan_id=$1, subscription_start_date=$2,
+               subscription_end_date=$3, subscription_status='active', updated_at=NOW()
+           WHERE id=$4 RETURNING *`,
+          [plan.id, startDate, endDate, device.id]
+        )
+        const updated = result.rows[0]
+        res.json({
+          id: updated.id,
+          subscriptionPlanId: updated.subscription_plan_id,
+          subscriptionStartDate: updated.subscription_start_date,
+          subscriptionEndDate: updated.subscription_end_date,
+          subscriptionStatus: 'active',
+          subscriptionDaysRemaining: getSubscriptionSnapshot(updated).subscriptionDaysRemaining,
+          trackingEnabled: true,
+        })
+      } catch (err) {
+        console.error(err)
+        res.status(500).json({ error: 'Failed to renew subscription' })
+      }
+    })
+
     devicesRouter.get('/:id', requireAuth, async (req, res) => {
     try {
       const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
       const dev = rows[0]
       if (!dev) return res.status(404).json({ error:'Device not found' })
       if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error:'Access denied' })
+      const subscription = getSubscriptionSnapshot(dev)
       let history = []
-      try { history = await traccar.getHistory(dev.traccar_id) } catch {}
+      if (subscription.trackingEnabled) {
+        try { history = await traccar.getHistory(dev.traccar_id) } catch {}
+      }
 
       // Load geofence state from local DB
       let localGeo = null
@@ -262,7 +358,17 @@ import { Router } from 'express'
       } catch {}
 
       res.json({
-        ...dev, history,
+        ...dev,
+        ...(subscription.trackingEnabled ? {} : {
+          last_lat: null, last_lng: null, last_speed: null, last_update: null,
+        }),
+        history,
+        subscriptionPlanId: subscription.subscriptionPlanId,
+        subscriptionStartDate: subscription.subscriptionStartDate,
+        subscriptionEndDate: subscription.subscriptionEndDate,
+        subscriptionStatus: subscription.subscriptionStatus,
+        subscriptionDaysRemaining: subscription.subscriptionDaysRemaining,
+        trackingEnabled: subscription.trackingEnabled,
         geofenceActive:   !!localGeo,
         activeGeofenceId: localGeo?.id ?? null,
         geofence: localGeo ? { id: localGeo.id, name: localGeo.name } : null,

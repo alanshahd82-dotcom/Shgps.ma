@@ -73,6 +73,10 @@
     imei       VARCHAR(20)  UNIQUE NOT NULL,
     type       VARCHAR(50)  DEFAULT 'car',
     plate      VARCHAR(50),
+    subscription_plan_id    VARCHAR(32),
+    subscription_start_date DATE,
+    subscription_end_date   DATE,
+    subscription_status     VARCHAR(20) DEFAULT 'active',
     created_at TIMESTAMP DEFAULT NOW()
     );
 

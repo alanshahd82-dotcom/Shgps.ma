@@ -70,9 +70,10 @@ export default function LiveMap() {
   }
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return devices
+    const trackable = devices.filter(d => d.trackingEnabled !== false)
+    if (!search.trim()) return trackable
     const q = search.toLowerCase()
-    return devices.filter(d =>
+    return trackable.filter(d =>
       d.name?.toLowerCase().includes(q) || d.plate?.toLowerCase().includes(q)
     )
   }, [devices, search])

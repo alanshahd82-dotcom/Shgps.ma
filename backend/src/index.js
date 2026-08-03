@@ -41,7 +41,11 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS last_lat    DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS last_lng    DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS last_speed  NUMERIC(8,2),
-        ADD COLUMN IF NOT EXISTS last_update TIMESTAMP
+        ADD COLUMN IF NOT EXISTS last_update TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS subscription_plan_id VARCHAR(32),
+        ADD COLUMN IF NOT EXISTS subscription_start_date DATE,
+        ADD COLUMN IF NOT EXISTS subscription_end_date DATE,
+        ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'active'
     `)
     await db.query(`
       CREATE TABLE IF NOT EXISTS local_geofences (

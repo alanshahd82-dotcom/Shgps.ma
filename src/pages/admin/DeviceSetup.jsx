@@ -8,6 +8,7 @@ import {
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import AdminLayout from './AdminLayout'
+import SubscriptionPlans from '../../components/SubscriptionPlans'
 
 // ── Device Type Cards ─────────────────────────────────────────────────────
 const DEVICE_TYPES = [
@@ -94,6 +95,7 @@ export default function DeviceSetup() {
   const [testStatus, setTestStatus]   = useState(null) // null | 'checking' | 'found' | 'not_found'
   const [testData, setTestData]       = useState(null)
   const [clientId, setClientId]       = useState('')
+  const [subscriptionPlanId, setSubscriptionPlanId] = useState('3_months')
   const [saving, setSaving]           = useState(false)
   const [savedDevice, setSavedDevice] = useState(null)
   const [error, setError]             = useState('')
@@ -146,6 +148,7 @@ export default function DeviceSetup() {
         type: vehicleType,
         plate,
         clientId: clientId || undefined,
+        subscriptionPlanId,
       })
       setSavedDevice(device)
       setStep(5)
@@ -413,6 +416,10 @@ export default function DeviceSetup() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-2">{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}</label>
+                  <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} />
+                </div>
 
                 {error && (
                   <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 px-3 py-2 rounded-xl border border-red-100">
@@ -438,6 +445,7 @@ export default function DeviceSetup() {
                     { label: isAr ? 'النوع' : 'Type', val: deviceType?.label },
                     { label: isAr ? 'الأجهزة' : 'Plaque', val: plate || '—' },
                     { label: isAr ? 'العميل' : 'Client', val: (clientList || []).find(c => String(c.id) === String(clientId))?.name || (isAr ? 'غير محدد' : 'Non assigné') },
+                    { label: isAr ? 'الاشتراك' : 'Abonnement', val: savedDevice.subscriptionPlanId || subscriptionPlanId },
                   ].map((row, i) => (
                     <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                       <span className="text-xs text-slate-400">{row.label}</span>
@@ -452,7 +460,7 @@ export default function DeviceSetup() {
                     <MapPin size={16} />
                     {isAr ? 'رؤية الخريطة' : 'Voir la carte'}
                   </button>
-                  <button onClick={() => { setStep(0); setDeviceType(null); setImei(''); setImeiValid(null); setName(''); setPlate(''); setClientId(''); setTestStatus(null); setTestData(null); setSavedDevice(null); setError('') }}
+                   <button onClick={() => { setStep(0); setDeviceType(null); setImei(''); setImeiValid(null); setName(''); setPlate(''); setClientId(''); setSubscriptionPlanId('3_months'); setTestStatus(null); setTestData(null); setSavedDevice(null); setError('') }}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border-2 border-gray-200 text-slate-600 font-bold text-sm hover:bg-gray-50">
                     <Cpu size={16} />
                     {isAr ? 'إضافة جهاز آخر' : 'Ajouter un autre'}

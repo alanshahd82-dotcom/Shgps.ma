@@ -10,6 +10,7 @@ import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import Logo from '../../components/Logo'
 import ForcePasswordModal from '../../components/ForcePasswordModal'
+import SubscriptionPlans from '../../components/SubscriptionPlans'
 
 /* ─── Quick Add Device Modal ──────────────────────────────────────────────── */
 function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
@@ -24,6 +25,7 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
   const [clientId,  setClientId]  = useState('')
   const [maxDev,    setMaxDev]    = useState('1')
   const [expires,   setExpires]   = useState('')
+  const [subscriptionPlanId, setSubscriptionPlanId] = useState('3_months')
   const [search,    setSearch]    = useState('')
 
   // ── ui state
@@ -40,7 +42,7 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
 
   const reset = () => {
     setImei(''); setPhone(''); setClientId(''); setMaxDev('1')
-    setExpires(''); setSearch(''); setError(''); setDone(null); setExpanded(false)
+    setExpires(''); setSubscriptionPlanId('3_months'); setSearch(''); setError(''); setDone(null); setExpanded(false)
   }
   const handleClose = () => { reset(); onClose() }
 
@@ -54,6 +56,7 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
         clientId:  clientId ? Number(clientId) : null,
         maxDevices: clientId ? Number(maxDev) : null,
         expiresAt:  clientId ? (expires || null) : null,
+        subscriptionPlanId,
       })
       setDone(result)
       onSuccess(result)
@@ -261,6 +264,12 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
                           </div>
                         </div>
                       )}
+                      <div>
+                        <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
+                          <CalendarDays size={10} />{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}
+                        </label>
+                        <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} compact />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

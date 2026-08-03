@@ -9,6 +9,9 @@ import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import ConfirmModal from '../../components/ConfirmModal'
+import SubscriptionPlans from '../../components/SubscriptionPlans'
+import SubscriptionBadge from '../../components/SubscriptionBadge'
+import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -19,7 +22,7 @@ function timeAgo(iso, lang) {
 }
 
 function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
-  const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId: '' })
+  const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId: '', subscriptionPlanId: '3_months' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,7 +34,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
     setLoading(true); setError('')
     try {
       await onAdd({ ...form, clientId: form.clientId || null })
-      setForm({ name: '', imei: '', type: 'car', plate: '', clientId: '' })
+      setForm({ name: '', imei: '', type: 'car', plate: '', clientId: '', subscriptionPlanId: '3_months' })
       onClose()
     } catch (err) {
       setError(err.message || (lang === 'ar' ? 'حدث خطأ' : 'Une erreur est survenue'))
@@ -110,6 +113,10 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait de l’appareil — paiement comptant'}</label>
+                <SubscriptionPlans value={form.subscriptionPlanId} onChange={subscriptionPlanId => setForm(p => ({ ...p, subscriptionPlanId }))} lang={lang} compact />
               </div>
             </form>
 
@@ -222,6 +229,7 @@ export default function AllDevices() {
   const [syncing, setSyncing]       = useState(false)
   const [syncResult, setSyncResult] = useState(null)
   const [toDelete, setToDelete]     = useState(null)
+  const [renewDevice, setRenewDevice] = useState(null)
   const [deleting, setDeleting]     = useState(false)
 
   const handleDelete = async () => {
@@ -313,7 +321,7 @@ export default function AllDevices() {
               <thead className="bg-slate-50 border-b border-gray-100">
                 <tr>
                   {[t(lang,'device'), 'IMEI', t(lang,'plate'), lang === 'ar' ? 'العميل' : 'Client',
-                    t(lang,'speed'), t(lang,'battery'), t(lang,'status'), t(lang,'lastUpdate'),
+                    t(lang,'speed'), t(lang,'battery'), t(lang,'status'), lang === 'ar' ? 'اشتراك الجهاز' : 'Abonnement appareil', t(lang,'lastUpdate'),
                     lang === 'ar' ? 'إجراءات' : 'Actions'].map((h, i) => (
                     <th key={i} className="px-4 py-3 text-start text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
@@ -321,7 +329,7 @@ export default function AllDevices() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400 text-sm">{t(lang, 'noData')}</td></tr>
+                  <tr><td colSpan={10} className="px-4 py-10 text-center text-slate-400 text-sm">{t(lang, 'noData')}</td></tr>
                 )}
                 {filtered.map((device, i) => {
                   const client   = getClient(device.clientId || device.user_id)
@@ -362,15 +370,25 @@ export default function AllDevices() {
                           }
                         </div>
                       </td>
+                      <td className="px-4 py-3"><SubscriptionBadge device={device} lang={lang} /></td>
                       <td className="px-4 py-3 text-xs text-slate-400">{timeAgo(device.lastUpdate, lang)}</td>
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => setToDelete(device)}
-                          className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
-                          title={lang === 'ar' ? 'حذف الجهاز' : 'Supprimer'}
-                        >
-                          <Trash2 size={14} className="text-red-500" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setRenewDevice(device)}
+                            className="px-2.5 h-8 rounded-lg bg-primary-50 text-primary-500 text-[10px] font-bold hover:bg-primary-100"
+                            title={lang === 'ar' ? 'تجديد الاشتراك نقداً' : 'Renouveler comptant'}
+                          >
+                            {lang === 'ar' ? 'تجديد' : 'Renouv.'}
+                          </button>
+                          <button
+                            onClick={() => setToDelete(device)}
+                            className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
+                            title={lang === 'ar' ? 'حذف الجهاز' : 'Supprimer'}
+                          >
+                            <Trash2 size={14} className="text-red-500" />
+                          </button>
+                        </div>
                       </td>
                     </motion.tr>
                   )
@@ -401,8 +419,15 @@ export default function AllDevices() {
                         ● {isOnline ? t(lang, 'online') : t(lang, 'offline')}
                       </span>
                       {device.battery != null && <span className="text-xs text-slate-400">🔋 {device.battery}%</span>}
+                      <SubscriptionBadge device={device} lang={lang} />
                     </div>
                   </div>
+                  <button
+                    onClick={() => setRenewDevice(device)}
+                    className="px-2.5 py-2 rounded-xl bg-primary-50 text-primary-500 text-[10px] font-bold flex-shrink-0"
+                  >
+                    {lang === 'ar' ? 'تجديد' : 'Renouv.'}
+                  </button>
                   <button
                     onClick={() => setToDelete(device)}
                     className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors flex-shrink-0"
@@ -422,6 +447,16 @@ export default function AllDevices() {
         onAdd={addDeviceDirect}
         clientList={clientList}
         lang={lang}
+      />
+      <SubscriptionRenewalModal
+        open={!!renewDevice}
+        device={renewDevice}
+        lang={lang}
+        onClose={() => setRenewDevice(null)}
+        onSaved={() => {
+          setRenewDevice(null)
+          window.location.reload()
+        }}
       />
     </AdminLayout>
   )

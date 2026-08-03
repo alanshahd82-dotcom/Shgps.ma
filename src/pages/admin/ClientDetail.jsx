@@ -7,9 +7,12 @@ import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
+import SubscriptionPlans from '../../components/SubscriptionPlans'
+import SubscriptionBadge from '../../components/SubscriptionBadge'
+import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 
 function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
-  const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId })
+  const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId, subscriptionPlanId: '3_months' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -18,7 +21,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
     setLoading(true); setError('')
     try {
       await onAdd(form)
-      setForm({ name: '', imei: '', type: 'car', plate: '', clientId })
+       setForm({ name: '', imei: '', type: 'car', plate: '', clientId, subscriptionPlanId: '3_months' })
       onClose()
     } catch (err) {
       setError(err.message || (lang === 'ar' ? 'تعذر إضافة الجهاز' : 'Impossible d’ajouter l’appareil'))
@@ -105,6 +108,10 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
                     onChange={e => setForm(p => ({ ...p, plate: e.target.value.toUpperCase() }))}
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}</label>
+                <SubscriptionPlans value={form.subscriptionPlanId} onChange={subscriptionPlanId => setForm(p => ({ ...p, subscriptionPlanId }))} lang={lang} compact />
               </div>
             </form>
 
@@ -294,10 +301,11 @@ function SubscriptionSection({ client, lang, onUpdate }) {
 export default function ClientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { clientList, devices, addDevice, lang, updateClient } = useApp()
+  const { clientList, devices, addDevice, lang, refreshDevices } = useApp()
   const client = clientList.find(c => String(c.id) === String(id))
   const clientDevices = devices.filter(d => String(d.clientId) === String(id) || String(d.user_id) === String(id))
   const [showAdd, setShowAdd] = useState(false)
+  const [renewDevice, setRenewDevice] = useState(null)
 
   if (!client) {
     return (
@@ -428,6 +436,13 @@ export default function ClientDetail() {
                     }`}>
                       {device.status === 'online' ? <span className="flex items-center gap-1"><Wifi size={10}/>{t(lang, 'online')}</span> : <span className="flex items-center gap-1"><WifiOff size={10}/>{t(lang, 'offline')}</span>}
                     </span>
+                    <SubscriptionBadge device={device} lang={lang} />
+                    <button
+                      onClick={() => setRenewDevice(device)}
+                      className="text-xs font-bold px-2.5 py-1 rounded-xl bg-primary-50 text-primary-500 hover:bg-primary-100"
+                    >
+                      {lang === 'ar' ? 'تجديد' : 'Renouveler'}
+                    </button>
                     {device.status === 'online' && (
                       <span className="text-xs font-bold text-primary-500">{device.speed} km/h</span>
                     )}
@@ -446,6 +461,16 @@ export default function ClientDetail() {
         clientId={id}
         client={client}
         lang={lang}
+      />
+      <SubscriptionRenewalModal
+        open={!!renewDevice}
+        device={renewDevice}
+        lang={lang}
+        onClose={() => setRenewDevice(null)}
+        onSaved={async result => {
+          setRenewDevice(current => current ? { ...current, ...result } : current)
+          await refreshDevices?.()
+        }}
       />
     </AdminLayout>
   )

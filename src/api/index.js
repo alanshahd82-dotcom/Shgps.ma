@@ -34,6 +34,8 @@ export const api = {
     get:            (id)            => apiFetch(`/devices/${id}`),
     create:         (data)          => apiFetch('/devices', { method: 'POST', body: JSON.stringify(data) }),
     quickAdd:       (data)          => apiFetch('/devices/quick-add', { method: 'POST', body: JSON.stringify(data) }),
+    renewSubscription: (id, subscriptionPlanId) =>
+      apiFetch(`/devices/${id}/subscription`, { method: 'PATCH', body: JSON.stringify({ subscriptionPlanId }) }),
     delete:         (id)            => apiFetch(`/devices/${id}`,    { method: 'DELETE' }),
     sendCommand:    (id, type)      => apiFetch(`/devices/${id}/command`, { method: 'POST', body: JSON.stringify({ type }) }),
     setGeofence:    (id, data)      => apiFetch(`/devices/${id}/geofence`, { method: 'POST', body: JSON.stringify(data) }),

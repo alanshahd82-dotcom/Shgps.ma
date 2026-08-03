@@ -6,6 +6,8 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
 import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
+import SubscriptionBadge from '../../components/SubscriptionBadge'
+import SubscriptionBanner from '../../components/SubscriptionBanner'
 
 const FILTERS = [
   { key: 'all',     ar: 'الكل',     fr: 'Tous'      },
@@ -63,6 +65,9 @@ function DeviceCard({ device, lang, onClick, index }) {
               </>
             )}
           </div>
+          <div className="mt-2">
+            <SubscriptionBadge device={device} lang={lang} dark />
+          </div>
         </div>
         {/* Speed + arrow */}
         <div className="flex-shrink-0 flex flex-col items-end gap-1">
@@ -87,6 +92,7 @@ export default function DeviceList() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const isAr = lang === 'ar'
+  const attentionDevice = devices.find(d => d.subscriptionStatus && d.subscriptionStatus !== 'active')
 
   const counts = useMemo(() => ({
     all:     devices.length,
@@ -131,6 +137,11 @@ export default function DeviceList() {
           )}
         </div>
       </div>
+      {attentionDevice && (
+        <div className="px-5 pb-3">
+          <SubscriptionBanner device={attentionDevice} lang={lang} dark onRenew={() => navigate('/client/device/' + attentionDevice.id)} />
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-2 px-5 pb-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>

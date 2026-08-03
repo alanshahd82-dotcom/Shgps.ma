@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
 import crypto from 'crypto'
 import * as traccar from '../services/traccar.js'
+import { getSubscriptionSnapshot } from '../services/subscriptions.js'
 
 export const sharingRouter = Router()
 
@@ -17,6 +18,9 @@ sharingRouter.post('/', requireAuth, async (req, res) => {
     if (!dev) return res.status(404).json({ error: 'Device not found' })
     if (!req.user.is_admin && dev.user_id !== req.user.id)
       return res.status(403).json({ error: 'Access denied' })
+    if (!getSubscriptionSnapshot(dev).trackingEnabled) {
+      return res.status(409).json({ error: 'Device subscription is expired. Renew it before sharing live location.' })
+    }
 
     const token = crypto.randomBytes(24).toString('hex')
     const hours = Math.min(Math.max(Number(expireHours) || 24, 1), 168)
@@ -35,9 +39,11 @@ sharingRouter.post('/', requireAuth, async (req, res) => {
 sharingRouter.get('/:token', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT sl.*, d.name, d.plate, d.type, d.traccar_id
+      `SELECT sl.*, d.name, d.plate, d.type, d.traccar_id,
+              d.subscription_end_date, d.subscription_status
        FROM share_links sl JOIN devices d ON d.id=sl.device_id
-       WHERE sl.token=$1 AND sl.expires_at > NOW()`,
+       WHERE sl.token=$1 AND sl.expires_at > NOW()
+         AND (d.subscription_end_date IS NULL OR d.subscription_end_date >= CURRENT_DATE)`,
       [req.params.token]
     )
     const link = rows[0]

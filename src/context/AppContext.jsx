@@ -131,7 +131,7 @@ export function AppProvider({ children }) {
             const updated = [...prev]
             for (const pos of data.positions) {
               const idx = updated.findIndex(d => d.traccarId === pos.deviceId || d.traccar_id === pos.deviceId)
-              if (idx !== -1) {
+              if (idx !== -1 && updated[idx].trackingEnabled !== false) {
                 updated[idx] = {
                   ...updated[idx],
                   lat:        pos.latitude,
