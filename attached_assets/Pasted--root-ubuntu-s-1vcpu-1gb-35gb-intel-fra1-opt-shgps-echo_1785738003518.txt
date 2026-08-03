@@ -1,0 +1,108 @@
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# echo "===MAP ROUTE===" && cat /tmp/recovered_app/src/routes/map.js
+echo "===DB INIT===" && cat /tmp/recovered_app/src/db/init.js
+echo "===PACKAGE===" && cat /tmp/recovered_app/package.json
+echo "===CHECK 2ND IMAGE==="
+docker create --name recover2 athargps-backend:latest
+docker cp recover2:/app /tmp/recovered_app2
+docker rm recover2
+find /tmp/recovered_app2/src -type f | sort 2>/dev/null || echo "No /app/src in 2nd image"
+===MAP ROUTE===
+import { Router } from 'express'
+    import { requireAuth, requireAdmin } from '../middleware/auth.js'
+    import { db }       from '../db.js'
+    import * as traccar from '../services/traccar.js'
+
+    export const mapRouter = Router()
+
+    mapRouter.get('/positions', requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const [{ rows }, positions] = await Promise.all([
+        db.query('SELECT d.*,u.name AS client_name FROM devices d LEFT JOIN users u ON d.user_id=u.id'),
+        traccar.getAllPositions().catch(()=>[]),
+      ])
+      const pm = {}
+      for (const p of positions) pm[p.deviceId]=p
+      res.json(rows.map(d=>({
+        id:d.id, name:d.name, type:d.type, plate:d.plate, clientName:d.client_name,
+        lat:pm[d.traccar_id]?.latitude??null, lng:pm[d.traccar_id]?.longitude??null,
+        speed:pm[d.traccar_id]?.speed??0,
+        status:pm[d.traccar_id]?'online':'offline',
+        lastUpdate:pm[d.traccar_id]?.fixTime??null,
+      })))
+    } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
+    })
+    ===DB INIT===
+import { readFileSync } from 'fs'
+    import { fileURLToPath } from 'url'
+    import { dirname, join } from 'path'
+    import { db } from '../db.js'
+    import dotenv from 'dotenv'
+
+    dotenv.config()
+
+    const __dirname = dirname(fileURLToPath(import.meta.url))
+    const sql = readFileSync(join(__dirname, 'schema.sql'), 'utf-8')
+
+    async function init() {
+    console.log('⏳ Initialising database…')
+    for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
+      await db.query(stmt)
+    }
+    console.log('✅ Database ready')
+    await db.end()
+    }
+
+    init().catch(err => { console.error('❌', err.message); process.exit(1) })
+    ===PACKAGE===
+{
+  "name": "shgps-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "init-db": "node src/db/init.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "pg": "^8.13.0",
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0"
+  }
+}
+===CHECK 2ND IMAGE===
+12fc2e87144f63d96274751688acff5dcbeb1446ae4236c399b58d6a3a1a18a6
+Successfully copied 4.61MB to /tmp/recovered_app2
+recover2
+/tmp/recovered_app2/src/config.js
+/tmp/recovered_app2/src/db.js
+/tmp/recovered_app2/src/db/create-user.js
+/tmp/recovered_app2/src/db/init.js
+/tmp/recovered_app2/src/db/migrations/001_baseline.sql
+/tmp/recovered_app2/src/db/migrations/002_geonix_features.sql
+/tmp/recovered_app2/src/db/migrations/003_sub_users.sql
+/tmp/recovered_app2/src/db/migrations/004_device_commands.sql
+/tmp/recovered_app2/src/db/schema.sql
+/tmp/recovered_app2/src/index.js
+/tmp/recovered_app2/src/middleware/auth.js
+/tmp/recovered_app2/src/routes/admin.js
+/tmp/recovered_app2/src/routes/alerts.js
+/tmp/recovered_app2/src/routes/auth.js
+/tmp/recovered_app2/src/routes/clients.js
+/tmp/recovered_app2/src/routes/devices.js
+/tmp/recovered_app2/src/routes/driverBehavior.js
+/tmp/recovered_app2/src/routes/geofences.js
+/tmp/recovered_app2/src/routes/leads.js
+/tmp/recovered_app2/src/routes/maintenance.js
+/tmp/recovered_app2/src/routes/map.js
+/tmp/recovered_app2/src/routes/reports.js
+/tmp/recovered_app2/src/routes/sharing.js
+/tmp/recovered_app2/src/routes/subUsers.js
+/tmp/recovered_app2/src/scripts/create-admin.js
+/tmp/recovered_app2/src/services/tokenBlacklist.js
+/tmp/recovered_app2/src/services/traccar.js
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
