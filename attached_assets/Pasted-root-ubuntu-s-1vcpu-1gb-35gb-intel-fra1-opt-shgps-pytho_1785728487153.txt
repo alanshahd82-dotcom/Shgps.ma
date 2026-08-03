@@ -1,0 +1,81 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# python3 << 'PYEOF'
+import zipfile, struct
+
+jar = '/tmp/ts.jar'
+with zipfile.ZipFile(jar) as z:
+    data = z.read('org/traccar/helper/Hashing.class')
+    
+    # Search for common iteration counts as raw 4-byte big-endian
+    print("=== Raw byte search for common iteration counts ===")
+    for it in [100, 500, 1000, 2000, 5000, 10000, 50000, 100000]:
+        p = struct.pack('>i', it)
+        if p in data:
+            print(f"  FOUND {it}: {p.hex()}")
+        else:
+            print(f"  not found: {it}")
+    
+    # Dump all string constants (UTF8 tag=1) to find algorithm names
+    print("\n=== String constants in Hashing.class ===")
+    pos = 10
+    count = struct.unpack('>H', data[6:8])[0]
+    for _ in range(count - 1):
+        if pos >= len(data): break
+        tag = data[pos]
+        if tag == 1:
+            l = struct.unpack('>H', data[pos+1:pos+3])[0]
+            s = data[pos+3:pos+3+l]
+            try:
+                decoded = s.decode('utf-8')
+                if len(decoded) > 2:
+                    print(f"  {repr(decoded)}")
+            except: pass
+            pos += 3 + l
+        elif tag == 3: pos += 5
+        elif tag in (7,8,16,19,20): pos += 3
+        elif tag in (9,10,11,12,18): pos += 5
+        elif tag in (5,6): pos += 9
+        elif tag in (15,): pos += 4
+        elif tag in (17,): pos += 5
+PYEOF   else: pos += 1
+=== Raw byte search for common iteration counts ===
+  not found: 100
+  not found: 500
+  FOUND 1000: 000003e8
+  not found: 2000
+  not found: 5000
+  not found: 10000
+  not found: 50000
+  not found: 100000
+
+=== String constants in Hashing.class ===
+  'java/lang/Object'
+  '<init>'
+  '()V'
+  'javax/crypto/spec/PBEKeySpec'
+  'org/traccar/helper/Hashing'
+  'java/lang/Byte'
+  '([C[BII)V'
+  'FACTORY'
+  'Ljavax/crypto/SecretKeyFactory;'
+  'javax/crypto/SecretKeyFactory'
+  'generateSecret'
+  '(Ljava/security/spec/KeySpec;)Ljavax/crypto/SecretKey;'
+  'javax/crypto/SecretKey'
+  'getEncoded'
+  '()[B'
+  'java/security/spec/InvalidKeySpecException'
+  'java/lang/SecurityException'
+  '(Ljava/lang/Throwable;)V'
+  'RANDOM'
+  'Ljava/security/SecureRandom;'
+  'java/security/SecureRandom'
+  'nextBytes'
+  '([B)V'
+  'java/lang/String'
+  'toCharArray'
+  '()[C'
+  'function'
+  '([C[B)[B'
+  'org/traccar/helper/Hashing$HashingResult'
+  'org/traccar/helper/DataConverter'
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
