@@ -320,7 +320,7 @@ export function FleetProvider({ children, onStaleAlert, ownDeviceId = '' }: Flee
     if (!domain) return;
 
     try {
-      const ws = new WebSocket(`wss://${domain}/api/ws`);
+      const ws = new WebSocket(`wss://${domain}/fleet/ws`);
       wsRef.current = ws;
 
       ws.onopen = () => {
