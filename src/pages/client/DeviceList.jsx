@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ChevronRight, Car, Clock } from 'lucide-react'
+import { Search, X, ChevronRight, Car, Clock, RefreshCw } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
 import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
+import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 
 const FILTERS = [
   { key: 'all',     ar: 'الكل',     fr: 'Tous'      },
@@ -21,23 +22,25 @@ const ST_BG    = { moving:'rgba(0,217,126,0.1)', idle:'rgba(255,149,0,0.1)', sto
 const ST_LABEL_AR = { moving:'يتحرك', idle:'خمول', stopped:'متوقف', offline:'غير متصل' }
 const ST_LABEL_FR = { moving:'En mvt', idle:'Ralenti', stopped:'Arrêté', offline:'Hors ligne' }
 
-function DeviceCard({ device, lang, onClick, index }) {
+function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const st   = getDeviceStatusKey(device)
   const isAr = lang === 'ar'
   const c    = ST_COLOR[st] || '#6b7280'
   const stLabel = isAr ? (ST_LABEL_AR[st] || st) : (ST_LABEL_FR[st] || st)
+  const sub  = getSubscriptionSnapshot(device)
+  const needsRenewal = sub.status === 'expiring_soon' || sub.status === 'expired'
 
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.22) }}
-      whileTap={{ scale: 0.97 }} onClick={onClick}
-      className="w-full text-left rounded-2xl overflow-hidden"
+      className="w-full rounded-2xl overflow-hidden"
       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
     >
       {/* Top status bar */}
       <div className="h-0.5" style={{ background: c }}/>
-      <div className="p-4 flex items-center gap-3">
+      <motion.button whileTap={{ scale: 0.97 }} onClick={onClick}
+        className="w-full text-left p-4 flex items-center gap-3">
         {/* Icon */}
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
           style={{ background: ST_BG[st] || 'rgba(255,255,255,0.06)' }}>
@@ -81,8 +84,30 @@ function DeviceCard({ device, lang, onClick, index }) {
           )}
           <ChevronRight size={14} style={{ color: 'rgba(255,255,255,0.2)', transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </div>
-      </div>
-    </motion.button>
+      </motion.button>
+
+      {/* Inline renewal row — shown only when subscription needs attention */}
+      {needsRenewal && (
+        <div className="px-4 pb-3 flex items-center justify-between gap-3"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <p className="text-xs" style={{ color: sub.status === 'expired' ? '#ff6b60' : '#ffb347' }}>
+            {sub.status === 'expired'
+              ? (isAr ? 'انتهى الاشتراك — التتبع موقوف' : 'Abonnement expiré — suivi arrêté')
+              : (isAr ? `ينتهي خلال ${sub.daysRemaining} يوم` : `Expire dans ${sub.daysRemaining} jours`)}
+          </p>
+          <motion.button whileTap={{ scale: 0.94 }} onClick={onRenew}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0"
+            style={{
+              background: sub.status === 'expired' ? 'rgba(255,59,48,0.15)' : 'rgba(255,149,0,0.15)',
+              border: `1px solid ${sub.status === 'expired' ? 'rgba(255,59,48,0.3)' : 'rgba(255,149,0,0.3)'}`,
+              color: sub.status === 'expired' ? '#ff6b60' : '#ffb347',
+            }}>
+            <RefreshCw size={12}/>
+            {isAr ? 'تجديد' : 'Renouveler'}
+          </motion.button>
+        </div>
+      )}
+    </motion.div>
   )
 }
 
@@ -179,7 +204,8 @@ export default function DeviceList() {
             </motion.div>
           ) : filtered.map((d, i) => (
             <DeviceCard key={d.id} device={d} lang={lang} index={i}
-              onClick={() => navigate('/client/device/' + d.id)}/>
+              onClick={() => navigate('/client/device/' + d.id)}
+              onRenew={() => navigate('/client/device/' + d.id)}/>
           ))}
         </AnimatePresence>
       </div>

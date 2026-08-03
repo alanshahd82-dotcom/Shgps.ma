@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bell, ChevronRight, Map, Activity, Shield, Wrench } from 'lucide-react'
+import { Bell, ChevronRight, Map, Activity, Shield, Wrench, BarChart2 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -165,6 +165,23 @@ export default function Home() {
           <ActionTile icon={Shield}   label={isAr ? 'السياج'   : 'Géofence'} color="#FF9500" onClick={() => navigate('/client/geofences')}/>
           <ActionTile icon={Wrench}   label={isAr ? 'الصيانة'  : 'Entretien'}color="#a855f7" onClick={() => navigate('/client/maintenance')}/>
         </div>
+
+        {/* Reports featured shortcut */}
+        <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate('/client/reports')}
+          className="mt-2.5 w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl"
+          style={{ background: 'rgba(0,217,126,0.07)', border: '1px solid rgba(0,217,126,0.18)' }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(0,217,126,0.15)' }}>
+            <BarChart2 size={20} color="#00D97E"/>
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-white font-semibold text-sm">{isAr ? 'التقارير والإحصاءات' : 'Rapports & Statistiques'}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              {isAr ? 'مسافة، سرعة، رحلات، تحليلات' : 'Distance, vitesse, trajets, analyses'}
+            </p>
+          </div>
+          <ChevronRight size={16} style={{ color: 'rgba(0,217,126,0.5)', transform: isAr ? 'rotate(180deg)' : 'none' }}/>
+        </motion.button>
       </div>
 
       {/* Recent devices */}
