@@ -1,0 +1,27 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker images && docker ps -a
+                                              i Info →   U  In Use
+IMAGE             ID             DISK USAGE   CONTENT SIZE   EXTRA
+alpine:latest     28bd5fe8b56d         13MB         3.93MB        
+athar-gps-backend:latest
+                  cebb96cb4bac        217MB         52.2MB        
+athargps-backend:latest
+                  b02441a06b88        217MB         52.2MB        
+certbot/certbot:latest
+                  34ee91d2f430        295MB         88.3MB    U   
+nginx:alpine      4a73073bd557       93.6MB           27MB    U   
+node:20-alpine    fb4cd12c85ee        194MB         48.8MB        
+postgres:16-alpine
+                  57c72fd2a128        420MB          117MB    U   
+shgps-backend:latest
+                  bf7ff318154a        200MB         49.5MB    U   
+traccar/traccar:ubuntu
+                  629cf4b4e90a        606MB          242MB    U   
+CONTAINER ID   IMAGE                    COMMAND                  CREATED             STATUS                       PORTS                                                                                                                                                                                                                             NAMES
+34795ddf532b   traccar/traccar:ubuntu   "/opt/traccar/jre/bi…"   26 minutes ago      Up 26 minutes (healthy)      0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp, 0.0.0.0:5023->5023/tcp, [::]:5023->5023/tcp, 0.0.0.0:5027->5027/tcp, [::]:5027->5027/tcp, 0.0.0.0:5029->5029/tcp, [::]:5029->5029/tcp, 0.0.0.0:5055->5055/udp, [::]:5055->5055/udp   shgps-traccar-1
+86fe0c402610   nginx:alpine             "/docker-entrypoint.…"   48 minutes ago      Up 48 minutes                0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp                                                                                                                                                      shgps-nginx-1
+b95a9dd3ba41   shgps-backend:latest     "docker-entrypoint.s…"   59 minutes ago      Up 59 minutes (unhealthy)    3001/tcp                                                                                                                                                                                                                          shgps-backend-1
+50aa7825830b   postgres:16-alpine       "/bin/sh -c 'while t…"   About an hour ago   Up About an hour             5432/tcp                                                                                                                                                                                                                          shgps-db-backup-1
+6df484eb6f23   certbot/certbot          "/bin/sh -c 'trap ex…"   About an hour ago   Up About an hour             80/tcp, 443/tcp                                                                                                                                                                                                                   shgps-certbot-1
+c7c4c2d1a9b8   postgres:16-alpine       "docker-entrypoint.s…"   About an hour ago   Up About an hour (healthy)   5432/tcp                                                                                                                                                                                                                          shgps-postgres-1
+750e081a8595   certbot/certbot          "/bin/sh -c 'trap ex…"   3 days ago          Up 3 days                    80/tcp, 443/tcp                                                                                                                                                                                                                   shgps-certbot-run-8e4c171de16e
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
