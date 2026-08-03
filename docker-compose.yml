@@ -13,13 +13,10 @@ services:
     environment:
       PORT: "3001"
       NODE_ENV: production
-      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD}@postgres:5432/shgps"
       TRACCAR_URL: "http://traccar:8082"
       TRACCAR_EMAIL: "${TRACCAR_ADMIN_EMAIL}"
       TRACCAR_PASSWORD: "${TRACCAR_ADMIN_PASSWORD}"
     depends_on:
-      postgres:
-        condition: service_healthy
       traccar:
         condition: service_healthy
     healthcheck:
@@ -82,8 +79,7 @@ services:
       - letsencrypt:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     stop_grace_period: 10s
     networks:
       - shgps

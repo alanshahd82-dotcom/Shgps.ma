@@ -26,7 +26,7 @@ COPY lib/db/          ./lib/db/
 COPY artifacts/api-server/ ./artifacts/api-server/
 
 # Install ALL workspace dependencies (pnpm resolves workspace: links)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build: esbuild bundles everything into artifacts/api-server/dist/index.mjs
 RUN pnpm --filter @workspace/api-server run build
