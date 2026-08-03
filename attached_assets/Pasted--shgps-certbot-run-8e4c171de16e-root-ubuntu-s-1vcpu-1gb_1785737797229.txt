@@ -1,0 +1,198 @@
+        shgps-certbot-run-8e4c171de16e
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker run --rm athar-gps-backend:latest sh -c "ls -la /app 2>/dev/null; ls -la /usr/src/app 2>/dev/null; ls -la / 2>/dev/null" | head -40
+total 64
+drwxr-xr-x    1 root     root          4096 Jul 29 23:57 .
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 ..
+drwxr-xr-x  102 root     root          4096 Jul 29 03:08 node_modules
+-rw-r--r--    1 root     root         42150 Jul 29 03:08 package-lock.json
+-rw-r--r--    1 root     root           398 Jul 29 03:07 package.json
+drwxr-xr-x    6 root     root          4096 Jul 29 23:57 src
+total 68
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 .
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 ..
+-rwxr-xr-x    1 root     root             0 Aug  3 06:14 .dockerenv
+drwxr-xr-x    1 root     root          4096 Jul 29 23:57 app
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 bin
+drwxr-xr-x    5 root     root           340 Aug  3 06:14 dev
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 etc
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 home
+drwxr-xr-x    1 root     root          4096 Apr 15 04:51 lib
+drwxr-xr-x    5 root     root          4096 Apr 15 04:51 media
+drwxr-xr-x    2 root     root          4096 Apr 15 04:51 mnt
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 opt
+dr-xr-xr-x  209 root     root             0 Aug  3 06:14 proc
+drwx------    1 root     root          4096 Jul 29 03:08 root
+drwxr-xr-x    3 root     root          4096 Apr 15 04:51 run
+drwxr-xr-x    2 root     root          4096 Apr 15 04:51 sbin
+drwxr-xr-x    2 root     root          4096 Apr 15 04:51 srv
+dr-xr-xr-x   13 root     root             0 Aug  3 06:14 sys
+drwxrwxrwt    2 root     root          4096 Apr 15 04:51 tmp
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 usr
+drwxr-xr-x    1 root     root          4096 Apr 15 04:51 var
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 1. أنشئ container مؤقت من الصورة القديمة
+docker create --name recover_old athar-gps-backend:latest
+
+# 2. انسخ كل محتويات /app إلى مجلد مؤقت على السيرفر
+docker cp recover_old:/app /tmp/recovered_app
+
+# 3. احذف الـ container المؤقت
+docker rm recover_old
+
+# 4. اعرض هيكل المشروع المسترجع
+ls -la /tmp/recovered_app/
+ls -la /tmp/recovered_app/src/
+5f5c3fd15d7b32366f13bf97fa7f0f65d66ef8daea392e2329506432236b540c
+Successfully copied 4.52MB to /tmp/recovered_app
+recover_old
+total 64
+drwxr-xr-x   4 root root  4096 Jul 29 23:57 .
+drwxrwxrwt  14 root root  4096 Aug  3 06:15 ..
+drwxr-xr-x 102 root root  4096 Jul 29 03:08 node_modules
+-rw-r--r--   1 root root 42150 Jul 29 03:08 package-lock.json
+-rw-r--r--   1 root root   398 Jul 29 03:07 package.json
+drwxr-xr-x   6 root root  4096 Jul 29 23:57 src
+total 40
+drwxr-xr-x 6 root root 4096 Jul 29 23:57 .
+drwxr-xr-x 4 root root 4096 Jul 29 23:57 ..
+-rw-r--r-- 1 root root  491 Jul 29 23:54 config.js
+drwxr-xr-x 2 root root 4096 Jul 29 23:57 db
+-rw-r--r-- 1 root root  536 Jul 29 23:54 db.js
+-rw-r--r-- 1 root root 4862 Jul 29 23:54 index.js
+drwxr-xr-x 2 root root 4096 Jul 29 23:57 middleware
+drwxr-xr-x 2 root root 4096 Jul 29 23:57 routes
+drwxr-xr-x 2 root root 4096 Jul 29 23:57 services
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # اعرض كل الملفات داخل src بالتفصيل
+find /tmp/recovered_app/src -type f | sort
+
+# اعرض محتوى index.js (نقطة الدخول)
+cat /tmp/recovered_app/src/index.js
+/tmp/recovered_app/src/config.js
+/tmp/recovered_app/src/db.js
+/tmp/recovered_app/src/db/init.js
+/tmp/recovered_app/src/db/schema.sql
+/tmp/recovered_app/src/index.js
+/tmp/recovered_app/src/middleware/auth.js
+/tmp/recovered_app/src/routes/admin.js
+/tmp/recovered_app/src/routes/alerts.js
+/tmp/recovered_app/src/routes/auth.js
+/tmp/recovered_app/src/routes/clients.js
+/tmp/recovered_app/src/routes/devices.js
+/tmp/recovered_app/src/routes/map.js
+/tmp/recovered_app/src/routes/stats.js
+/tmp/recovered_app/src/routes/subscriptions.js
+/tmp/recovered_app/src/services/traccar.js
+import express from 'express'
+import cors from 'cors'
+import dotenv from 'dotenv'
+import { createServer } from 'http'
+import { WebSocketServer, WebSocket } from 'ws'
+import jwt from 'jsonwebtoken'
+import { authRouter }          from './routes/auth.js'
+import { devicesRouter }       from './routes/devices.js'
+import { clientsRouter }       from './routes/clients.js'
+import { alertsRouter }        from './routes/alerts.js'
+import { mapRouter }           from './routes/map.js'
+import { statsRouter }         from './routes/stats.js'
+import { subscriptionsRouter } from './routes/subscriptions.js'
+import { adminRouter }         from './routes/admin.js'
+import { config }              from './config.js'
+
+dotenv.config()
+
+const app  = express()
+const PORT = process.env.PORT || 3001
+
+app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }))
+app.use(express.json())
+
+app.use('/api/auth',              authRouter)
+app.use('/api/devices',           devicesRouter)
+app.use('/api/clients',           clientsRouter)
+app.use('/api/alerts',            alertsRouter)
+app.use('/api/map',               mapRouter)
+app.use('/api/stats',             statsRouter)
+app.use('/api/subscription',      subscriptionsRouter)
+app.use('/api/admin/subscriptions', subscriptionsRouter)
+app.use('/api/admin',             adminRouter)
+
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', version: '2.0.0', app: 'Athar GPS' }))
+
+// --- HTTP server ---------------------------------------------------------------
+const server = createServer(app)
+
+// --- WebSocket server (frontend clients) ---------------------------------------
+const wss = new WebSocketServer({ server, path: '/api/socket' })
+const frontendClients = new Set()
+
+wss.on('connection', (ws, req) => {
+  try {
+    const url   = new URL(req.url, 'http://localhost')
+    const token = url.searchParams.get('token')
+    if (!token) { ws.close(1008, 'Unauthorized'); return }
+    jwt.verify(token, config.jwtSecret)
+  } catch {
+    ws.close(1008, 'Invalid token')
+    return
+  }
+
+  frontendClients.add(ws)
+
+  ws.on('close', () => frontendClients.delete(ws))
+  ws.on('error', (err) => console.error('[WS] Frontend error:', err.message))
+})
+
+// --- Traccar WebSocket bridge --------------------------------------------------
+async function ensureTraccarAdmin(baseUrl) {
+  try {
+    const res = await fetch(baseUrl + '/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Admin', email: config.traccar.email,
+        password: config.traccar.password, administrator: true,
+      }),
+    })
+    if (res.ok) console.log('[Traccar WS] Admin user created')
+    else console.log('[Traccar WS] Admin user already exists')
+  } catch (err) { console.warn('[Traccar WS] User creation skipped:', err.message) }
+}
+
+async function connectTraccar() {
+  const baseUrl = config.traccar.url
+  const wsBase  = baseUrl.startsWith('https://') ? baseUrl.replace('https://', 'wss://') : baseUrl.replace('http://', 'ws://')
+
+  await ensureTraccarAdmin(baseUrl)
+
+  let sessionCookie = ''
+  let userToken = ''
+  try {
+    const formBody = `email=${encodeURIComponent(config.traccar.email)}&password=${encodeURIComponent(config.traccar.password)}`
+    const res = await fetch(baseUrl + '/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formBody,
+    })
+    if (!res.ok) { console.error('[Traccar WS] Session POST failed:', res.status); setTimeout(connectTraccar, 10000); return }
+    const setCookie = res.headers.get('set-cookie') || ''
+    sessionCookie = setCookie.split(';')[0]
+    const user = await res.json()
+    userToken = user.token || ''
+  } catch (err) { console.error('[Traccar WS] Session error:', err.message); setTimeout(connectTraccar, 10000); return }
+
+  const socketUrl = userToken ? wsBase + '/api/socket?token=' + userToken : wsBase + '/api/socket'
+  const wsOpts = (!userToken && sessionCookie) ? { headers: { Cookie: sessionCookie } } : {}
+  const traccarWs = new WebSocket(socketUrl, wsOpts)
+
+  traccarWs.on('open',    ()    => console.log('[Traccar WS] Connected'))
+  traccarWs.on('message', (data) => { for (const c of frontendClients) { if (c.readyState === WebSocket.OPEN) c.send(data.toString()) } })
+  traccarWs.on('close',   ()    => { console.log('[Traccar WS] Disconnected — reconnecting…'); setTimeout(connectTraccar, 5000) })
+  traccarWs.on('error',   (err) => console.error('[Traccar WS] Error:', err.message))
+}
+
+// --- Start --------------------------------------------------------------------
+server.listen(PORT, () => {
+  console.log('Athar GPS Backend running on port ' + PORT)
+  if (config.traccar.email && config.traccar.password) connectTraccar()
+  else console.warn('[Traccar WS] No credentials — bridge disabled')
+})
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
