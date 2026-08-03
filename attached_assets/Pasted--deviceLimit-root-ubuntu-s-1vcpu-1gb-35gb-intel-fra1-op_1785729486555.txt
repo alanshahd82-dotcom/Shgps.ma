@@ -1,0 +1,274 @@
+  'deviceLimit'
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# find /opt/shgps/backend -name "*.js" 2>/dev/null | head -15
+/opt/shgps/backend/src/middleware/auth.js
+/opt/shgps/backend/src/services/tokenBlacklist.js
+/opt/shgps/backend/src/services/traccar.js
+/opt/shgps/backend/src/routes/subUsers.js
+/opt/shgps/backend/src/routes/map.js
+/opt/shgps/backend/src/routes/alerts.js
+/opt/shgps/backend/src/routes/sharing.js
+/opt/shgps/backend/src/routes/driverBehavior.js
+/opt/shgps/backend/src/routes/devices.js
+/opt/shgps/backend/src/routes/reports.js
+/opt/shgps/backend/src/routes/maintenance.js
+/opt/shgps/backend/src/routes/leads.js
+/opt/shgps/backend/src/routes/geofences.js
+/opt/shgps/backend/src/routes/clients.js
+/opt/shgps/backend/src/routes/admin.js
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cat /opt/shgps/backend/src/services/traccar.js
+/**
+ * traccar.js — Unified Traccar API service layer
+ *
+ * ALL communication with Traccar goes through this file.
+ * No route or other module should call fetch() against Traccar directly.
+ *
+ * Error contract
+ * ──────────────
+ * • Network / timeout errors  → throws TraccarUnavailableError
+ * • HTTP 404                  → throws TraccarNotFoundError
+ * • Other HTTP errors         → throws TraccarUnavailableError with status detail
+ * • checkServer()             → never throws; always returns { available, reason? }
+ * • ensureAdminUser()         → never throws; always returns { created, reason? }
+ * • createSession()           → throws TraccarUnavailableError on failure
+ */
+
+import { config } from '../config.js'
+
+// ── Timeouts ──────────────────────────────────────────────────────────────────
+const CALL_TIMEOUT_MS    = 8_000  // regular API calls
+const CHECK_TIMEOUT_MS   = 3_000  // health / availability probe
+const SESSION_TIMEOUT_MS = 10_000 // session POST (Traccar may be slow at startup)
+
+// ── Custom error classes ──────────────────────────────────────────────────────
+
+export class TraccarUnavailableError extends Error {
+  constructor (reason) {
+    super(reason)
+    this.name = 'TraccarUnavailableError'
+    this.available = false
+  }
+}
+
+export class TraccarNotFoundError extends Error {
+  constructor (path) {
+    super(`Traccar resource not found: ${path}`)
+    this.name = 'TraccarNotFoundError'
+    this.statusCode = 404
+  }
+}
+
+export class TraccarNoPositionError extends Error {
+  constructor (deviceId) {
+    super(`No position available for Traccar device ${deviceId}`)
+    this.name = 'TraccarNoPositionError'
+    this.deviceId = deviceId
+  }
+}
+
+// ── Test hook ─────────────────────────────────────────────────────────────────
+// Tests call __setTestImpl({ checkServer: () => ..., getAllPositions: () => ... })
+// to override specific functions without module-level mocking tricks.
+// In production _t is always empty, so the real implementations run.
+const _t = {}
+export function __setTestImpl  (obj) { Object.assign(_t, obj) }
+export function __clearTestImpl ()   { Object.keys(_t).forEach(k => delete _t[k]) }
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+const base = () => config.traccar.url
+const auth = () => 'Basic ' + Buffer.from(
+  `${config.traccar.email}:${config.traccar.password}`
+).toString('base64')
+
+/**
+ * Core HTTP wrapper for authenticated Traccar calls.
+ * Throws typed errors so callers don't need to inspect raw HTTP status codes.
+ */
+async function call (path, opts = {}, timeoutMs = CALL_TIMEOUT_MS) {
+  let res
+  try {
+    res = await fetch(`${base()}${path}`, {
+      ...opts,
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        Authorization: auth(),
+        'Content-Type': 'application/json',
+        ...opts.headers,
+      },
+    })
+  } catch (err) {
+    throw new TraccarUnavailableError(
+      `Cannot reach Traccar at ${base()}: ${err.message}`
+    )
+  }
+
+  if (res.status === 404) throw new TraccarNotFoundError(path)
+  if (res.status === 204) return null
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new TraccarUnavailableError(`Traccar HTTP ${res.status}: ${body.slice(0, 120)}`)
+  }
+
+  return res.json()
+}
+
+// ── Availability / health ─────────────────────────────────────────────────────
+
+/**
+ * Probe Traccar without throwing.
+ * @returns {{ available: boolean, version?: string, reason?: string }}
+ */
+export async function checkServer () {
+  if (_t.checkServer) return _t.checkServer()
+  try {
+    const res = await fetch(`${base()}/api/server`, {
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    })
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}))
+      return { available: true, version: data.version ?? null }
+    }
+    return { available: false, reason: `HTTP ${res.status}` }
+  } catch (err) {
+    return { available: false, reason: err.message }
+  }
+}
+
+// ── Session / startup helpers (used by WebSocket bridge in index.js) ──────────
+
+/**
+ * Create or confirm the Traccar admin user.
+ * Never throws — returns status object.
+ * @returns {{ created: boolean, reason?: string }}
+ */
+export async function ensureAdminUser (baseUrl, email, password) {
+  if (_t.ensureAdminUser) return _t.ensureAdminUser(baseUrl, email, password)
+  try {
+    const res = await fetch(`${baseUrl}/api/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Admin', email, password, administrator: true }),
+      signal: AbortSignal.timeout(SESSION_TIMEOUT_MS),
+    })
+    if (res.ok) return { created: true }
+    if (res.status === 400 || res.status === 409) return { created: false, reason: 'already_exists' }
+    return { created: false, reason: `HTTP ${res.status}` }
+  } catch (err) {
+    return { created: false, reason: err.message }
+  }
+}
+
+/**
+ * Authenticate with Traccar and return session credentials for the WebSocket bridge.
+ * @throws {TraccarUnavailableError} if the session POST fails
+ * @returns {{ sessionCookie: string, userToken: string }}
+ */
+export async function createSession (baseUrl, email, password) {
+  if (_t.createSession) return _t.createSession(baseUrl, email, password)
+  let res
+  try {
+    const formBody = 'email=' + encodeURIComponent(email)
+                   + '&password=' + encodeURIComponent(password)
+    res = await fetch(`${baseUrl}/api/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formBody,
+      signal: AbortSignal.timeout(SESSION_TIMEOUT_MS),
+    })
+  } catch (err) {
+    throw new TraccarUnavailableError(`Traccar session request failed: ${err.message}`)
+  }
+
+  if (!res.ok) {
+    throw new TraccarUnavailableError(`Traccar session POST failed: HTTP ${res.status}`)
+  }
+
+  const setCookie = res.headers.get('set-cookie') || ''
+  const sessionCookie = setCookie.split(';')[0]
+  const user = await res.json().catch(() => ({}))
+  return { sessionCookie, userToken: user.token || '' }
+}
+
+// ── Device management ─────────────────────────────────────────────────────────
+
+export const getAllPositions  = (...a) => _t.getAllPositions  ? _t.getAllPositions(...a)  : call('/api/positions')
+export const getAllDevices    = (...a) => _t.getAllDevices    ? _t.getAllDevices(...a)    : call('/api/devices')
+export const getDevicesByUser = (...a) => _t.getDevicesByUser ? _t.getDevicesByUser(...a) : call(`/api/devices?userId=${a[0]}`)
+export const createDevice    = (...a) => _t.createDevice    ? _t.createDevice(...a)    : call('/api/devices', {
+  method: 'POST', body: JSON.stringify({ name: a[0], uniqueId: a[1] }),
+})
+export const deleteDevice    = (...a) => _t.deleteDevice    ? _t.deleteDevice(...a)    : call(`/api/devices/${a[0]}`, { method: 'DELETE' })
+
+/**
+ * Get the current position of a single Traccar device.
+ * @throws {TraccarNoPositionError} if no position is available
+ */
+export async function getPosition (traccarId) {
+  if (_t.getPosition) return _t.getPosition(traccarId)
+  const positions = await call(`/api/positions?deviceId=${traccarId}`)
+  const pos = Array.isArray(positions) ? positions[0] : null
+  if (!pos) throw new TraccarNoPositionError(traccarId)
+  return pos
+}
+
+// ── User management ───────────────────────────────────────────────────────────
+
+export const createUser = (...a) => _t.createUser ? _t.createUser(...a) : call('/api/users', {
+  method: 'POST',
+  body: JSON.stringify({ name: a[0], email: a[1], password: a[2], deviceLimit: 100, administrator: false }),
+})
+export const deleteUser = (...a) => _t.deleteUser ? _t.deleteUser(...a) : call(`/api/users/${a[0]}`, { method: 'DELETE' })
+
+// ── Permissions ───────────────────────────────────────────────────────────────
+
+export const linkDevice = (...a) => _t.linkDevice ? _t.linkDevice(...a) : call('/api/permissions', {
+  method: 'POST',   body: JSON.stringify({ userId: a[0], deviceId: a[1] }),
+})
+export const unlinkDevice = (...a) => _t.unlinkDevice ? _t.unlinkDevice(...a) : call('/api/permissions', {
+  method: 'DELETE', body: JSON.stringify({ userId: a[0], deviceId: a[1] }),
+})
+
+// ── History / reports ─────────────────────────────────────────────────────────
+
+export const getHistory = (...a) => {
+  if (_t.getHistory) return _t.getHistory(...a)
+  const p = new URLSearchParams({
+    deviceId: a[0],
+    from: a[1] || new Date(Date.now() - 86_400_000).toISOString(),
+    to:   a[2] || new Date().toISOString(),
+  })
+  return call(`/api/reports/route?${p}`)
+}
+
+// ── Commands ──────────────────────────────────────────────────────────────────
+
+export const sendCommand = (...a) => _t.sendCommand ? _t.sendCommand(...a) : call('/api/commands/send', {
+  method: 'POST',
+  body: JSON.stringify({ deviceId: a[0], type: a[1], attributes: {} }),
+})
+
+// ── Geofences ─────────────────────────────────────────────────────────────────
+
+/**
+ * Create a circular geofence in Traccar.
+ * NOTE: Traccar WKT uses longitude first: CIRCLE (lng lat, radius)
+ */
+export const createGeofence = (...a) => _t.createGeofence ? _t.createGeofence(...a) : call('/api/geofences', {
+  method: 'POST',
+  body: JSON.stringify({
+    name: a[0],
+    area: `CIRCLE (${a[2]} ${a[1]}, ${a[3]})`,
+    attributes: {},
+  }),
+})
+
+export const getGeofencesByDevice = (...a) => _t.getGeofencesByDevice ? _t.getGeofencesByDevice(...a) : call(`/api/geofences?deviceId=${a[0]}`)
+export const deleteGeofence       = (...a) => _t.deleteGeofence       ? _t.deleteGeofence(...a)       : call(`/api/geofences/${a[0]}`, { method: 'DELETE' })
+export const linkGeofenceToDevice = (...a) => _t.linkGeofenceToDevice ? _t.linkGeofenceToDevice(...a) : call('/api/permissions', {
+  method: 'POST',   body: JSON.stringify({ deviceId: a[0], geofenceId: a[1] }),
+})
+export const unlinkGeofenceFromDevice = (...a) => _t.unlinkGeofenceFromDevice ? _t.unlinkGeofenceFromDevice(...a) : call('/api/permissions', {
+  method: 'DELETE', body: JSON.stringify({ deviceId: a[0], geofenceId: a[1] }),
+})
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
