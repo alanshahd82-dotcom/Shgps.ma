@@ -88,3 +88,33 @@ docker compose ps
 docker compose logs -f backend
 docker compose logs -f traccar
 ```
+
+---
+
+## 8. الفحص الشامل للنظام
+
+هذا الفحص لا يغيّر البيانات ولا يعيد تشغيل الحاويات. يعرض حالة Docker وPostgreSQL وTraccar وBackend وNginx وHTTPS والمنافذ والنسخ الاحتياطية والواجهة العامة، ثم يعرض أسطر السجل المشبوهة من آخر 30 دقيقة.
+
+```bash
+cd /opt/shgps
+bash ops/diagnose.sh
+```
+
+لفحص رابط مختلف:
+
+```bash
+BASE_URL=https://athargps.com bash ops/diagnose.sh
+```
+
+معاني النتيجة:
+
+- `OK`: الاختبار ناجح.
+- `WARN`: الخدمة تعمل غالباً، لكن هناك ملاحظة تحتاج مراجعة.
+- `FAIL`: يوجد عطل يحتاج إصلاحاً.
+- ينتهي الأمر برمز `0` عند النجاح، `2` عند وجود تحذيرات فقط، و`1` عند وجود فشل.
+
+لجمع السجل في ملف:
+
+```bash
+bash ops/diagnose.sh 2>&1 | tee /tmp/athargps-diagnose.txt
+```
