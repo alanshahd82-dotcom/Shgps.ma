@@ -1,0 +1,56 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker compose stop traccar 2>/dev/null; python3 << 'PYEOF'
+import subprocess
+sql = "SELECT * FROM tc_users WHERE administrator=TRUE;"
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout[:3000])
+PYEOF
+ID | NAME  | EMAIL              | HASHEDPASSWORD                                   | SALT | READONLY | ADMINISTRATOR | MAP  | LATITUDE | LONGITUDE | ZOOM | ATTRIBUTES | COORDINATEFORMAT | DISABLED | EXPIRATIONTIME | DEVICELIMIT | USERLIMIT | DEVICEREADONLY | PHONE | LIMITCOMMANDS | LOGIN | POILAYER | DISABLEREPORTS | FIXEDEMAIL | TOTPKEY | TEMPORARY
+36 | Admin | admin@athargps.com | c512d9c04dc8af0837db8c5725b4f1a099ad6a5398c389a7 | null | FALSE    | TRUE          | null | 0.0      | 0.0       | 0    | {}         | null             | FALSE    | null           | -1          | -1        | FALSE          | null  | FALSE         | null  | null     | FALSE          | FALSE      | null    | FALSE
+(1 row, 45 ms)
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# python3 << 'PYEOF'
+import subprocess
+
+# Combined hash: c512d9c04dc8af0837db8c5725b4f1a099ad6a5398c389a7
+# Split: salt (first 8 hex) + hash (remaining 40 hex)
+salt_hex  = 'c512d9c0'
+hash_hex  = '4dc8af0837db8c5725b4f1a099ad6a5398c389a7'
+
+sql = f"UPDATE tc_users SET salt='{salt_hex}', hashedpassword='{hash_hex}' WHERE email='admin@athargps.com'; SELECT id,email,salt,hashedpassword FROM tc_users WHERE email='admin@athargps.com';"
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout)
+PYEOF
+(Update count: 1, 29 ms)
+ID | EMAIL              | SALT     | HASHEDPASSWORD
+36 | admin@athargps.com | c512d9c0 | 4dc8af0837db8c5725b4f1a099ad6a5398c389a7
+(1 row, 18 ms)
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker compose start traccar && sleep 30 && docker compose exec backend node -e "
+(async () => {
+  const res = await fetch('http://traccar:8082/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'email=admin%40athargps.com&password=Admin2026'
+  });
+  const t = await res.text();
+  console.log('Status:', res.status, res.status===200 ? 'SUCCESS' : 'FAIL');
+  if (res.status !== 200) console.log(t.slice(0,200));
+})();
+"
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                          0.3s
+Status: 401 FAIL
+jakarta.ws.rs.WebApplicationException: HTTP 401 Unauthorized
+        at org.traccar.api.resource.SessionResource.add(SessionResource.java:134)
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.in
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
