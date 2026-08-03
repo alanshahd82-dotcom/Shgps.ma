@@ -1,0 +1,29 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# ^C
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# python3 -c "open('/tmp/t.sql','w').write(\"CREATE ALIAS IF NOT EXISTS TKHASH FOR 'org.traccar.helper.Hashing.createHash';\\nINSERT INTO tc_users(name,email,hashedpassword,administrator,devicelimit,userlimit,disabled,attributes) SELECT 'Admin','admin@athargps.com',TKHASH('Admin2026'),TRUE,-1,-1,FALSE,'{}';\\nSELECT id,email,administrator FROM tc_users;\\n\")" && docker compose stop traccar && docker compose run --rm --entrypoint="" traccar /opt/traccar/jre/bin/java -cp /opt/traccar/tracker-server.jar org.h2.tools.Shell -url "jdbc:h2:/opt/traccar/data/database" -user sa -password "" -script /tmp/t.sql && docker compose start traccar && sleep 12 && docker compose restart backend && sleep 15 && docker compose logs backend --tail=5
+[+] stop 1/1
+ ✔ Container shgps-traccar-1 Stopped                          1.3s
+Container shgps-traccar-run-602597e5c691 Creating 
+Container shgps-traccar-run-602597e5c691 Created 
+Interactive command line tool to access a database using JDBC.
+Usage: java org.h2.tools.Shell <options>
+Options are case sensitive.
+Supported options[-help] or [-?]Print the list of options
+[-url "<url>"]         The database URL (jdbc:h2:...)
+[-user <user>]         The user name
+[-password <pwd>]      The password
+[-driver <class>]      The JDBC driver class to use (not required in most cases)
+[-sql "<statements>"]  Execute the SQL statements and exit
+[-properties "<dir>"]  Load the server properties from this directory
+If special characters don't work as expected, you may need to use
+ -Dfile.encoding=UTF-8 (Mac OS X) or CP850 (Windows).
+See also https://h2database.com/javadoc/org/h2/tools/Shell.html
+Exception in thread "main" org.h2.jdbc.JdbcSQLFeatureNotSupportedException: Feature not supported: "-script" [50100-240]
+        at org.h2.message.DbException.getJdbcSQLException(DbException.java:568)
+        at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
+        at org.h2.message.DbException.getJdbcSQLException(DbException.java:475)
+        at org.h2.util.Tool.throwUnsupportedOption(Tool.java:70)
+        at org.h2.util.Tool.showUsageAndThrowUnsupportedOption(Tool.java:58)
+        at org.h2.tools.Shell.runTool(Shell.java:142)
+        at org.h2.tools.Shell.main(Shell.java:80)
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
