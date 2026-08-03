@@ -1,0 +1,232 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cat /tmp/recovered_app/src/config.js
+echo "---DB---"
+cat /tmp/recovered_app/src/db.js
+echo "---SCHEMA---"
+cat /tmp/recovered_app/src/db/schema.sql
+echo "---AUTH---"
+cat /tmp/recovered_app/src/middleware/auth.js
+echo "---TRACCAR SERVICE---"
+cat /tmp/recovered_app/src/services/traccar.js
+export const config = {
+    port:       process.env.PORT       || 3001,
+    jwtSecret:  process.env.JWT_SECRET || 'dev-secret-change-in-production',
+    jwtExpiry:  '7d',
+    databaseUrl: process.env.DATABASE_URL,
+    traccar: {
+      url:      process.env.TRACCAR_URL            || 'http://localhost:8082',
+      email:    process.env.TRACCAR_ADMIN_EMAIL    || '',
+      password: process.env.TRACCAR_ADMIN_PASSWORD || '',
+    },
+    frontendUrl: process.env.FRONTEND_URL || '*',
+    }
+    ---DB---
+import pg from 'pg'
+    import { config } from './config.js'
+
+    const { Pool } = pg
+
+    // Only use SSL if explicitly requested in the connection string (not based on NODE_ENV,
+// since Docker-internal postgres doesn't support SSL regardless of environment)
+const useSSL = config.databaseUrl?.includes('sslmode=require')
+export const db = new Pool({
+    connectionString: config.databaseUrl,
+    ssl: useSSL ? { rejectUnauthorized: false } : false,
+    })
+
+    db.on('error', (err) => console.error('DB connection error:', err))
+    ---SCHEMA---
+-- Athar GPS Database Schema
+
+CREATE TABLE IF NOT EXISTS users (
+  id            SERIAL PRIMARY KEY,
+  email         VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  name          VARCHAR(255) NOT NULL,
+  phone         VARCHAR(50),
+  city          VARCHAR(100),
+  subscription  VARCHAR(50) DEFAULT 'Basic',
+  is_admin      BOOLEAN DEFAULT FALSE,
+  is_active     BOOLEAN DEFAULT TRUE,
+  traccar_id    INTEGER UNIQUE,
+  avatar        VARCHAR(10),
+  alert_settings JSONB DEFAULT '{"speed":true,"geofence":true,"battery":true}',
+  created_at    TIMESTAMP DEFAULT NOW(),
+  updated_at    TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS devices (
+  id              SERIAL PRIMARY KEY,
+  traccar_id      INTEGER UNIQUE,
+  user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  name            VARCHAR(255) NOT NULL,
+  imei            VARCHAR(20)  UNIQUE NOT NULL,
+  type            VARCHAR(50)  DEFAULT 'car',
+  plate           VARCHAR(50),
+  protocol        VARCHAR(50)  DEFAULT 'GT06',
+  activation_code VARCHAR(10)  UNIQUE,
+  is_activated    BOOLEAN      DEFAULT FALSE,
+  created_at      TIMESTAMP    DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id         SERIAL PRIMARY KEY,
+  device_id  INTEGER REFERENCES devices(id)  ON DELETE CASCADE,
+  user_id    INTEGER REFERENCES users(id)    ON DELETE CASCADE,
+  type       VARCHAR(50) NOT NULL,
+  message    TEXT NOT NULL,
+  data       JSONB,
+  is_read    BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  plan         VARCHAR(50) NOT NULL DEFAULT 'Basic',
+  device_limit INTEGER NOT NULL DEFAULT 3,
+  start_date   TIMESTAMP NOT NULL DEFAULT NOW(),
+  end_date     TIMESTAMP NOT NULL,
+  is_active    BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  token      VARCHAR(64) UNIQUE NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used       BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS system_settings (
+  key   VARCHAR(100) PRIMARY KEY,
+  value JSONB NOT NULL
+);
+
+-- Default admin  (password: Admin@1234 — CHANGE THIS IN PRODUCTION)
+INSERT INTO users (email, password_hash, name, is_admin, avatar)
+VALUES (
+  'admin@athar-gps.ma',
+  '$2b$10$ZvUexuJI0dAHaSm6hq2jZOPjS5wlvvIHLywBCz.8hK72GQSMu2z1m',
+  'مدير النظام', true, 'م'
+) ON CONFLICT (email) DO NOTHING;
+
+-- Default system settings
+INSERT INTO system_settings (key, value) VALUES
+  ('company', '{"name":"Athar GPS","supportEmail":"support@athar-gps.ma","supportPhone":"+212 5 XX XX XX XX","logo":""}'),
+  ('plans', '[{"name":"Basic","price":99,"device_limit":3},{"name":"Pro","price":199,"device_limit":10},{"name":"Enterprise","price":399,"device_limit":50}]')
+ON CONFLICT (key) DO NOTHING;
+---AUTH---
+import jwt from 'jsonwebtoken'
+import { db } from '../db.js'
+import { config } from '../config.js'
+
+export async function requireAuth(req, res, next) {
+  const header = req.headers.authorization
+  if (!header?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' })
+  const token = header.slice(7)
+  try {
+    const payload = jwt.verify(token, config.jwtSecret)
+    const { rows } = await db.query('SELECT * FROM users WHERE id=$1 AND is_active=true', [payload.userId])
+    if (!rows[0]) return res.status(401).json({ error: 'User not found' })
+    req.user = rows[0]
+    next()
+  } catch {
+    res.status(401).json({ error: 'Invalid token' })
+  }
+}
+
+export async function requireAdmin(req, res, next) {
+  await requireAuth(req, res, async () => {
+    if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin access required' })
+    next()
+  })
+}
+---TRACCAR SERVICE---
+import { config } from '../config.js'
+
+const BASE = config.traccar.url
+const AUTH = Buffer.from(`${config.traccar.email}:${config.traccar.password}`).toString('base64')
+
+async function req(path, options = {}) {
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Basic ${AUTH}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  })
+  if (!res.ok) throw new Error(`Traccar ${path} → HTTP ${res.status}`)
+  if (res.status === 204) return null
+  return res.json()
+}
+
+// ─── Devices ───────────────────────────────────────────────────────────────
+
+export async function getAllDevices() {
+  return req('/api/devices')
+}
+
+export async function createDevice({ name, imei, protocol = 'GT06' }) {
+  return req('/api/devices', {
+    method: 'POST',
+    body: JSON.stringify({ name, uniqueId: imei }),
+  })
+}
+
+// ─── Positions ─────────────────────────────────────────────────────────────
+
+export async function getAllPositions() {
+  return req('/api/positions')
+}
+
+export async function getHistory(traccarId, from, to) {
+  if (!traccarId) return []
+  const f = from || new Date(Date.now() - 24 * 3600000).toISOString()
+  const t = to   || new Date().toISOString()
+  return req(`/api/positions?deviceId=${traccarId}&from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`)
+}
+
+// ─── Trips ─────────────────────────────────────────────────────────────────
+
+export async function getTrips(traccarId, from, to) {
+  if (!traccarId) return []
+  const f = from || new Date(Date.now() - 30 * 24 * 3600000).toISOString()
+  const t = to   || new Date().toISOString()
+  try {
+    return await req(`/api/reports/trips?deviceId=${traccarId}&from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`)
+  } catch { return [] }
+}
+
+// ─── Commands ──────────────────────────────────────────────────────────────
+
+export async function sendCommand(traccarId, type) {
+  if (!traccarId) throw new Error('No Traccar device ID')
+  return req('/api/commands/send', {
+    method: 'POST',
+    body: JSON.stringify({
+      deviceId: traccarId,
+      type,
+      attributes: {},
+    }),
+  })
+}
+
+// ─── Geofences ─────────────────────────────────────────────────────────────
+
+export async function createGeofence(traccarId, { lat, lng, radius = 500, name = 'Geofence' }) {
+  if (!traccarId) throw new Error('No Traccar device ID')
+  const area = `CIRCLE (${lat} ${lng}, ${radius})`
+  const gf = await req('/api/geofences', {
+    method: 'POST',
+    body: JSON.stringify({ name, area }),
+  })
+  // Link geofence to device
+  await req('/api/permissions', {
+    method: 'POST',
+    body: JSON.stringify({ deviceId: traccarId, geofenceId: gf.id }),
+  })
+  return gf
+}
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
