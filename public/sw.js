@@ -1,12 +1,13 @@
-// ATHAR GPS Service Worker v3 — Network-first with offline fallback
-const CACHE_NAME = 'athargps-v3'
+// ATHAR GPS Service Worker v4 — Network-first with offline fallback
+const CACHE_NAME = 'athargps-v4'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/athar-gps-mark.svg',
   '/athar-gps-hero.svg',
   '/manifest.json',
-  '/favicon.svg',
+  '/favicon.ico',
+  '/icon-192.png',
 ]
 
 self.addEventListener('install', (event) => {
