@@ -113,8 +113,10 @@ BASE_URL=https://athargps.com bash ops/diagnose.sh
 - `FAIL`: يوجد عطل يحتاج إصلاحاً.
 - ينتهي الأمر برمز `0` عند النجاح، `2` عند وجود تحذيرات فقط، و`1` عند وجود فشل.
 
-لجمع السجل في ملف:
+لجمع السجل في ملف **من دون الخروج من جلسة SSH**:
 
 ```bash
-bash ops/diagnose.sh 2>&1 | tee /tmp/athargps-diagnose.txt
+bash ops/diagnose.sh 2>&1 | tee /tmp/athargps-diagnose.txt || true
 ```
+
+لا تضف `exit "$code"` بعد الأمر؛ فالسكربت يعرض النتيجة بنفسه، والجزء `|| true` يمنع إغلاق الجلسة إذا كانت هناك أخطاء في الفحص.
