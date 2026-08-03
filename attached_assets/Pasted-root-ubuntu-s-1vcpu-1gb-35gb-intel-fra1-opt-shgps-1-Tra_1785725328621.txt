@@ -1,0 +1,61 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 1. أوقف Traccar لتحرير قفل DB
+docker compose stop traccar
+
+# 2. تحقق إن H2 موجود داخل الـ fat jar
+docker compose run --rm --entrypoint="" traccar \
+  sh -c "/opt/traccar/jre/bin/jar tf /opt/traccar/tracker-server.jar | grep 'org/h2/tools/Shell'"
+
+# 3. إذا ظهر شيء — شغّل هذا:
+docker compose run --rm --entrypoint="" traccar \
+  /opt/traccar/jre/bin/java \
+  -cp /opt/traccar/tracker-server.jar \
+  org.h2.tools.Shell \
+  -url "jdbc:h2:/opt/traccar/data/database" \
+  -user sa -password "" \
+  -sql "UPDATE tc_users SET email='admin@athargps.com' WHERE administrator=true; SELECT id,email FROM tc_users;"
+
+# 4. أعد تشغيل Traccar
+docker compose start traccar && sleep 5 && docker compose restart backend
+[+] stop 1/1
+ ✔ Container shgps-traccar-1 Stopped                                               2.0s
+Container shgps-traccar-run-adb5645ab58e Creating 
+Container shgps-traccar-run-adb5645ab58e Created 
+sh: 1: /opt/traccar/jre/bin/jar: not found
+
+Container shgps-traccar-run-f60c9e4247f2 Creating 
+Container shgps-traccar-run-f60c9e4247f2 Created 
+(Update count: 1, 24 ms)
+ID | EMAIL
+1  | admin@athargps.com
+2  | amin@shgps.ma
+3  | mustapha@gmail.com
+35 | othmaneelkhalid@gmail.com
+(4 rows, 24 ms)
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                                               0.3s
+[+] restart 0/1
+ ⠧ Container shgps-backend-1 Restarting                                           10.7s
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 1. احصل على bcrypt hash لكلمة السر الجديدة من backend
+HASH=$(docker compose exec -T backend node -e \
+  "const b=require('bcryptjs');console.log(b.hashSync('AtharGPS@2026!',10))")
+echo "Hash: $HASH"
+
+# 2. أوقف Traccar وحدّث الكلمة
+docker compose stop traccar
+docker compose run --rm --entrypoint="" traccar \
+  /opt/traccar/jre/bin/java \
+  -cp /opt/traccar/tracker-server.jar \
+  org.h2.tools.Shell \
+  -url "jdbc:h2:/opt/traccar/data/database" \
+  -user sa -password "" \
+  -sql "UPDATE tc_users SET hashedpassword='${HASH}' WHERE email='admin@athargps.com'; SELECT id,email FROM tc_users WHERE administrator=true;"
+
+# 3. أعد تشغيل كل شيء
+docker compose start traccar && sleep 8 && docker compose restart backend
+
+# 4. تحقق
+sleep 15 && curl -sk https://athargps.com/api/health | python3 -m json.tool && \
+docker compose logs backend --tail=5
+-bash: !',10: event not found
+> 
+> 
