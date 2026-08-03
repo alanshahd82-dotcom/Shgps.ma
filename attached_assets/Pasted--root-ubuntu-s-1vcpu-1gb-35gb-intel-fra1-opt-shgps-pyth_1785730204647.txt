@@ -1,0 +1,67 @@
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# python3 << 'PYEOF'
+import subprocess
+sql = "SHOW TABLES;"
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout)
+PYEOF
+TABLE_NAME             | TABLE_SCHEMA
+DATABASECHANGELOG      | PUBLIC
+DATABASECHANGELOGLOCK  | PUBLIC
+TC_ACTIONS             | PUBLIC
+TC_ATTRIBUTES          | PUBLIC
+TC_CALENDARS           | PUBLIC
+TC_COMMANDS            | PUBLIC
+TC_COMMANDS_QUEUE      | PUBLIC
+TC_DEVICES             | PUBLIC
+TC_DEVICE_ATTRIBUTE    | PUBLIC
+TC_DEVICE_COMMAND      | PUBLIC
+TC_DEVICE_DEVICE       | PUBLIC
+TC_DEVICE_DRIVER       | PUBLIC
+TC_DEVICE_GEOFENCE     | PUBLIC
+TC_DEVICE_MAINTENANCE  | PUBLIC
+TC_DEVICE_NOTIFICATION | PUBLIC
+TC_DEVICE_ORDER        | PUBLIC
+TC_DEVICE_REPORT       | PUBLIC
+TC_DRIVERS             | PUBLIC
+TC_EVENTS              | PUBLIC
+TC_GEOFENCES           | PUBLIC
+TC_GROUPS              | PUBLIC
+TC_GROUP_ATTRIBUTE     | PUBLIC
+TC_GROUP_COMMAND       | PUBLIC
+TC_GROUP_DRIVER        | PUBLIC
+TC_GROUP_GEOFENCE      | PUBLIC
+TC_GROUP_MAINTENANCE   | PUBLIC
+TC_GROUP_NOTIFICATION  | PUBLIC
+TC_GROUP_ORDER         | PUBLIC
+TC_GROUP_REPORT        | PUBLIC
+TC_KEYSTORE            | PUBLIC
+TC_MAINTENANCES        | PUBLIC
+TC_NOTIFICATIONS       | PUBLIC
+TC_ORDERS              | PUBLIC
+TC_POSITIONS           | PUBLIC
+TC_REPORTS             | PUBLIC
+TC_REVOKED_TOKENS      | PUBLIC
+TC_SERVERS             | PUBLIC
+TC_STATISTICS          | PUBLIC
+TC_USERS               | PUBLIC
+TC_USER_ATTRIBUTE      | PUBLIC
+TC_USER_CALENDAR       | PUBLIC
+TC_USER_COMMAND        | PUBLIC
+TC_USER_DEVICE         | PUBLIC
+TC_USER_DRIVER         | PUBLIC
+TC_USER_GEOFENCE       | PUBLIC
+TC_USER_GROUP          | PUBLIC
+TC_USER_MAINTENANCE    | PUBLIC
+TC_USER_NOTIFICATION   | PUBLIC
+TC_USER_ORDER          | PUBLIC
+TC_USER_REPORT         | PUBLIC
+TC_USER_USER           | PUBLIC
+(51 rows, 84 ms)
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
