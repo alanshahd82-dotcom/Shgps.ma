@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { getDeviceLicense, requireActiveDeviceLicense } from '../services/deviceSubscriptions.js'
 
 export const reportsRouter = Router()
 
@@ -27,7 +28,7 @@ function buildTrips(positions) {
   return trips
 }
 
-reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
+reportsRouter.get(['/', '/trips'], requireAuth, requireActiveDeviceLicense, async (req, res) => {
   const { deviceId, from, to } = req.query
   if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
   try {
@@ -74,10 +75,18 @@ reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
 reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
   const days = Math.min(parseInt(req.query.days)||7, 30)
   try {
-    const { rows: deviceRows } = await db.query(
+    let { rows: deviceRows } = await db.query(
       req.user.is_admin ? 'SELECT id, traccar_id FROM devices WHERE traccar_id IS NOT NULL' : 'SELECT id, traccar_id FROM devices WHERE user_id=$1 AND traccar_id IS NOT NULL',
       req.user.is_admin ? [] : [req.user.id]
     )
+    if (!req.user.is_admin) {
+      const eligibleDevices = []
+      for (const device of deviceRows) {
+        const license = await getDeviceLicense(device.id)
+        if (license?.applicationAccess) eligibleDevices.push(device)
+      }
+      deviceRows = eligibleDevices
+    }
     if (!deviceRows.length) return res.json({ todayKm: 0, dailyData: [] })
     const now=new Date(), todayStart=new Date(now); todayStart.setHours(0,0,0,0)
     const dailyData=[]; for(let i=days-1;i>=0;i--) { const d=new Date(now); d.setDate(d.getDate()-i); d.setHours(0,0,0,0); dailyData.push({ date:d.toISOString().split('T')[0], km:0 }) }

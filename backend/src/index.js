@@ -17,10 +17,12 @@ import { sharingRouter }     from './routes/sharing.js'
 import { leadsRouter }           from './routes/leads.js'
 import { driverBehaviorRouter } from './routes/driverBehavior.js'
 import { subUsersRouter }       from './routes/subUsers.js'
+import { subscriptionsRouter }  from './routes/subscriptions.js'
 import { config }        from './config.js'
 import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { runMigrations } from './db/init.js'
+import { refreshAllDeviceLicenses } from './services/deviceSubscriptions.js'
 
 dotenv.config()
 
@@ -49,6 +51,7 @@ app.use('/api/sharing',     sharingRouter)
 app.use('/api/leads',           leadsRouter)
 app.use('/api/driver-behavior', driverBehaviorRouter)
 app.use('/api/sub-users',       subUsersRouter)
+app.use('/api/subscriptions',   subscriptionsRouter)
 
 app.get('/api/health', async (_req, res) => {
   if (!appReady) {
@@ -111,6 +114,8 @@ server.listen(PORT, async () => {
   console.log('AtharGPS Backend running on port ' + PORT)
   try { await runMigrations(); appReady = true; console.log('[App] Ready ✓') }
   catch (err) { console.error('[App] Migration failed — serving health checks only:', err.message) }
+  refreshAllDeviceLicenses().catch((err) => console.error('[Licenses] Initial refresh failed:', err.message))
+  setInterval(() => refreshAllDeviceLicenses().catch((err) => console.error('[Licenses] Scheduled refresh failed:', err.message)), 60 * 60 * 1000)
   if (config.traccar.email && config.traccar.password) connectTraccar()
   else console.warn('[Traccar WS] No credentials — bridge disabled')
 })

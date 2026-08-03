@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { getDeviceLicense, requireActiveDeviceLicense } from '../services/deviceSubscriptions.js'
 
 export const geofencesRouter = Router()
 
@@ -40,7 +41,7 @@ geofencesRouter.get('/:id', requireAuth, async (req, res) => {
   } catch (err) { console.error('[geofences GET/:id]', err.message); res.status(500).json({ error: 'Failed to fetch geofence' }) }
 })
 
-geofencesRouter.post('/', requireAuth, async (req, res) => {
+geofencesRouter.post('/', requireAuth, requireActiveDeviceLicense, async (req, res) => {
   try {
     const { name, center, radius, deviceId, notifyEnter, notifyExit } = req.body
     if (!name || !center || !radius) return res.status(400).json({ error: 'name, center, and radius are required' })
@@ -70,6 +71,10 @@ geofencesRouter.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM local_geofences WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id])
     if (!rows[0] && !req.user.is_admin) return res.status(404).json({ error: 'Geofence not found' })
+    if (rows[0]?.device_id && !req.user.is_admin) {
+      const license = await getDeviceLicense(rows[0].device_id)
+      if (!license?.applicationAccess) return res.status(403).json({ error: 'Device application access is unavailable until renewal' })
+    }
     await db.query('DELETE FROM local_geofences WHERE id=$1', [req.params.id])
     if (rows[0]) traccar.deleteGeofence(req.params.id).catch(() => {})
     res.json({ success: true })

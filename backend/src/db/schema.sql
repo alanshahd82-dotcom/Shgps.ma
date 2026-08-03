@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS devices (
   updated_at  TIMESTAMP DEFAULT NOW()
 );
 
+ALTER TABLE devices
+  ADD COLUMN IF NOT EXISTS activation_code VARCHAR(32),
+  ADD COLUMN IF NOT EXISTS is_activated BOOLEAN DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS local_geofences (
   id           SERIAL PRIMARY KEY,
   user_id      INTEGER REFERENCES users(id)   ON DELETE CASCADE,
@@ -155,6 +159,60 @@ CREATE TABLE IF NOT EXISTS device_commands (
   error_msg   TEXT,
   ip_address  VARCHAR(50),
   created_at  TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS device_licenses (
+  device_id         INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
+  status            VARCHAR(20) NOT NULL DEFAULT 'expired'
+                    CHECK (status IN ('active', 'expiring_soon', 'expired', 'suspended')),
+  subscription_type VARCHAR(20),
+  start_date        TIMESTAMP,
+  end_date          TIMESTAMP,
+  suspended_at      TIMESTAMP,
+  suspended_reason  TEXT,
+  updated_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS device_subscriptions (
+  id          SERIAL PRIMARY KEY,
+  device_id   INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  plan_months INTEGER NOT NULL CHECK (plan_months IN (3, 6, 12)),
+  price_mad   INTEGER NOT NULL CHECK (price_mad IN (70, 120, 220)),
+  start_date  TIMESTAMP NOT NULL,
+  end_date    TIMESTAMP NOT NULL,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+  CHECK (
+    (plan_months = 3 AND price_mad = 70) OR
+    (plan_months = 6 AND price_mad = 120) OR
+    (plan_months = 12 AND price_mad = 220)
+  ),
+  CHECK (end_date > start_date)
+);
+
+CREATE TABLE IF NOT EXISTS renewal_requests (
+  id              SERIAL PRIMARY KEY,
+  device_id       INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  customer_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  customer_name   VARCHAR(255) NOT NULL,
+  customer_email  VARCHAR(255) NOT NULL,
+  customer_phone  VARCHAR(50),
+  device_name     VARCHAR(255) NOT NULL,
+  imei            VARCHAR(20) NOT NULL,
+  plan_months     INTEGER NOT NULL CHECK (plan_months IN (3, 6, 12)),
+  price_mad       INTEGER NOT NULL CHECK (price_mad IN (70, 120, 220)),
+  status          VARCHAR(20) NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending', 'approved', 'rejected')),
+  requested_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  reviewed_at     TIMESTAMP,
+  reviewed_by     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  rejection_reason TEXT,
+  CHECK (
+    (plan_months = 3 AND price_mad = 70) OR
+    (plan_months = 6 AND price_mad = 120) OR
+    (plan_months = 12 AND price_mad = 220)
+  )
 );
 
 -- Default admin (password: Admin@1234 — CHANGE IN PRODUCTION)

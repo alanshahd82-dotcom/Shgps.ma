@@ -13,6 +13,7 @@ const MIGRATIONS = [
   '002_geonix_features.sql',
   '003_sub_users.sql',
   '004_device_commands.sql',
+  '005_device_subscriptions.sql',
 ]
 
 export async function runMigrations() {

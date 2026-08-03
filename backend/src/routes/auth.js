@@ -32,25 +32,10 @@ authRouter.post('/login', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
-// POST /api/auth/register (admin creates clients, not public)
+// Customer self-registration is intentionally disabled. Admins create customers
+// through /api/clients and keep control of device assignment.
 authRouter.post('/register', async (req, res) => {
-  try {
-    const { name, email, password, phone, city } = req.body
-    if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
-    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
-    const hash = await bcrypt.hash(password, 10)
-    const { rows } = await db.query(
-      `INSERT INTO users (name, email, password_hash, phone, city, avatar)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id,email,name,subscription,is_admin,role`,
-      [name, email.toLowerCase().trim(), hash, phone || null, city || null, name.charAt(0)]
-    )
-    const user = rows[0]
-    const token = jwt.sign({ userId: user.id, isAdmin: user.is_admin }, config.jwtSecret, { expiresIn: config.jwtExpiry })
-    res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, isAdmin: user.is_admin, subscription: user.subscription } })
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Email already exists' })
-    console.error(err); res.status(500).json({ error: 'Server error' })
-  }
+  res.status(403).json({ error: 'Customer self-registration is disabled. Contact an administrator.' })
 })
 
 // GET /api/auth/me

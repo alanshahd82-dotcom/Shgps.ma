@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { db }       from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { ensureDeviceLicense, getDeviceLicense } from '../services/deviceSubscriptions.js'
 
 export const clientsRouter = Router()
 
@@ -85,7 +86,8 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
       INSERT INTO devices (name,imei,type,plate,user_id,traccar_id)
       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [name, imei, type||'car', plate, req.params.id, traccarId])
-    res.status(201).json(rows[0])
+    await ensureDeviceLicense(rows[0].id)
+    res.status(201).json({ ...rows[0], license: await getDeviceLicense(rows[0].id) })
   } catch (err) {
     if (err.code==='23505') return res.status(409).json({ error:'IMEI already registered' })
     console.error(err); res.status(500).json({ error:'Server error' })

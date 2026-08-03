@@ -1,12 +1,13 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
+import { getDeviceLicense, requireActiveDeviceLicense } from '../services/deviceSubscriptions.js'
 import crypto from 'crypto'
 import * as traccar from '../services/traccar.js'
 
 export const sharingRouter = Router()
 
-sharingRouter.post('/', requireAuth, async (req, res) => {
+sharingRouter.post('/', requireAuth, requireActiveDeviceLicense, async (req, res) => {
   try {
     const { deviceId, expireHours = 24 } = req.body
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
@@ -32,6 +33,8 @@ sharingRouter.get('/:token', async (req, res) => {
     )
     const link = rows[0]
     if (!link) return res.status(404).json({ error: 'Link not found or expired' })
+    const license = await getDeviceLicense(link.device_id)
+    if (!license?.applicationAccess) return res.status(403).json({ error: 'Device application access is unavailable until renewal' })
     db.query('UPDATE share_links SET views = COALESCE(views, 0) + 1 WHERE id=$1', [link.id]).catch(() => {})
     let position = null
     try {

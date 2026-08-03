@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
+import { requireActiveDeviceLicense } from '../services/deviceSubscriptions.js'
 
 export const driverBehaviorRouter = Router()
 
-driverBehaviorRouter.post('/scores', requireAuth, async (req, res) => {
+driverBehaviorRouter.post('/scores', requireAuth, requireActiveDeviceLicense, async (req, res) => {
   try {
     const { deviceId, score, speedingEvents, idleMin, tripCount } = req.body
     if (!deviceId || score === undefined) return res.status(400).json({ error: 'deviceId and score are required' })
@@ -26,7 +27,7 @@ driverBehaviorRouter.post('/scores', requireAuth, async (req, res) => {
   } catch (err) { console.error('[driver-behavior/scores POST]', err); res.status(500).json({ error: 'Server error' }) }
 })
 
-driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
+driverBehaviorRouter.get('/scores', requireAuth, requireActiveDeviceLicense, async (req, res) => {
   try {
     const { deviceId, days = 30 } = req.query
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
@@ -42,7 +43,7 @@ driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
   } catch (err) { console.error('[driver-behavior/scores GET]', err); res.status(500).json({ error: 'Server error' }) }
 })
 
-driverBehaviorRouter.get('/summary', requireAuth, async (req, res) => {
+driverBehaviorRouter.get('/summary', requireAuth, requireActiveDeviceLicense, async (req, res) => {
   try {
     const { deviceId } = req.query
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })

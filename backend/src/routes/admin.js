@@ -2,17 +2,21 @@ import { Router } from 'express'
 import { requireAdmin } from '../middleware/auth.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { refreshAllDeviceLicenses } from '../services/deviceSubscriptions.js'
 
 export const adminRouter = Router()
 
 adminRouter.get('/stats', requireAdmin, async (req, res) => {
   try {
+    await refreshAllDeviceLicenses()
     const [clients, devices, alerts, revenue, expiring, unactivated] = await Promise.all([
       db.query('SELECT COUNT(*) FROM users WHERE is_admin=false AND is_active=true AND (parent_client_id IS NULL)'),
       db.query('SELECT COUNT(*) FROM devices'),
       db.query("SELECT COUNT(*) FROM alerts WHERE created_at >= CURRENT_DATE"),
-      db.query(`SELECT COALESCE(SUM(CASE plan WHEN 'Basic' THEN 99 WHEN 'Pro' THEN 199 WHEN 'Enterprise' THEN 399 ELSE 99 END), 0) AS revenue FROM subscriptions WHERE is_active=true AND DATE_TRUNC('month', start_date) = DATE_TRUNC('month', NOW())`),
-      db.query(`SELECT COUNT(*) FROM subscriptions WHERE is_active=true AND end_date > NOW() AND end_date <= NOW() + INTERVAL '7 days'`),
+      db.query(`SELECT COALESCE(SUM(price_mad), 0) AS revenue FROM device_subscriptions
+                 WHERE is_active=true AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW())`),
+      db.query(`SELECT COUNT(*) FROM device_licenses
+                 WHERE status='expiring_soon'`),
       db.query('SELECT COUNT(*) FROM devices WHERE is_activated=false OR is_activated IS NULL'),
     ])
     let onlineCount = 0

@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
+import { getDeviceLicense, requireActiveDeviceLicense } from '../services/deviceSubscriptions.js'
 
 export const maintenanceRouter = Router()
 
-maintenanceRouter.get('/', requireAuth, async (req, res) => {
+maintenanceRouter.get('/', requireAuth, requireActiveDeviceLicense, async (req, res) => {
   try {
     const { deviceId } = req.query
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
@@ -17,7 +18,7 @@ maintenanceRouter.get('/', requireAuth, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
-maintenanceRouter.post('/', requireAuth, async (req, res) => {
+maintenanceRouter.post('/', requireAuth, requireActiveDeviceLicense, async (req, res) => {
   try {
     const { deviceId, type, note, mileage, date, nextDueMileage } = req.body
     if (!deviceId || !type) return res.status(400).json({ error: 'deviceId and type are required' })
@@ -40,6 +41,12 @@ maintenanceRouter.delete('/:id', requireAuth, async (req, res) => {
     const log = rows[0]
     if (!log) return res.status(404).json({ error: 'Not found' })
     if (!req.user.is_admin && log.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+    if (!req.user.is_admin) {
+      const license = await getDeviceLicense(log.device_id)
+      if (!license?.applicationAccess) {
+        return res.status(403).json({ error: 'Device application access is unavailable until renewal' })
+      }
+    }
     await db.query('DELETE FROM maintenance_logs WHERE id=$1', [req.params.id])
     res.json({ success: true })
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
