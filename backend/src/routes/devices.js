@@ -378,6 +378,13 @@ import {
 
     devicesRouter.post('/:id/command', requireAuth, async (req, res) => {
     try {
+      const allowedCommands = new Set(['engine_stop', 'engine_start', 'engineStop', 'engineResume'])
+      if (!allowedCommands.has(req.body?.type)) {
+        return res.status(400).json({ error: 'Unsupported device command' })
+      }
+      if (!req.user.is_admin && req.user.parent_client_id && !['owner', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ error: 'This account cannot control the engine' })
+      }
       const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
       const dev = rows[0]
       if (!dev) return res.status(404).json({ error:'Device not found' })

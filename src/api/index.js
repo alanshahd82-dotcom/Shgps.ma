@@ -109,4 +109,10 @@ export const api = {
     update: (id, data)   => apiFetch(`/sub-users/${id}`, { method: 'PATCH',  body: JSON.stringify(data) }),
     remove: (id)         => apiFetch(`/sub-users/${id}`, { method: 'DELETE' }),
   },
+  settings: {
+    support: () => apiFetch('/settings/support'),
+  },
+  adminSettings: {
+    support: (data) => apiFetch('/settings/support', { method: 'PUT', body: JSON.stringify(data) }),
+  },
 }

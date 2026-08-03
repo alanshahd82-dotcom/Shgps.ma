@@ -8,6 +8,8 @@ import ClientNav from '../../components/ClientNav'
 import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
+import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
+import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 
 const FILTERS = [
   { key: 'all',     ar: 'الكل',     fr: 'Tous'      },
@@ -21,17 +23,19 @@ const ST_BG    = { moving:'rgba(0,217,126,0.1)', idle:'rgba(255,149,0,0.1)', sto
 const ST_LABEL_AR = { moving:'يتحرك', idle:'خمول', stopped:'متوقف', offline:'غير متصل' }
 const ST_LABEL_FR = { moving:'En mvt', idle:'Ralenti', stopped:'Arrêté', offline:'Hors ligne' }
 
-function DeviceCard({ device, lang, onClick, index }) {
+function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const st   = getDeviceStatusKey(device)
   const isAr = lang === 'ar'
   const c    = ST_COLOR[st] || '#6b7280'
   const stLabel = isAr ? (ST_LABEL_AR[st] || st) : (ST_LABEL_FR[st] || st)
+  const subscription = getSubscriptionSnapshot(device)
 
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.22) }}
-      whileTap={{ scale: 0.97 }} onClick={onClick}
+      whileTap={{ scale: 0.97 }} onClick={onClick} role="button" tabIndex={0}
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onClick() }}
       className="w-full text-left rounded-2xl overflow-hidden"
       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
     >
@@ -65,8 +69,17 @@ function DeviceCard({ device, lang, onClick, index }) {
               </>
             )}
           </div>
-          <div className="mt-2">
+          <div className="mt-2 flex items-center justify-between gap-2">
             <SubscriptionBadge device={device} lang={lang} dark />
+            {subscription.status !== 'active' && onRenew && (
+              <button
+                onClick={event => { event.stopPropagation(); onRenew() }}
+                className="flex-shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-bold"
+                style={{ background: 'rgba(0,217,126,0.14)', color: '#00D97E', border: '1px solid rgba(0,217,126,0.25)' }}
+              >
+                {isAr ? 'تجديد' : 'Renouveler'}
+              </button>
+            )}
           </div>
         </div>
         {/* Speed + arrow */}
@@ -82,17 +95,18 @@ function DeviceCard({ device, lang, onClick, index }) {
           <ChevronRight size={14} style={{ color: 'rgba(255,255,255,0.2)', transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </div>
       </div>
-    </motion.button>
+    </motion.div>
   )
 }
 
 export default function DeviceList() {
   const navigate = useNavigate()
-  const { devices, lang } = useApp()
+  const { devices, lang, refreshDevices } = useApp()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const [renewDevice, setRenewDevice] = useState(null)
   const isAr = lang === 'ar'
-  const attentionDevice = devices.find(d => d.subscriptionStatus && d.subscriptionStatus !== 'active')
+  const attentionDevice = devices.find(d => getSubscriptionSnapshot(d).status !== 'active')
 
   const counts = useMemo(() => ({
     all:     devices.length,
@@ -139,7 +153,7 @@ export default function DeviceList() {
       </div>
       {attentionDevice && (
         <div className="px-5 pb-3">
-          <SubscriptionBanner device={attentionDevice} lang={lang} dark onRenew={() => navigate('/client/device/' + attentionDevice.id)} />
+          <SubscriptionBanner device={attentionDevice} lang={lang} dark onRenew={() => setRenewDevice(attentionDevice)} />
         </div>
       )}
 
@@ -179,10 +193,19 @@ export default function DeviceList() {
             </motion.div>
           ) : filtered.map((d, i) => (
             <DeviceCard key={d.id} device={d} lang={lang} index={i}
-              onClick={() => navigate('/client/device/' + d.id)}/>
+              onClick={() => navigate('/client/device/' + d.id)}
+              onRenew={() => setRenewDevice(d)}/>
           ))}
         </AnimatePresence>
       </div>
+
+      <SubscriptionRenewalModal
+        open={!!renewDevice}
+        device={renewDevice}
+        lang={lang}
+        onClose={() => setRenewDevice(null)}
+        onSaved={() => { setRenewDevice(null); refreshDevices?.() }}
+      />
 
       <ClientNav/>
     </div>

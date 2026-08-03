@@ -370,6 +370,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       lang, setLang,
       clientAuth, adminAuth,
+       setClientAuth,
       mustChangePassword, clearMustChange,
       devices, alertsList, clientList,
       loginClient, loginAdmin,

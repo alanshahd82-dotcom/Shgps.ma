@@ -48,6 +48,7 @@ export const translations = {
     devices: 'أجهزتي',
     alerts: 'التنبيهات',
     reports: 'التقارير',
+    help: 'المساعدة',
 
     // Home
     welcome: 'مرحباً',
@@ -439,6 +440,7 @@ export const translations = {
     devices: 'Mes appareils',
     alerts: 'Alertes',
     reports: 'Rapports',
+    help: 'Aide',
 
     // Home
     welcome: 'Bonjour',

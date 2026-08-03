@@ -18,6 +18,21 @@ const ALLOWED_STYLES = new Set([
   'dark-matter-dark-purple',
 ])
 
+const TILE_LIMIT = 180
+const TILE_WINDOW_MS = 60 * 1000
+const tileAttempts = new Map()
+const tileCache = new Map()
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of tileAttempts) {
+    if (now - entry.startedAt > TILE_WINDOW_MS) tileAttempts.delete(key)
+  }
+  for (const [key, entry] of tileCache) {
+    if (entry.expiresAt <= now) tileCache.delete(key)
+  }
+}, TILE_WINDOW_MS).unref()
+
 // Geoapify tile proxy: keep the provider key on the server, never in browser code.
 mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
   const z = Number(req.params.z)
@@ -25,11 +40,32 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
   const y = Number(req.params.y)
   const style = ALLOWED_STYLES.has(req.query.style) ? req.query.style : config.geoapify.style
 
+  const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
+  const now = Date.now()
+  const attempt = tileAttempts.get(clientIp)
+  if (!attempt || now - attempt.startedAt > TILE_WINDOW_MS) {
+    tileAttempts.set(clientIp, { startedAt: now, count: 1 })
+  } else {
+    attempt.count += 1
+    if (attempt.count > TILE_LIMIT) {
+      return res.status(429).json({ error: 'Too many map tile requests. Try again shortly.' })
+    }
+  }
+
+  const maxTile = 2 ** z
   if (!config.geoapify.apiKey) {
     return res.status(503).json({ error: 'Map provider is not configured' })
   }
-  if (!Number.isInteger(z) || z < 0 || z > 20 || !Number.isInteger(x) || x < 0 || !Number.isInteger(y) || y < 0) {
+  if (!Number.isInteger(z) || z < 0 || z > 20 || !Number.isInteger(x) || x < 0 || !Number.isInteger(y) || y < 0 || x >= maxTile || y >= maxTile) {
     return res.status(400).json({ error: 'Invalid tile coordinates' })
+  }
+
+  const cacheKey = `${style}/${z}/${x}/${y}`
+  const cached = tileCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    res.set('Content-Type', cached.contentType)
+    res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400')
+    return res.send(cached.buffer)
   }
 
   try {
@@ -43,6 +79,8 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
     }
     const contentType = upstream.headers.get('content-type') || 'image/png'
     const buffer = Buffer.from(await upstream.arrayBuffer())
+    tileCache.set(cacheKey, { buffer, contentType, expiresAt: now + 24 * 60 * 60 * 1000 })
+    if (tileCache.size > 500) tileCache.delete(tileCache.keys().next().value)
     res.set('Content-Type', contentType)
     res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400')
     return res.send(buffer)

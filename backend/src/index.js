@@ -17,15 +17,39 @@ import { sharingRouter }     from './routes/sharing.js'
 import { leadsRouter }           from './routes/leads.js'
 import { driverBehaviorRouter } from './routes/driverBehavior.js'
 import { subUsersRouter }       from './routes/subUsers.js'
+import { settingsRouter }       from './routes/settings.js'
 import { config }        from './config.js'
 import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
+import { syncSubscriptionState } from './services/subscriptions.js'
+import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
 
 dotenv.config()
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
   try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        city VARCHAR(100),
+        subscription VARCHAR(50) DEFAULT 'Basic',
+        is_admin BOOLEAN DEFAULT FALSE,
+        is_active BOOLEAN DEFAULT TRUE,
+        max_devices INTEGER DEFAULT 5,
+        expiry_date TIMESTAMP,
+        traccar_id INTEGER UNIQUE,
+        avatar VARCHAR(10),
+        must_change_password BOOLEAN DEFAULT FALSE,
+        notification_prefs JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `)
     await db.query(`
       ALTER TABLE users
         ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE,
@@ -35,6 +59,51 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS is_active             BOOLEAN DEFAULT TRUE,
         ADD COLUMN IF NOT EXISTS updated_at           TIMESTAMP DEFAULT NOW()
     `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS devices (
+        id SERIAL PRIMARY KEY,
+        traccar_id INTEGER UNIQUE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        imei VARCHAR(20) UNIQUE NOT NULL,
+        type VARCHAR(50) DEFAULT 'car',
+        plate VARCHAR(50),
+        subscription_plan_id VARCHAR(32),
+        subscription_start_date DATE,
+        subscription_end_date DATE,
+        subscription_status VARCHAR(20) DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        last_lat DOUBLE PRECISION,
+        last_lng DOUBLE PRECISION,
+        last_speed NUMERIC(8,2),
+        last_update TIMESTAMP
+      )
+    `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS alerts (
+        id SERIAL PRIMARY KEY,
+        device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        data JSONB,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `)
+    await db.query(
+      `INSERT INTO app_settings (key, value) VALUES ('support_contacts', $1)
+       ON CONFLICT (key) DO NOTHING`,
+      [JSON.stringify(DEFAULT_SUPPORT_SETTINGS)]
+    )
     await db.query(`
       ALTER TABLE devices
         ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMP DEFAULT NOW(),
@@ -154,6 +223,7 @@ app.use('/api/sharing',     sharingRouter)
 app.use('/api/leads',           leadsRouter)
 app.use('/api/driver-behavior', driverBehaviorRouter)
 app.use('/api/sub-users',       subUsersRouter)
+app.use('/api/settings',        settingsRouter)
 
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'disconnected'
@@ -277,10 +347,29 @@ async function connectTraccar() {
   traccarWs.on('error', (err) => console.error('[Traccar WS] Error:', err.message))
 }
 
+async function runSubscriptionCheck() {
+  try {
+    const { rows } = await db.query(`
+      SELECT d.*, u.name AS client_name
+      FROM devices d
+      LEFT JOIN users u ON u.id=d.user_id
+      WHERE d.subscription_end_date IS NOT NULL
+    `)
+    for (const device of rows) {
+      await syncSubscriptionState(db, device, device.client_name ?? null)
+    }
+    console.log('[Subscription] Scheduled check complete:', rows.length)
+  } catch (err) {
+    console.warn('[Subscription] Scheduled check skipped:', err.message)
+  }
+}
+
 // --- Start --------------------------------------------------------------------
 server.listen(PORT, async () => {
   console.log('AtharGPS Backend running on port ' + PORT)
   await runMigrations()
+  await runSubscriptionCheck()
+  setInterval(runSubscriptionCheck, 6 * 60 * 60 * 1000)
   if (config.traccar.email && config.traccar.password) {
     connectTraccar()
   } else {

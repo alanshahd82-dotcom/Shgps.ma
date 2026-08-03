@@ -48,7 +48,7 @@ const COMMANDS = [
 export default function DeviceDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { devices, lang } = useApp()
+  const { devices, clientAuth, lang } = useApp()
   const [tab, setTab] = useState('info')
   const [device, setDevice] = useState(devices.find(d => String(d.id) === String(id)) || null)
   const [loading, setLoading] = useState(!device)
@@ -61,6 +61,15 @@ export default function DeviceDetail() {
   const [showRenew, setShowRenew] = useState(false)
   const isAr = lang === 'ar'
   const trackingEnabled = device?.trackingEnabled !== false
+  const latitude = device?.lat ?? device?.last_lat
+  const longitude = device?.lng ?? device?.last_lng
+  const currentSpeed = device?.speed ?? device?.last_speed
+  const ignition = device?.ignition ?? device?.engineOn
+  const lastUpdate = device?.lastUpdate ?? device?.last_update
+  const canControlEngine = !clientAuth?.parentClientId || ['owner', 'manager'].includes(clientAuth?.role)
+  const tabs = canControlEngine
+    ? TABS
+    : TABS.filter(tabItem => tabItem.key !== 'commands')
 
   const st = getDeviceStatusKey(device || {})
   const stColor = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }[st] || '#6b7280'
@@ -154,10 +163,10 @@ export default function DeviceDetail() {
       {device && (
         <div className="flex gap-2.5 px-5 mb-4 overflow-x-auto" style={{ scrollbarWidth:'none' }}>
           {[
-            { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: device.speed != null ? Math.round(device.speed)+' km/h' : '—', color:'#00D97E' },
+            { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : '—', color:'#00D97E' },
             { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? device.battery+'%' : '—', color: device.battery < 30 ? '#FF3B30' : '#00D97E' },
-            { Icon:Activity,label:isAr?'المحرك':'Moteur', val: device.ignition ? (isAr?'شغّال':'Marche') : (isAr?'موقوف':'Arrêt'), color: device.ignition ? '#00D97E' : '#6b7280' },
-            { Icon:Clock,   label:isAr?'آخر تحديث':'Mis à jour', val: timeAgo(device.last_update), color:'rgba(255,255,255,0.5)' },
+            { Icon:Activity,label:isAr?'المحرك':'Moteur', val: ignition ? (isAr?'شغّال':'Marche') : (isAr?'موقوف':'Arrêt'), color: ignition ? '#00D97E' : '#6b7280' },
+            { Icon:Clock,   label:isAr?'آخر تحديث':'Mis à jour', val: timeAgo(lastUpdate), color:'rgba(255,255,255,0.5)' },
           ].map(({ Icon, label, val, color },i) => (
             <div key={i} className="flex-shrink-0 flex flex-col items-center p-3.5 rounded-2xl min-w-20"
               style={cardStyle}>
@@ -171,7 +180,7 @@ export default function DeviceDetail() {
 
       {/* Tabs */}
       <div className="flex gap-1.5 px-5 mb-4 overflow-x-auto" style={{ scrollbarWidth:'none' }}>
-        {TABS.map(({ key, Icon, ar, fr }) => (
+        {tabs.map(({ key, Icon, ar, fr }) => (
           <motion.button key={key} whileTap={{ scale:0.94 }} onClick={() => setTab(key)}
             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
             style={tab===key
@@ -193,11 +202,11 @@ export default function DeviceDetail() {
                 <SubscriptionBadge device={device} lang={lang} dark />
               </div>
               {/* Mini map */}
-              {trackingEnabled && device.lat && device.lng && (
+              {trackingEnabled && latitude && longitude && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
-                  <MapContainer center={[device.lat, device.lng]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false}>
+                  <MapContainer center={[latitude, longitude]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false}>
                     <GeoapifyTileLayer />
-                    <Marker position={[device.lat, device.lng]}
+                    <Marker position={[latitude, longitude]}
                       icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:'+stColor+';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })}/>
                   </MapContainer>
                 </div>
@@ -208,7 +217,7 @@ export default function DeviceDetail() {
                   { label: isAr?'الجهاز':'Appareil', val: device.name },
                   { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
                   { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
-                  { label: isAr?'الموقع':'Position', val: device.lat ? device.lat.toFixed(5)+', '+device.lng.toFixed(5) : '—' },
+                  { label: isAr?'الموقع':'Position', val: latitude ? Number(latitude).toFixed(5)+', '+Number(longitude).toFixed(5) : '—' },
                   { label: isAr?'IMEI':'IMEI', val: device.imei || '—' },
                 ].map((row,i,arr) => (
                   <div key={i} className="flex items-center justify-between px-4 py-3"

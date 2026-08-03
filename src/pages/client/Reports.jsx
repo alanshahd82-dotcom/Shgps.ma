@@ -9,6 +9,7 @@ import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
+import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 
 const RANGES = [
   { key: 'today',   ar: 'اليوم',      fr: "Aujourd'hui" },
@@ -71,6 +72,12 @@ export default function Reports() {
 
   const chartData = data?.speedSeries || []
   const trips = data?.trips || []
+  const subscriptionSummary = devices.reduce((summary, device) => {
+    const status = getSubscriptionSnapshot(device).status
+    if (status === 'expired') summary.expired += 1
+    if (status === 'expiring_soon') summary.expiringSoon += 1
+    return summary
+  }, { expired: 0, expiringSoon: 0 })
 
   return (
     <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
@@ -79,6 +86,21 @@ export default function Reports() {
       {/* Header */}
       <div className="px-5 pt-12 pb-4">
         <h1 className="text-white font-bold text-xl mb-4">{t(lang, 'reports')}</h1>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="rounded-2xl p-3.5" style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)' }}>
+            <p className="text-2xl font-black text-white">{subscriptionSummary.expired}</p>
+            <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              {isAr ? 'اشتراكات منتهية' : 'Abonnements expirés'}
+            </p>
+          </div>
+          <div className="rounded-2xl p-3.5" style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
+            <p className="text-2xl font-black text-white">{subscriptionSummary.expiringSoon}</p>
+            <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              {isAr ? 'قريبة الانتهاء' : 'Bientôt expirés'}
+            </p>
+          </div>
+        </div>
 
         {/* Device picker */}
         <button onClick={() => setShowDevices(s => !s)}

@@ -17,6 +17,7 @@ import Maintenance from './pages/client/Maintenance'
 import Geofences from './pages/client/Geofences'
 import DeviceWizard from './pages/client/DeviceWizard'
 import LiveMap from './pages/client/LiveMap'
+import Help from './pages/client/Help'
 import AdminLogin from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/Dashboard'
 import Clients from './pages/admin/Clients'
@@ -25,6 +26,7 @@ import AllDevices from './pages/admin/AllDevices'
 import GlobalMap from './pages/admin/GlobalMap'
 import AdminAlerts from './pages/admin/AdminAlerts'
 import DeviceSetup from './pages/admin/DeviceSetup'
+import SupportSettings from './pages/admin/SupportSettings'
 import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
@@ -107,6 +109,7 @@ export default function App() {
           <Route path="/client/geofences"       element={<ClientRoute><Geofences /></ClientRoute>} />
           <Route path="/client/device-wizard"   element={<ClientRoute><DeviceWizard /></ClientRoute>} />
           <Route path="/client/map"             element={<ClientRoute><LiveMap /></ClientRoute>} />
+          <Route path="/client/help"            element={<ClientRoute><Help /></ClientRoute>} />
 
           {/* ── Admin app ──────────────────────────────────────────────── */}
           <Route path="/admin/login" element={<AdminLogin />} />
@@ -118,6 +121,7 @@ export default function App() {
           <Route path="/admin/map"          element={<AdminRoute><GlobalMap /></AdminRoute>} />
           <Route path="/admin/alerts"       element={<AdminRoute><AdminAlerts /></AdminRoute>} />
           <Route path="/admin/setup"        element={<AdminRoute><DeviceSetup /></AdminRoute>} />
+          <Route path="/admin/support"      element={<AdminRoute><SupportSettings /></AdminRoute>} />
 
           {/* ── Catch-all → Landing ────────────────────────────────────── */}
           <Route path="*" element={<Navigate to="/" replace />} />

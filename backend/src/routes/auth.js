@@ -78,7 +78,8 @@ authRouter.post('/login', async (req, res) => {
       user: {
         id: user.id, email: user.email, name: user.name, phone: user.phone,
         city: user.city, subscription: user.subscription, isAdmin: user.is_admin,
-        avatar: user.avatar, mustChangePassword: !!user.must_change_password,
+         avatar: user.avatar, role: user.role || 'owner', parentClientId: user.parent_client_id || null,
+         mustChangePassword: !!user.must_change_password,
         notificationPrefs: user.notification_prefs || {},
       },
     })
@@ -135,6 +136,8 @@ authRouter.get('/me', requireAuth, (req, res) => {
   res.json({
     id: u.id, email: u.email, name: u.name, phone: u.phone, city: u.city,
     subscription: u.subscription, isAdmin: u.is_admin, avatar: u.avatar,
+    role: u.role || 'owner',
+    parentClientId: u.parent_client_id || null,
     mustChangePassword: !!u.must_change_password,
     notificationPrefs: u.notification_prefs || {},
   })

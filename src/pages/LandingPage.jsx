@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { api } from '../api/index.js'
 
 /* ─────────────────────────────────────────────────────
    CONTENT  (bilingual)
@@ -104,11 +105,11 @@ const content = {
           { label: 'Mobile App',    action: 'store' },
         ]},
         { h: 'Company', links: [
-          { label: 'About Us', href: 'https://wa.me/212618846582?text=Hello,%20I%20want%20to%20know%20more%20about%20AtharGPS', external: true },
-          { label: 'Contact',  href: 'https://wa.me/212618846582?text=Hello,%20I%20need%20help%20with%20AtharGPS', external: true },
+          { label: 'About Us', href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20want%20to%20know%20more%20about%20AtharGPS', external: true },
+          { label: 'Contact',  href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20need%20help%20with%20AtharGPS', external: true },
         ]},
         { h: 'Support', links: [
-          { label: 'Help Center',    href: 'https://wa.me/212618846582?text=Hello,%20I%20need%20technical%20support', external: true },
+          { label: 'Help Center',    href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20need%20technical%20support', external: true },
           { label: 'Privacy Policy', href: '/privacy' },
           { label: 'Terms',          href: '/terms' },
         ]},
@@ -216,11 +217,11 @@ const content = {
           { label: 'التطبيق',          action: 'store' },
         ]},
         { h: 'الشركة', links: [
-          { label: 'من نحن',   href: 'https://wa.me/212618846582?text=مرحباً،%20أريد%20معرفة%20المزيد%20عن%20AtharGPS', external: true },
-          { label: 'اتصل بنا', href: 'https://wa.me/212618846582?text=مرحباً،%20أحتاج%20مساعدة', external: true },
+          { label: 'من نحن',   href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أريد%20معرفة%20المزيد%20عن%20AtharGPS', external: true },
+          { label: 'اتصل بنا', href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أحتاج%20مساعدة', external: true },
         ]},
         { h: 'الدعم', links: [
-          { label: 'مركز المساعدة',    href: 'https://wa.me/212618846582?text=مرحباً،%20أحتاج%20دعماً%20فنياً', external: true },
+          { label: 'مركز المساعدة',    href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أحتاج%20دعماً%20فنياً', external: true },
           { label: 'سياسة الخصوصية',  href: '/privacy' },
           { label: 'الشروط',           href: '/terms' },
         ]},
@@ -233,13 +234,14 @@ const content = {
 /* ─────────────────────────────────────────────────────
    STORE MODAL
 ───────────────────────────────────────────────────── */
-function StoreModal({ store, lang, onClose }) {
+function StoreModal({ store, lang, onClose, whatsapp }) {
   const t = content[lang].store
   const isPlay = store === 'play'
   const storeName = isPlay ? 'Google Play' : 'App Store'
+  const waNumber = String(whatsapp || '212600000000').replace(/\D/g, '')
   const wa = lang === 'ar'
-    ? `https://wa.me/212618846582?text=مرحباً،%20أريد%20أن%20أكون%20أول%20من%20يحصل%20على%20AtharGPS%20على%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
-    : `https://wa.me/212618846582?text=Hello,%20I%20want%20to%20be%20notified%20when%20AtharGPS%20launches%20on%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
+    ? `https://wa.me/${waNumber}?text=مرحباً،%20أريد%20أن%20أكون%20أول%20من%20يحصل%20على%20AtharGPS%20على%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
+    : `https://wa.me/${waNumber}?text=Hello,%20I%20want%20to%20be%20notified%20when%20AtharGPS%20launches%20on%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
 
   return (
     <AnimatePresence>
@@ -345,7 +347,12 @@ export default function LandingPage() {
   const [modal, setModal]     = useState(null)
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [support, setSupport] = useState({ whatsapp: '212600000000' })
   const t = content[lang]
+
+  useEffect(() => {
+    api.settings.support().then(setSupport).catch(() => {})
+  }, [])
 
   // scroll effect
   useEffect(() => {
@@ -371,7 +378,7 @@ export default function LandingPage() {
     card: { background:'#111827', border:'1px solid #1e293b', borderRadius:16 },
   }
 
-  const wa = (msg) => `https://wa.me/212618846582?text=${msg}`
+  const wa = (msg) => `https://wa.me/${String(support.whatsapp || '212600000000').replace(/\D/g, '')}?text=${msg}`
 
   return (
     <div dir={t.dir} style={{ fontFamily:t.fontFamily, background:'#0a0e1a', color:'#fff', overflowX:'hidden', minHeight:'100vh' }}>
@@ -757,7 +764,9 @@ export default function LandingPage() {
                         {link.label}
                       </button>
                     ) : (
-                      <a href={link.href}
+                      <a href={link.external
+                        ? link.href.replace('SUPPORT_WHATSAPP', String(support.whatsapp || '212600000000').replace(/\D/g, ''))
+                        : link.href}
                         target={link.external ? '_blank' : '_self'}
                         rel={link.external ? 'noopener noreferrer' : undefined}
                         className="nav-link-hover"
@@ -802,7 +811,7 @@ export default function LandingPage() {
       </footer>
 
       {/* Store Modal */}
-      <StoreModal store={modal} lang={lang} onClose={() => setModal(null)} />
+      <StoreModal store={modal} lang={lang} whatsapp={support.whatsapp} onClose={() => setModal(null)} />
     </div>
   )
 }

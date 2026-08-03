@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bell, ChevronRight, Map, Activity, Shield, Wrench } from 'lucide-react'
+import { Bell, ChevronRight, Map, Activity, Shield, Wrench, FileText } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -164,6 +164,7 @@ export default function Home() {
           <ActionTile icon={Activity} label={isAr ? 'السلوك'   : 'Conduite'} color="#3B82F6" onClick={() => navigate('/client/driver-behavior')}/>
           <ActionTile icon={Shield}   label={isAr ? 'السياج'   : 'Géofence'} color="#FF9500" onClick={() => navigate('/client/geofences')}/>
           <ActionTile icon={Wrench}   label={isAr ? 'الصيانة'  : 'Entretien'}color="#a855f7" onClick={() => navigate('/client/maintenance')}/>
+          <ActionTile icon={FileText} label={isAr ? 'التقارير' : 'Rapports'} color="#ec4899" onClick={() => navigate('/client/reports')}/>
         </div>
       </div>
 
