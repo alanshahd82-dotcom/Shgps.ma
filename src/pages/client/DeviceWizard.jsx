@@ -66,7 +66,7 @@ function StepInfo({ state, setState, lang }) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-white font-bold text-base">
+        <h2 className="text-primary-500 font-extrabold text-base">
           {isAr ? 'معلومات الجهاز' : 'Informations de l\'appareil'}
         </h2>
         <p className="text-slate-400 text-xs mt-1">
@@ -191,7 +191,7 @@ function StepCommands({ commands, lang, onSave, saving, saveError }) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-white font-bold text-base">
+        <h2 className="text-primary-500 font-extrabold text-base">
           {isAr ? 'أوامر إعداد الجهاز' : 'Commandes de configuration'}
         </h2>
         <p className="text-slate-400 text-xs mt-1 leading-relaxed">
@@ -203,19 +203,19 @@ function StepCommands({ commands, lang, onSave, saving, saveError }) {
 
       <div className="space-y-2">
         {commands.map((c, i) => (
-          <div key={i} className="flex items-center gap-2 bg-slate-800 border border-slate-700/60 rounded-xl p-3">
-            <div className="w-6 h-6 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
-              <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
+          <div key={i} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary-50">
+              <span className="text-[10px] font-bold text-primary-500">{i + 1}</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-slate-500 mb-0.5">{c.label}</p>
-              <p className="text-xs font-mono text-accent truncate">{c.cmd}</p>
+              <p className="truncate text-xs font-mono text-primary-500">{c.cmd}</p>
             </div>
             <button onClick={() => handleCopy(c.cmd, i)}
-              className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 active:scale-90 transition-transform">
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 active:scale-90 transition-transform">
               {copied[i]
                 ? <CheckCheck size={12} className="text-accent" />
-                : <Copy size={12} className="text-slate-400" />}
+                : <Copy size={12} className="text-slate-500" />}
             </button>
           </div>
         ))}
@@ -229,9 +229,9 @@ function StepCommands({ commands, lang, onSave, saving, saveError }) {
           : (isAr ? 'نسخ كل الأوامر' : 'Copier toutes les commandes')}
       </button>
 
-      <div className="flex gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-        <Zap size={14} className="text-emerald-400 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-emerald-300/80 leading-relaxed">
+      <div className="flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+        <Zap size={14} className="mt-0.5 shrink-0 text-emerald-600" />
+        <p className="text-[11px] leading-relaxed text-emerald-700">
           {isAr
             ? 'بعد إرسال الأوامر، يبدأ الجهاز بالإرسال خلال 2-5 دقائق.'
             : 'Après envoi, le tracker commence à émettre dans 2-5 minutes.'}
@@ -239,16 +239,16 @@ function StepCommands({ commands, lang, onSave, saving, saveError }) {
       </div>
 
       {saveError && (
-        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-          <AlertCircle size={14} className="text-red-400 shrink-0" />
-          <p className="text-xs text-red-300">{saveError}</p>
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3">
+          <AlertCircle size={14} className="shrink-0 text-danger" />
+          <p className="text-xs text-danger">{saveError}</p>
         </div>
       )}
 
       <button
         onClick={onSave}
         disabled={saving}
-        className="w-full py-3.5 bg-emerald-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 py-3.5 text-sm font-bold text-white active:scale-95 transition-transform disabled:opacity-60"
       >
         <Check size={15} />
         {saving
@@ -308,19 +308,19 @@ export default function DeviceWizard() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col" style={{ background: 'linear-gradient(180deg,#0d1b33 0%,#0a1225 100%)' }}>
+    <div className="client-app flex min-h-[100dvh] flex-col bg-[#f5f7f8]">
       {/* Header */}
-      <div className="pt-14 px-4 pb-4" style={{ background: 'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
+      <div className="border-b border-slate-200 bg-white px-4 pb-4 pt-8">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => step === 0 ? navigate(-1) : setStep(s => s - 1)}
-            className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-            <ChevronLeft size={18} className="text-white" />
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white">
+            <ChevronLeft size={18} className="text-primary-500" />
           </button>
           <div>
-            <h1 className="text-white text-lg font-bold leading-tight">
+            <h1 className="text-primary-500 text-lg font-extrabold leading-tight">
               {isAr ? 'إضافة جهاز تتبع' : 'Ajouter un tracker'}
             </h1>
-            <p className="text-blue-200/60 text-xs">
+            <p className="text-slate-500 text-xs">
               {stepLabels[step]} · {step + 1}/{STEPS.length}
             </p>
           </div>
@@ -328,7 +328,7 @@ export default function DeviceWizard() {
         {/* Progress bar */}
         <div className="flex gap-1.5">
           {STEPS.map((_, i) => (
-            <div key={i} className={`flex-1 h-1 rounded-full transition-all duration-300 ${i <= step ? 'bg-accent' : 'bg-white/15'}`} />
+            <div key={i} className={`flex-1 h-1 rounded-full transition-all duration-300 ${i <= step ? 'bg-accent' : 'bg-slate-200'}`} />
           ))}
         </div>
       </div>
@@ -350,7 +350,7 @@ export default function DeviceWizard() {
       {/* Nav buttons — only on step 0 */}
       {step === 0 && (
         <div className="fixed inset-x-0 bottom-20 px-4 pb-2">
-          <div className="bg-slate-900/95 backdrop-blur-sm rounded-2xl p-3 border border-slate-700/40">
+          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
             <button
               onClick={() => canNext() && setStep(1)}
               disabled={!canNext()}

@@ -70,11 +70,42 @@ export function AppProvider({ children }) {
   // Initial data load
   useEffect(() => {
     if (!clientAuth && !adminAuth) return
-    loadDevices()
-    loadAlerts()
-    if (adminAuth) loadClients()
-    openWebSocket()
-    return () => closeWebSocket()
+    let cancelled = false
+
+    async function hydrateSession() {
+      try {
+        // Revalidate the persisted session so a closed/reopened app keeps working
+        // while revoked or expired tokens are removed instead of showing a blank app.
+        const currentUser = await api.auth.me()
+        if (cancelled) return
+        if (currentUser.isAdmin) {
+          setAdminAuth(currentUser)
+          localStorage.setItem('athargps_admin', JSON.stringify(currentUser))
+        } else {
+          setClientAuth(currentUser)
+          localStorage.setItem('athargps_client', JSON.stringify(currentUser))
+        }
+        await Promise.all([loadDevices(), loadAlerts(), currentUser.isAdmin ? loadClients() : Promise.resolve()])
+        if (!cancelled) openWebSocket()
+      } catch {
+        if (cancelled) return
+        closeWebSocket()
+        localStorage.removeItem('athargps_token')
+        localStorage.removeItem('athargps_client')
+        localStorage.removeItem('athargps_admin')
+        setClientAuth(null)
+        setAdminAuth(null)
+        setDevices([])
+        setAlertsList([])
+        setClientList([])
+      }
+    }
+
+    hydrateSession()
+    return () => {
+      cancelled = true
+      closeWebSocket()
+    }
   }, []) // eslint-disable-line
 
   // Refresh devices every 30 s, clients every 60 s
@@ -225,6 +256,7 @@ export function AppProvider({ children }) {
         return data
       }
     }
+    localStorage.setItem('athargps_last_email', email.trim().toLowerCase())
     localStorage.setItem('athargps_token',  data.token)
     localStorage.setItem('athargps_client', JSON.stringify(data.user))
     setClientAuth(data.user)
@@ -244,7 +276,12 @@ export function AppProvider({ children }) {
     return data
   }
 
-  const logoutClient = () => {
+  const logoutClient = async () => {
+    try {
+      if (localStorage.getItem('athargps_token')) await api.auth.logout()
+    } catch {
+      // The local session is still cleared when the server is unreachable.
+    }
     closeWebSocket()
     localStorage.removeItem('athargps_token')
     localStorage.removeItem('athargps_client')

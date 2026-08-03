@@ -21,7 +21,7 @@ function Toggle({ checked, onChange }) {
   return (
     <button type="button" onClick={() => onChange(!checked)}
       className="relative inline-flex items-center flex-shrink-0 rounded-full transition-colors duration-200"
-      style={{ width: 44, height: 24, background: checked ? '#00D97E' : 'rgba(255,255,255,0.12)' }}>
+       style={{ width: 44, height: 24, background: checked ? '#16866d' : '#cbd5e1' }}>
       <span className="inline-block w-5 h-5 rounded-full bg-white shadow transition-transform duration-200"
         style={{ transform: checked ? 'translateX(22px)' : 'translateX(2px)' }}/>
     </button>
@@ -31,7 +31,7 @@ function Toggle({ checked, onChange }) {
 function Field({ label, children }) {
   return (
     <div>
-      <label className="block text-xs font-medium tracking-widest uppercase mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>{label}</label>
+       <label className="block text-xs font-bold tracking-wide mb-2 text-slate-500">{label}</label>
       {children}
     </div>
   )
@@ -40,14 +40,13 @@ function Field({ label, children }) {
 function DarkInput({ value, onChange, type = 'text', placeholder = '' }) {
   return (
     <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-      className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none transition-all"
-      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}/>
+       className="w-full rounded-xl px-4 py-3 text-slate-800 text-sm outline-none transition-all border border-slate-200 bg-slate-50 focus:border-accent focus:outline-none"/>
   )
 }
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { clientAuth, setClientAuth, lang, setLang, darkMode, toggleDarkMode, pushEnabled, requestPushPermission, disablePush, wsConnected } = useApp()
+  const { clientAuth, logoutClient, lang, setLang, darkMode, toggleDarkMode, pushEnabled, requestPushPermission, disablePush, wsConnected } = useApp()
   const [tab, setTab] = useState('profile')
   const isAr = lang === 'ar'
 
@@ -118,21 +117,24 @@ export default function Settings() {
     try { await api.subUsers.remove(id); loadSubUsers() } catch (e) { alert(e.message) }
   }
 
-  function handleLogout() {
-    localStorage.removeItem('athargps_token'); localStorage.removeItem('athargps_client')
-    setClientAuth(null); navigate('/login')
+  async function handleLogout() {
+    const confirmed = window.confirm(isAr
+      ? 'هل تريد تسجيل الخروج من ATHAR GPS؟ ستحتاج إلى كلمة المرور عند الدخول مرة أخرى.'
+      : 'Voulez-vous vous déconnecter d’ATHAR GPS ? Vous devrez saisir votre mot de passe pour revenir.')
+    if (!confirmed) return
+    await logoutClient()
+    navigate('/client/login')
   }
 
-  const inputClass = { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }
-  const cardClass  = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }
+  const inputClass = { background: '#f8fafc', border: '1px solid #e2e8f0', color: '#17324d' }
+  const cardClass  = { background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(23,50,77,.04)' }
 
   return (
-    <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
-      style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
 
       {/* Header */}
       <div className="px-5 pt-12 pb-4">
-        <h1 className="text-white font-bold text-xl">{t(lang,'settings')}</h1>
+        <h1 className="text-primary-500 font-extrabold text-xl">{t(lang,'settings')}</h1>
       </div>
 
       {/* Tab bar */}
@@ -141,10 +143,10 @@ export default function Settings() {
           const active = tab === key
           return (
             <motion.button key={key} whileTap={{ scale:0.94 }} onClick={() => setTab(key)}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
+               className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all"
               style={active
-                ? { background:'#00D97E', color:'#0F2044' }
-                : { background:'rgba(255,255,255,0.07)', color:'rgba(255,255,255,0.48)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                 ? { background:'#17324d', color:'white' }
+                 : { background:'white', color:'#64748b', border:'1px solid #e2e8f0' }}>
               <Icon size={12}/>{isAr ? ar : fr}
             </motion.button>
           )
@@ -164,8 +166,8 @@ export default function Settings() {
             </Field>
             {profMsg && <p className="text-xs text-center" style={{ color: profMsg.includes('✓') ? '#00D97E' : '#ff6b60' }}>{profMsg}</p>}
             <motion.button type="submit" disabled={savingProf} whileTap={{ scale:0.97 }}
-              className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-              style={{ background:'linear-gradient(135deg,#00D97E,#00b86a)', boxShadow:'0 4px 16px rgba(0,217,126,0.3)' }}>
+               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
+               style={{ background:'#17324d' }}>
               {savingProf ? '...' : t(lang,'save')}
             </motion.button>
           </motion.form>
@@ -183,7 +185,7 @@ export default function Settings() {
               <Field key={i} label={f.label}>
                 <div className="relative">
                   <input type={showP ? 'text' : 'password'} value={f.val} onChange={e => f.set(e.target.value)}
-                    className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                     className="w-full rounded-xl px-4 py-3 text-slate-800 text-sm outline-none"
                     style={{ ...inputClass, paddingRight: isAr ? undefined : '3rem', paddingLeft: isAr ? '3rem' : undefined }}/>
                   {i === 0 && (
                     <button type="button" onClick={() => setShowP(p => !p)}
@@ -197,8 +199,8 @@ export default function Settings() {
             ))}
             {passMsg && <p className="text-xs text-center" style={{ color: passMsg.includes('✓') ? '#00D97E' : '#ff6b60' }}>{passMsg}</p>}
             <motion.button type="submit" disabled={savingPass} whileTap={{ scale:0.97 }}
-              className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-              style={{ background:'linear-gradient(135deg,#00D97E,#00b86a)', boxShadow:'0 4px 16px rgba(0,217,126,0.3)' }}>
+               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
+               style={{ background:'#17324d' }}>
               {savingPass ? '...' : (isAr ? 'تغيير كلمة المرور' : 'Changer le mot de passe')}
             </motion.button>
           </motion.form>
@@ -214,7 +216,7 @@ export default function Settings() {
                   {['ar','fr'].map(l => (
                     <button key={l} onClick={() => setLang(l)}
                       className="px-4 py-1.5 rounded-full text-xs font-bold transition-all"
-                      style={lang===l ? { background:'#00D97E', color:'#0F2044' } : { background:'rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.5)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                       style={lang===l ? { background:'#e4b56b', color:'#17324d' } : { background:'#f8fafc', color:'#64748b', border:'1px solid #e2e8f0' }}>
                       {l === 'ar' ? 'العربية' : 'Français'}
                     </button>
                   ))}
@@ -225,8 +227,8 @@ export default function Settings() {
             ].map(({ Icon, label, ctrl }, i) => (
               <div key={i} className="flex items-center justify-between py-2" style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                 <div className="flex items-center gap-2.5">
-                  <Icon size={16} style={{ color:'rgba(255,255,255,0.4)' }}/>
-                  <span className="text-white text-sm">{label}</span>
+                   <Icon size={16} className="text-slate-400"/>
+                   <span className="text-slate-800 text-sm">{label}</span>
                 </div>
                 {ctrl}
               </div>

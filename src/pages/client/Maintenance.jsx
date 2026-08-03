@@ -66,27 +66,25 @@ export default function Maintenance() {
   const getSvc = key => SERVICE_TYPES.find(s => s.key === key) || SERVICE_TYPES[SERVICE_TYPES.length - 1]
 
   return (
-    <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
-      style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
 
       {/* Header */}
       <div className="px-5 pt-12 pb-4 flex items-center justify-between">
-        <h1 className="text-white font-bold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
+        <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowForm(true)}
           className="w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ background: '#00D97E', boxShadow: '0 4px 16px rgba(0,217,126,0.4)' }}>
-          <Plus size={20} color="#0F2044"/>
+          style={{ background: '#17324d' }}>
+          <Plus size={20} color="white"/>
         </motion.button>
       </div>
 
       {/* Device picker */}
       <div className="px-5 mb-4">
         <button onClick={() => setShowDevices(s => !s)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl"
-          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2">
-            <Car size={15} style={{ color: '#00D97E' }}/>
-            <span className="text-white text-sm font-medium">
+             <Car size={15} className="text-primary-500"/>
+             <span className="text-slate-800 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
@@ -136,9 +134,9 @@ export default function Maintenance() {
           return (
             <motion.div key={log.id || i}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-              className="p-4 rounded-2xl"
-              style={{ background: isDue ? 'rgba(255,149,0,0.08)' : 'rgba(255,255,255,0.05)',
-                       border: '1px solid ' + (isDue ? 'rgba(255,149,0,0.25)' : 'rgba(255,255,255,0.08)') }}>
+               className="p-4 rounded-xl border shadow-sm"
+               style={{ background: isDue ? '#fffaf0' : '#ffffff',
+                        border: '1px solid ' + (isDue ? '#ead8b4' : '#e2e8f0') }}>
               <div className="flex items-start gap-3">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: svc.color + '1a' }}>
@@ -146,19 +144,19 @@ export default function Maintenance() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-white font-semibold text-sm">{svc[isAr ? 'ar' : 'fr']}</p>
+                    <p className="text-slate-800 font-bold text-sm">{svc[isAr ? 'ar' : 'fr']}</p>
                     <button onClick={() => handleDelete(log.id)} className="p-1">
                       <Trash2 size={14} style={{ color: 'rgba(255,59,48,0.6)' }}/>
                     </button>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     {log.date && (
-                      <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                       <span className="flex items-center gap-1 text-xs text-slate-500">
                         <Calendar size={11}/>{log.date}
                       </span>
                     )}
                     {log.mileage && (
-                      <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                       <span className="flex items-center gap-1 text-xs text-slate-500">
                         <Gauge size={11}/>{log.mileage} km
                       </span>
                     )}

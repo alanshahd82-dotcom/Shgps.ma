@@ -23,9 +23,10 @@ export default function ClientNav() {
       className="fixed bottom-0 left-0 right-0 z-30"
       style={{
         paddingBottom: 'env(safe-area-inset-bottom,0px)',
-        background: 'rgba(8,15,31,0.96)',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(24px)',
+        background: 'rgba(255,255,255,0.97)',
+        borderTop: '1px solid #e2e8f0',
+        boxShadow: '0 -8px 24px rgba(23,50,77,0.06)',
+        backdropFilter: 'blur(16px)',
       }}
     >
       <div className="flex items-stretch">
@@ -37,15 +38,15 @@ export default function ClientNav() {
           return (
             <button key={item.path} onClick={() => navigate(item.path)}
               className="flex-1 flex flex-col items-center justify-center pt-2.5 pb-2 relative transition-all">
-              {/* Active top indicator */}
+              {/* Active indicator */}
               {active && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-7 h-0.5 rounded-full"
-                  style={{ background: '#00D97E', boxShadow: '0 0 8px rgba(0,217,126,0.6)' }}/>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full"
+                  style={{ background: '#e4b56b' }}/>
               )}
 
               {/* Icon + badge */}
               <div className="relative mb-1">
-                <Icon size={23} style={{ color: active ? '#00D97E' : 'rgba(255,255,255,0.3)', transition: 'color 0.2s' }}/>
+                <Icon size={21} style={{ color: active ? '#17324d' : '#9aa7b5', transition: 'color 0.2s' }}/>
                 {item.badge && unreadCount > 0 && (
                   <span className="absolute -top-1 -right-2 min-w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center px-0.5"
                     style={{ background: '#FF3B30', minWidth: 16 }}>
@@ -55,7 +56,7 @@ export default function ClientNav() {
               </div>
 
               {/* Label */}
-              <span className="text-[10px] font-medium" style={{ color: active ? '#00D97E' : 'rgba(255,255,255,0.25)', transition: 'color 0.2s' }}>
+              <span className="text-[10px] font-semibold" style={{ color: active ? '#17324d' : '#9aa7b5', transition: 'color 0.2s' }}>
                 {t(lang, item.labelKey)}
               </span>
             </button>

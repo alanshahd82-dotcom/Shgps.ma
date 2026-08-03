@@ -83,20 +83,18 @@ export default function DriverBehavior() {
   }
 
   return (
-    <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
-      style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
 
       {/* Header */}
       <div className="px-5 pt-12 pb-4">
-        <h1 className="text-white font-bold text-xl mb-4">{isAr ? 'سلوك السائق' : 'Comportement conducteur'}</h1>
+        <h1 className="text-primary-500 font-extrabold text-xl mb-4">{isAr ? 'سلوك السائق' : 'Comportement conducteur'}</h1>
 
         {/* Device picker */}
         <button onClick={() => setShowDevices(s => !s)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl mb-3"
-          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl mb-3 border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2">
-            <Car size={15} style={{ color: '#00D97E' }}/>
-            <span className="text-white text-sm font-medium">
+             <Car size={15} className="text-primary-500"/>
+             <span className="text-slate-800 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
@@ -106,12 +104,11 @@ export default function DriverBehavior() {
         <AnimatePresence>
           {showDevices && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden rounded-xl mb-3"
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
                   className="w-full px-4 py-3 text-left text-sm"
-                  style={{ color: String(d.id) === deviceId ? '#00D97E' : 'rgba(255,255,255,0.7)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  style={{ color: String(d.id) === deviceId ? '#17324d' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
                   {d.name}
                 </button>
               ))}
@@ -125,8 +122,8 @@ export default function DriverBehavior() {
             <button key={p.key} onClick={() => setPeriod(p.key)}
               className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
               style={period === p.key
-                ? { background: '#00D97E', color: '#0F2044' }
-                : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.48)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                 ? { background: '#17324d', color: 'white' }
+                 : { background: 'white', color: '#64748b', border: '1px solid #e2e8f0' }}>
               {p[isAr ? 'ar' : 'fr']}
             </button>
           ))}
@@ -135,15 +132,14 @@ export default function DriverBehavior() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#00D97E', borderTopColor: 'transparent' }}/>
+          <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: '#e4b56b', borderTopColor: 'transparent' }}/>
         </div>
       ) : error ? (
         <div className="mx-5 p-4 rounded-2xl text-sm text-center" style={{ background: 'rgba(255,59,48,0.1)', color: '#ff6b60' }}>{error}</div>
       ) : (
         <div className="px-5 space-y-5">
           {/* Score ring */}
-          <div className="p-6 rounded-2xl flex flex-col items-center"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+             <div className="p-6 rounded-xl flex flex-col items-center bg-white border border-slate-200 shadow-sm">
             <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
               {isAr ? 'نقاط السلامة' : 'Score de sécurité'}
             </p>
@@ -152,17 +148,17 @@ export default function DriverBehavior() {
 
           {/* Event chart */}
           {events.length > 0 && (
-            <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
               <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
                 {isAr ? 'الأحداث' : 'Événements'}
               </p>
               <ResponsiveContainer width="100%" height={120}>
                 <BarChart data={events} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
-                  <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false}/>
-                  <Tooltip contentStyle={{ background: '#0F2044', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, color: 'white', fontSize: 11 }}/>
-                  <Bar dataKey="count" fill="#00D97E" radius={[4,4,0,0]}/>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <Tooltip contentStyle={{ background: '#17324d', border: '1px solid #31516e', borderRadius: 10, color: 'white', fontSize: 11 }}/>
+                  <Bar dataKey="count" fill="#16866d" radius={[4,4,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
             </div>

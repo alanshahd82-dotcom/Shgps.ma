@@ -48,7 +48,8 @@ export function getSubscriptionStatus(endDate, now = new Date()) {
 export function getSubscriptionSnapshot(device, now = new Date()) {
   const startDate = dateOnly(device.subscription_start_date ?? device.subscriptionStartDate)
   const endDate = dateOnly(device.subscription_end_date ?? device.subscriptionEndDate)
-  const status = getSubscriptionStatus(endDate, now)
+  const planId = device.subscription_plan_id ?? device.subscriptionPlanId ?? null
+  const status = !planId || !endDate ? 'unassigned' : getSubscriptionStatus(endDate, now)
   const daysRemaining = endDate
     ? Math.max(0, Math.round(
       (new Date(`${endDate}T00:00:00.000Z`).getTime() - new Date(`${dateOnly(now)}T00:00:00.000Z`).getTime()) / DAY_MS
@@ -56,11 +57,13 @@ export function getSubscriptionSnapshot(device, now = new Date()) {
     : null
 
   return {
-    subscriptionPlanId: device.subscription_plan_id ?? device.subscriptionPlanId ?? null,
+    subscriptionPlanId: planId,
     subscriptionStartDate: startDate,
     subscriptionEndDate: endDate,
     subscriptionStatus: status,
     subscriptionDaysRemaining: daysRemaining,
+    // Missing billing data must be visible to the client/admin, but it does not
+    // disable an already-installed tracker. Only an expired plan stops live tracking.
     trackingEnabled: status !== 'expired',
   }
 }
@@ -76,7 +79,7 @@ export async function syncSubscriptionState(db, device, clientName = null, now =
     )
   }
 
-  if (snapshot.subscriptionStatus === 'active' || !device.id) return snapshot
+  if (snapshot.subscriptionStatus === 'active' || snapshot.subscriptionStatus === 'unassigned' || !device.id) return snapshot
 
   const alertType = snapshot.subscriptionStatus === 'expired'
     ? 'subscription_expired'

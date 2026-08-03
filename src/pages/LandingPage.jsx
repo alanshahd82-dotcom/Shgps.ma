@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Radio, MapPinned, BellRing, BarChart3, ShieldCheck, Users } from 'lucide-react'
 import { api } from '../api/index.js'
 
 /* ─────────────────────────────────────────────────────
@@ -268,14 +269,14 @@ function StoreModal({ store, lang, onClose, whatsapp }) {
 
             {/* store icon */}
             <div style={{ width:64,height:64,margin:'0 auto 1.25rem',borderRadius:16,
-              background:'rgba(0,212,255,0.08)',border:'1px solid rgba(0,212,255,0.2)',
+              background:'rgba(228,181,107,0.08)',border:'1px solid rgba(228,181,107,0.2)',
               display:'flex',alignItems:'center',justifyContent:'center' }}>
               {isPlay ? (
-                <svg viewBox="0 0 24 24" style={{ width:30,height:30,fill:'#00d4ff' }}>
+                <svg viewBox="0 0 24 24" style={{ width:30,height:30,fill:'#e4b56b' }}>
                   <path d="M3.18 23.76a2.5 2.5 0 001.24-.33l.07-.04 13.84-8.01-3.99-4-11.16 12.38zm-1.72-20.3C1.17 3.9 1 4.48 1 5.14v13.72c0 .66.17 1.24.46 1.68l.08.1L14.02 8.16l-12.56-4.7zm17.37 4.24l-3.57-2.07-4.43 4.43 4.43 4.43 3.61-2.09a2.58 2.58 0 000-4.7zM4.42.57l-.07-.04A2.5 2.5 0 001.9.53L14.02 8.16 18.01 4.17 4.42.57z"/>
                 </svg>
               ) : (
-                <svg viewBox="0 0 24 24" style={{ width:30,height:30,fill:'#00d4ff' }}>
+                <svg viewBox="0 0 24 24" style={{ width:30,height:30,fill:'#e4b56b' }}>
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                 </svg>
               )}
@@ -291,13 +292,13 @@ function StoreModal({ store, lang, onClose, whatsapp }) {
 
             <h3 style={{ color:'#fff',fontSize:'1.3rem',fontWeight:800,marginBottom:8 }}>{storeName}</h3>
             <p style={{ color:'#94a3b8',fontSize:'0.9rem',lineHeight:1.7,marginBottom:24 }}>
-              {t.body1} <strong style={{ color:'#00d4ff' }}>{storeName}</strong> {t.body2}
+              {t.body1} <strong style={{ color:'#e4b56b' }}>{storeName}</strong> {t.body2}
               <br />{t.note}
             </p>
 
             <a href={wa} target="_blank" rel="noopener noreferrer"
               style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,width:'100%',
-                padding:'0.85rem',borderRadius:12,background:'linear-gradient(135deg,#00d4ff,#00ff88)',
+                padding:'0.85rem',borderRadius:12,background:'linear-gradient(135deg,#e4b56b,#83c8bd)',
                 color:'#0a0e1a',fontWeight:700,fontSize:'0.95rem',textDecoration:'none',
                 transition:'transform 0.2s' }}
               onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
@@ -339,6 +340,76 @@ function AppleIcon({ size = 28, color = '#fff' }) {
   )
 }
 
+const FEATURE_ICONS = [Radio, MapPinned, BellRing, BarChart3, ShieldCheck, Users]
+
+function ProductScreen({ variant, lang }) {
+  const isAr = lang === 'ar'
+  const fleet = variant === 'fleet'
+  const accent = fleet ? '#83c8bd' : '#e4b56b'
+  const muted = 'rgba(255,255,255,0.42)'
+  const cards = fleet
+    ? [
+        { label: isAr ? 'المركبات النشطة' : 'Active vehicles', value: '18', color: '#83c8bd' },
+        { label: isAr ? 'في الطريق' : 'On route', value: '12', color: '#e4b56b' },
+        { label: isAr ? 'متوقفة' : 'Stopped', value: '06', color: '#a7b5c9' },
+      ]
+    : [
+        { label: isAr ? 'المسافة اليوم' : 'Distance today', value: '248 km', color: '#e4b56b' },
+        { label: isAr ? 'السرعة المتوسطة' : 'Avg. speed', value: '42 km/h', color: '#83c8bd' },
+        { label: isAr ? 'التنبيهات' : 'Alerts', value: '03', color: '#f2a97b' },
+      ]
+
+  return (
+    <div style={{ background:'#111a2c', border:'1px solid rgba(255,255,255,.12)', borderRadius:18,
+      boxShadow:'0 22px 60px rgba(0,0,0,.36)', overflow:'hidden', aspectRatio:'1.28' }} dir="ltr">
+      <div style={{ height:38, display:'flex', alignItems:'center', gap:8, padding:'0 14px',
+        borderBottom:'1px solid rgba(255,255,255,.08)', background:'#162239' }}>
+        <img src="/athar-gps-mark.svg" alt="" style={{ width:20, height:20, borderRadius:5 }}/>
+        <span style={{ color:'#fff', fontSize:11, fontWeight:800, letterSpacing:'.08em' }}>ATHAR GPS</span>
+        <span style={{ marginLeft:'auto', width:7, height:7, borderRadius:'50%', background:'#83c8bd' }}/>
+        <span style={{ color:muted, fontSize:9 }}>{isAr ? 'متصل الآن' : 'Live'}</span>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'42% 58%', height:'calc(100% - 38px)' }}>
+        <div style={{ padding:14, borderRight:'1px solid rgba(255,255,255,.08)', background:'#0f192b' }}>
+          <div style={{ width:'72%', height:7, borderRadius:4, background:'rgba(255,255,255,.18)', marginBottom:15 }}/>
+          {[isAr ? 'نظرة عامة' : 'Overview', isAr ? 'المركبات' : 'Vehicles', isAr ? 'التقارير' : 'Reports', isAr ? 'التنبيهات' : 'Alerts'].map((item, i) => (
+            <div key={item} style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 7px', marginBottom:5,
+              borderRadius:7, background:i === 0 ? `${accent}22` : 'transparent', color:i === 0 ? accent : muted, fontSize:9 }}>
+              <span style={{ width:6, height:6, borderRadius:2, background:i === 0 ? accent : 'rgba(255,255,255,.25)' }}/>
+              {item}
+            </div>
+          ))}
+        </div>
+        <div style={{ padding:14, minWidth:0 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginBottom:9 }}>
+            {cards.map(card => (
+              <div key={card.label} style={{ padding:9, borderRadius:8, background:'rgba(255,255,255,.055)' }}>
+                <div style={{ color:muted, fontSize:7, marginBottom:5, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{card.label}</div>
+                <strong style={{ color:card.color, fontSize:12 }}>{card.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div style={{ position:'relative', height:'calc(100% - 71px)', minHeight:120, borderRadius:10, overflow:'hidden',
+            background:'linear-gradient(135deg,#1b3041,#17243a)' }}>
+            <div style={{ position:'absolute', inset:0, opacity:.23,
+              backgroundImage:'linear-gradient(28deg, transparent 47%, rgba(255,255,255,.35) 48%, transparent 49%), linear-gradient(115deg, transparent 48%, rgba(255,255,255,.2) 49%, transparent 50%), linear-gradient(0deg, transparent 49%, rgba(255,255,255,.12) 50%, transparent 51%)',
+              backgroundSize:'80px 62px,90px 74px,100% 42px' }}/>
+            {[['28%','36%'],['56%','54%'],['74%','28%'],['43%','75%']].map(([left, top], i) => (
+              <span key={i} style={{ position:'absolute', left, top, width:11, height:11, borderRadius:'50%',
+                background:i === 0 ? '#e4b56b' : '#83c8bd', border:'3px solid #edf3f2',
+                boxShadow:`0 0 0 5px ${i === 0 ? 'rgba(228,181,107,.2)' : 'rgba(131,200,189,.18)'}` }}/>
+            ))}
+            <div style={{ position:'absolute', left:10, bottom:10, padding:'6px 8px', borderRadius:6,
+              background:'rgba(12,21,37,.84)', color:'#fff', fontSize:8 }}>
+              {fleet ? (isAr ? 'توزيع الأسطول' : 'Fleet distribution') : (isAr ? 'الموقع المباشر' : 'Live location')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─────────────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────────────── */
@@ -373,8 +444,8 @@ export default function LandingPage() {
   }, [lang])
 
   const S = {
-    grad: 'linear-gradient(135deg,#00d4ff,#00ff88)',
-    gradText: { background:'linear-gradient(135deg,#00d4ff,#00ff88)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' },
+    grad: 'linear-gradient(135deg,#e4b56b,#83c8bd)',
+    gradText: { background:'linear-gradient(135deg,#e4b56b,#83c8bd)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' },
     card: { background:'#111827', border:'1px solid #1e293b', borderRadius:16 },
   }
 
@@ -391,14 +462,12 @@ export default function LandingPage() {
         .fade-in.visible{opacity:1;transform:translateY(0)}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
         @keyframes pulse2{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.1);opacity:1}}
-        @keyframes drift{0%{transform:translateY(100vh);opacity:0}10%{opacity:.3}90%{opacity:.3}100%{transform:translateY(-100px);opacity:0}}
         @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(10px)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        .particle{position:absolute;width:3px;height:3px;background:#00d4ff;border-radius:50%;opacity:.3;animation:drift linear infinite}
         .pricing-btn-hover:hover{transform:translateY(-2px)}
-        .store-btn-hover:hover{border-color:rgba(0,212,255,0.5)!important;background:rgba(0,212,255,0.07)!important}
-        .nav-link-hover:hover{color:#00d4ff!important}
-        .feature-card-hover:hover{transform:translateY(-5px);border-color:rgba(0,212,255,0.3)!important;background:#1a2332!important}
+        .store-btn-hover:hover{border-color:rgba(228,181,107,0.5)!important;background:rgba(228,181,107,0.07)!important}
+        .nav-link-hover:hover{color:#e4b56b!important}
+        .feature-card-hover:hover{transform:translateY(-5px);border-color:rgba(228,181,107,0.3)!important;background:#1a2332!important}
         @media(max-width:900px){
           .hero-grid{grid-template-columns:1fr!important}
           .features-grid-resp{grid-template-columns:repeat(2,1fr)!important}
@@ -446,8 +515,8 @@ export default function LandingPage() {
             {/* Language toggle */}
             <li>
               <button onClick={() => setLang(l => l==='ar'?'en':'ar')}
-                style={{ background:'rgba(0,212,255,0.08)',border:'1px solid rgba(0,212,255,0.25)',borderRadius:8,
-                  color:'#00d4ff',padding:'0.4rem 0.9rem',cursor:'pointer',fontSize:'0.85rem',fontWeight:700,
+              style={{ background:'rgba(228,181,107,0.08)',border:'1px solid rgba(228,181,107,0.25)',borderRadius:8,
+                  color:'#e4b56b',padding:'0.4rem 0.9rem',cursor:'pointer',fontSize:'0.85rem',fontWeight:700,
                   transition:'all .3s',fontFamily:t.fontFamily }}>
                 {lang==='ar' ? 'EN' : 'عربي'}
               </button>
@@ -465,8 +534,8 @@ export default function LandingPage() {
           {/* Mobile: lang toggle + hamburger */}
           <div className="nav-mobile-toggle" style={{ display:'none',alignItems:'center',gap:10 }}>
             <button onClick={() => setLang(l => l==='ar'?'en':'ar')}
-              style={{ background:'rgba(0,212,255,0.08)',border:'1px solid rgba(0,212,255,0.2)',borderRadius:7,
-                color:'#00d4ff',padding:'0.35rem 0.75rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:700,fontFamily:t.fontFamily }}>
+              style={{ background:'rgba(228,181,107,0.08)',border:'1px solid rgba(228,181,107,0.2)',borderRadius:7,
+                color:'#e4b56b',padding:'0.35rem 0.75rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:700,fontFamily:t.fontFamily }}>
               {lang==='ar'?'EN':'عربي'}
             </button>
             <button onClick={() => setMobileOpen(o=>!o)}
@@ -505,13 +574,10 @@ export default function LandingPage() {
         {/* bg glows */}
         <div style={{ position:'absolute',inset:0,pointerEvents:'none' }}>
           <div style={{ position:'absolute',top:'-50%',right:'-20%',width:800,height:800,borderRadius:'50%',
-            background:'radial-gradient(circle,rgba(0,212,255,.1) 0%,transparent 70%)',animation:'pulse2 4s ease-in-out infinite' }} />
+            background:'radial-gradient(circle,rgba(228,181,107,.1) 0%,transparent 70%)',animation:'pulse2 4s ease-in-out infinite' }} />
           <div style={{ position:'absolute',bottom:'-30%',left:'-10%',width:600,height:600,borderRadius:'50%',
-            background:'radial-gradient(circle,rgba(0,255,136,.08) 0%,transparent 70%)',animation:'pulse2 5s ease-in-out infinite reverse' }} />
+            background:'radial-gradient(circle,rgba(131,200,189,.08) 0%,transparent 70%)',animation:'pulse2 5s ease-in-out infinite reverse' }} />
         </div>
-        {/* particles */}
-        <Particles />
-
         <div className="hero-grid" style={{ maxWidth:1200,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4rem',alignItems:'center',position:'relative',zIndex:1,width:'100%' }}>
           <div className="fade-in">
             <h1 className="hero-h1" style={{ fontSize:'3.5rem',fontWeight:900,lineHeight:1.1,marginBottom:'1.5rem' }}>
@@ -568,15 +634,15 @@ export default function LandingPage() {
         <div style={{ position:'absolute',bottom:'2rem',left:'50%',transform:'translateX(-50%)',
           display:'flex',flexDirection:'column',alignItems:'center',gap:6,color:'#94a3b8',fontSize:'0.78rem',animation:'bounce 2s ease-in-out infinite' }}>
           <span>{lang==='ar'?'تمرير':'Scroll'}</span>
-          <div style={{ width:18,height:18,borderRight:'2px solid #00d4ff',borderBottom:'2px solid #00d4ff',transform:'rotate(45deg)' }} />
+          <div style={{ width:18,height:18,borderRight:'2px solid #e4b56b',borderBottom:'2px solid #e4b56b',transform:'rotate(45deg)' }} />
         </div>
       </section>
 
       {/* ═══════════════ FEATURES ═══════════════ */}
       <section id="features" style={{ padding:'6rem 2rem' }}>
         <div className="fade-in" style={{ textAlign:'center',maxWidth:600,margin:'0 auto 4rem' }}>
-          <span style={{ display:'inline-block',background:'rgba(0,212,255,.1)',color:'#00d4ff',padding:'0.4rem 1rem',
-            borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(0,212,255,.2)' }}>
+          <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
+            borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
             {t.features.badge}
           </span>
           <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1rem' }}>{t.features.h2}</h2>
@@ -588,9 +654,9 @@ export default function LandingPage() {
               style={{ ...S.card,padding:'1.75rem',cursor:'default',transition:'all .4s',position:'relative',overflow:'hidden' }}>
               <div style={{ position:'absolute',top:0,left:0,right:0,height:3,background:S.grad,opacity:0,transition:'opacity .3s',pointerEvents:'none' }}
                 onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0} />
-              <div style={{ width:52,height:52,background:'rgba(0,212,255,.1)',borderRadius:12,
+               <div style={{ width:52,height:52,background:'rgba(228,181,107,.1)',borderRadius:12,
                 display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.4rem',marginBottom:'1.25rem' }}>
-                {f.icon}
+                {(() => { const Icon = FEATURE_ICONS[i] || Radio; return <Icon size={22} color={i % 2 ? '#83c8bd' : '#e4b56b'} strokeWidth={1.8}/> })()}
               </div>
               <h3 style={{ fontSize:'1.1rem',fontWeight:700,marginBottom:'0.6rem' }}>{f.h}</h3>
               <p style={{ color:'#94a3b8',fontSize:'0.92rem',lineHeight:1.6 }}>{f.p}</p>
@@ -604,12 +670,11 @@ export default function LandingPage() {
         <div className="dash-grid fade-in" style={{ maxWidth:1100,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4rem',alignItems:'center' }}>
           <div style={{ position:'relative' }}>
             <div style={{ position:'absolute',inset:-3,background:S.grad,borderRadius:18,zIndex:-1,opacity:.15,filter:'blur(15px)' }} />
-            <img src="/athar-gps-hero.svg" alt="ATHAR GPS dashboard"
-              style={{ width:'100%',borderRadius:16,boxShadow:'0 20px 50px rgba(0,0,0,.4)' }} />
+             <ProductScreen variant="dashboard" lang={lang}/>
           </div>
           <div>
-            <span style={{ display:'inline-block',background:'rgba(0,212,255,.1)',color:'#00d4ff',padding:'0.4rem 1rem',
-              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(0,212,255,.2)' }}>
+            <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
+              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
               {t.dashboard.badge}
             </span>
             <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1.25rem' }}>{t.dashboard.h2}</h2>
@@ -617,8 +682,8 @@ export default function LandingPage() {
             <ul style={{ listStyle:'none',display:'flex',flexDirection:'column',gap:'0.85rem' }}>
               {t.dashboard.items.map((item,i) => (
                 <li key={i} style={{ display:'flex',alignItems:'center',gap:10,color:'#94a3b8',fontSize:'0.97rem' }}>
-                  <span style={{ width:24,height:24,background:'rgba(0,255,136,.1)',borderRadius:6,
-                    display:'flex',alignItems:'center',justifyContent:'center',color:'#00ff88',fontSize:'0.8rem',flexShrink:0 }}>✓</span>
+                  <span style={{ width:24,height:24,background:'rgba(131,200,189,.1)',borderRadius:6,
+                    display:'flex',alignItems:'center',justifyContent:'center',color:'#83c8bd',fontSize:'0.8rem',flexShrink:0 }}>✓</span>
                   {item}
                 </li>
               ))}
@@ -631,8 +696,8 @@ export default function LandingPage() {
       <section id="fleet" style={{ padding:'6rem 2rem' }}>
         <div className="dash-grid fade-in" style={{ maxWidth:1100,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4rem',alignItems:'center' }}>
           <div>
-            <span style={{ display:'inline-block',background:'rgba(0,212,255,.1)',color:'#00d4ff',padding:'0.4rem 1rem',
-              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(0,212,255,.2)' }}>
+            <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
+              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
               {t.fleet.badge}
             </span>
             <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1.25rem' }}>{t.fleet.h2}</h2>
@@ -640,8 +705,8 @@ export default function LandingPage() {
             <ul style={{ listStyle:'none',display:'flex',flexDirection:'column',gap:'0.85rem' }}>
               {t.fleet.items.map((item,i) => (
                 <li key={i} style={{ display:'flex',alignItems:'center',gap:10,color:'#94a3b8',fontSize:'0.97rem' }}>
-                  <span style={{ width:24,height:24,background:'rgba(0,255,136,.1)',borderRadius:6,
-                    display:'flex',alignItems:'center',justifyContent:'center',color:'#00ff88',fontSize:'0.8rem',flexShrink:0 }}>✓</span>
+                  <span style={{ width:24,height:24,background:'rgba(131,200,189,.1)',borderRadius:6,
+                    display:'flex',alignItems:'center',justifyContent:'center',color:'#83c8bd',fontSize:'0.8rem',flexShrink:0 }}>✓</span>
                   {item}
                 </li>
               ))}
@@ -649,8 +714,7 @@ export default function LandingPage() {
           </div>
           <div style={{ position:'relative' }}>
             <div style={{ position:'absolute',inset:-3,background:S.grad,borderRadius:18,zIndex:-1,opacity:.15,filter:'blur(15px)' }} />
-            <img src="/athar-gps-hero.svg" alt="ATHAR GPS fleet tracking"
-              style={{ width:'100%',borderRadius:16,boxShadow:'0 20px 50px rgba(0,0,0,.4)' }} />
+             <ProductScreen variant="fleet" lang={lang}/>
           </div>
         </div>
       </section>
@@ -658,8 +722,8 @@ export default function LandingPage() {
       {/* ═══════════════ PRICING ═══════════════ */}
       <section id="pricing" style={{ padding:'6rem 2rem',background:'linear-gradient(180deg,#0d1220 0%,#0a0e1a 100%)' }}>
         <div className="fade-in" style={{ textAlign:'center',maxWidth:600,margin:'0 auto 4rem' }}>
-          <span style={{ display:'inline-block',background:'rgba(0,212,255,.1)',color:'#00d4ff',padding:'0.4rem 1rem',
-            borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(0,212,255,.2)' }}>
+            <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
+              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
             {t.pricing.badge}
           </span>
           <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1rem' }}>{t.pricing.h2}</h2>
@@ -670,7 +734,7 @@ export default function LandingPage() {
           {t.pricing.plans.map((plan,i) => (
             <div key={i} className="fade-in popular-scale"
               style={{ ...S.card,padding:'2.25rem 1.75rem',textAlign:'center',position:'relative',
-                borderColor: plan.popular ? '#00d4ff' : '#1e293b',
+                borderColor: plan.popular ? '#e4b56b' : '#1e293b',
                 background: plan.popular ? '#1a2332' : '#111827',
                 transform: plan.popular ? 'scale(1.05)' : 'none',
                 transition:'all .4s',display:'flex',flexDirection:'column' }}>
@@ -696,7 +760,7 @@ export default function LandingPage() {
                 {plan.features.map((f,j) => (
                   <li key={j} style={{ display:'flex',alignItems:'center',gap:8,color:'#94a3b8',fontSize:'0.88rem',
                     flexDirection: lang==='ar'?'row-reverse':'row' }}>
-                    <span style={{ color:'#00ff88',flexShrink:0 }}>✓</span> {f}
+                    <span style={{ color:'#83c8bd',flexShrink:0 }}>✓</span> {f}
                   </li>
                 ))}
               </ul>
@@ -720,7 +784,7 @@ export default function LandingPage() {
       {/* ═══════════════ CTA ═══════════════ */}
       <section style={{ padding:'6rem 2rem',textAlign:'center',position:'relative',overflow:'hidden' }}>
         <div style={{ position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:600,height:600,borderRadius:'50%',
-          background:'radial-gradient(circle,rgba(0,212,255,.09) 0%,transparent 70%)',pointerEvents:'none' }} />
+          background:'radial-gradient(circle,rgba(228,181,107,.09) 0%,transparent 70%)',pointerEvents:'none' }} />
         <div className="fade-in" style={{ maxWidth:650,margin:'0 auto',position:'relative',zIndex:1 }}>
           <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1rem' }}>{t.cta.h2}</h2>
           <p style={{ color:'#94a3b8',fontSize:'1.05rem',marginBottom:'2rem',lineHeight:1.6 }}>{t.cta.p}</p>
@@ -728,9 +792,9 @@ export default function LandingPage() {
             target="_blank" rel="noopener noreferrer"
             style={{ display:'inline-flex',alignItems:'center',gap:10,background:S.grad,color:'#0a0e1a',
               padding:'1rem 2.25rem',borderRadius:12,fontWeight:700,fontSize:'1rem',textDecoration:'none',
-              transition:'all .3s',boxShadow:'0 8px 25px rgba(0,212,255,.25)' }}
-            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 14px 35px rgba(0,212,255,.4)'}}
-            onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 8px 25px rgba(0,212,255,.25)'}}>
+              transition:'all .3s',boxShadow:'0 8px 25px rgba(228,181,107,.25)' }}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 14px 35px rgba(228,181,107,.4)'}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 8px 25px rgba(228,181,107,.25)'}}>
             <WaIcon />
             {t.cta.btnLabel}
           </a>
@@ -812,24 +876,6 @@ export default function LandingPage() {
 
       {/* Store Modal */}
       <StoreModal store={modal} lang={lang} whatsapp={support.whatsapp} onClose={() => setModal(null)} />
-    </div>
-  )
-}
-
-/* Floating particles */
-function Particles() {
-  return (
-    <div style={{ position:'absolute',inset:0,overflow:'hidden',pointerEvents:'none' }}>
-      {Array.from({length:25},(_,i)=>(
-        <div key={i} className="particle" style={{
-          left: `${Math.random()*100}%`,
-          animationDuration: `${Math.random()*10+10}s`,
-          animationDelay: `${Math.random()*10}s`,
-          width: `${Math.random()*2+1}px`,
-          height: `${Math.random()*2+1}px`,
-          background: Math.random()>.5 ? '#00d4ff' : '#00ff88',
-        }} />
-      ))}
     </div>
   )
 }

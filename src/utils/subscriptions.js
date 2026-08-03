@@ -48,14 +48,15 @@ export function getSubscriptionStatus(endDate, now = new Date()) {
 export function getSubscriptionSnapshot(device, now = new Date()) {
   const startDate = dateOnly(device?.subscriptionStartDate ?? device?.subscription_start_date)
   const endDate = dateOnly(device?.subscriptionEndDate ?? device?.subscription_end_date)
-  const status = getSubscriptionStatus(endDate, now)
+  const planId = device?.subscriptionPlanId ?? device?.subscription_plan_id ?? null
+  const status = !planId || !endDate ? 'unassigned' : getSubscriptionStatus(endDate, now)
   const daysRemaining = endDate
     ? Math.max(0, Math.round(
       (new Date(`${endDate}T00:00:00.000Z`).getTime() - new Date(`${dateOnly(now)}T00:00:00.000Z`).getTime()) / DAY_MS
     ) + 1)
     : null
   return {
-    planId: device?.subscriptionPlanId ?? device?.subscription_plan_id ?? null,
+    planId,
     startDate,
     endDate,
     status,

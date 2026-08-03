@@ -6,6 +6,10 @@ export default function SubscriptionBadge({ device, lang = 'ar', dark = false })
   const subscription = getSubscriptionSnapshot(device)
   const plan = getSubscriptionPlan(subscription.planId)
   const meta = {
+    unassigned: {
+      label: isAr ? 'الخطة غير محددة' : 'Plan à définir',
+      className: dark ? 'bg-slate-400/15 text-slate-300 border-slate-400/30' : 'bg-slate-50 text-slate-600 border-slate-200',
+    },
     active: {
       label: isAr ? 'نشط' : 'Actif',
       className: dark ? 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30' : 'bg-emerald-50 text-emerald-600 border-emerald-100',

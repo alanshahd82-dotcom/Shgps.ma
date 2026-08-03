@@ -59,13 +59,12 @@ export default function Alerts() {
   const unread = useMemo(() => alertsList?.filter(a => !a.read).length || 0, [alertsList])
 
   return (
-    <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
-      style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
 
       {/* Header */}
       <div className="px-5 pt-12 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-white font-bold text-xl">{t(lang, 'alerts')}</h1>
+          <h1 className="text-primary-500 font-extrabold text-xl">{t(lang, 'alerts')}</h1>
           {unread > 0 && (
             <span className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
               style={{ background: '#FF3B30' }}>{unread}</span>
@@ -75,7 +74,7 @@ export default function Alerts() {
           <motion.button whileTap={{ scale: 0.94 }}
             onClick={() => markAllRead && markAllRead()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ background: 'rgba(0,217,126,0.12)', color: '#00D97E', border: '1px solid rgba(0,217,126,0.25)' }}>
+             style={{ background: '#e8f5f0', color: '#16866d', border: '1px solid #bfe4d7' }}>
             <CheckCheck size={13}/>
             {isAr ? 'قراءة الكل' : 'Tout lire'}
           </motion.button>
@@ -91,8 +90,8 @@ export default function Alerts() {
               onClick={() => setFilter(f.key)}
               className="flex-shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
               style={active
-                ? { background: '#00D97E', color: '#0F2044' }
-                : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.48)', border: '1px solid rgba(255,255,255,0.1)' }
+                 ? { background: '#17324d', color: 'white' }
+                 : { background: 'white', color: '#64748b', border: '1px solid #e2e8f0' }
               }>
               {f[lang === 'ar' ? 'ar' : 'fr']}
             </motion.button>
@@ -104,9 +103,8 @@ export default function Alerts() {
       <div className="px-4 space-y-2">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <Bell size={26} style={{ color: 'rgba(255,255,255,0.2)' }}/>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white border border-slate-200">
+              <Bell size={26} className="text-slate-300"/>
             </div>
             <p className="text-sm" style={{ color: 'rgba(255,255,255,0.28)' }}>
               {isAr ? 'لا توجد تنبيهات' : 'Aucune alerte'}
@@ -122,10 +120,10 @@ export default function Alerts() {
                 transition={{ delay: Math.min(i * 0.035, 0.2) }}
                 onClick={() => markAlertRead && markAlertRead(alert.id)}
                 className="flex items-start gap-3 p-4 rounded-2xl cursor-pointer"
-                style={{
-                  background: alert.read ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)',
-                  border: '1px solid ' + (alert.read ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.14)'),
-                }}>
+                 style={{
+                   background: alert.read ? '#ffffff' : '#fffaf0',
+                   border: '1px solid ' + (alert.read ? '#e2e8f0' : '#ead8b4'),
+                 }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: cfg.color + '1a' }}>
                   <Icon size={19} style={{ color: cfg.color }}/>
@@ -133,7 +131,7 @@ export default function Alerts() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold leading-tight"
-                      style={{ color: alert.read ? 'rgba(255,255,255,0.6)' : 'white' }}>
+                       style={{ color: alert.read ? '#475569' : '#17324d' }}>
                       {alert.device_name || alert.deviceName || '—'}
                     </p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -145,7 +143,7 @@ export default function Alerts() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                     <p className="text-xs mt-0.5 text-slate-500">
                     {alert.message || alert.type}
                   </p>
                 </div>

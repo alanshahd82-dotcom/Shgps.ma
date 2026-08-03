@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ChevronRight, Car, Clock, RefreshCw } from 'lucide-react'
+import { Search, X, ChevronRight, Car, Clock, RefreshCw, Plus } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
+import Logo from '../../components/Logo'
 import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
@@ -12,103 +13,64 @@ import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 
 const FILTERS = [
-  { key: 'all',     ar: 'الكل',     fr: 'Tous'      },
-  { key: 'moving',  ar: 'يتحرك',    fr: 'En mvt'    },
-  { key: 'stopped', ar: 'متوقف',    fr: 'Arrêté'    },
-  { key: 'offline', ar: 'غير متصل', fr: 'Hors ligne' },
+  { key: 'all', ar: 'الكل', fr: 'Tous' },
+  { key: 'moving', ar: 'تتحرك', fr: 'En mouvement' },
+  { key: 'stopped', ar: 'متوقفة', fr: 'À l’arrêt' },
+  { key: 'offline', ar: 'غير متصلة', fr: 'Hors ligne' },
 ]
 
-const ST_COLOR = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }
-const ST_BG    = { moving:'rgba(0,217,126,0.1)', idle:'rgba(255,149,0,0.1)', stopped:'rgba(255,59,48,0.1)', offline:'rgba(107,114,128,0.1)' }
-const ST_LABEL_AR = { moving:'يتحرك', idle:'خمول', stopped:'متوقف', offline:'غير متصل' }
-const ST_LABEL_FR = { moving:'En mvt', idle:'Ralenti', stopped:'Arrêté', offline:'Hors ligne' }
+const STATUS = {
+  moving: { ar: 'تتحرك', fr: 'En mouvement', color: '#16866d', soft: '#e8f5f0' },
+  idle: { ar: 'خاملة', fr: 'Au ralenti', color: '#b06b1b', soft: '#fff4e5' },
+  stopped: { ar: 'متوقفة', fr: 'À l’arrêt', color: '#b64949', soft: '#fceded' },
+  offline: { ar: 'غير متصلة', fr: 'Hors ligne', color: '#6b7785', soft: '#eef1f4' },
+}
 
 function DeviceCard({ device, lang, onClick, onRenew, index }) {
-  const st   = getDeviceStatusKey(device)
   const isAr = lang === 'ar'
-  const c    = ST_COLOR[st] || '#6b7280'
-  const sub  = getSubscriptionSnapshot(device)
-  const needsRenewal = sub.status === 'expiring_soon' || sub.status === 'expired'
-  const stLabel = isAr ? (ST_LABEL_AR[st] || st) : (ST_LABEL_FR[st] || st)
+  const status = STATUS[getDeviceStatusKey(device)] || STATUS.offline
+  const subscription = getSubscriptionSnapshot(device)
+  const needsRenewal = ['expiring_soon', 'expired'].includes(subscription.status)
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.04, 0.22) }}
-      className="w-full rounded-2xl overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-    >
-      {/* Top status bar */}
-      <div className="h-0.5" style={{ background: c }}/>
-      <motion.button whileTap={{ scale: 0.97 }} onClick={onClick}
-        className="w-full text-left p-4 flex items-center gap-3">
-        {/* Icon */}
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-          style={{ background: ST_BG[st] || 'rgba(255,255,255,0.06)' }}>
-          <VehicleIcon type={device.type} iconSize={22}/>
-        </div>
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold text-sm truncate mb-0.5">{device.name}</p>
-          <div className="flex items-center gap-2 flex-wrap">
-            {device.plate && (
-              <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>{device.plate}</span>
-            )}
-            {device.driver && (
-              <span className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.28)' }}>{device.driver}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c }}/>
-            <span className="text-xs font-semibold" style={{ color: c }}>{stLabel}</span>
-            {device.last_update && (
-              <>
-                <span className="text-xs mx-0.5" style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
-                <Clock size={10} style={{ color: 'rgba(255,255,255,0.2)' }}/>
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.22)' }}>{timeAgo(device.last_update)}</span>
-              </>
-            )}
-          </div>
-          <div className="mt-2">
-            <SubscriptionBadge device={device} lang={lang} dark />
-          </div>
-        </div>
-        {/* Speed + arrow */}
-        <div className="flex-shrink-0 flex flex-col items-end gap-1">
-          {device.speed != null && device.speed > 0 ? (
-            <div>
-              <span className="font-bold text-base" style={{ color: '#00D97E' }}>{Math.round(device.speed)}</span>
-              <span className="text-xs ml-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>km/h</span>
-            </div>
-          ) : (
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>
-          )}
-          <ChevronRight size={14} style={{ color: 'rgba(255,255,255,0.2)', transform: isAr ? 'rotate(180deg)' : 'none' }}/>
-        </div>
-      </motion.button>
+    <motion.article initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.035, 0.18) }}
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <button onClick={onClick} className="flex w-full items-center gap-3 p-4 text-start">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ background: status.soft }}>
+          <VehicleIcon type={device.type} iconSize={22} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-extrabold text-slate-900">{device.name}</span>
+          <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+            {device.plate && <span className="font-mono">{device.plate}</span>}
+            {device.driver && <span>{device.driver}</span>}
+          </span>
+          <span className="mt-2 flex items-center gap-1.5 text-[10px] font-bold" style={{ color: status.color }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: status.color }} />
+            {isAr ? status.ar : status.fr}
+            {(device.lastUpdate || device.last_update) && <><Clock size={10} className="ms-1 text-slate-400" /> <span className="font-normal text-slate-400">{timeAgo(device.lastUpdate || device.last_update)}</span></>}
+          </span>
+          <span className="mt-2 block"><SubscriptionBadge device={device} lang={lang} /></span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1 text-slate-400">
+          {device.speed > 0 ? <span className="text-sm font-extrabold text-primary-500">{Math.round(device.speed)} <small className="text-[9px] font-normal text-slate-400">km/h</small></span> : <span className="text-sm">—</span>}
+          <ChevronRight size={15} className={isAr ? 'rotate-180' : ''} />
+        </span>
+      </button>
 
-      {/* Inline renewal row — shown only when subscription needs attention */}
       {needsRenewal && (
-        <div className="px-4 pb-3 flex items-center justify-between gap-3"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-xs" style={{ color: sub.status === 'expired' ? '#ff6b60' : '#ffb347' }}>
-            {sub.status === 'expired'
+        <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-4 py-2.5">
+          <p className={`text-[10px] font-semibold ${subscription.status === 'expired' ? 'text-danger' : 'text-warning'}`}>
+            {subscription.status === 'expired'
               ? (isAr ? 'انتهى الاشتراك — التتبع موقوف' : 'Abonnement expiré — suivi arrêté')
-              : (isAr ? `ينتهي خلال ${sub.daysRemaining} يوم` : `Expire dans ${sub.daysRemaining} jours`)}
+              : (isAr ? `ينتهي خلال ${subscription.daysRemaining} يوم` : `Expire dans ${subscription.daysRemaining} jours`)}
           </p>
-          <motion.button whileTap={{ scale: 0.94 }} onClick={onRenew}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0"
-            style={{
-              background: sub.status === 'expired' ? 'rgba(255,59,48,0.15)' : 'rgba(255,149,0,0.15)',
-              border: `1px solid ${sub.status === 'expired' ? 'rgba(255,59,48,0.3)' : 'rgba(255,149,0,0.3)'}`,
-              color: sub.status === 'expired' ? '#ff6b60' : '#ffb347',
-            }}>
-            <RefreshCw size={12}/>
-            {isAr ? 'تجديد' : 'Renouveler'}
-          </motion.button>
+          <button onClick={onRenew} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-accent/50 bg-accent/10 px-2.5 py-1.5 text-[10px] font-bold text-[#8b622e]">
+            <RefreshCw size={11} />{isAr ? 'تجديد' : 'Renouveler'}
+          </button>
         </div>
       )}
-    </motion.div>
+    </motion.article>
   )
 }
 
@@ -119,109 +81,80 @@ export default function DeviceList() {
   const [filter, setFilter] = useState('all')
   const [renewDevice, setRenewDevice] = useState(null)
   const isAr = lang === 'ar'
-  const attentionDevice = devices.find(d => getSubscriptionSnapshot(d).status !== 'active')
 
   const counts = useMemo(() => ({
-    all:     devices.length,
-    moving:  devices.filter(d => getDeviceStatusKey(d) === 'moving').length,
+    all: devices.length,
+    moving: devices.filter(d => getDeviceStatusKey(d) === 'moving').length,
     stopped: devices.filter(d => getDeviceStatusKey(d) === 'stopped').length,
     offline: devices.filter(d => getDeviceStatusKey(d) === 'offline').length,
   }), [devices])
 
   const filtered = useMemo(() => {
-    let list = devices
-    if (filter !== 'all') list = list.filter(d => getDeviceStatusKey(d) === filter)
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      list = list.filter(d =>
-        d.name?.toLowerCase().includes(q) ||
-        d.plate?.toLowerCase().includes(q) ||
-        d.driver?.toLowerCase().includes(q)
-      )
-    }
-    return list
+    const query = search.trim().toLowerCase()
+    return devices.filter(device => {
+      const matchesFilter = filter === 'all' || getDeviceStatusKey(device) === filter
+      const matchesSearch = !query || [device.name, device.plate, device.driver].some(value => value?.toLowerCase().includes(query))
+      return matchesFilter && matchesSearch
+    })
   }, [devices, filter, search])
 
+  const attentionDevice = devices.find(device => getSubscriptionSnapshot(device).status !== 'active')
+
   return (
-    <div className="min-h-screen pb-28" dir={isAr ? 'rtl' : 'ltr'}
-      style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
-
-      {/* Header */}
-      <div className="px-5 pt-12 pb-3">
-        <h1 className="text-white font-bold text-xl mb-4">{t(lang, 'myDevices')}</h1>
-        {/* Search */}
-        <div className="flex items-center gap-2.5 rounded-xl px-4 py-3"
-          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <Search size={16} style={{ color: 'rgba(255,255,255,0.3)' }} className="flex-shrink-0"/>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={isAr ? 'بحث بالاسم أو اللوحة...' : 'Chercher par nom ou plaque...'}
-            className="flex-1 bg-transparent text-white text-sm outline-none"
-            style={{ caretColor: '#00D97E' }}/>
-          {search && (
-            <button onClick={() => setSearch('')}>
-              <X size={15} style={{ color: 'rgba(255,255,255,0.3)' }}/>
+    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <header className="border-b border-slate-200 bg-white px-5 pb-4 pt-5">
+        <div className="mx-auto max-w-xl">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <Logo size="sm" />
+              <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-primary-500">{t(lang, 'myDevices')}</h1>
+              <p className="mt-1 text-xs text-slate-500">{devices.length} {isAr ? 'أجهزة مرتبطة بالحساب' : 'appareil(s) lié(s)'}</p>
+            </div>
+            <button onClick={() => navigate('/client/device-wizard')} className="flex h-10 items-center gap-1.5 rounded-xl bg-primary-500 px-3 text-xs font-bold text-white shadow-sm">
+              <Plus size={15} />{isAr ? 'إضافة' : 'Ajouter'}
             </button>
-          )}
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+            <Search size={16} className="shrink-0 text-slate-400" />
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder={isAr ? 'ابحث باسم المركبة أو اللوحة' : 'Rechercher par nom ou plaque'} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" />
+            {search && <button onClick={() => setSearch('')}><X size={15} className="text-slate-400" /></button>}
+          </div>
         </div>
-      </div>
-      {attentionDevice && (
-        <div className="px-5 pb-3">
-          <SubscriptionBanner device={attentionDevice} lang={lang} dark onRenew={() => setRenewDevice(attentionDevice)} />
-        </div>
-      )}
+      </header>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 px-5 pb-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-        {FILTERS.map(f => {
-          const active = filter === f.key
-          return (
-            <motion.button key={f.key} whileTap={{ scale: 0.94 }} onClick={() => setFilter(f.key)}
-              className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all"
-              style={active
-                ? { background: '#00D97E', color: '#0F2044' }
-                : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.48)', border: '1px solid rgba(255,255,255,0.1)' }
-              }>
-              {f[lang === 'ar' ? 'ar' : 'fr']}
-              {counts[f.key] !== undefined && (
-                <span className="ml-1.5" style={{ opacity: 0.65 }}>{counts[f.key]}</span>
-              )}
-            </motion.button>
-          )
-        })}
-      </div>
+      <main className="mx-auto max-w-xl space-y-4 px-5 py-4">
+        {attentionDevice && <SubscriptionBanner device={attentionDevice} lang={lang} onRenew={() => setRenewDevice(attentionDevice)} />}
 
-      {/* List */}
-      <div className="px-4 space-y-2.5">
-        <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-20 gap-3">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.05)' }}>
-                <Car size={28} style={{ color: 'rgba(255,255,255,0.2)' }}/>
-              </div>
-              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                {isAr ? 'لا توجد أجهزة' : 'Aucun appareil'}
-              </p>
-            </motion.div>
-          ) : filtered.map((d, i) => (
-            <DeviceCard key={d.id} device={d} lang={lang} index={i}
-              onClick={() => navigate('/client/device/' + d.id)}
-              onRenew={() => setRenewDevice(d)}
-            />
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {FILTERS.map(item => (
+            <button key={item.key} onClick={() => setFilter(item.key)}
+              className={`shrink-0 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors ${filter === item.key ? 'border-primary-500 bg-primary-500 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>
+              {item[isAr ? 'ar' : 'fr']} <span className="ms-1 opacity-60">{counts[item.key]}</span>
+            </button>
           ))}
-        </AnimatePresence>
-      </div>
+        </div>
 
-      <SubscriptionRenewalModal
-        open={!!renewDevice}
-        device={renewDevice}
-        lang={lang}
+        <div className="space-y-2.5">
+          <AnimatePresence mode="popLayout">
+            {filtered.length === 0 ? (
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-16 text-center">
+                <Car size={30} className="mx-auto mb-3 text-slate-300" />
+                <p className="text-sm font-bold text-slate-700">{search ? (isAr ? 'لا توجد نتائج' : 'Aucun résultat') : (isAr ? 'لا توجد أجهزة' : 'Aucun appareil')}</p>
+                <p className="mt-1 text-xs text-slate-400">{isAr ? 'ستظهر الأجهزة المرتبطة بحسابك هنا' : 'Les appareils liés à votre compte apparaîtront ici'}</p>
+              </motion.div>
+            ) : filtered.map((device, index) => (
+              <DeviceCard key={device.id} device={device} lang={lang} index={index}
+                onClick={() => navigate('/client/device/' + device.id)}
+                onRenew={() => setRenewDevice(device)} />
+            ))}
+          </AnimatePresence>
+        </div>
+      </main>
+
+      <SubscriptionRenewalModal open={!!renewDevice} device={renewDevice} lang={lang}
         onClose={() => setRenewDevice(null)}
-        onSaved={() => { setRenewDevice(null); refreshDevices?.() }}
-      />
-
-      <ClientNav/>
+        onSaved={() => { setRenewDevice(null); refreshDevices?.() }} />
+      <ClientNav />
     </div>
   )
 }

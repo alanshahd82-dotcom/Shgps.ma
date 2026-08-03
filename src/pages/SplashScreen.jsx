@@ -13,14 +13,14 @@ export default function SplashScreen() {
   return (
     <div
       className="fixed inset-0 flex flex-col items-center justify-center"
-      style={{ background: 'linear-gradient(150deg, #0F2044 0%, #0a1628 60%, #0d2240 100%)' }}
+      style={{ background: 'linear-gradient(150deg, #0b1627 0%, #101d32 60%, #16283d 100%)' }}
     >
       {/* Animated background rings */}
       <div className="absolute inset-0 overflow-hidden">
         {[1, 2, 3].map(i => (
           <motion.div
             key={i}
-            className="absolute rounded-full border border-accent/10"
+               className="absolute rounded-full border border-[#e4b56b]/20"
             style={{
               top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)',
@@ -75,7 +75,7 @@ export default function SplashScreen() {
         transition={{ delay: 0.8 }}
       >
         <motion.div
-          className="h-full bg-accent rounded-full"
+           className="h-full bg-[#e4b56b] rounded-full"
           initial={{ width: '0%' }}
           animate={{ width: '100%' }}
           transition={{ duration: 1.8, delay: 0.5, ease: 'easeInOut' }}

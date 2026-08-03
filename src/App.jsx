@@ -37,7 +37,7 @@ import Privacy from './pages/Privacy'
 ───────────────────────────────────────────────────────────────────────────── */
 
 function isClientAuthenticated(clientAuth) {
-  if (!clientAuth) return false
+  if (!clientAuth || !localStorage.getItem('athargps_token')) return false
   try {
     const stored = JSON.parse(localStorage.getItem('athargps_client'))
     return !!stored
@@ -47,7 +47,7 @@ function isClientAuthenticated(clientAuth) {
 }
 
 function isAdminAuthenticated(adminAuth) {
-  if (!adminAuth) return false
+  if (!adminAuth || !localStorage.getItem('athargps_token')) return false
   try {
     const stored = JSON.parse(localStorage.getItem('athargps_admin'))
     return !!stored
@@ -74,6 +74,11 @@ function AdminRoute({ children }) {
   return children
 }
 
+function ClientEntry() {
+  const { clientAuth } = useApp()
+  return <Navigate to={isClientAuthenticated(clientAuth) ? '/client/home' : '/client/login'} replace />
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    ROUTER
 ───────────────────────────────────────────────────────────────────────────── */
@@ -95,7 +100,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
 
           {/* ── Client app ─────────────────────────────────────────────── */}
-          <Route path="/client" element={<Navigate to="/client/login" replace />} />
+          <Route path="/client" element={<ClientEntry />} />
           <Route path="/client/login"  element={<ClientLogin />} />
 
           <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />
