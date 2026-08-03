@@ -1,4 +1,4 @@
-// SHGPS API Client
+// ATHAR GPS API Client
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 function getToken() { return localStorage.getItem('athargps_token') }

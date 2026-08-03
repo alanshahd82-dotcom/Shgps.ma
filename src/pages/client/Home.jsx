@@ -110,10 +110,10 @@ export default function Home() {
       style={{ background: 'linear-gradient(160deg,#080f1f 0%,#0F2044 100%)' }}>
 
       {/* Header */}
-      <div className="px-5 pt-12 pb-2 flex items-center justify-between">
+      <div className="px-5 pt-8 pb-2 flex items-center justify-between">
         <div>
           <p className="text-xs mb-0.5" style={{ color: 'rgba(255,255,255,0.38)' }}>{t(lang, 'welcome')}</p>
-          <h1 className="text-white font-bold text-lg">{clientAuth?.name || 'AtharGPS'}</h1>
+          <h1 className="text-white font-bold text-lg">{clientAuth?.name || 'ATHAR GPS'}</h1>
         </div>
         <motion.button whileTap={{ scale: 0.9 }}
           onClick={() => navigate('/client/alerts')}

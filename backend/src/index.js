@@ -104,6 +104,11 @@ async function runMigrations() {
        ON CONFLICT (key) DO NOTHING`,
       [JSON.stringify(DEFAULT_SUPPORT_SETTINGS)]
     )
+    await db.query(
+      `UPDATE app_settings
+       SET value = REPLACE(value, 'support@shgps.ma', 'support@athargps.ma'), updated_at=NOW()
+       WHERE key='support_contacts' AND value LIKE '%support@shgps.ma%'`
+    )
     await db.query(`
       ALTER TABLE devices
         ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMP DEFAULT NOW(),
@@ -366,7 +371,7 @@ async function runSubscriptionCheck() {
 
 // --- Start --------------------------------------------------------------------
 server.listen(PORT, async () => {
-  console.log('AtharGPS Backend running on port ' + PORT)
+  console.log('ATHAR GPS Backend running on port ' + PORT)
   await runMigrations()
   await runSubscriptionCheck()
   setInterval(runSubscriptionCheck, 6 * 60 * 60 * 1000)

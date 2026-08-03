@@ -5,7 +5,7 @@ import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 
 const DEFAULT_SUPPORT = {
-  email: 'support@shgps.ma',
+  email: 'support@athargps.ma',
   phone: '+212600000000',
   whatsapp: '212600000000',
   hours: 'كل يوم من 09:00 إلى 18:00',
@@ -52,7 +52,7 @@ export default function SupportSettings() {
         </div>
         <form onSubmit={save} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
           {[
-            ['email', isAr ? 'البريد الإلكتروني' : 'Email', Mail, 'support@shgps.ma', 'email'],
+            ['email', isAr ? 'البريد الإلكتروني' : 'Email', Mail, 'support@athargps.ma', 'email'],
             ['phone', isAr ? 'رقم الهاتف' : 'Téléphone', Phone, '+212600000000', 'tel'],
             ['whatsapp', 'WhatsApp', MessageCircle, '212600000000', 'text'],
             ['hours', isAr ? 'ساعات العمل' : 'Horaires', null, '09:00 - 18:00', 'text'],

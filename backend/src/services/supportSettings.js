@@ -1,5 +1,5 @@
 export const DEFAULT_SUPPORT_SETTINGS = Object.freeze({
-  email: 'support@shgps.ma',
+  email: 'support@athargps.ma',
   phone: '+212600000000',
   whatsapp: '212600000000',
   hours: 'كل يوم من 09:00 إلى 18:00',

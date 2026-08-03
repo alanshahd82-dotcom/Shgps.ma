@@ -235,7 +235,7 @@ export default function AdminLogin() {
 
         {/* Version badge */}
         <p className="text-center mt-4 text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
-          AtharGPS · Admin Panel
+          ATHAR GPS · Admin Panel
         </p>
       </motion.div>
     </div>

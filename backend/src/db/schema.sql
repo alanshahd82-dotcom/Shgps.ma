@@ -1,4 +1,4 @@
--- SHGPS Database Schema
+-- ATHAR GPS Database Schema
 
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS leads (
 -- Default admin. Change this password immediately in production.
 INSERT INTO users (email, password_hash, name, is_admin, avatar)
 VALUES (
-  'admin@shgps.ma',
+  'admin@athargps.ma',
   '$2b$10$ZvUexuJI0dAHaSm6hq2jZOPjS5wlvvIHLywBCz.8hK72GQSMu2z1m',
   'مدير النظام',
   true,
@@ -127,5 +127,5 @@ VALUES (
 INSERT INTO app_settings (key, value)
 VALUES (
   'support_contacts',
-  '{"email":"support@shgps.ma","phone":"+212600000000","whatsapp":"212600000000","hours":"كل يوم من 09:00 إلى 18:00"}'
+  '{"email":"support@athargps.ma","phone":"+212600000000","whatsapp":"212600000000","hours":"كل يوم من 09:00 إلى 18:00"}'
 ) ON CONFLICT (key) DO NOTHING;

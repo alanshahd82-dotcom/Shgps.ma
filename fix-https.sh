@@ -6,7 +6,7 @@
 set -e
 
 DOMAIN="athargps.com"
-EMAIL="admin@shgps.ma"
+EMAIL="admin@athargps.ma"
 PROJECT_DIR="/opt/shgps"
 
 cd "$PROJECT_DIR"

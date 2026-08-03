@@ -5,7 +5,7 @@ import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 
 const DEFAULT_SUPPORT = {
-  email: 'support@shgps.ma',
+  email: 'support@athargps.ma',
   phone: '+212600000000',
   whatsapp: '212600000000',
   hours: 'كل يوم من 09:00 إلى 18:00',
@@ -38,7 +38,7 @@ export default function Help() {
   }, [])
 
   const faq = isAr ? FAQ_AR : FAQ_FR
-  const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أحتاج مساعدة في AtharGPS' : 'Bonjour, j’ai besoin d’aide avec AtharGPS')}`
+  const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أحتاج مساعدة في ATHAR GPS' : 'Bonjour, j’ai besoin d’aide avec ATHAR GPS')}`
 
   return (
     <div className="min-h-screen pb-28 px-5" dir={isAr ? 'rtl' : 'ltr'}

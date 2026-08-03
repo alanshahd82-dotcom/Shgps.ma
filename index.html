@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>AtharGPS — نظام تتبع الأسطول الذكي</title>
-    <meta name="description" content="تتبع مركباتك في الوقت الفعلي، قطع المحرك عن بُعد، وإدارة أسطولك بذكاء — AtharGPS" />
+    <title>ATHAR GPS — ذكاء الأسطول وتتبع المركبات</title>
+    <meta name="description" content="ATHAR GPS — منصة عربية وفرنسية لتتبع المركبات وإدارة الأساطيل بوضوح." />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
@@ -14,19 +14,16 @@
     <!-- Apple / iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="AtharGPS" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
-    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+    <meta name="apple-mobile-web-app-title" content="ATHAR GPS" />
+    <link rel="apple-touch-icon" href="/athar-gps-mark.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/athar-gps-mark.svg" />
 
     <!-- Apple Splash Screens -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
-    <link rel="shortcut icon" href="/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/athar-gps-mark.svg" />
+    <link rel="shortcut icon" href="/athar-gps-mark.svg" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -129,6 +126,10 @@
         animation: icon-appear 0.6s ease-out 0.2s both;
       }
       .splash-icon img { width: 100%; height: 100%; object-fit: cover; }
+      .athar-mark {
+        width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+        color: #17324d; background: #e4b56b; font: 900 42px Cairo, sans-serif; letter-spacing: -.08em;
+      }
 
       @keyframes icon-appear {
         from { opacity: 0; transform: scale(0.7); }
@@ -176,7 +177,7 @@
       }
       .splash-loader-bar {
         height: 100%;
-        background: linear-gradient(90deg, #00D97E, #00b868);
+         background: linear-gradient(90deg, #e4b56b, #c8843c);
         border-radius: 99px;
         animation: loading 1.8s ease-in-out 0.7s both;
       }
@@ -213,18 +214,18 @@
 
       <div class="splash-content">
         <div class="splash-icon">
-          <img src="/icon.png" alt="AtharGPS" />
+        <img class="athar-mark" src="/athar-gps-mark.svg" alt="ATHAR GPS" />
         </div>
         <div class="splash-name">
-          <div class="big">Athar<span>GPS</span></div>
-          <div class="sub">Système de Suivi GPS</div>
+          <div class="big">ATHAR <span>GPS</span></div>
+          <div class="sub">Fleet intelligence platform</div>
         </div>
         <div class="splash-loader">
           <div class="splash-loader-bar"></div>
         </div>
       </div>
 
-      <div class="splash-footer">© 2025 AtharGPS · Powered by Shgps.ma</div>
+      <div class="splash-footer">© 2025 ATHAR GPS · Fleet intelligence</div>
     </div>
 
     <!-- ── التطبيق ── -->

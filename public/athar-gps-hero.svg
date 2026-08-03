@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title>ATHAR GPS fleet command view</title>
+  <desc>Abstract vehicle tracking map with route, status cards, and location markers</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#132d47"/>
+      <stop offset="1" stop-color="#0b1d31"/>
+    </linearGradient>
+    <linearGradient id="route" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f3d08c"/>
+      <stop offset="1" stop-color="#c8843c"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#050d17" flood-opacity=".35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="760" rx="34" fill="url(#bg)"/>
+  <g opacity=".13" stroke="#c6d5df" stroke-width="2">
+    <path d="M40 110h1120M40 230h1120M40 350h1120M40 470h1120M40 590h1120"/>
+    <path d="M150 40v680M330 40v680M510 40v680M690 40v680M870 40v680M1050 40v680"/>
+  </g>
+  <g opacity=".2" fill="none" stroke="#90a9bb" stroke-width="8" stroke-linecap="round">
+    <path d="M80 625c150-90 184-235 310-260 102-20 134 54 240-10 91-55 116-180 244-203 94-17 158 42 250-31"/>
+    <path d="M84 160c102 83 206 84 296 22 94-65 168-36 264 52 85 78 172 62 258-31 85-93 156-80 216-24"/>
+  </g>
+  <path d="M167 588c118-56 146-150 238-192 105-47 145 16 229-34 91-54 112-166 226-195 74-19 126 4 185-27" fill="none" stroke="url(#route)" stroke-width="9" stroke-linecap="round" stroke-dasharray="2 22"/>
+  <g filter="url(#shadow)">
+    <rect x="38" y="38" width="286" height="106" rx="20" fill="#f8fafb"/>
+    <circle cx="78" cy="91" r="22" fill="#ead09a"/>
+    <path d="m68 98 10-23 10 23M72 91h12" fill="none" stroke="#17324d" stroke-width="4" stroke-linecap="round"/>
+    <text x="115" y="82" fill="#17324d" font-family="Arial, sans-serif" font-size="18" font-weight="700">ATHAR GPS</text>
+    <text x="115" y="108" fill="#718394" font-family="Arial, sans-serif" font-size="14">Fleet command center</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="880" y="50" width="278" height="178" rx="20" fill="#f8fafb"/>
+    <text x="912" y="90" fill="#17324d" font-family="Arial, sans-serif" font-size="16" font-weight="700">Live overview</text>
+    <text x="912" y="132" fill="#17324d" font-family="Arial, sans-serif" font-size="36" font-weight="800">24</text>
+    <text x="970" y="132" fill="#718394" font-family="Arial, sans-serif" font-size="13">vehicles online</text>
+    <rect x="912" y="158" width="205" height="8" rx="4" fill="#e5ebee"/>
+    <rect x="912" y="158" width="154" height="8" rx="4" fill="#d6a85f"/>
+    <circle cx="912" cy="195" r="5" fill="#55bd8a"/>
+    <text x="927" y="200" fill="#718394" font-family="Arial, sans-serif" font-size="12">Healthy tracking</text>
+  </g>
+  <g>
+    <g transform="translate(625 328)">
+      <circle r="28" fill="#f3d08c" opacity=".18"/>
+      <circle r="14" fill="#f3d08c" stroke="#17324d" stroke-width="5"/>
+      <circle r="5" fill="#17324d"/>
+    </g>
+    <g transform="translate(884 245)">
+      <circle r="28" fill="#55bd8a" opacity=".2"/>
+      <circle r="14" fill="#55bd8a" stroke="#17324d" stroke-width="5"/>
+      <circle r="5" fill="#17324d"/>
+    </g>
+    <g transform="translate(390 415)">
+      <circle r="28" fill="#78aee0" opacity=".2"/>
+      <circle r="14" fill="#78aee0" stroke="#17324d" stroke-width="5"/>
+      <circle r="5" fill="#17324d"/>
+    </g>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="56" y="608" width="292" height="102" rx="18" fill="#f8fafb"/>
+    <circle cx="91" cy="659" r="17" fill="#55bd8a"/>
+    <path d="m82 659 6 6 12-14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="122" y="653" fill="#17324d" font-family="Arial, sans-serif" font-size="15" font-weight="700">Route monitored</text>
+    <text x="122" y="678" fill="#718394" font-family="Arial, sans-serif" font-size="12">Last update · 2 min ago</text>
+  </g>
+</svg>

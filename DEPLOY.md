@@ -1,4 +1,4 @@
-# 🚀 SHGPS Deployment Guide
+# 🚀 ATHAR GPS Deployment Guide
 
     ## What You Need
 
@@ -88,7 +88,7 @@
     ---
 
     ## Default Admin Login
-    - **Email**: admin@shgps.ma
+    - **Email**: admin@athargps.ma
     - **Password**: Admin@1234  ← **Change this immediately after first login!**
 
     ## Architecture

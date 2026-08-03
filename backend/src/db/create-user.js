@@ -3,7 +3,7 @@
  * الاستخدام:
  *   node backend/src/db/create-user.js EMAIL PASSWORD "الاسم الكامل"
  * مثال:
- *   node backend/src/db/create-user.js client@shgps.ma Pass123 "محمد العلمي"
+ *   node backend/src/db/create-user.js client@athargps.ma Pass123 "محمد العلمي"
  */
 import bcrypt from 'bcryptjs'
 import { db } from '../db.js'

@@ -2,7 +2,7 @@
 set -e
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
 
-echo -e "${GREEN}=== SHGPS Setup ===${NC}"
+echo -e "${GREEN}=== ATHAR GPS Setup ===${NC}"
 
 # 1. Swap
 if [ ! -f /swapfile ]; then
@@ -51,7 +51,7 @@ if [ ! -f /opt/shgps/.env ]; then
 DOMAIN=${SERVER_IP}
 DB_PASSWORD=${DB_PASS}
 JWT_SECRET=${JWT_SECRET}
-TRACCAR_ADMIN_EMAIL=admin@shgps.ma
+TRACCAR_ADMIN_EMAIL=admin@athargps.ma
 TRACCAR_ADMIN_PASSWORD=${TRACCAR_PASS}
 ENVEOF
     echo -e "${BLUE}DB Password:      ${RED}${DB_PASS}${NC}"
@@ -65,10 +65,10 @@ docker compose up -d --build
 
 echo ""
 echo -e "${GREEN}══════════════════════════════════════${NC}"
-echo -e "${GREEN}  ✓ SHGPS is running!                 ${NC}"
+echo -e "${GREEN}  ✓ ATHAR GPS is running!             ${NC}"
 echo -e "${GREEN}══════════════════════════════════════${NC}"
 echo -e "  🌐 URL:    ${BLUE}http://${SERVER_IP}${NC}"
-echo -e "  👤 Login:  ${YELLOW}admin@shgps.ma${NC}"
+echo -e "  👤 Login:  ${YELLOW}admin@athargps.ma${NC}"
 echo -e "  🔑 Pass:   ${YELLOW}Admin@1234${NC}"
 echo -e "  📡 GPS Port: ${YELLOW}5027 (GT06/GS900)${NC}"
 echo ""

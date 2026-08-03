@@ -82,7 +82,7 @@ export default function PublicMap() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-base leading-tight truncate">{data.deviceName}</p>
-          <p className="text-blue-200/60 text-xs">{data.plate || 'AtharGPS — موقع مباشر'}</p>
+          <p className="text-blue-200/60 text-xs">{data.plate || 'ATHAR GPS — موقع مباشر'}</p>
         </div>
         {expired && (
           <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded-full font-medium">
@@ -133,7 +133,7 @@ export default function PublicMap() {
 
       {/* Footer */}
       <div className="py-2 px-4 text-center text-[10px] text-slate-600">
-        AtharGPS · {new Date(data.expiresAt).toLocaleDateString('fr-MA')} ·&nbsp;
+        ATHAR GPS · {new Date(data.expiresAt).toLocaleDateString('fr-MA')} ·&nbsp;
         <a href="/" className="text-accent/60 hover:text-accent">athargps.ma</a>
       </div>
     </div>

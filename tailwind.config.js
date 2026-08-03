@@ -6,7 +6,7 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#0F2044',
+        DEFAULT: '#17324D',
           50: '#E8EDF5',
           100: '#C5D0E6',
           200: '#8FA4CC',
@@ -19,7 +19,7 @@ export default {
           900: '#02060D',
         },
         accent: {
-          DEFAULT: '#00D97E',
+        DEFAULT: '#E4B56B',
           50: '#E0FFF3',
           100: '#B3FFE3',
           200: '#66FFD0',
@@ -36,8 +36,8 @@ export default {
         info: '#007AFF',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        arabic: ['Cairo', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Cairo', 'system-ui', 'sans-serif'],
+        arabic: ['Cairo', 'system-ui', 'sans-serif'],
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

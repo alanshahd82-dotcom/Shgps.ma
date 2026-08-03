@@ -84,7 +84,7 @@ export default function Login() {
               </svg>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-widest">AtharGPS</h1>
+          <h1 className="text-3xl font-bold text-white tracking-widest">ATHAR GPS</h1>
           <p className="text-xs mt-1.5 tracking-wide" style={{ color: 'rgba(255,255,255,0.38)' }}>{t(lang, 'tagline')}</p>
         </motion.div>
 
@@ -179,7 +179,7 @@ export default function Login() {
       </div>
 
       <div className="pb-10 text-center">
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>© 2025 AtharGPS · Shgps.ma</p>
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>© 2025 ATHAR GPS · Fleet intelligence</p>
       </div>
     </div>
   )

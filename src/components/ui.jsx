@@ -1,5 +1,5 @@
 /**
- * SHGPS Design System — Shared UI primitives
+ * ATHAR GPS Design System — Shared UI primitives
  * No emoji. Mobile-first. Dark mode aware. RTL-safe.
  */
 import React from 'react'

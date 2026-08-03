@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AtharGPS Health Monitor — runs every 5 minutes via cron
+# ATHAR GPS Health Monitor — runs every 5 minutes via cron
 # Setup: crontab -e
 #   */5 * * * * /opt/shgps/ops/monitor.sh >> /var/log/athargps-monitor.log 2>&1
 
@@ -29,8 +29,8 @@ else
   echo "[$TIMESTAMP] ERROR — HTTP $HTTP_CODE — Service may be down!"
   # Send email alert if configured
   if [ -n "$ALERT_EMAIL" ]; then
-    echo "AtharGPS health check failed at $TIMESTAMP (HTTP $HTTP_CODE)" | \
-      mail -s "[AtharGPS] Service DOWN — $(hostname)" "$ALERT_EMAIL" 2>/dev/null || true
+    echo "ATHAR GPS health check failed at $TIMESTAMP (HTTP $HTTP_CODE)" | \
+      mail -s "[ATHAR GPS] Service DOWN — $(hostname)" "$ALERT_EMAIL" 2>/dev/null || true
   fi
 fi
 

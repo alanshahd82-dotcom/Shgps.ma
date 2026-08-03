@@ -41,8 +41,8 @@ export default function SplashScreen() {
       >
         {/* App icon */}
         <motion.img
-          src="/icon.png"
-          alt="AtharGPS"
+          src="/athar-gps-mark.svg"
+          alt="ATHAR GPS"
           style={{ borderRadius: 20, width: 100, height: 100 }}
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
@@ -54,7 +54,7 @@ export default function SplashScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          AtharGPS
+          ATHAR GPS
         </motion.h1>
 
         <motion.p

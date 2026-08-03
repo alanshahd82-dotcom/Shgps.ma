@@ -6,16 +6,16 @@ import { ChevronLeft, FileText } from 'lucide-react'
 const content = {
   ar: {
     title: 'الشروط والأحكام',
-    subtitle: 'يرجى قراءة هذه الشروط بعناية قبل استخدام خدمة AtharGPS',
+    subtitle: 'يرجى قراءة هذه الشروط بعناية قبل استخدام خدمة ATHAR GPS',
     updated: 'آخر تحديث: يناير 2025',
     sections: [
       {
         h: '1. قبول الشروط',
-        p: 'باستخدامك لمنصة AtharGPS وخدماتها، فإنك توافق على الالتزام بجميع الشروط والأحكام الواردة في هذه الاتفاقية. إذا كنت لا توافق على هذه الشروط، فيُرجى عدم استخدام الخدمة.',
+        p: 'باستخدامك لمنصة ATHAR GPS وخدماتها، فإنك توافق على الالتزام بجميع الشروط والأحكام الواردة في هذه الاتفاقية. إذا كنت لا توافق على هذه الشروط، فيُرجى عدم استخدام الخدمة.',
       },
       {
         h: '2. وصف الخدمة',
-        p: 'تقدّم AtharGPS نظاماً لتتبع المركبات بالوقت الفعلي باستخدام تقنية GPS، وتشمل الخدمة: المراقبة المباشرة، التقارير التفصيلية، التنبيهات الذكية، إيقاف المحرك عن بُعد، وإدارة السياج الجغرافي.',
+        p: 'تقدّم ATHAR GPS نظاماً لتتبع المركبات بالوقت الفعلي باستخدام تقنية GPS، وتشمل الخدمة: المراقبة المباشرة، التقارير التفصيلية، التنبيهات الذكية، إيقاف المحرك عن بُعد، وإدارة السياج الجغرافي.',
       },
       {
         h: '3. الحساب والمسؤوليات',
@@ -31,15 +31,15 @@ const content = {
       },
       {
         h: '6. حدود المسؤولية',
-        p: 'لا تتحمل AtharGPS المسؤولية عن أي أضرار مباشرة أو غير مباشرة ناجمة عن استخدام الخدمة أو عدم توفرها مؤقتاً، بما في ذلك الأعطال التقنية أو انقطاع الإنترنت.',
+        p: 'لا تتحمل ATHAR GPS المسؤولية عن أي أضرار مباشرة أو غير مباشرة ناجمة عن استخدام الخدمة أو عدم توفرها مؤقتاً، بما في ذلك الأعطال التقنية أو انقطاع الإنترنت.',
       },
       {
         h: '7. تعديل الشروط',
-        p: 'تحتفظ AtharGPS بحق تعديل هذه الشروط في أي وقت. سيتم إعلامك بأي تغييرات جوهرية عبر البريد الإلكتروني المسجّل. استمرارك في استخدام الخدمة بعد التعديل يُعتبر قبولاً للشروط الجديدة.',
+        p: 'تحتفظ ATHAR GPS بحق تعديل هذه الشروط في أي وقت. سيتم إعلامك بأي تغييرات جوهرية عبر البريد الإلكتروني المسجّل. استمرارك في استخدام الخدمة بعد التعديل يُعتبر قبولاً للشروط الجديدة.',
       },
       {
         h: '8. إنهاء الخدمة',
-        p: 'يحق لـ AtharGPS تعليق أو إنهاء حسابك في حالة انتهاك هذه الشروط أو عدم الدفع في الوقت المحدد، مع إشعار مسبق يوضح الأسباب.',
+        p: 'يحق لـ ATHAR GPS تعليق أو إنهاء حسابك في حالة انتهاك هذه الشروط أو عدم الدفع في الوقت المحدد، مع إشعار مسبق يوضح الأسباب.',
       },
       {
         h: '9. القانون الحاكم',
@@ -53,16 +53,16 @@ const content = {
   },
   en: {
     title: 'Terms & Conditions',
-    subtitle: 'Please read these terms carefully before using AtharGPS',
+    subtitle: 'Please read these terms carefully before using ATHAR GPS',
     updated: 'Last updated: January 2025',
     sections: [
       {
         h: '1. Acceptance of Terms',
-        p: 'By using the AtharGPS platform and its services, you agree to be bound by all the terms and conditions set out in this agreement. If you do not agree to these terms, please do not use the service.',
+        p: 'By using the ATHAR GPS platform and its services, you agree to be bound by all the terms and conditions set out in this agreement. If you do not agree to these terms, please do not use the service.',
       },
       {
         h: '2. Service Description',
-        p: 'AtharGPS provides a real-time vehicle tracking system using GPS technology, including: live monitoring, detailed reports, smart alerts, remote engine cut-off, and geofence management.',
+        p: 'ATHAR GPS provides a real-time vehicle tracking system using GPS technology, including: live monitoring, detailed reports, smart alerts, remote engine cut-off, and geofence management.',
       },
       {
         h: '3. Account & Responsibilities',
@@ -78,15 +78,15 @@ const content = {
       },
       {
         h: '6. Limitation of Liability',
-        p: 'AtharGPS is not liable for any direct or indirect damages arising from the use or temporary unavailability of the service, including technical failures or internet outages.',
+        p: 'ATHAR GPS is not liable for any direct or indirect damages arising from the use or temporary unavailability of the service, including technical failures or internet outages.',
       },
       {
         h: '7. Modification of Terms',
-        p: 'AtharGPS reserves the right to modify these terms at any time. You will be notified of any substantial changes via your registered email. Continued use of the service after modification constitutes acceptance of the new terms.',
+        p: 'ATHAR GPS reserves the right to modify these terms at any time. You will be notified of any substantial changes via your registered email. Continued use of the service after modification constitutes acceptance of the new terms.',
       },
       {
         h: '8. Termination',
-        p: 'AtharGPS may suspend or terminate your account in the event of a breach of these terms or non-payment, with prior notice stating the reasons.',
+        p: 'ATHAR GPS may suspend or terminate your account in the event of a breach of these terms or non-payment, with prior notice stating the reasons.',
       },
       {
         h: '9. Governing Law',

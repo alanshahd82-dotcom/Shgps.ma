@@ -25,7 +25,7 @@ const content = {
     },
     store: {
       badge: 'Coming Soon',
-      body1: 'The AtharGPS app is in advanced development and will be available for download on',
+      body1: 'The ATHAR GPS app is in advanced development and will be available for download on',
       body2: 'soon.',
       note: 'Register your interest via WhatsApp and we\'ll notify you at launch.',
       btnLabel: 'Notify Me at Launch',
@@ -55,7 +55,7 @@ const content = {
     },
     fleet: {
       badge: 'Fleet Management', h2: 'Optimize Every Route',
-      p: 'From last-mile delivery to long-haul logistics, AtharGPS provides the tools you need to manage your fleet efficiently. Reduce costs, improve satisfaction, and scale your operations.',
+      p: 'From last-mile delivery to long-haul logistics, ATHAR GPS provides the tools you need to manage your fleet efficiently. Reduce costs, improve satisfaction, and scale your operations.',
       items: [
         'Multi-vehicle dispatch and scheduling',
         'Driver scorecards and performance tracking',
@@ -93,7 +93,7 @@ const content = {
     },
     cta: {
       h2: 'Ready to Transform Your Fleet?',
-      p: 'Join businesses already using AtharGPS to optimize their operations. Get in touch today.',
+      p: 'Join businesses already using ATHAR GPS to optimize their operations. Get in touch today.',
       btnLabel: 'Contact Us via WhatsApp',
     },
     footer: {
@@ -105,8 +105,8 @@ const content = {
           { label: 'Mobile App',    action: 'store' },
         ]},
         { h: 'Company', links: [
-          { label: 'About Us', href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20want%20to%20know%20more%20about%20AtharGPS', external: true },
-          { label: 'Contact',  href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20need%20help%20with%20AtharGPS', external: true },
+          { label: 'About Us', href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20want%20to%20know%20more%20about%20ATHAR%20GPS', external: true },
+          { label: 'Contact',  href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20need%20help%20with%20ATHAR%20GPS', external: true },
         ]},
         { h: 'Support', links: [
           { label: 'Help Center',    href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20need%20technical%20support', external: true },
@@ -114,7 +114,7 @@ const content = {
           { label: 'Terms',          href: '/terms' },
         ]},
       ],
-      copy: `© ${new Date().getFullYear()} AtharGPS. All rights reserved.`,
+      copy: `© ${new Date().getFullYear()} ATHAR GPS. All rights reserved.`,
     },
   },
 
@@ -137,7 +137,7 @@ const content = {
     },
     store: {
       badge: 'قريباً',
-      body1: 'تطبيق AtharGPS في مرحلة التطوير المتقدم وسيكون متاحاً قريباً على',
+      body1: 'تطبيق ATHAR GPS في مرحلة التطوير المتقدم وسيكون متاحاً قريباً على',
       body2: '.',
       note: 'سجّل اهتمامك عبر واتساب وسنُخطرك فور الإطلاق.',
       btnLabel: 'أبلغني عند الإطلاق',
@@ -167,7 +167,7 @@ const content = {
     },
     fleet: {
       badge: 'إدارة الأسطول', h2: 'تحسين كل مسار توصيل',
-      p: 'من التوصيل في المدينة إلى النقل بعيد المدى، توفر AtharGPS الأدوات اللازمة لإدارة أسطولك بكفاءة. خفّض التكاليف وحسّن رضا العملاء.',
+      p: 'من التوصيل في المدينة إلى النقل بعيد المدى، توفر ATHAR GPS الأدوات اللازمة لإدارة أسطولك بكفاءة. خفّض التكاليف وحسّن رضا العملاء.',
       items: [
         'جدولة وتوزيع المركبات المتعددة',
         'بطاقات أداء السائقين',
@@ -205,7 +205,7 @@ const content = {
     },
     cta: {
       h2: 'هل أنت مستعد لتحسين أسطولك؟',
-      p: 'انضم إلى الشركات التي تستخدم AtharGPS لتحسين عملياتها. تواصل معنا اليوم.',
+      p: 'انضم إلى الشركات التي تستخدم ATHAR GPS لتحسين عملياتها. تواصل معنا اليوم.',
       btnLabel: 'تواصل معنا عبر واتساب',
     },
     footer: {
@@ -217,7 +217,7 @@ const content = {
           { label: 'التطبيق',          action: 'store' },
         ]},
         { h: 'الشركة', links: [
-          { label: 'من نحن',   href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أريد%20معرفة%20المزيد%20عن%20AtharGPS', external: true },
+          { label: 'من نحن',   href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أريد%20معرفة%20المزيد%20عن%20ATHAR%20GPS', external: true },
           { label: 'اتصل بنا', href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أحتاج%20مساعدة', external: true },
         ]},
         { h: 'الدعم', links: [
@@ -226,7 +226,7 @@ const content = {
           { label: 'الشروط',           href: '/terms' },
         ]},
       ],
-      copy: `© ${new Date().getFullYear()} AtharGPS. جميع الحقوق محفوظة.`,
+      copy: `© ${new Date().getFullYear()} ATHAR GPS. جميع الحقوق محفوظة.`,
     },
   },
 }
@@ -240,8 +240,8 @@ function StoreModal({ store, lang, onClose, whatsapp }) {
   const storeName = isPlay ? 'Google Play' : 'App Store'
   const waNumber = String(whatsapp || '212600000000').replace(/\D/g, '')
   const wa = lang === 'ar'
-    ? `https://wa.me/${waNumber}?text=مرحباً،%20أريد%20أن%20أكون%20أول%20من%20يحصل%20على%20AtharGPS%20على%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
-    : `https://wa.me/${waNumber}?text=Hello,%20I%20want%20to%20be%20notified%20when%20AtharGPS%20launches%20on%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
+    ? `https://wa.me/${waNumber}?text=مرحباً،%20أريد%20أن%20أكون%20أول%20من%20يحصل%20على%20ATHAR%20GPS%20على%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
+    : `https://wa.me/${waNumber}?text=Hello,%20I%20want%20to%20be%20notified%20when%20ATHAR%20GPS%20launches%20on%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
 
   return (
     <AnimatePresence>
@@ -429,9 +429,9 @@ export default function LandingPage() {
           {/* Logo */}
           <a href="#" style={{ display:'flex',alignItems:'center',gap:10,textDecoration:'none',color:'#fff' }}>
             <div style={{ width:36,height:36,borderRadius:8,overflow:'hidden' }}>
-              <img src="/logo.jpeg" alt="AtharGPS" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+              <img src="/athar-gps-mark.svg" alt="ATHAR GPS" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
             </div>
-            <span style={{ fontSize:'1.3rem',fontWeight:800 }}>Athar<span style={{ ...S.gradText }}>GPS</span></span>
+            <span style={{ fontSize:'1.3rem',fontWeight:800 }}>ATHAR <span style={{ ...S.gradText }}>GPS</span></span>
           </a>
 
           {/* Desktop links */}
@@ -453,7 +453,7 @@ export default function LandingPage() {
               </button>
             </li>
             <li>
-              <a href={wa(lang==='ar'?'مرحباً،%20أريد%20الاستفسار%20عن%20AtharGPS':'Hello,%20I%20want%20to%20know%20more%20about%20AtharGPS')}
+            <a href={wa(lang==='ar'?'مرحباً،%20أريد%20الاستفسار%20عن%20ATHAR%20GPS':'Hello,%20I%20want%20to%20know%20more%20about%20ATHAR%20GPS')}
                 target="_blank" rel="noopener noreferrer"
                 style={{ background:S.grad,color:'#0a0e1a',padding:'0.5rem 1.3rem',borderRadius:8,
                   fontWeight:700,fontSize:'0.9rem',textDecoration:'none',transition:'all .3s' }}>
@@ -559,7 +559,7 @@ export default function LandingPage() {
           {/* hero image */}
           <div className="fade-in" style={{ position:'relative' }}>
             <div style={{ position:'absolute',inset:-2,background:S.grad,borderRadius:22,zIndex:-1,opacity:.25,filter:'blur(20px)' }} />
-            <img src="/logo.jpeg" alt="AtharGPS"
+            <img src="/athar-gps-hero.svg" alt="ATHAR GPS fleet command center"
               style={{ width:'100%',borderRadius:20,boxShadow:'0 25px 60px rgba(0,0,0,.5)',animation:'float 6s ease-in-out infinite' }} />
           </div>
         </div>
@@ -604,7 +604,7 @@ export default function LandingPage() {
         <div className="dash-grid fade-in" style={{ maxWidth:1100,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4rem',alignItems:'center' }}>
           <div style={{ position:'relative' }}>
             <div style={{ position:'absolute',inset:-3,background:S.grad,borderRadius:18,zIndex:-1,opacity:.15,filter:'blur(15px)' }} />
-            <img src="/logo.jpeg" alt="Dashboard"
+            <img src="/athar-gps-hero.svg" alt="ATHAR GPS dashboard"
               style={{ width:'100%',borderRadius:16,boxShadow:'0 20px 50px rgba(0,0,0,.4)' }} />
           </div>
           <div>
@@ -649,7 +649,7 @@ export default function LandingPage() {
           </div>
           <div style={{ position:'relative' }}>
             <div style={{ position:'absolute',inset:-3,background:S.grad,borderRadius:18,zIndex:-1,opacity:.15,filter:'blur(15px)' }} />
-            <img src="/logo.jpeg" alt="Fleet"
+            <img src="/athar-gps-hero.svg" alt="ATHAR GPS fleet tracking"
               style={{ width:'100%',borderRadius:16,boxShadow:'0 20px 50px rgba(0,0,0,.4)' }} />
           </div>
         </div>
@@ -724,7 +724,7 @@ export default function LandingPage() {
         <div className="fade-in" style={{ maxWidth:650,margin:'0 auto',position:'relative',zIndex:1 }}>
           <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1rem' }}>{t.cta.h2}</h2>
           <p style={{ color:'#94a3b8',fontSize:'1.05rem',marginBottom:'2rem',lineHeight:1.6 }}>{t.cta.p}</p>
-          <a href={wa(lang==='ar'?'مرحباً،%20أريد%20الاستفسار%20عن%20AtharGPS':'Hello,%20I%20want%20to%20get%20started%20with%20AtharGPS')}
+          <a href={wa(lang==='ar'?'مرحباً،%20أريد%20الاستفسار%20عن%20ATHAR%20GPS':'Hello,%20I%20want%20to%20get%20started%20with%20ATHAR%20GPS')}
             target="_blank" rel="noopener noreferrer"
             style={{ display:'inline-flex',alignItems:'center',gap:10,background:S.grad,color:'#0a0e1a',
               padding:'1rem 2.25rem',borderRadius:12,fontWeight:700,fontSize:'1rem',textDecoration:'none',
@@ -743,9 +743,9 @@ export default function LandingPage() {
           <div>
             <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:'1rem' }}>
               <div style={{ width:36,height:36,borderRadius:8,overflow:'hidden',flexShrink:0 }}>
-                <img src="/logo.jpeg" alt="AtharGPS" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+                <img src="/athar-gps-mark.svg" alt="ATHAR GPS" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
               </div>
-              <span style={{ fontSize:'1.2rem',fontWeight:800 }}>Athar<span style={S.gradText}>GPS</span></span>
+              <span style={{ fontSize:'1.2rem',fontWeight:800 }}>ATHAR <span style={S.gradText}>GPS</span></span>
             </div>
             <p style={{ color:'#94a3b8',fontSize:'0.88rem',lineHeight:1.7,maxWidth:260 }}>{t.footer.desc}</p>
           </div>

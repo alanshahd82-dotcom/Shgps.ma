@@ -1,4 +1,4 @@
-# 🛰️ Shgps.ma — Demo تفاعلي
+# 🛰️ ATHAR GPS — Demo تفاعلي
 
 نموذج تفاعلي احترافي لمنصة تتبع GPS موجهة لسوق مغربي/عربي.
 
@@ -14,7 +14,7 @@ npm run dev
 ## 📱 محتوى الديمو
 
 ### تطبيق العميل (Mobile)
-- Splash Screen متحرك بلوغو Shgps.ma
+- Splash Screen متحرك بشعار ATHAR GPS
 - شاشة تسجيل دخول
 - خريطة مباشرة مع حركة الأجهزة (Live Tracking)
 - Carousel إعلاني قابل للتمرير تلقائياً

@@ -75,7 +75,7 @@ docker run --rm -v shgps_backups_data:/backups alpine ls -lh /backups
 ```bash
 docker compose run --rm certbot certonly --webroot -w /var/www/certbot \
   -d athargps.com -d www.athargps.com \
-  --email admin@shgps.ma --agree-tos
+  --email admin@athargps.ma --agree-tos
 docker compose restart nginx
 ```
 
