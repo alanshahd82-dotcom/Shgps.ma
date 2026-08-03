@@ -1,0 +1,37 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker compose stop traccar && python3 << 'PYEOF'
+import subprocess
+sql = "UPDATE tc_users SET administrator=TRUE, devicelimit=-1, userlimit=-1 WHERE id=37; UPDATE tc_servers SET registration=FALSE; SELECT u.id,u.email,u.administrator,u.salt,u.hashedpassword FROM tc_users u WHERE u.id=37; SELECT registration FROM tc_servers;"
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout)
+PYEOF
+[+] stop 1/1
+ ✔ Container shgps-traccar-1 Stopped                          0.8s
+(Update count: 1, 29 ms)
+(Update count: 1, 1 ms)
+ID | EMAIL              | ADMINISTRATOR | SALT                                             | HASHEDPASSWORD
+37 | admin@athargps.com | TRUE          | 7ac1ee445550ae4d2888bb805c3584a6010f2e989f0a94a0 | 96048a8becda5ef26947ba240f2c76f9f9e8d81c35229c86
+(1 row, 21 ms)
+REGISTRATION
+FALSE
+(1 row, 4 ms)
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker compose start traccar && sleep 30 && docker compose exec backend node -e "
+(async()=>{const r=await fetch('http://traccar:8082/api/session',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'email=admin%40athargps.com&password=Admin2026'});console.log('Status:',r.status,r.status===200?'SUCCESS!':'FAIL');if(r.status!==200)console.log(await r.text().then(t=>t.slice(0,200)));})();
+" && docker compose restart backend && sleep 15 && docker compose logs backend --tail=6
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                          0.3s
+Status: 200 SUCCESS!
+[+] restart 0/1
+ ⠸ Container shgps-backend-1 Restarting                      10.3s
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+backend-1  | [WS] Frontend client connected — total: 1
+backend-1  | [WS] Frontend client connected — total: 2
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
