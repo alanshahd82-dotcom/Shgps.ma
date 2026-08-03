@@ -1,0 +1,894 @@
+LTER TABLE users
+  ADD COLUMN IF NOT EXISTS subscription_start DATE,
+  ADD COLUMN IF NOT EXISTS subscription_end   DATE,
+  ADD COLUMN IF NOT EXISTS plan               VARCHAR(20) DEFAULT 'basic';
+
+-- views counter on share_links (some integrations track open count)
+ALTER TABLE share_links
+  ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0;
+
+-- Indexes (idempotent)
+CREATE INDEX IF NOT EXISTS idx_maintenance_device_id ON maintenance_logs(device_id);
+CREATE INDEX IF NOT EXISTS idx_share_links_token     ON share_links(token);
+---003---
+-- ═══════════════════════════════════════════════════════════════════════
+-- Migration 003 — Sub-users support
+-- Columns and table are already included in 001_baseline for fresh installs.
+-- This migration ensures existing databases get them too (idempotent).
+-- ═══════════════════════════════════════════════════════════════════════
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS parent_client_id INTEGER,
+  ADD COLUMN IF NOT EXISTS role             VARCHAR(20) DEFAULT 'owner';
+
+-- Self-referential FK (safe to run multiple times)
+DO $body$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'fk_users_parent_client_id' AND conrelid = 'users'::regclass
+  ) THEN
+    ALTER TABLE users
+      ADD CONSTRAINT fk_users_parent_client_id
+      FOREIGN KEY (parent_client_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $body$;
+
+CREATE INDEX IF NOT EXISTS idx_users_parent_client_id ON users(parent_client_id);
+
+CREATE TABLE IF NOT EXISTS user_device_access (
+  id          SERIAL PRIMARY KEY,
+  sub_user_id INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  device_id   INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  created_at  TIMESTAMP DEFAULT NOW(),
+  UNIQUE(sub_user_id, device_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_device_access_sub ON user_device_access(sub_user_id);
+---004---
+-- ═══════════════════════════════════════════════════════════════════════
+-- Migration 004 — Device Commands Audit Log
+-- Records every engine-cut / command sent through the backend for
+-- compliance, debugging, and accountability.
+-- ═══════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS device_commands (
+  id          SERIAL PRIMARY KEY,
+  device_id   INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  user_id     INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  command     VARCHAR(50) NOT NULL,        -- e.g. 'engineStop', 'engineResume'
+  traccar_id  INTEGER,                     -- Traccar device ID at the time
+  result      VARCHAR(20) DEFAULT 'sent',  -- 'sent' | 'error'
+  error_msg   TEXT,
+  ip_address  VARCHAR(50),
+  created_at  TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_commands_device_id  ON device_commands(device_id);
+CREATE INDEX IF NOT EXISTS idx_device_commands_user_id    ON device_commands(user_id);
+CREATE INDEX IF NOT EXISTS idx_device_commands_created_at ON device_commands(created_at);
+===ROUTES===
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+import * as traccar from '../services/traccar.js'
+
+export const geofencesRouter = Router()
+
+// GET /api/geofences?deviceId=X — يجلب السياجات (مع تصفية اختيارية بالجهاز)
+geofencesRouter.get('/', requireAuth, async (req, res) => {
+  try {
+    const { deviceId } = req.query
+
+    if (deviceId) {
+      // تحقق من أن المستخدم يملك صلاحية الوصول للجهاز
+      const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+      const dev = rows[0]
+      if (!dev) return res.status(404).json({ error: 'Device not found' })
+      if (!req.user.is_admin && dev.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'Access denied' })
+      }
+      const geofences = await traccar.getGeofencesByDevice(dev.traccar_id)
+      return res.json(geofences)
+    }
+
+    // المشرف يرى كل السياجات، العميل يرى سياجات أجهزته فقط
+    if (req.user.is_admin) {
+      const geofences = await traccar.getGeofencesByDevice('')
+      return res.json(geofences)
+    }
+
+    // جمع traccar_id لأجهزة المستخدم الحالي
+    const { rows: devRows } = await db.query(
+      'SELECT traccar_id FROM devices WHERE user_id=$1',
+      [req.user.id]
+    )
+    if (devRows.length === 0) return res.json([])
+
+    // جلب السياجات لكل جهاز وإرجاعها مجمّعة بدون تكرار
+    const results = await Promise.all(
+      devRows.map(d => traccar.getGeofencesByDevice(d.traccar_id).catch(() => []))
+    )
+    const seen = new Set()
+    const merged = results.flat().filter(g => {
+      if (seen.has(g.id)) return false
+      seen.add(g.id)
+      return true
+    })
+    return res.json(merged)
+  } catch (err) {
+    console.error('[geofences GET]', err.message)
+    res.status(500).json({ error: 'Failed to fetch geofences' })
+  }
+})
+
+// GET /api/geofences/:id — يجلب سياجاً واحداً بالـ ID
+geofencesRouter.get('/:id', requireAuth, async (req, res) => {
+  try {
+    // Try local DB first
+    const { rows } = await db.query(
+      'SELECT * FROM local_geofences WHERE id=$1 AND user_id=$2',
+      [req.params.id, req.user.id]
+    )
+    if (rows[0]) return res.json(rows[0])
+    // Fallback to Traccar
+    const geofences = await traccar.getGeofencesByDevice('').catch(() => [])
+    const geofence  = geofences.find(g => String(g.id) === String(req.params.id))
+    if (!geofence) return res.status(404).json({ error: 'Geofence not found' })
+    res.json(geofence)
+  } catch (err) {
+    console.error('[geofences GET/:id]', err.message)
+    res.status(500).json({ error: 'Failed to fetch geofence' })
+  }
+})
+
+// POST /api/geofences — create a geofence (local + attempt Traccar sync)
+geofencesRouter.post('/', requireAuth, async (req, res) => {
+  try {
+    const { name, center, radius, deviceId, notifyEnter, notifyExit } = req.body
+    if (!name || !center || !radius) {
+      return res.status(400).json({ error: 'name, center, and radius are required' })
+    }
+
+    let dbDeviceId = null
+    if (deviceId) {
+      const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+      const dev = devRows[0]
+      if (dev) {
+        if (!req.user.is_admin && dev.user_id !== req.user.id) {
+          return res.status(403).json({ error: 'Access denied' })
+        }
+        dbDeviceId = dev.id
+      }
+    }
+
+    // Save locally
+    const coords = JSON.stringify({ lat: center.lat, lng: center.lng })
+    const { rows } = await db.query(
+      `INSERT INTO local_geofences (user_id, device_id, name, type, coords, radius, notify_enter, notify_exit)
+       VALUES ($1, $2, $3, 'circle', $4, $5, $6, $7)
+       RETURNING *`,
+      [req.user.id, dbDeviceId, name.trim(), coords, Number(radius), notifyEnter !== false, notifyExit !== false]
+    )
+    const saved = rows[0]
+
+    // Attempt Traccar sync (non-blocking, don't fail on error)
+    let syncFailed = false
+    try {
+      await traccar.createGeofence(name.trim(), center.lat, center.lng, Number(radius))
+    } catch (syncErr) {
+      console.warn('[geofences POST] Traccar sync failed:', syncErr.message)
+      syncFailed = true
+    }
+
+    res.status(201).json({ ...saved, syncFailed })
+  } catch (err) {
+    console.error('[geofences POST]', err.message)
+    res.status(500).json({ error: 'Failed to create geofence' })
+  }
+})
+
+// DELETE /api/geofences/:id
+geofencesRouter.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM local_geofences WHERE id=$1 AND user_id=$2',
+      [req.params.id, req.user.id]
+    )
+    if (!rows[0] && !req.user.is_admin) {
+      return res.status(404).json({ error: 'Geofence not found' })
+    }
+    await db.query('DELETE FROM local_geofences WHERE id=$1', [req.params.id])
+
+    // Attempt Traccar delete (non-blocking)
+    if (rows[0]) {
+      traccar.deleteGeofence(req.params.id).catch(() => {})
+    }
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[geofences DELETE]', err.message)
+    res.status(500).json({ error: 'Failed to delete geofence' })
+  }
+})
+---MAINTENANCE---
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+
+export const maintenanceRouter = Router()
+
+// GET /api/maintenance?deviceId=X — list logs for a device
+maintenanceRouter.get('/', requireAuth, async (req, res) => {
+  try {
+    const { deviceId } = req.query
+    if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+
+    // Verify access
+    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = devRows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id)
+      return res.status(403).json({ error: 'Access denied' })
+
+    const { rows } = await db.query(
+      'SELECT * FROM maintenance_logs WHERE device_id=$1 ORDER BY date DESC',
+      [deviceId]
+    )
+    res.json(rows)
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+
+// POST /api/maintenance — add log
+maintenanceRouter.post('/', requireAuth, async (req, res) => {
+  try {
+    const { deviceId, type, note, mileage, date, nextDueMileage } = req.body
+    if (!deviceId || !type) return res.status(400).json({ error: 'deviceId and type are required' })
+
+    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = devRows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id)
+      return res.status(403).json({ error: 'Access denied' })
+
+    const { rows } = await db.query(
+      `INSERT INTO maintenance_logs (device_id, type, note, mileage, date, next_due_mileage)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [deviceId, type, note || null, mileage || null, date || new Date().toISOString(), nextDueMileage || null]
+    )
+    res.status(201).json(rows[0])
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+
+// DELETE /api/maintenance/:id
+maintenanceRouter.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT ml.*, d.user_id FROM maintenance_logs ml JOIN devices d ON d.id=ml.device_id WHERE ml.id=$1', [req.params.id])
+    const log = rows[0]
+    if (!log) return res.status(404).json({ error: 'Not found' })
+    if (!req.user.is_admin && log.user_id !== req.user.id)
+      return res.status(403).json({ error: 'Access denied' })
+    await db.query('DELETE FROM maintenance_logs WHERE id=$1', [req.params.id])
+    res.json({ success: true })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+---DRIVER BEHAVIOR---
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+
+export const driverBehaviorRouter = Router()
+
+// POST /api/driver-behavior/scores — save a score
+driverBehaviorRouter.post('/scores', requireAuth, async (req, res) => {
+  try {
+    const { deviceId, score, speedingEvents, idleMin, tripCount } = req.body
+    if (!deviceId || score === undefined) {
+      return res.status(400).json({ error: 'deviceId and score are required' })
+    }
+
+    // Verify device access
+    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = devRows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Upsert: one score per device per day
+    const today = new Date().toISOString().split('T')[0]
+    const { rows } = await db.query(
+      `INSERT INTO driver_behavior_scores
+         (device_id, user_id, score, speeding_events, idle_min, trip_count, recorded_date)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (device_id, recorded_date)
+       DO UPDATE SET
+         score           = EXCLUDED.score,
+         speeding_events = EXCLUDED.speeding_events,
+         idle_min        = EXCLUDED.idle_min,
+         trip_count      = EXCLUDED.trip_count,
+         updated_at      = NOW()
+       RETURNING *`,
+      [deviceId, req.user.id, Math.round(score), speedingEvents || 0, idleMin || 0, tripCount || 0, today]
+    )
+    res.status(201).json(rows[0])
+  } catch (err) {
+    console.error('[driver-behavior/scores POST]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/driver-behavior/scores?deviceId=X&days=30 — fetch history
+driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
+  try {
+    const { deviceId, days = 30 } = req.query
+    if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+
+    // Verify device access
+    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = devRows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const { rows } = await db.query(
+      `SELECT score, speeding_events, idle_min, trip_count, recorded_date
+       FROM driver_behavior_scores
+       WHERE device_id=$1 AND recorded_date >= NOW() - INTERVAL '${parseInt(days)} days'
+       ORDER BY recorded_date DESC`,
+      [deviceId]
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('[driver-behavior/scores GET]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/driver-behavior/summary?deviceId=X — latest score + 7-day trend
+driverBehaviorRouter.get('/summary', requireAuth, async (req, res) => {
+  try {
+    const { deviceId } = req.query
+    if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+
+    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = devRows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const { rows } = await db.query(
+      `SELECT score, speeding_events, idle_min, trip_count, recorded_date
+       FROM driver_behavior_scores
+       WHERE device_id=$1
+       ORDER BY recorded_date DESC
+       LIMIT 30`,
+      [deviceId]
+    )
+
+    const latest = rows[0] || null
+    const trend  = rows.slice(0, 7).reverse() // last 7 days ascending
+
+    res.json({ latest, trend })
+  } catch (err) {
+    console.error('[driver-behavior/summary]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+---SHARING---
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+import crypto from 'crypto'
+import * as traccar from '../services/traccar.js'
+
+export const sharingRouter = Router()
+
+// POST /api/sharing — create share link for a device (24h)
+sharingRouter.post('/', requireAuth, async (req, res) => {
+  try {
+    const { deviceId, expireHours = 24 } = req.body
+    if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+
+    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = devRows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id)
+      return res.status(403).json({ error: 'Access denied' })
+
+    const token = crypto.randomBytes(24).toString('hex')
+    const hours = Math.min(Math.max(Number(expireHours) || 24, 1), 168)
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000)
+
+    await db.query(
+      `INSERT INTO share_links (token, device_id, expires_at) VALUES ($1,$2,$3)`,
+      [token, deviceId, expiresAt]
+    )
+
+    res.status(201).json({ token, expiresAt })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+
+// GET /api/sharing/:token — public: get device position (no auth)
+sharingRouter.get('/:token', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT sl.*, d.name, d.plate, d.type, d.traccar_id
+       FROM share_links sl JOIN devices d ON d.id=sl.device_id
+       WHERE sl.token=$1 AND sl.expires_at > NOW()`,
+      [req.params.token]
+    )
+    const link = rows[0]
+    if (!link) return res.status(404).json({ error: 'Link not found or expired' })
+
+    // Track link access (fire-and-forget; don't fail the response on error)
+    db.query('UPDATE share_links SET views = COALESCE(views, 0) + 1 WHERE id=$1', [link.id])
+      .catch(() => {})
+
+    let position = null
+    try {
+      const positions = await traccar.getAllPositions()
+      position = positions.find(p => p.deviceId === link.traccar_id) || null
+    } catch {}
+
+    res.json({
+      deviceName: link.name,
+      plate: link.plate,
+      type: link.type,
+      expiresAt: link.expires_at,
+      position: position ? {
+        lat: position.latitude,
+        lng: position.longitude,
+        speed: position.speed,
+        fixTime: position.fixTime,
+      } : null,
+    })
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+---REPORTS---
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { db } from '../db.js'
+import * as traccar from '../services/traccar.js'
+
+export const reportsRouter = Router()
+
+// Haversine distance in km between two lat/lng points
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Traccar returns speed in knots; the AtharGPS UI displays km/h.
+function speedKmh(speed) {
+  return Math.max(0, Number(speed || 0) * 1.852)
+}
+
+// Group positions into trips separated by stops > GAP_MS milliseconds
+const GAP_MS = 5 * 60 * 1000 // 5-minute gap = new trip
+
+function buildTrips(positions) {
+  if (!positions || positions.length === 0) return []
+  const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+  const trips  = []
+  let current  = [sorted[0]]
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    const cur  = sorted[i]
+    const gap  = new Date(cur.fixTime) - new Date(prev.fixTime)
+    if (gap > GAP_MS) {
+      if (current.length > 1) trips.push(current)
+      current = [cur]
+    } else {
+      current.push(cur)
+    }
+  }
+  if (current.length > 1) trips.push(current)
+  return trips
+}
+
+// GET /api/reports/trips?deviceId=X&from=ISO&to=ISO
+// Keep the original /api/reports route as a backwards-compatible alias.
+reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
+  const { deviceId, from, to } = req.query
+  if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+
+  try {
+    // Check device ownership
+    const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
+    const dev = rows[0]
+    if (!dev) return res.status(404).json({ error: 'Device not found' })
+    if (!req.user.is_admin && dev.user_id !== req.user.id)
+      return res.status(403).json({ error: 'Access denied' })
+
+    // Fetch positions from Traccar
+    try {
+      const positions = await traccar.getHistory(
+        dev.traccar_id,
+        from || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        to   || new Date().toISOString()
+      )
+      if (!positions || positions.length === 0) {
+        return res.json({
+          totalDistanceKm: 0,
+          movingDurationMin: 0,
+          stoppedDurationMin: 0,
+          avgSpeed: 0,
+          maxSpeed: 0,
+          trips: [],
+          speedSeries: [],
+        })
+      }
+
+      // Compute overall stats
+      let totalDist = 0
+      let movingMs  = 0
+      let maxSpeed  = 0
+      const speedSeries = []
+
+      const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1]
+        const cur  = sorted[i]
+        const segDist = haversine(prev.latitude, prev.longitude, cur.latitude, cur.longitude)
+        const segMs   = new Date(cur.fixTime) - new Date(prev.fixTime)
+        const currentSpeed = speedKmh(cur.speed)
+        totalDist += segDist
+        if (currentSpeed > 2) movingMs += segMs
+        if (currentSpeed > maxSpeed) maxSpeed = currentSpeed
+        speedSeries.push({ time: cur.fixTime, speed: Math.round(currentSpeed) })
+      }
+
+      const allMs       = new Date(sorted[sorted.length - 1].fixTime) - new Date(sorted[0].fixTime)
+      const stoppedMs   = Math.max(0, allMs - movingMs)
+      const validSpeeds = sorted.map(p => speedKmh(p.speed)).filter(s => s > 0)
+      const avgSpeed    = validSpeeds.length ? validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length : 0
+
+      // Build trips and expose the real route points for the replay screen.
+      const rawTrips = buildTrips(positions)
+      const trips = rawTrips.map((pts, i) => {
+        let dist = 0
+        for (let j = 1; j < pts.length; j++) {
+          dist += haversine(pts[j-1].latitude, pts[j-1].longitude, pts[j].latitude, pts[j].longitude)
+        }
+        const durationMs  = new Date(pts[pts.length - 1].fixTime) - new Date(pts[0].fixTime)
+        const speeds      = pts.map(p => speedKmh(p.speed)).filter(s => s > 0)
+        const tripAvgSpd  = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0
+        const tripMaxSpd  = speeds.length ? Math.max(...speeds) : 0
+        // Compute stop time (segments where speed == 0)
+        let stopMs = 0
+        for (let j = 1; j < pts.length; j++) {
+          if (speedKmh(pts[j].speed) < 2) {
+            stopMs += new Date(pts[j].fixTime) - new Date(pts[j-1].fixTime)
+          }
+        }
+        return {
+          index:       i + 1,
+          startTime:   pts[0].fixTime,
+          endTime:     pts[pts.length - 1].fixTime,
+          durationMin: Math.round(durationMs / 60000),
+          distanceKm:  Math.round(dist * 10) / 10,
+          avgSpeed:    Math.round(tripAvgSpd),
+          maxSpeed:    Math.round(tripMaxSpd),
+          stopMin:     Math.round(stopMs / 60000),
+          points:      pts.length,
+          route:       pts.map(point => ({
+            latitude:  Number(point.latitude),
+            longitude: Number(point.longitude),
+            speed:     Math.round(speedKmh(point.speed)),
+            fixTime:   point.fixTime,
+            address:   point.address || null,
+          })),
+        }
+      })
+
+      return res.json({
+        totalDistanceKm:   Math.round(totalDist * 10) / 10,
+        movingDurationMin: Math.round(movingMs / 60000),
+        stoppedDurationMin:Math.round(stoppedMs / 60000),
+        avgSpeed:          Math.round(avgSpeed),
+        maxSpeed:          Math.round(maxSpeed),
+        trips,
+        speedSeries: speedSeries.slice(0, 200), // limit points for chart
+      })
+    } catch (e) {
+      console.error('[reports] Traccar history error:', e.message)
+      return res.status(502).json({ error: 'Unable to load trip history from Traccar' })
+    }
+  } catch (err) {
+    console.error('[reports]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/reports/daily-summary?days=7
+// Returns today's total km and daily km chart data for all client devices
+reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 7, 30)
+  try {
+    // Get all devices for this user
+    const { rows: deviceRows } = await db.query(
+      req.user.is_admin
+        ? 'SELECT id, traccar_id FROM devices WHERE traccar_id IS NOT NULL'
+        : 'SELECT id, traccar_id FROM devices WHERE user_id=$1 AND traccar_id IS NOT NULL',
+      req.user.is_admin ? [] : [req.user.id]
+    )
+
+    if (!deviceRows.length) {
+      return res.json({ todayKm: 0, dailyData: [] })
+    }
+
+    const now = new Date()
+    const todayStart = new Date(now)
+    todayStart.setHours(0, 0, 0, 0)
+
+    // Build daily buckets
+    const dailyData = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now)
+      d.setDate(d.getDate() - i)
+      d.setHours(0, 0, 0, 0)
+      dailyData.push({ date: d.toISOString().split('T')[0], km: 0 })
+    }
+
+    let todayKm = 0
+    const from = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString()
+    const to   = now.toISOString()
+
+    // Fetch each device in parallel (limit concurrency to avoid hammering Traccar)
+    const BATCH = 5
+    for (let b = 0; b < deviceRows.length; b += BATCH) {
+      const batch = deviceRows.slice(b, b + BATCH)
+      await Promise.allSettled(batch.map(async (dev) => {
+        try {
+          const positions = await traccar.getHistory(dev.traccar_id, from, to)
+          if (!positions || positions.length < 2) return
+          const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+          for (let i = 1; i < sorted.length; i++) {
+            const prev = sorted[i - 1]
+            const cur  = sorted[i]
+            const dist = haversine(prev.latitude, prev.longitude, cur.latitude, cur.longitude)
+            const dayStr = new Date(cur.fixTime).toISOString().split('T')[0]
+            const bucket = dailyData.find(d => d.date === dayStr)
+            if (bucket) bucket.km += dist
+            if (new Date(cur.fixTime) >= todayStart) todayKm += dist
+          }
+        } catch { /* skip individual device errors */ }
+      }))
+    }
+
+    dailyData.forEach(d => { d.km = Math.round(d.km * 10) / 10 })
+    todayKm = Math.round(todayKm * 10) / 10
+
+    return res.json({ todayKm, dailyData })
+  } catch (err) {
+    console.error('[reports/daily-summary]', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+---INDEX---
+import express from 'express'
+import cors from 'cors'
+import dotenv from 'dotenv'
+import { createServer } from 'http'
+import { WebSocketServer, WebSocket } from 'ws'
+import jwt from 'jsonwebtoken'
+import { authRouter }        from './routes/auth.js'
+import { devicesRouter }     from './routes/devices.js'
+import { clientsRouter }     from './routes/clients.js'
+import { alertsRouter }      from './routes/alerts.js'
+import { mapRouter }         from './routes/map.js'
+import { geofencesRouter }   from './routes/geofences.js'
+import { reportsRouter }     from './routes/reports.js'
+import { adminRouter }       from './routes/admin.js'
+import { maintenanceRouter } from './routes/maintenance.js'
+import { sharingRouter }     from './routes/sharing.js'
+import { leadsRouter }           from './routes/leads.js'
+import { driverBehaviorRouter } from './routes/driverBehavior.js'
+import { subUsersRouter }       from './routes/subUsers.js'
+import { config }        from './config.js'
+import { isRevoked }    from './services/tokenBlacklist.js'
+import { db }            from './db.js'
+import { runMigrations } from './db/init.js'
+
+dotenv.config()
+
+const app  = express()
+const PORT = process.env.PORT || 3001
+
+// Tracks whether the app has completed startup (migrations done, ready to serve)
+let appReady = false
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || false,
+  credentials: true,
+}))
+
+app.use(express.json({ limit: '1mb' }))
+
+app.use('/api/auth',        authRouter)
+app.use('/api/devices',     devicesRouter)
+app.use('/api/clients',     clientsRouter)
+app.use('/api/alerts',      alertsRouter)
+app.use('/api/map',         mapRouter)
+app.use('/api/geofences',   geofencesRouter)
+app.use('/api/reports',     reportsRouter)
+app.use('/api/admin',       adminRouter)
+app.use('/api/maintenance', maintenanceRouter)
+app.use('/api/sharing',     sharingRouter)
+app.use('/api/leads',           leadsRouter)
+app.use('/api/driver-behavior', driverBehaviorRouter)
+app.use('/api/sub-users',       subUsersRouter)
+
+app.get('/api/health', async (_req, res) => {
+  // During startup (before migrations complete) report early so load-balancers
+  // and healthchecks know the process is alive but not yet ready.
+  if (!appReady) {
+    return res.status(503).json({
+      status: 'startup',
+      db: 'pending',
+      traccar: 'pending',
+      version: '1.2.0',
+      ts: new Date().toISOString(),
+    })
+  }
+
+  let dbOk = false
+  let traccarOk = false
+  let dbStatus = 'disconnected'
+  let traccarStatus = 'unreachable'
+
+  try {
+    await db.query('SELECT 1')
+    dbOk = true
+    dbStatus = 'connected'
+  } catch (err) {
+    dbStatus = 'error: ' + err.message.slice(0, 60)
+  }
+
+  try {
+    const probe = await traccar.checkServer()
+    traccarOk     = probe.available
+    traccarStatus = probe.available
+      ? `reachable${probe.version ? ' v' + probe.version : ''}`
+      : `unreachable: ${probe.reason ?? 'unknown'}`
+  } catch {
+    traccarStatus = 'unreachable'
+  }
+
+  // Derive a single top-level status label
+  let status
+  if (dbOk && traccarOk)   status = 'ready'
+  else if (!dbOk)           status = 'database_unavailable'
+  else if (!traccarOk)      status = 'traccar_unavailable'
+  else                      status = 'degraded'
+
+  const httpStatus = dbOk ? 200 : 503
+
+  res.status(httpStatus).json({
+    status,
+    db:      dbStatus,
+    traccar: traccarStatus,
+    version: '1.2.0',
+    ts: new Date().toISOString(),
+  })
+})
+
+// --- HTTP server ---------------------------------------------------------------
+const server = createServer(app)
+
+// --- WebSocket server (frontend clients) ---------------------------------------
+const wss = new WebSocketServer({ server, path: '/api/socket' })
+const frontendClients = new Set()
+
+wss.on('connection', (ws, req) => {
+  try {
+    const url   = new URL(req.url, 'http://localhost')
+    const token = url.searchParams.get('token')
+    if (!token) { ws.close(1008, 'Unauthorized'); return }
+    jwt.verify(token, config.jwtSecret)
+    if (isRevoked(token)) { ws.close(1008, 'Token revoked'); return }
+  } catch {
+    ws.close(1008, 'Invalid token')
+    return
+  }
+
+  frontendClients.add(ws)
+  console.log('[WS] Frontend client connected — total: ' + frontendClients.size)
+
+  ws.on('close', () => {
+    frontendClients.delete(ws)
+    console.log('[WS] Frontend client disconnected — total: ' + frontendClients.size)
+  })
+
+  ws.on('error', (err) => console.error('[WS] Frontend client error:', err.message))
+})
+
+// --- Traccar WebSocket bridge --------------------------------------------------
+async function connectTraccar() {
+  const baseUrl = config.traccar.url
+  const wsBase  = baseUrl.startsWith('https://')
+    ? baseUrl.replace('https://', 'wss://')
+    : baseUrl.replace('http://', 'ws://')
+
+  // Ensure admin user exists in Traccar (idempotent, never throws)
+  const adminResult = await traccar.ensureAdminUser(
+    baseUrl, config.traccar.email, config.traccar.password
+  )
+  if (adminResult.created) {
+    console.log('[Traccar WS] Admin user created successfully')
+  } else if (adminResult.reason === 'already_exists') {
+    console.log('[Traccar WS] Admin user already exists')
+  } else {
+    console.warn('[Traccar WS] Admin user creation skipped:', adminResult.reason)
+  }
+
+  // Authenticate and get session credentials for the WebSocket connection
+  let sessionCookie = ''
+  let userToken = ''
+  try {
+    const session = await traccar.createSession(
+      baseUrl, config.traccar.email, config.traccar.password
+    )
+    sessionCookie = session.sessionCookie
+    userToken     = session.userToken
+    console.log('[Traccar WS] Session OK')
+  } catch (err) {
+    console.error('[Traccar WS] Session error:', err.message)
+    setTimeout(connectTraccar, 10000)
+    return
+  }
+
+  const socketUrl = userToken
+    ? wsBase + '/api/socket?token=' + userToken
+    : wsBase + '/api/socket'
+  const wsOpts = (!userToken && sessionCookie) ? { headers: { Cookie: sessionCookie } } : {}
+
+  const traccarWs = new WebSocket(socketUrl, wsOpts)
+
+  traccarWs.on('open', () => console.log('[Traccar WS] Connected to', wsBase))
+
+  traccarWs.on('message', (data) => {
+    const msg = data.toString()
+    for (const client of frontendClients) {
+      if (client.readyState === WebSocket.OPEN) client.send(msg)
+    }
+  })
+
+  traccarWs.on('close', () => {
+    console.log('[Traccar WS] Disconnected — reconnecting in 5 s...')
+    setTimeout(connectTraccar, 5000)
+  })
+
+  traccarWs.on('error', (err) => console.error('[Traccar WS] Error:', err.message))
+}
+
+// --- Start --------------------------------------------------------------------
+server.listen(PORT, async () => {
+  console.log('AtharGPS Backend running on port ' + PORT)
+  try {
+    await runMigrations()
+    appReady = true
+    console.log('[App] Ready ✓')
+  } catch (err) {
+    console.error('[App] Migration failed — serving health checks only:', err.message)
+    // appReady stays false; /api/health will return 503 startup
+  }
+  if (config.traccar.email && config.traccar.password) {
+    connectTraccar()
+  } else {
+    console.warn('[Traccar WS] No credentials — bridge disabled')
+  }
+})
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
