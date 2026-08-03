@@ -51,6 +51,7 @@ services:
     image: traccar/traccar:ubuntu
     restart: unless-stopped
     volumes:
+      - ./traccar.xml:/opt/traccar/conf/traccar.xml:ro
       - traccar_data:/opt/traccar/data
     ports:
       - "5001:5001"
