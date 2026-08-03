@@ -182,7 +182,7 @@ export function FleetProvider({ children, onStaleAlert, ownDeviceId = '' }: Flee
 
     // First try the live REST endpoint, fallback to AsyncStorage cache
     const loadFromRest = domain
-      ? fetch(`https://${domain}/api/devices`)
+      ? fetch(`https://${domain}/fleet/devices`)
           .then((r) => r.json())
           .then(({ devices }: { devices: Array<{ deviceId: string; lat: number; lng: number; speed: number; heading: number; ts: number }> }) => {
             if (devices.length > 0) {
@@ -233,7 +233,7 @@ export function FleetProvider({ children, onStaleAlert, ownDeviceId = '' }: Flee
   useEffect(() => {
     const domain = process.env['EXPO_PUBLIC_DOMAIN'];
     if (!domain) return;
-    fetch(`https://${domain}/api/devices/names`)
+    fetch(`https://${domain}/fleet/devices/names`)
       .then((r) => r.json())
       .then(({ names }: { names: Record<string, string> }) => {
         const map = new Map(Object.entries(names));

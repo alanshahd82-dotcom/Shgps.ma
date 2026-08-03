@@ -34,8 +34,8 @@ const httpServer = createServer(app);
 //   { type: "position", deviceId, lat, lng, ts }
 //   { type: "deviceStale", deviceId, lastSeenAt, staleForMs }
 //
-// Path is /api/ws so it aligns with the /api proxy prefix used in Replit routing.
-const wss = new WebSocketServer({ server: httpServer, path: "/api/ws" });
+// Path is /fleet/ws — /fleet prefix avoids collision with Traccar's own /api/ routes on the VPS.
+const wss = new WebSocketServer({ server: httpServer, path: "/fleet/ws" });
 
 // Share the WSS instance so HTTP routes can also broadcast position events.
 setWss(wss);

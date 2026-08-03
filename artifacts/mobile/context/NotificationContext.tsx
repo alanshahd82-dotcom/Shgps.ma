@@ -41,7 +41,7 @@ TaskManager.defineTask(
 
     // Send position to the API server from the background context via HTTP
     const deviceId = `driver-device-${process.env['EXPO_PUBLIC_REPL_ID'] ?? 'unknown'}`;
-    await fetch(`https://${domain}/api/devices/position`, {
+    await fetch(`https://${domain}/fleet/devices/position`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -112,7 +112,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         const tokenData = await Notifications.getExpoPushTokenAsync();
         const domain = process.env['EXPO_PUBLIC_DOMAIN'];
         if (domain) {
-          await fetch(`https://${domain}/api/alerts/register`, {
+          await fetch(`https://${domain}/fleet/alerts/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: tokenData.data, deviceId: ownDeviceId }),
