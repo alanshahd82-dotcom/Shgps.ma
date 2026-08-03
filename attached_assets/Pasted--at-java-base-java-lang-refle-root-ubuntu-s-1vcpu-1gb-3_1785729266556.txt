@@ -1,0 +1,50 @@
+        at java.base/java.lang.refle
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cat /opt/shgps/traccar.xml 2>/dev/null || cat /opt/shgps/traccar/traccar.xml 2>/dev/null || docker compose exec traccar cat /opt/traccar/conf/traccar.xml 2>/dev/null | head -50
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+  <!-- ══ قاعدة البيانات (H2 محلية) ══════════════════════════════════ -->
+  <entry key='database.driver'>org.h2.Driver</entry>
+  <entry key='database.url'>jdbc:h2:/opt/traccar/data/database</entry>
+  <entry key='database.user'>sa</entry>
+  <entry key='database.password'></entry>
+
+  <!-- ══ واجهة الويب و WebSocket ══════════════════════════════════════ -->
+  <entry key='web.enable'>true</entry>
+  <entry key='web.port'>8082</entry>
+  <entry key='web.address'>0.0.0.0</entry>
+
+  <!-- ══ عنوان الاستماع العام ══════════════════════════════════════════
+       يجعل Traccar يستمع على كل واجهات الشبكة داخل الحاوية           -->
+  <entry key='server.address'>0.0.0.0</entry>
+
+  <!-- ══ GT06 / Concox / WanWay (الصيغة القياسية) ══════════════════════
+       WanWay GS900E يستخدم هذا البروتوكول على المنفذ 5023
+       gt06.codec=1 يفعّل دعم الـ extended packets (بعض طرازات WanWay)  -->
+  <entry key='gt06.port'>5023</entry>
+  <entry key='gt06.enabled'>true</entry>
+  <entry key='gt06.codec'>1</entry>
+
+  <!-- ══ WanWay (بروتوكول WanWay الخاص — احتياطي) ══════════════════════
+       بعض طرازات WanWay تستخدم هذا البروتوكول المنفصل عن GT06
+       يعمل على منفذ مختلف لتجنب التعارض                               -->
+  <entry key='wanway.port'>5029</entry>
+  <entry key='wanway.enabled'>true</entry>
+
+  <!-- ══ Traccar Client (تطبيق الموبايل) ══════════════════════════════ -->
+  <entry key='traccar.port'>5055</entry>
+  <entry key='traccar.enabled'>true</entry>
+
+  <!-- ══ بروتوكولات إضافية شائعة ══════════════════════════════════════ -->
+  <entry key='teltonika.port'>5027</entry>
+  <entry key='teltonika.enabled'>true</entry>
+
+  <!-- ══ السجلات ════════════════════════════════════════════════════════
+       warning: يُظهر الأخطاء فقط (مناسب للإنتاج)
+       غيّره إلى "all" مؤقتاً لتشخيص مشاكل اتصال الأجهزة              -->
+  <entry key='logger.level'>warning</entry>
+  <entry key='logger.file'>/opt/traccar/logs/tracker-server.log</entry>
+
+</properties>
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
