@@ -1,0 +1,32 @@
+        shgps-certbot-run-8e4c171de16e
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker run --rm athar-gps-backend:latest sh -c "ls -la /app 2>/dev/null; ls -la /usr/src/app 2>/dev/null; ls -la / 2>/dev/null" | head -40
+total 64
+drwxr-xr-x    1 root     root          4096 Jul 29 23:57 .
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 ..
+drwxr-xr-x  102 root     root          4096 Jul 29 03:08 node_modules
+-rw-r--r--    1 root     root         42150 Jul 29 03:08 package-lock.json
+-rw-r--r--    1 root     root           398 Jul 29 03:07 package.json
+drwxr-xr-x    6 root     root          4096 Jul 29 23:57 src
+total 68
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 .
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 ..
+-rwxr-xr-x    1 root     root             0 Aug  3 06:14 .dockerenv
+drwxr-xr-x    1 root     root          4096 Jul 29 23:57 app
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 bin
+drwxr-xr-x    5 root     root           340 Aug  3 06:14 dev
+drwxr-xr-x    1 root     root          4096 Aug  3 06:14 etc
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 home
+drwxr-xr-x    1 root     root          4096 Apr 15 04:51 lib
+drwxr-xr-x    5 root     root          4096 Apr 15 04:51 media
+drwxr-xr-x    2 root     root          4096 Apr 15 04:51 mnt
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 opt
+dr-xr-xr-x  209 root     root             0 Aug  3 06:14 proc
+drwx------    1 root     root          4096 Jul 29 03:08 root
+drwxr-xr-x    3 root     root          4096 Apr 15 04:51 run
+drwxr-xr-x    2 root     root          4096 Apr 15 04:51 sbin
+drwxr-xr-x    2 root     root          4096 Apr 15 04:51 srv
+dr-xr-xr-x   13 root     root             0 Aug  3 06:14 sys
+drwxrwxrwt    2 root     root          4096 Apr 15 04:51 tmp
+drwxr-xr-x    1 root     root          4096 Apr 15 20:46 usr
+drwxr-xr-x    1 root     root          4096 Apr 15 04:51 var
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
