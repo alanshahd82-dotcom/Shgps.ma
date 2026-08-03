@@ -1,0 +1,107 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cd /opt/shgps
+
+# سحب الملفات الجديدة
+git pull origin main
+
+# بناء الـ backend الجديد (TypeScript)
+docker compose build --no-cache backend
+
+# تشغيل كل شيء
+docker compose up -d
+
+# تحقق من الحالة
+docker compose ps
+docker compose logs backend --tail 30
+remote: Enumerating objects: 14, done.
+remote: Counting objects: 100% (14/14), done.
+remote: Compressing objects: 100% (8/8), done.
+remote: Total 14 (delta 5), reused 14 (delta 5), pack-reused 0 (from 0)
+Unpacking objects: 100% (14/14), 6.88 KiB | 440.00 KiB/s, done.
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+ * branch            main       -> FETCH_HEAD
+   964232a..83b1a05  main       -> origin/main
+Updating 964232a..83b1a05
+Fast-forward
+ Dockerfile.backend                         |  44 +++++
+ ...26-root-ubuntu-s-1vcp_1785732453468.txt |  86 +++++++++
+ ...26-root-ubuntu-s-1vcp_1785732463089.txt |  86 +++++++++
+ ...fra1-opt-shgps-cd-opt_1785732678245.txt |  61 ++++++
+ docker-compose.yml                         | 145 +++++++++++++++
+ nginx/nginx.conf                           |  77 ++++++++
+ 6 files changed, 499 insertions(+)
+ create mode 100644 Dockerfile.backend
+ create mode 100644 attached_assets/Pasted-TRACCAR-ADMIN-PASSWORD-AtharGPS-2026-root-ubuntu-s-1vcp_1785732453468.txt
+ create mode 100644 attached_assets/Pasted-TRACCAR-ADMIN-PASSWORD-AtharGPS-2026-root-ubuntu-s-1vcp_1785732463089.txt
+ create mode 100644 attached_assets/Pasted-oot-ubuntu-s-1vcpu-1gb-35gb-intel-fra1-opt-shgps-cd-opt_1785732678245.txt
+ create mode 100644 docker-compose.yml
+ create mode 100644 nginx/nginx.conf
+[+] Building 6.1s (15/17)                                         
+ => [internal] load local bake definitions                   0.0s
+ => => reading from stdin 511B                               0.0s
+ => [internal] load build definition from Dockerfile.backen  0.3s
+ => => transferring dockerfile: 2.09kB                       0.0s
+ => [internal] load metadata for docker.io/library/node:20-  0.0s
+ => [internal] load .dockerignore                            0.0s
+ => => transferring context: 2B                              0.0s
+ => CACHED [builder  1/10] FROM docker.io/library/node:20-a  0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:fb4c  0.0s
+ => [internal] load build context                            0.2s
+ => => transferring context: 496.96kB                        0.1s
+ => [builder  2/10] RUN npm install -g pnpm@9 --silent       3.4s
+ => CACHED [stage-1 2/3] WORKDIR /app                        0.0s
+ => [builder  3/10] WORKDIR /workspace                       0.0s
+ => [builder  4/10] COPY package.json pnpm-workspace.yaml p  0.0s
+ => [builder  5/10] COPY tsconfig.base.json tsconfig.json .  0.0s
+ => [builder  6/10] COPY lib/api-zod/     ./lib/api-zod/     0.0s
+ => [builder  7/10] COPY lib/db/          ./lib/db/          0.0s
+ => [builder  8/10] COPY artifacts/api-server/ ./artifacts/  0.0s
+ => ERROR [builder  9/10] RUN pnpm install --frozen-lockfil  1.8s
+------                                                            
+ > [builder  9/10] RUN pnpm install --frozen-lockfile:            
+1.310 Scope: all 4 workspace projects                             
+1.665  ERR_PNPM_LOCKFILE_CONFIG_MISMATCH  Cannot proceed with the frozen installation. The current "overrides" configuration doesn't match the value found in the lockfile
+1.665 
+1.665 Update your lockfile using "pnpm install --no-frozen-lockfile"
+------
+[+] build 0/1
+ ⠙ Image shgps-backend:latest Building                        6.2s
+Dockerfile.backend:29
+
+--------------------
+
+  27 |     
+
+  28 |     # Install ALL workspace dependencies (pnpm resolves workspace: links)
+
+  29 | >>> RUN pnpm install --frozen-lockfile
+
+  30 |     
+
+  31 |     # Build: esbuild bundles everything into artifacts/api-server/dist/index.mjs
+
+--------------------
+
+failed to solve: process "/bin/sh -c pnpm install --frozen-lockfile" did not complete successfully: exit code: 1
+
+[+] up 8/8
+ ✔ Network shgps_default       Created                        0.1s
+ ✔ Container shgps-certbot-1   Started                       13.7s
+ ✔ Container shgps-postgres-1  Healthy                       19.2s
+ ✔ Container shgps-traccar-1   Healthy                       34.7s
+ ✔ Container shgps-backup-1    Recreated                     10.5s
+ ✘ Container shgps-backend-1   Error dependency back...     113.8s
+ ✔ Container shgps-nginx-1     Recreated                      0.6s
+ ✔ Container shgps-db-backup-1 Started                        0.3s
+dependency failed to start: container shgps-backend-1 is unhealthy
+NAME                IMAGE                    COMMAND                  SERVICE     CREATED              STATUS                          PORTS
+shgps-backend-1     shgps-backend:latest     "docker-entrypoint.s…"   backend     About a minute ago   Up About a minute (unhealthy)   3001/tcp
+shgps-certbot-1     certbot/certbot          "/bin/sh -c 'trap ex…"   certbot     About a minute ago   Up About a minute               80/tcp, 443/tcp
+shgps-db-backup-1   postgres:16-alpine       "/bin/sh -c 'while t…"   db-backup   About a minute ago   Up About a minute               5432/tcp
+shgps-postgres-1    postgres:16-alpine       "docker-entrypoint.s…"   postgres    About a minute ago   Up About a minute (healthy)     5432/tcp
+shgps-traccar-1     traccar/traccar:ubuntu   "/opt/traccar/jre/bi…"   traccar     About a minute ago   Up About a minute (healthy)     0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp, 0.0.0.0:5023->5023/tcp, [::]:5023->5023/tcp, 0.0.0.0:5027->5027/tcp, [::]:5027->5027/tcp, 0.0.0.0:5029->5029/tcp, [::]:5029->5029/tcp, 0.0.0.0:5055->5055/udp, [::]:5055->5055/udp
+backend-1  | AtharGPS Backend running on port 3001
+backend-1  | [App] Migration failed — serving health checks only: password authentication failed for user "postgres"
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session OK
+backend-1  | [Traccar WS] Connected to ws://traccar:8082
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
