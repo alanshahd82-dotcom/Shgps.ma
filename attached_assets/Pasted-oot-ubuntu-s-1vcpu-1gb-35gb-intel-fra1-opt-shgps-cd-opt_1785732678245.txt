@@ -1,0 +1,61 @@
+oot@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# *cd /opt/shgps 
+
+# إجبار السحب من GitHub (يتجاهل الاختلافات المحلية)
+git fetch origin
+git reset --hard origin/main
+
+# إعادة بناء وتشغيل بالكود الجديد
+docker compose build --no-cache
+docker compose up -d
+
+# تحقق من الـ backend
+docker compose logs backend --tail 50
+Command '*cd' not found, did you mean:
+  command 'hcd' from deb hfsutils (3.2.6-15build2)
+  command 'bcd' from deb bsdgames (2.17-30)
+  command 'mcd' from deb mtools (4.0.43-1)
+Try: apt install <deb name>
+HEAD is now at 964232a Implement realtime device tracking and geofencing updates across API and mobile clients
+no configuration file provided: not found
+no configuration file provided: not found
+no configuration file provided: not found
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# ls -la /opt/shgps/
+echo "---ENV---"
+cat /opt/shgps/.env
+echo "---DOCKER IMAGES---"
+docker images | grep shgps
+total 556
+drwxr-xr-x  12 root root   4096 Aug  3 04:48 .
+drwxr-xr-x   6 root root   4096 Aug  3 02:00 ..
+drwxr-xr-x   3 root root   4096 Aug  2 08:11 .agents
+-rw-r--r--   1 root root    218 Aug  3 04:22 .env
+drwxr-xr-x   8 root root   4096 Aug  3 04:48 .git
+-rw-r--r--   1 root root    668 Aug  3 04:48 .gitignore
+-rw-r--r--   1 root root     56 Aug  3 04:48 .npmrc
+-rw-r--r--   1 root root    323 Aug  3 04:48 .replit
+-rw-r--r--   1 root root    201 Aug  3 04:48 .replitignore
+drwxr-xr-x   5 root root   4096 Aug  3 04:48 artifacts
+drwxr-xr-x   2 root root   4096 Aug  3 04:48 attached_assets
+drwxr-xr-x   3 root root   4096 Aug  3 04:48 backend
+drwxr-xr-x   2 root root   4096 Jul 30 20:10 data
+drwxr-xr-x   3 root root   4096 Aug  3 04:48 dist
+-rwxr-xr-x   1 root root   4044 Jul 31 09:30 health_check.sh
+drwxr-xr-x   6 root root   4096 Aug  3 04:48 lib
+drwxr-xr-x 210 root root  20480 Aug  3 02:38 node_modules
+-rw-r--r--   1 root root    649 Aug  3 04:48 package.json
+-rw-r--r--   1 root root   2107 Jul 31 08:22 patch.js
+-rw-r--r--   1 root root 448411 Aug  3 04:48 pnpm-lock.yaml
+-rw-r--r--   1 root root   6579 Aug  3 04:48 pnpm-workspace.yaml
+-rw-r--r--   1 root root   1521 Aug  3 04:48 replit.md
+drwxr-xr-x   3 root root   4096 Aug  3 04:48 scripts
+-rw-r--r--   1 root root    692 Aug  3 04:48 tsconfig.base.json
+-rw-r--r--   1 root root    236 Aug  3 04:48 tsconfig.json
+---ENV---
+DOMAIN=athargps.com
+DB_PASSWORD=e0ac1e5e75836759d907489642def458
+JWT_SECRET=cd33c903009f040050492723bbd5ad0979c5d85c605c9740ae8a3a4261536d01
+TRACCAR_ADMIN_EMAIL=admin@athargps.com
+TRACCAR_ADMIN_PASSWORD=AtharGPS@2026!
+---DOCKER IMAGES---
+shgps-backend:latest       4a9cec0f6dc8        220MB         52.5MB   U    
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
