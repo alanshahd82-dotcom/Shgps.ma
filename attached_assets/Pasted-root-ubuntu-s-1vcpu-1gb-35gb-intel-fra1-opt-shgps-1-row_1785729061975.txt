@@ -1,0 +1,38 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 1. تحقق من عدد الـ rows لـ admin@athargps.com
+python3 << 'PYEOF'
+import subprocess
+sql = "SELECT id,salt,hashedpassword FROM tc_users WHERE email='admin@athargps.com';"
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout)
+PYEOF
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 2. جرّب: SALT=null + HASHEDPASSWORD=القيمة الكاملة 48-char
+python3 << 'PYEOF'
+import subprocess
+# full combined hash = salt_hex + pbkdf2_hex (already verified correct)
+combined = 'c512d9c04dc8af0837db8c5725b4f1a099ad6a5398c389a7'
+sql = f"UPDATE tc_users SET salt=NULL, hashedpassword='{combined}' WHERE email='admin@athargps.com'; SELECT id,salt,hashedpassword FROM tc_users WHERE email='admin@athargps.com';"
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout)
+PYEOF
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 3. اختبر الجلسة
+docker compose start traccar 2>/dev/null; sleep 30 && docker compose exec backend node -e "
+(async()=>{const r=await fetch('http://traccar:8082/api/session',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'email=admin%40athargps.com&password=Admin2026'});const t=await r.text();console.log('Status:',r.status,r.status===200?'SUCCESS':'FAIL');if(r.status!==200)console.log(t.slice(0,250));})();
+"
+Status: 401 FAIL
+jakarta.ws.rs.WebApplicationException: HTTP 401 Unauthorized
+        at org.traccar.api.resource.SessionResource.add(SessionResource.java:134)
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+        at java.base/java.lang.refle
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
