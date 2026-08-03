@@ -1,0 +1,48 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # 1. جلب التحديثات الجديدة (task #34 commits)
+cd /opt/shgps && git pull origin main
+
+# 2. إصلاح كلمة سر مستخدم الـ DB (الـ volume القديم له كلمة سر مختلفة)
+docker compose exec postgres psql -U postgres -c \
+  "ALTER USER shgps WITH PASSWORD 'e0ac1e5e75836759d907489642def458';"
+
+# 3. إعادة بناء وتشغيل الـ backend
+docker compose up -d --build backend
+
+# 4. انتظر وتحقق
+sleep 15 && curl -s http://localhost/api/health | python3 -m json.tool
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "postgres" does not exist
+[+] Building 0.4s (12/12) FINISHED                                                     
+ => [internal] load local bake definitions                                        0.0s
+ => => reading from stdin 488B                                                    0.0s
+ => [internal] load build definition from Dockerfile                              0.0s
+ => => transferring dockerfile: 362B                                              0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                 0.0s
+ => [internal] load .dockerignore                                                 0.0s
+ => => transferring context: 85B                                                  0.0s
+ => [1/5] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362  0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362  0.0s
+ => [internal] load build context                                                 0.0s
+ => => transferring context: 1.48kB                                               0.0s
+ => CACHED [2/5] WORKDIR /app                                                     0.0s
+ => CACHED [3/5] COPY package.json ./                                             0.0s
+ => CACHED [4/5] RUN npm install --omit=dev --no-audit --no-fund && ls node_modu  0.0s
+ => CACHED [5/5] COPY src ./src                                                   0.0s
+ => exporting to image                                                            0.1s
+ => => exporting layers                                                           0.0s
+ => => exporting manifest sha256:d3809e68653f649fa813a32aebbcd637dd65648c82479b2  0.0s
+ => => exporting config sha256:4714809becca060ec03d0a10c1c3ac8c91882c7b9d158774f  0.0s
+ => => exporting attestation manifest sha256:d881b594df25e9dd17bf960ca2cfdc16a02  0.0s
+ => => exporting manifest list sha256:25683dc5239602f6e9aa87354f1c66963fdb15187a  0.0s
+ => => naming to docker.io/library/shgps-backend:latest                           0.0s
+ => => unpacking to docker.io/library/shgps-backend:latest                        0.0s
+ => resolving provenance for metadata file                                        0.0s
+[+] up 4/4
+ ✔ Image shgps-backend        Built                                                0.4s
+ ✔ Container shgps-postgres-1 Healthy                                              0.7s
+ ✔ Container shgps-traccar-1  Healthy                                              0.7s
+ ✔ Container shgps-backend-1  Started                                              1.1s
+Expecting value: line 1 column 1 (char 0)
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
