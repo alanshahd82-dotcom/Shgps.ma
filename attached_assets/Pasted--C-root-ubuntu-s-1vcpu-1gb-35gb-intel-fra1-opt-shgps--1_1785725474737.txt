@@ -1,0 +1,60 @@
+ ^C
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # اكتب السكريبت لملف مؤقت بدل لصقه مباشرة
+cat > /tmp/fix_traccar.sh << 'SCRIPT'
+#!/bin/bash
+set +H
+cd /opt/shgps
+
+PASSWORD='AtharGPS@2026!'
+
+echo "→ Generating bcrypt hash..."
+HASH=$(docker compose exec -T backend node -e "const b=require('bcryptjs');console.log(b.hashSync('$PASSWORD',10))")
+echo "Hash: $HASH"
+
+echo "→ Stopping Traccar..."
+docker compose stop traccar
+
+echo "→ Updating password in DB..."
+docker compose run --rm --entrypoint="" traccar \
+  /opt/traccar/jre/bin/java \
+  -cp /opt/traccar/tracker-server.jar \
+  org.h2.tools.Shell \
+  -url "jdbc:h2:/opt/traccar/data/database" \
+  -user sa -password "" \
+  -sql "UPDATE tc_users SET hashedpassword='$HASH' WHERE email='admin@athargps.com'; SELECT id,email FROM tc_users WHERE administrator=true;"
+
+echo "→ Restarting services..."
+docker compose start traccar
+sleep 10
+docker compose restart backend
+sleep 15
+docker compose logs backend --tail=8
+SCRIPT
+
+bash /tmp/fix_traccar.sh
+→ Generating bcrypt hash...
+Hash: $2a$10$JQoo3WEDX6eEGgsyNL5hiO3jwD.RwPqYMS5qY4JMRF2DN/0Kr7E1G
+→ Stopping Traccar...
+[+] stop 1/1
+ ✔ Container shgps-traccar-1 Stopped                          1.0s
+→ Updating password in DB...
+Container shgps-traccar-run-d201558c30c7 Creating 
+Container shgps-traccar-run-d201558c30c7 Created 
+(Update count: 1, 29 ms)
+ID | EMAIL
+1  | admin@athargps.com
+(1 row, 25 ms)
+→ Restarting services...
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                          0.3s
+[+] restart 0/1
+ ⠼ Container shgps-backend-1 Restarting                      10.4s
+backend-1  | AtharGPS Backend running on port 3001
+backend-1  | [DB] All migrations up to date
+backend-1  | [App] Ready ✓
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 400
+backend-1  | [WS] Frontend client connected — total: 1
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 400
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
