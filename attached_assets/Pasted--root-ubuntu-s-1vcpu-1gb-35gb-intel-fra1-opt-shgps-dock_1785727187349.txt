@@ -1,0 +1,74 @@
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker compose stop traccar && python3 << 'PYEOF'
+import subprocess
+sql = r"""
+CREATE ALIAS IF NOT EXISTS HASHPW AS $$
+import org.traccar.helper.Hashing;
+import java.lang.reflect.*;
+String hashpw(String password) throws Exception {
+    Object result = Hashing.createHash(password);
+    for (Field f : result.getClass().getDeclaredFields()) {
+        f.setAccessible(true);
+        Object val = f.get(result);
+        if (val instanceof String) return (String) val;
+    }
+    return null;
+}
+$$;
+SELECT HASHPW('Admin2026') AS hash;
+INSERT INTO tc_users(name,email,hashedpassword,administrator,devicelimit,userlimit,disabled,attributes) SELECT 'Admin','admin@athargps.com',HASHPW('Admin2026'),TRUE,-1,-1,FALSE,'{}';
+SELECT id,email,administrator FROM tc_users;
+"""
+r = subprocess.run(
+    ['docker','compose','run','--rm','--entrypoint=','traccar',
+     '/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar',
+     'org.h2.tools.Shell',
+     '-url','jdbc:h2:/opt/traccar/data/database',
+     '-user','sa','-password','','-sql',sql],
+    capture_output=True, text=True, cwd='/opt/shgps')
+print(r.stdout)
+if r.stderr: print("ERR:", r.stderr[-300:])
+PYEOF
+[+] stop 1/1
+ ✔ Container shgps-traccar-1 Stopped                          0.8s
+Error: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "java.io.IOException: Cannot run program ""javac"": Exec failed, error: 2 (No such file or directory) "; SQL statement:
+
+CREATE ALIAS IF NOT EXISTS HASHPW AS $$
+import org.traccar.helper.Hashing;
+import java.lang.reflect.*;
+String hashpw(String password) throws Exception {
+    Object result = Hashing.createHash(password);
+    for (Field f : result.getClass().getDeclaredFields()) {
+        f.setAccessible(true);
+        Object val = f.get(result);
+        if (val instanceof String) return (String) val;
+    }
+    return null;
+}
+$ [90028-240]
+Error: org.h2.jdbc.JdbcSQLSyntaxErrorException: Function "HASHPW" not found; SQL statement:
+
+SELECT HASHPW('Admin2026') AS hash [90022-240]
+Error: org.h2.jdbc.JdbcSQLSyntaxErrorException: Function "HASHPW" not found; SQL statement:
+
+INSERT INTO tc_users(name,email,hashedpassword,administrator,devicelimit,userlimit,disabled,attributes) SELECT 'Admin','admin@athargps.com',HASHPW('Admin2026'),TRUE,-1,-1,FALSE,'{}' [90022-240]
+ID | EMAIL                     | ADMINISTRATOR
+2  | amin@shgps.ma             | FALSE
+3  | mustapha@gmail.com        | FALSE
+35 | othmaneelkhalid@gmail.com | FALSE
+(3 rows, 23 ms)
+
+ERR:  Container shgps-traccar-run-e2caf3fdb6d7 Creating 
+ Container shgps-traccar-run-e2caf3fdb6d7 Created 
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker compose start traccar && sleep 12 && docker compose restart backend && sleep 15 && docker compose logs backend --tail=5
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                          0.3s
+[+] restart 0/1
+ ⠼ Container shgps-backend-1 Restarting                      10.3s
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+backend-1  | [WS] Frontend client connected — total: 1
+backend-1  | [WS] Frontend client connected — total: 2
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
