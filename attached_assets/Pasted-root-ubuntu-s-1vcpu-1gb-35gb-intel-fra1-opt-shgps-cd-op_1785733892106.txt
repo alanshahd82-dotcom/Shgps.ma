@@ -1,0 +1,49 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cd /opt/shgps
+git pull origin main
+docker compose build --no-cache backend
+docker compose up -d
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+[+] Building 19.6s (19/19) FINISHED                               
+ => [internal] load local bake definitions                   0.0s
+ => => reading from stdin 511B                               0.0s
+ => [internal] load build definition from Dockerfile.backen  0.0s
+ => => transferring dockerfile: 2.10kB                       0.0s
+ => [internal] load metadata for docker.io/library/node:20-  0.0s
+ => [internal] load .dockerignore                            0.0s
+ => => transferring context: 2B                              0.0s
+ => CACHED [builder  1/10] FROM docker.io/library/node:20-a  0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:fb4c  0.0s
+ => [internal] load build context                            0.0s
+ => => transferring context: 2.42kB                          0.0s
+ => [builder  2/10] RUN npm install -g pnpm@9 --silent       3.8s
+ => CACHED [stage-1 2/3] WORKDIR /app                        0.0s
+ => [builder  3/10] WORKDIR /workspace                       0.1s
+ => [builder  4/10] COPY package.json pnpm-workspace.yaml p  0.1s
+ => [builder  5/10] COPY tsconfig.base.json tsconfig.json .  0.0s
+ => [builder  6/10] COPY lib/api-zod/     ./lib/api-zod/     0.0s
+ => [builder  7/10] COPY lib/db/          ./lib/db/          0.0s
+ => [builder  8/10] COPY artifacts/api-server/ ./artifacts/  0.1s
+ => [builder  9/10] RUN pnpm install --no-frozen-lockfile   11.3s
+ => [builder 10/10] RUN pnpm --filter @workspace/api-server  2.4s 
+ => [stage-1 3/3] COPY --from=builder /workspace/artifacts/  0.1s 
+ => exporting to image                                       0.7s 
+ => => exporting layers                                      0.4s 
+ => => exporting manifest sha256:f7d6c11f20232518c7c97c8fcd  0.0s 
+ => => exporting config sha256:c17f8b607681b792e75a5d09ceca  0.0s 
+ => => exporting attestation manifest sha256:0c13d42b98857e  0.0s 
+ => => exporting manifest list sha256:40bd7fc1e5a033e6dc09c  0.0s
+ => => naming to docker.io/library/shgps-backend:latest      0.0s
+ => => unpacking to docker.io/library/shgps-backend:latest   0.1s
+ => resolving provenance for metadata file                   0.2s
+[+] build 1/1
+ ✔ Image shgps-backend:latest Built                          19.7s
+[+] up 6/6
+ ✔ Container shgps-traccar-1   Healthy                        0.9s
+ ✔ Container shgps-nginx-1     Running                        0.0s
+ ✔ Container shgps-certbot-1   Running                        0.0s
+ ✔ Container shgps-db-backup-1 Running                        0.0s
+ ✔ Container shgps-postgres-1  Healthy                        0.9s
+ ✔ Container shgps-backend-1   Started                        1.2s
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
