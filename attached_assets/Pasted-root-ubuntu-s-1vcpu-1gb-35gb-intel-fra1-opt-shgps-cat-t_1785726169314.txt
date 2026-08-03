@@ -1,0 +1,61 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cat > /tmp/fix_traccar3.sh << 'SCRIPT'
+#!/bin/bash
+cd /opt/shgps
+
+echo "→ Stopping Traccar..."
+docker compose stop traccar
+
+echo "→ Deleting admin user from Traccar DB (will be recreated by backend)..."
+docker compose run --rm --entrypoint="" traccar \
+  /opt/traccar/jre/bin/java \
+  -cp /opt/traccar/tracker-server.jar \
+  org.h2.tools.Shell \
+  -url "jdbc:h2:/opt/traccar/data/database" \
+  -user sa -password "" \
+  -sql "DELETE FROM tc_users WHERE administrator=true; SELECT COUNT(*) as admins FROM tc_users WHERE administrator=true;"
+
+echo "→ Starting Traccar (fresh - no admin)..."
+docker compose start traccar
+sleep 15
+
+echo "→ Restarting backend (will call ensureAdminUser to create fresh admin)..."
+docker compose restart backend
+sleep 20
+
+echo "→ Testing Traccar session..."
+docker compose exec backend node -e "
+(async () => {
+  const res = await fetch('http://traccar:8082/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'email=admin%40athargps.com&password=AtharGPS%402026%21' 
+  });
+  console.log('Session status:', res.status, res.status === 200 ? '✓ SUCCESS' : '✗ FAIL');
+bash /tmp/fix_traccar3.shnd --tail=8
+→ Stopping Traccar...
+[+] stop 1/1
+ ✔ Container shgps-traccar-1 Stopped                          0.8s
+→ Deleting admin user from Traccar DB (will be recreated by backend)...
+Container shgps-traccar-run-fdd65246b9fb Creating 
+Container shgps-traccar-run-fdd65246b9fb Created 
+(Update count: 1, 40 ms)
+ADMINS
+0
+(1 row, 32 ms)
+→ Starting Traccar (fresh - no admin)...
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                          0.3s
+→ Restarting backend (will call ensureAdminUser to create fresh admin)...
+[+] restart 0/1
+ ⠼ Container shgps-backend-1 Restarting                      10.4s
+→ Testing Traccar session...
+Session status: 401 ✗ FAIL
+backend-1  | AtharGPS Backend running on port 3001
+backend-1  | [DB] All migrations up to date
+backend-1  | [App] Ready ✓
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+backend-1  | [WS] Frontend client connected — total: 1
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
