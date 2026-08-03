@@ -1,0 +1,31 @@
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# python3 << 'PYEOF'
+import subprocess, sys
+sql = "CREATE ALIAS IF NOT EXISTS TKHASH FOR 'org.traccar.helper.Hashing.createHash'; INSERT INTO tc_users(name,email,hashedpassword,administrator,devicelimit,userlimit,disabled,attributes) SELECT 'Admin','admin@athargps.com',TKHASH('Admin2026'),TRUE,-1,-1,FALSE,'{}'; SELECT id,email,administrator FROM tc_users;"
+r = subprocess.run(['docker','compose','run','--rm','--entrypoint=','traccar','/opt/traccar/jre/bin/java','-cp','/opt/traccar/tracker-server.jar','org.h2.tools.Shell','-url','jdbc:h2:/opt/traccar/data/database','-user','sa','-password','','-sql',sql],capture_output=True,text=True,cwd='/opt/shgps')
+print(r.stdout)
+print(r.stderr[-300:] if r.stderr else '')
+PYEOF
+(Update count: 0, 94 ms)
+Error: org.h2.jdbc.JdbcSQLDataException: Serialization failed, cause: "java.io.NotSerializableException: org.traccar.helper.Hashing$HashingResult"; SQL statement:
+ INSERT INTO tc_users(name,email,hashedpassword,administrator,devicelimit,userlimit,disabled,attributes) SELECT 'Admin','admin@athargps.com',TKHASH('Admin2026'),TRUE,-1,-1,FALSE,'{} [90026-240]
+ID | EMAIL                     | ADMINISTRATOR
+2  | amin@shgps.ma             | FALSE
+3  | mustapha@gmail.com        | FALSE
+35 | othmaneelkhalid@gmail.com | FALSE
+(3 rows, 9 ms)
+
+ Container shgps-traccar-run-ac73e966079d Creating 
+ Container shgps-traccar-run-ac73e966079d Created 
+
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# docker compose start traccar && sleep 12 && docker compose restart backend && sleep 15 && docker compose logs backend --tail=5
+[+] start 1/1
+ ✔ Container shgps-traccar-1 Started                          0.3s
+[+] restart 0/1
+ ⠸ Container shgps-backend-1 Restarting                      10.4s
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+backend-1  | [WS] Frontend client connected — total: 1
+backend-1  | [WS] Frontend client connected — total: 2
+backend-1  | [Traccar WS] Admin user already exists
+backend-1  | [Traccar WS] Session error: Traccar session POST failed: HTTP 401
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
