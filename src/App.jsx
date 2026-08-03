@@ -5,6 +5,7 @@ import { AppProvider, useApp } from './context/AppContext'
 
 // Pages
 import LandingPage from './pages/LandingPage'
+import ClientWelcome from './pages/client/ClientWelcome'
 import ClientLogin from './pages/client/Login'
 import ClientHome from './pages/client/Home'
 import DeviceList from './pages/client/DeviceList'
@@ -76,7 +77,15 @@ function AdminRoute({ children }) {
 
 function ClientEntry() {
   const { clientAuth } = useApp()
-  return <Navigate to={isClientAuthenticated(clientAuth) ? '/client/home' : '/client/login'} replace />
+  const hasSeenOnboarding = localStorage.getItem('athargps_onboarding_seen') === 'true'
+  return (
+    <Navigate
+      to={isClientAuthenticated(clientAuth)
+        ? '/client/home'
+        : hasSeenOnboarding ? '/client/login' : '/client/start'}
+      replace
+    />
+  )
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -91,7 +100,7 @@ export default function App() {
           <Route
             path="/"
             element={Capacitor.isNativePlatform()
-              ? <Navigate to="/client/login" replace />
+              ? <Navigate to="/client" replace />
               : <LandingPage />}
           />
           <Route path="/login" element={<Navigate to="/client/login" replace />} />
@@ -101,6 +110,7 @@ export default function App() {
 
           {/* ── Client app ─────────────────────────────────────────────── */}
           <Route path="/client" element={<ClientEntry />} />
+          <Route path="/client/start" element={<ClientWelcome />} />
           <Route path="/client/login"  element={<ClientLogin />} />
 
           <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />

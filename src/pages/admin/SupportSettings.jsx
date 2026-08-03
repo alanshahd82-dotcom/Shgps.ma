@@ -46,8 +46,8 @@ export default function SupportSettings() {
           <TriangleAlert size={18} className="flex-shrink-0" />
           <p className="text-xs leading-5">
             {isAr
-              ? 'القيم الحالية وهمية للتجربة. استبدلها ببياناتك الحقيقية قبل استقبال العملاء. لا يتم إرسال رسائل تلقائية من هذه الصفحة.'
-              : 'Les valeurs actuelles sont fictives. Remplacez-les avant le lancement. Cette page n’envoie pas de messages automatiquement.'}
+              ? 'هذه البيانات تظهر للعميل في صفحة الهبوط ومركز المساعدة. حدّثها من هنا عند الحاجة.'
+              : 'Ces coordonnées sont visibles sur la page d’accueil et dans l’aide client. Modifiez-les ici si nécessaire.'}
           </p>
         </div>
         <form onSubmit={save} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">

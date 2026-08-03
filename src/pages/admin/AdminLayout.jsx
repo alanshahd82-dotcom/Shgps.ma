@@ -268,7 +268,7 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
                         <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
                           <CalendarDays size={10} />{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}
                         </label>
-                        <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} compact />
+                        <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} compact includeTrial />
                       </div>
                     </motion.div>
                   )}

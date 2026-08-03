@@ -4,10 +4,18 @@ export const SUBSCRIPTION_PLANS = Object.freeze([
   { id: '12_months', label: '12 شهراً', durationMonths: 12, price: 220 },
 ])
 
+export const FREE_TRIAL_PLAN = Object.freeze({
+  id: 'free_trial_3_months',
+  label: 'تجربة مجانية — 3 أشهر',
+  durationMonths: 3,
+  price: 0,
+  trial: true,
+})
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export function getSubscriptionPlan(planId) {
-  return SUBSCRIPTION_PLANS.find(plan => plan.id === planId) || null
+  return [...SUBSCRIPTION_PLANS, FREE_TRIAL_PLAN].find(plan => plan.id === planId) || null
 }
 
 export function dateOnly(value) {

@@ -418,7 +418,7 @@ export default function DeviceSetup() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 block mb-2">{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}</label>
-                  <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} />
+                  <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} includeTrial />
                 </div>
 
                 {error && (

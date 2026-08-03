@@ -1,9 +1,15 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Mail, MessageCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
+import { api } from '../../api/index.js'
+
+const DEFAULT_SUPPORT = {
+  email: 'support@athargps.ma',
+  whatsapp: '212600000000',
+}
 
 export default function Login() {
   const navigate = useNavigate()
@@ -13,6 +19,11 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [support, setSupport] = useState(DEFAULT_SUPPORT)
+
+  React.useEffect(() => {
+    api.settings.support().then(data => setSupport({ ...DEFAULT_SUPPORT, ...data })).catch(() => {})
+  }, [])
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -29,6 +40,7 @@ export default function Login() {
   }
 
   const isAr = lang === 'ar'
+  const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أريد طلب حساب ATHAR GPS' : 'Bonjour, je souhaite demander un compte ATHAR GPS')}`
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f7f8]" dir={isAr ? 'rtl' : 'ltr'}>
@@ -138,6 +150,19 @@ export default function Login() {
                 {loading ? '...' : t(lang, 'loginBtn')}
               </motion.button>
             </form>
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <p className="mb-3 text-center text-[11px] text-slate-400">
+                {isAr ? 'ليس لديك حساب؟ تواصل معنا لتفعيل اشتراكك' : 'Pas encore de compte ? Contactez-nous pour activer votre abonnement'}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <a href={whatsapp} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-[11px] font-bold text-emerald-700">
+                  <MessageCircle size={14} /> WhatsApp
+                </a>
+                <a href={`mailto:${support.email}`} className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-primary-500">
+                  <Mail size={14} /> {isAr ? 'إيميل' : 'Email'}
+                </a>
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>

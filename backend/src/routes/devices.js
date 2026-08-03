@@ -12,6 +12,18 @@ import {
 
     export const devicesRouter = Router()
 
+    async function clientHasUsedFreeTrial(clientId) {
+      if (!clientId) return false
+      const { rows } = await db.query(
+        `SELECT 1
+         FROM devices
+         WHERE user_id=$1 AND subscription_plan_id='free_trial_3_months'
+         LIMIT 1`,
+        [clientId]
+      )
+      return Boolean(rows[0])
+    }
+
     // GET /devices/test-connection?imei= — check if Traccar already has this device/is online
     devicesRouter.get('/test-connection', requireAuth, async (req, res) => {
       const { imei } = req.query
@@ -165,6 +177,12 @@ import {
               error: `Device limit reached (${client.devices_count}/${client.max_devices ?? 5}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
             })
           }
+          if (plan.trial && await clientHasUsedFreeTrial(clientId)) {
+            return res.status(409).json({
+              code: 'FREE_TRIAL_ALREADY_USED',
+              error: 'This client has already used the free 3-month trial.',
+            })
+          }
         }
         const subscriptionStartDate = dateOnly(new Date())
         const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
@@ -236,6 +254,12 @@ import {
           if (!client) return res.status(404).json({ error: 'Client not found' })
           const seq = client.devices_count + 1
           deviceName = `${client.name} - #${seq}`
+           if (plan.trial && await clientHasUsedFreeTrial(finalClientId)) {
+             return res.status(409).json({
+               code: 'FREE_TRIAL_ALREADY_USED',
+               error: 'This client has already used the free 3-month trial.',
+             })
+           }
         }
 
         // سجّل في Traccar
@@ -307,6 +331,18 @@ import {
         const device = rows[0]
         if (!device) return res.status(404).json({ error: 'Device not found' })
         if (!req.user.is_admin && device.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+         if (plan.trial && !req.user.is_admin) {
+           return res.status(403).json({
+             code: 'FREE_TRIAL_REQUIRES_APPROVAL',
+             error: 'The free trial must be activated by an administrator.',
+           })
+         }
+         if (plan.trial && await clientHasUsedFreeTrial(device.user_id)) {
+           return res.status(409).json({
+             code: 'FREE_TRIAL_ALREADY_USED',
+             error: 'This client has already used the free 3-month trial.',
+           })
+         }
 
         const today = dateOnly(new Date())
         const currentEnd = dateOnly(device.subscription_end_date)

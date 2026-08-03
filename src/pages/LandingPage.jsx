@@ -1,881 +1,286 @@
-import React, { useState, useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { Radio, MapPinned, BellRing, BarChart3, ShieldCheck, Users } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import {
+  ArrowLeft, ArrowRight, BarChart3, BellRing, Check, ChevronDown,
+  CircleHelp, Clock3, Mail, MapPinned, MessageCircle, Menu, ShieldCheck,
+  Smartphone, X
+} from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/index.js'
+import { SUBSCRIPTION_PLANS } from '../utils/subscriptions'
 
-/* ─────────────────────────────────────────────────────
-   CONTENT  (bilingual)
-───────────────────────────────────────────────────── */
-const content = {
-  en: {
-    dir: 'ltr',
-    fontFamily: "'Inter', sans-serif",
-    nav: {
-      features: 'Features', dashboard: 'Dashboard',
-      fleet: 'Fleet', pricing: 'Pricing', cta: 'Get Started',
-    },
-    hero: {
-      h1a: 'Next-Gen', h1b: 'GPS Tracking', h1c: 'for Modern Fleets',
-      p: 'Real-time vehicle tracking, route optimization, and fleet management powered by cutting-edge satellite technology. Monitor your assets anywhere, anytime.',
-      btn1: 'View Plans →', btn2: '▶ Watch Demo',
-      stats: [
-        { val: '500+', label: 'Active Vehicles' },
-        { val: '99.9%', label: 'Uptime SLA' },
-        { val: '24/7',  label: 'Support' },
-      ],
-    },
-    store: {
-      badge: 'Coming Soon',
-      body1: 'The ATHAR GPS app is in advanced development and will be available for download on',
-      body2: 'soon.',
-      note: 'Register your interest via WhatsApp and we\'ll notify you at launch.',
-      btnLabel: 'Notify Me at Launch',
-    },
-    features: {
-      badge: 'Features', h2: 'Everything You Need to Track & Manage',
-      p: 'Comprehensive GPS tracking tools designed for businesses of all sizes',
-      items: [
-        { icon: '📡', h: 'Real-Time Tracking',    p: 'Monitor vehicle locations with high accuracy using multi-constellation GNSS technology.' },
-        { icon: '🗺️', h: 'Geofencing Alerts',     p: 'Instant notifications when vehicles enter or leave defined zones and boundaries.' },
-        { icon: '⚡', h: 'Smart Alerts',           p: 'Notifications for speeding, unauthorized usage, and maintenance needs.' },
-        { icon: '📊', h: 'Analytics Dashboard',   p: 'Comprehensive reports on driver behavior, fuel consumption, and fleet metrics.' },
-        { icon: '🔒', h: 'Remote Immobilization', p: 'Remote engine cut-off, tamper alerts, and 24/7 monitoring for asset protection.' },
-        { icon: '👥', h: 'Multi-User Management', p: 'Flexible permissions for every team member from one unified control panel.' },
-      ],
-    },
-    dashboard: {
-      badge: 'Live Dashboard', h2: 'Command Center for Your Entire Fleet',
-      p: 'Our intuitive dashboard gives you complete visibility into your fleet operations. Track every vehicle, monitor driver performance, and make data-driven decisions in real-time.',
-      items: [
-        'Live vehicle positions with GPS accuracy',
-        'Battery status and SIM card monitoring',
-        'Historical route playback and analysis',
-        'Custom geofences and zone management',
-        'Detailed trip reports and fuel logs',
-      ],
-    },
-    fleet: {
-      badge: 'Fleet Management', h2: 'Optimize Every Route',
-      p: 'From last-mile delivery to long-haul logistics, ATHAR GPS provides the tools you need to manage your fleet efficiently. Reduce costs, improve satisfaction, and scale your operations.',
-      items: [
-        'Multi-vehicle dispatch and scheduling',
-        'Driver scorecards and performance tracking',
-        'Fuel management and consumption reports',
-        'Proof of delivery and trip summaries',
-      ],
-    },
-    pricing: {
-      badge: 'Pricing', h2: 'Simple, Transparent Pricing',
-      p: 'Choose the plan that fits your fleet size and needs. No setup fees — cancel anytime.',
-      popular: 'Most Popular',
-      plans: [
-        {
-          name: 'Basic',    sub: 'For individuals',      price: '30', unit: 'MAD/mo',
-          features: ['Real-time GPS tracking','Trip history log','Mobile app iOS & Android','Basic support'],
-          neg: [],
-          btnLabel: 'Subscribe via WhatsApp', btnClass: 'secondary',
-          wa: 'Hello,%20I\'d%20like%20to%20subscribe%20to%20the%20Basic%20plan.',
-        },
-        {
-          name: 'Professional', sub: 'For growing fleets', price: '70', unit: 'MAD/mo',
-          features: ['Everything in Basic','Geofencing alerts','Speed notifications','Remote engine cut-off','PDF reports'],
-          neg: [],
-          btnLabel: 'Subscribe via WhatsApp', btnClass: 'primary', popular: true,
-          wa: 'Hello,%20I\'d%20like%20to%20subscribe%20to%20the%20Professional%20plan.',
-        },
-        {
-          name: 'Enterprise', sub: 'For large fleets',   price: '120', unit: 'MAD/mo',
-          features: ['Everything in Professional','Unlimited users','Custom dashboard','Open API access','Priority support 24/7'],
-          neg: [],
-          btnLabel: 'Contact Us via WhatsApp', btnClass: 'secondary',
-          wa: 'Hello,%20I\'d%20like%20to%20subscribe%20to%20the%20Enterprise%20plan.',
-        },
-      ],
-    },
-    cta: {
-      h2: 'Ready to Transform Your Fleet?',
-      p: 'Join businesses already using ATHAR GPS to optimize their operations. Get in touch today.',
-      btnLabel: 'Contact Us via WhatsApp',
-    },
-    footer: {
-      desc: 'Advanced GPS tracking solutions for modern fleet management in Morocco.',
-      cols: [
-        { h: 'Product', links: [
-          { label: 'Features',      href: '#features' },
-          { label: 'Pricing',       href: '#pricing' },
-          { label: 'Mobile App',    action: 'store' },
-        ]},
-        { h: 'Company', links: [
-          { label: 'About Us', href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20want%20to%20know%20more%20about%20ATHAR%20GPS', external: true },
-          { label: 'Contact',  href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20need%20help%20with%20ATHAR%20GPS', external: true },
-        ]},
-        { h: 'Support', links: [
-          { label: 'Help Center',    href: 'https://wa.me/SUPPORT_WHATSAPP?text=Hello,%20I%20need%20technical%20support', external: true },
-          { label: 'Privacy Policy', href: '/privacy' },
-          { label: 'Terms',          href: '/terms' },
-        ]},
-      ],
-      copy: `© ${new Date().getFullYear()} ATHAR GPS. All rights reserved.`,
-    },
-  },
+const DEFAULT_SUPPORT = {
+  email: 'support@athargps.ma',
+  phone: '+212600000000',
+  whatsapp: '212600000000',
+  hours: 'كل يوم من 09:00 إلى 18:00',
+}
 
+const COPY = {
   ar: {
     dir: 'rtl',
-    fontFamily: "'Cairo', sans-serif",
-    nav: {
-      features: 'المزايا', dashboard: 'لوحة التحكم',
-      fleet: 'الأسطول', pricing: 'الباقات', cta: 'ابدأ الآن',
-    },
+    nav: { features: 'المزايا', how: 'كيف يعمل', plans: 'الباقات', support: 'تواصل معنا', login: 'دخول العملاء' },
     hero: {
-      h1a: 'نظام تتبع', h1b: 'GPS متطور', h1c: 'للأساطيل الحديثة',
-      p: 'تتبع مركباتك في الوقت الفعلي، إدارة المسارات، وقطع المحرك عن بُعد — كل شيء في منصة واحدة.',
-      btn1: 'عرض الباقات ←', btn2: '▶ شاهد العرض',
-      stats: [
-        { val: '500+', label: 'مركبة نشطة' },
-        { val: '99.9%', label: 'ضمان التشغيل' },
-        { val: '24/7',  label: 'دعم فني' },
-      ],
+      eyebrow: 'تتبّع واضح لأسطولك',
+      title: 'اعرف أين توجد مركباتك، واتخذ القرار في الوقت المناسب.',
+      body: 'ATHAR GPS يساعدك على متابعة المركبات، مراجعة الرحلات، استقبال التنبيهات وإدارة الصيانة من تطبيق واحد.',
+      primary: 'اطلب تجربة مجانية',
+      secondary: 'تعرّف على المزايا',
+      note: 'تجربة 3 أشهر للعملاء الجدد بعد اعتماد الطلب',
     },
-    store: {
-      badge: 'قريباً',
-      body1: 'تطبيق ATHAR GPS في مرحلة التطوير المتقدم وسيكون متاحاً قريباً على',
-      body2: '.',
-      note: 'سجّل اهتمامك عبر واتساب وسنُخطرك فور الإطلاق.',
-      btnLabel: 'أبلغني عند الإطلاق',
-    },
+    stats: [['تتبع مباشر', 'لموقع المركبات'], ['تنبيهات فورية', 'للحالات المهمة'], ['دعم مباشر', 'عبر فريقك']],
     features: {
-      badge: 'المزايا', h2: 'كل ما تحتاجه لإدارة أسطولك',
-      p: 'ميزات متكاملة مصممة خصيصاً لاحتياجات الشركات والأفراد في المغرب',
+      eyebrow: 'ما الذي تحصل عليه',
+      title: 'الأدوات التي تحتاجها لإدارة مركباتك بثقة',
+      body: 'واجهة واضحة للعميل، وبيانات عملية تساعد المسؤول على المتابعة اليومية.',
       items: [
-        { icon: '📡', h: 'تتبع حي',              p: 'تابع مركباتك لحظةً بلحظة بدقة عالية على خريطة تفاعلية.' },
-        { icon: '🗺️', h: 'الأسوار الجغرافية',   p: 'تنبيه فوري عند خروج أي مركبة عن المنطقة المحددة.' },
-        { icon: '⚡', h: 'تنبيهات السرعة',       p: 'إشعار تلقائي فور تجاوز السائق لحد السرعة المحدد.' },
-        { icon: '📊', h: 'تقارير تفصيلية',       p: 'تقارير PDF لسجل الرحلات والمسافات واستهلاك الوقود.' },
-        { icon: '🔒', h: 'قطع المحرك عن بُعد',  p: 'أوقف أي مركبة فورياً عند السرقة بضغطة واحدة من هاتفك.' },
-        { icon: '👥', h: 'إدارة متعددة المستخدمين', p: 'صلاحيات مرنة لكل موظف من لوحة تحكم موحدة.' },
+        [MapPinned, 'موقع مباشر', 'تابع المركبات على الخريطة واعرف السرعة وآخر تحديث.'],
+        [BellRing, 'تنبيهات مفيدة', 'تنبيهات للسرعة، فقدان الاتصال، المناطق وحالة الاشتراك.'],
+        [BarChart3, 'تقارير مفهومة', 'راجع الرحلات والمسافات وسلوك السائقين دون تعقيد.'],
+        [ShieldCheck, 'تحكم آمن', 'صلاحيات للمستخدمين وأوامر عن بعد للأجهزة التي تدعمها.'],
       ],
     },
-    dashboard: {
-      badge: 'لوحة التحكم', h2: 'مركز قيادة لأسطولك بالكامل',
-      p: 'لوحة تحكم سهلة الاستخدام تمنحك رؤية كاملة لعمليات أسطولك. تتبع كل مركبة، راقب أداء السائقين، واتخذ قرارات دقيقة في الوقت الفعلي.',
+    how: {
+      eyebrow: 'بداية بسيطة',
+      title: 'من الجهاز إلى المتابعة في خطوات واضحة',
+      steps: [
+        ['01', 'تواصل معنا', 'أرسل بياناتك وعدد المركبات عبر WhatsApp أو البريد.'],
+        ['02', 'نفعّل حسابك', 'يربط المسؤول الجهاز بحسابك ويحدد الباقة المناسبة.'],
+        ['03', 'ابدأ المتابعة', 'سجّل الدخول وشاهد مركباتك وتقاريرك من أي مكان.'],
+      ],
+    },
+    plans: {
+      eyebrow: 'الباقات',
+      title: 'أسعار واضحة بدون مفاجآت',
+      body: 'اختر مدة الاشتراك المناسبة. الدفع نقدي ويتم التفعيل بعد التواصل مع المسؤول.',
+      popular: 'الأكثر اختياراً',
+      action: 'اطلب هذه الباقة',
+      currency: 'درهم',
+    },
+    contact: {
+      eyebrow: 'ابدأ مع ATHAR GPS',
+      title: 'ثلاثة أشهر مجانية للعملاء الجدد',
+      body: 'اطلب التجربة الأولى لجهاز واحد، وسيساعدك فريق ATHAR GPS في تجهيز الحساب والتفعيل.',
+      whatsapp: 'اطلب عبر WhatsApp',
+      email: 'أرسل بريداً',
+      hours: 'ساعات الدعم',
+    },
+    footer: 'تتبّع مركباتك بثقة',
+    language: 'Français',
+  },
+  fr: {
+    dir: 'ltr',
+    nav: { features: 'Fonctionnalités', how: 'Fonctionnement', plans: 'Forfaits', support: 'Contact', login: 'Espace client' },
+    hero: {
+      eyebrow: 'Le suivi qui reste lisible',
+      title: 'Sachez où sont vos véhicules et agissez au bon moment.',
+      body: 'ATHAR GPS vous aide à suivre vos véhicules, consulter les trajets, recevoir les alertes et gérer la maintenance depuis un seul espace.',
+      primary: 'Demander un essai',
+      secondary: 'Découvrir les fonctionnalités',
+      note: '3 mois d’essai pour les nouveaux clients après validation',
+    },
+    stats: [['Suivi direct', 'de vos véhicules'], ['Alertes utiles', 'au bon moment'], ['Support direct', 'avec votre équipe']],
+    features: {
+      eyebrow: 'Ce que vous obtenez',
+      title: 'Les outils essentiels pour piloter vos véhicules',
+      body: 'Une interface claire pour le client et des informations utiles au quotidien.',
       items: [
-        'مواقع المركبات الحية بدقة GPS عالية',
-        'حالة البطارية ومراقبة شريحة SIM',
-        'إعادة تشغيل المسارات السابقة وتحليلها',
-        'إدارة الأسوار الجغرافية والمناطق',
-        'تقارير الرحلات والوقود التفصيلية',
+        [MapPinned, 'Position en direct', 'Suivez la position, la vitesse et la dernière mise à jour.'],
+        [BellRing, 'Alertes utiles', 'Vitesse, perte de connexion, zones et état de l’abonnement.'],
+        [BarChart3, 'Rapports lisibles', 'Consultez trajets, distances et comportement des conducteurs.'],
+        [ShieldCheck, 'Contrôle sécurisé', 'Gérez les rôles et les commandes des appareils compatibles.'],
       ],
     },
-    fleet: {
-      badge: 'إدارة الأسطول', h2: 'تحسين كل مسار توصيل',
-      p: 'من التوصيل في المدينة إلى النقل بعيد المدى، توفر ATHAR GPS الأدوات اللازمة لإدارة أسطولك بكفاءة. خفّض التكاليف وحسّن رضا العملاء.',
-      items: [
-        'جدولة وتوزيع المركبات المتعددة',
-        'بطاقات أداء السائقين',
-        'إدارة الوقود وتقارير الاستهلاك',
-        'ملخصات الرحلات وتأكيد التسليم',
+    how: {
+      eyebrow: 'Un démarrage simple',
+      title: 'Du tracker au suivi en quelques étapes',
+      steps: [
+        ['01', 'Contactez-nous', 'Envoyez vos informations et le nombre de véhicules par WhatsApp ou email.'],
+        ['02', 'Nous activons votre compte', 'L’administrateur associe l’appareil et choisit le forfait adapté.'],
+        ['03', 'Commencez le suivi', 'Connectez-vous et consultez vos véhicules et rapports partout.'],
       ],
     },
-    pricing: {
-      badge: 'الباقات', h2: 'أسعار واضحة وشفافة',
-      p: 'اختر الباقة المناسبة لحجم أسطولك. لا رسوم تثبيت — إلغاء في أي وقت.',
-      popular: 'الأكثر طلباً',
-      plans: [
-        {
-          name: 'أساسية',    sub: 'للأفراد والشركات الصغيرة', price: '30', unit: 'درهم/شهر',
-          features: ['تتبع حي في الوقت الفعلي','سجل الرحلات الكامل','تطبيق موبايل iOS & Android','دعم فني أساسي'],
-          neg: [],
-          btnLabel: 'اشترك عبر واتساب', btnClass: 'secondary',
-          wa: 'مرحباً،%20أريد%20الاشتراك%20في%20الباقة%20الأساسية.',
-        },
-        {
-          name: 'احترافية',  sub: 'للأساطيل المتنامية',       price: '70', unit: 'درهم/شهر',
-          features: ['كل ميزات الأساسية','الأسوار الجغرافية','تنبيهات السرعة','قطع المحرك عن بُعد','تقارير PDF'],
-          neg: [],
-          btnLabel: 'اشترك عبر واتساب', btnClass: 'primary', popular: true,
-          wa: 'مرحباً،%20أريد%20الاشتراك%20في%20الباقة%20الاحترافية.',
-        },
-        {
-          name: 'أساطيل',   sub: 'للشركات الكبرى',           price: '120', unit: 'درهم/شهر',
-          features: ['كل ميزات الاحترافية','مستخدمون غير محدودون','لوحة تحكم مخصصة','API مفتوح','دعم ذو أولوية 24/7'],
-          neg: [],
-          btnLabel: 'تواصل معنا عبر واتساب', btnClass: 'secondary',
-          wa: 'مرحباً،%20أريد%20الاشتراك%20في%20باقة%20الأساطيل.',
-        },
-      ],
+    plans: {
+      eyebrow: 'Forfaits',
+      title: 'Des prix simples et transparents',
+      body: 'Choisissez la durée qui vous convient. Le paiement se fait comptant après contact avec l’administrateur.',
+      popular: 'Le plus choisi',
+      action: 'Demander ce forfait',
+      currency: 'MAD',
     },
-    cta: {
-      h2: 'هل أنت مستعد لتحسين أسطولك؟',
-      p: 'انضم إلى الشركات التي تستخدم ATHAR GPS لتحسين عملياتها. تواصل معنا اليوم.',
-      btnLabel: 'تواصل معنا عبر واتساب',
+    contact: {
+      eyebrow: 'Commencez avec ATHAR GPS',
+      title: 'Trois mois offerts aux nouveaux clients',
+      body: 'Demandez l’essai pour un appareil. Notre équipe vous accompagne pour préparer et activer votre compte.',
+      whatsapp: 'Demander sur WhatsApp',
+      email: 'Envoyer un email',
+      hours: 'Horaires du support',
     },
-    footer: {
-      desc: 'منصة تتبع GPS متطورة لإدارة الأساطيل الحديثة في المغرب.',
-      cols: [
-        { h: 'المنتج', links: [
-          { label: 'المزايا',          href: '#features' },
-          { label: 'الباقات',          href: '#pricing' },
-          { label: 'التطبيق',          action: 'store' },
-        ]},
-        { h: 'الشركة', links: [
-          { label: 'من نحن',   href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أريد%20معرفة%20المزيد%20عن%20ATHAR%20GPS', external: true },
-          { label: 'اتصل بنا', href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أحتاج%20مساعدة', external: true },
-        ]},
-        { h: 'الدعم', links: [
-          { label: 'مركز المساعدة',    href: 'https://wa.me/SUPPORT_WHATSAPP?text=مرحباً،%20أحتاج%20دعماً%20فنياً', external: true },
-          { label: 'سياسة الخصوصية',  href: '/privacy' },
-          { label: 'الشروط',           href: '/terms' },
-        ]},
-      ],
-      copy: `© ${new Date().getFullYear()} ATHAR GPS. جميع الحقوق محفوظة.`,
-    },
+    footer: 'Suivez vos véhicules en confiance',
+    language: 'العربية',
   },
 }
 
-/* ─────────────────────────────────────────────────────
-   STORE MODAL
-───────────────────────────────────────────────────── */
-function StoreModal({ store, lang, onClose, whatsapp }) {
-  const t = content[lang].store
-  const isPlay = store === 'play'
-  const storeName = isPlay ? 'Google Play' : 'App Store'
-  const waNumber = String(whatsapp || '212600000000').replace(/\D/g, '')
-  const wa = lang === 'ar'
-    ? `https://wa.me/${waNumber}?text=مرحباً،%20أريد%20أن%20أكون%20أول%20من%20يحصل%20على%20ATHAR%20GPS%20على%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
-    : `https://wa.me/${waNumber}?text=Hello,%20I%20want%20to%20be%20notified%20when%20ATHAR%20GPS%20launches%20on%20${isPlay ? 'Google%20Play' : 'App%20Store'}.`
+function whatsappLink(number, lang, plan = '') {
+  const message = lang === 'ar'
+    ? `مرحباً، أريد طلب اشتراك ATHAR GPS${plan ? ` — ${plan}` : ''}.`
+    : `Bonjour, je souhaite demander un abonnement ATHAR GPS${plan ? ` — ${plan}` : ''}.`
+  return `https://wa.me/${String(number || '').replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
+}
 
+function supportEmail(email, lang, plan = '') {
+  const subject = lang === 'ar' ? `طلب اشتراك ATHAR GPS${plan ? ` — ${plan}` : ''}` : `Demande d’abonnement ATHAR GPS${plan ? ` — ${plan}` : ''}`
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}`
+}
+
+function ClientAppBadge({ label }) {
   return (
-    <AnimatePresence>
-      {store && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          style={{ position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'flex-end',
-            justifyContent:'center',padding:'1rem',background:'rgba(0,0,0,0.7)',backdropFilter:'blur(12px)' }}
-          onClick={onClose}>
-          <motion.div
-            initial={{ opacity:0, y:50 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:30 }}
-            transition={{ duration:0.35, ease:[0.22,1,0.36,1] }}
-            style={{ width:'100%',maxWidth:420,background:'#111827',border:'1px solid #1e293b',
-              borderRadius:24,padding:'2rem',textAlign:'center',boxShadow:'0 25px 60px rgba(0,0,0,0.5)',
-              marginBottom:'env(safe-area-inset-bottom)',fontFamily: content[lang].fontFamily }}
-            dir={content[lang].dir}
-            onClick={e => e.stopPropagation()}>
-
-            <button onClick={onClose}
-              style={{ position:'absolute',top:16,right:16,width:32,height:32,borderRadius:'50%',
-                background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.5)',
-                fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>
-              ×
-            </button>
-
-            {/* store icon */}
-            <div style={{ width:64,height:64,margin:'0 auto 1.25rem',borderRadius:16,
-              background:'rgba(228,181,107,0.08)',border:'1px solid rgba(228,181,107,0.2)',
-              display:'flex',alignItems:'center',justifyContent:'center' }}>
-              {isPlay ? (
-                <svg viewBox="0 0 24 24" style={{ width:30,height:30,fill:'#e4b56b' }}>
-                  <path d="M3.18 23.76a2.5 2.5 0 001.24-.33l.07-.04 13.84-8.01-3.99-4-11.16 12.38zm-1.72-20.3C1.17 3.9 1 4.48 1 5.14v13.72c0 .66.17 1.24.46 1.68l.08.1L14.02 8.16l-12.56-4.7zm17.37 4.24l-3.57-2.07-4.43 4.43 4.43 4.43 3.61-2.09a2.58 2.58 0 000-4.7zM4.42.57l-.07-.04A2.5 2.5 0 001.9.53L14.02 8.16 18.01 4.17 4.42.57z"/>
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" style={{ width:30,height:30,fill:'#e4b56b' }}>
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                </svg>
-              )}
-            </div>
-
-            {/* badge */}
-            <div style={{ display:'inline-flex',alignItems:'center',gap:8,background:'rgba(251,191,36,0.1)',
-              border:'1px solid rgba(251,191,36,0.25)',borderRadius:20,padding:'4px 14px',marginBottom:'1rem' }}>
-              <span style={{ width:7,height:7,borderRadius:'50%',background:'#fbbf24',
-                animation:'pulse 1.5s infinite',display:'inline-block' }} />
-              <span style={{ color:'#fbbf24',fontSize:12,fontWeight:700 }}>{t.badge}</span>
-            </div>
-
-            <h3 style={{ color:'#fff',fontSize:'1.3rem',fontWeight:800,marginBottom:8 }}>{storeName}</h3>
-            <p style={{ color:'#94a3b8',fontSize:'0.9rem',lineHeight:1.7,marginBottom:24 }}>
-              {t.body1} <strong style={{ color:'#e4b56b' }}>{storeName}</strong> {t.body2}
-              <br />{t.note}
-            </p>
-
-            <a href={wa} target="_blank" rel="noopener noreferrer"
-              style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,width:'100%',
-                padding:'0.85rem',borderRadius:12,background:'linear-gradient(135deg,#e4b56b,#83c8bd)',
-                color:'#0a0e1a',fontWeight:700,fontSize:'0.95rem',textDecoration:'none',
-                transition:'transform 0.2s' }}
-              onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
-              onMouseLeave={e=>e.currentTarget.style.transform='none'}>
-              <WaIcon />
-              {t.btnLabel}
-            </a>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <Link to="/client" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-start shadow-sm transition hover:border-accent">
+      <Smartphone size={18} className="text-primary-500" />
+      <span>
+        <span className="block text-[9px] text-slate-400">{label}</span>
+        <span className="block text-xs font-extrabold text-primary-500">ATHAR GPS</span>
+      </span>
+    </Link>
   )
 }
 
-/* ─────────────────────────────────────────────────────
-   ICONS
-───────────────────────────────────────────────────── */
-function WaIcon() {
+function FeatureVisual({ support, lang }) {
   return (
-    <svg viewBox="0 0 24 24" style={{ width:17,height:17,fill:'currentColor',flexShrink:0 }}>
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-    </svg>
-  )
-}
-
-function PlayIcon({ size = 28, color = '#fff' }) {
-  return (
-    <svg viewBox="0 0 24 24" style={{ width:size,height:size,fill:color,flexShrink:0 }}>
-      <path d="M3.18 23.76a2.5 2.5 0 001.24-.33l.07-.04 13.84-8.01-3.99-4-11.16 12.38zm-1.72-20.3C1.17 3.9 1 4.48 1 5.14v13.72c0 .66.17 1.24.46 1.68l.08.1L14.02 8.16l-12.56-4.7zm17.37 4.24l-3.57-2.07-4.43 4.43 4.43 4.43 3.61-2.09a2.58 2.58 0 000-4.7zM4.42.57l-.07-.04A2.5 2.5 0 001.9.53L14.02 8.16 18.01 4.17 4.42.57z"/>
-    </svg>
-  )
-}
-
-function AppleIcon({ size = 28, color = '#fff' }) {
-  return (
-    <svg viewBox="0 0 24 24" style={{ width:size,height:size,fill:color,flexShrink:0 }}>
-      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-    </svg>
-  )
-}
-
-const FEATURE_ICONS = [Radio, MapPinned, BellRing, BarChart3, ShieldCheck, Users]
-
-function ProductScreen({ variant, lang }) {
-  const isAr = lang === 'ar'
-  const fleet = variant === 'fleet'
-  const accent = fleet ? '#83c8bd' : '#e4b56b'
-  const muted = 'rgba(255,255,255,0.42)'
-  const cards = fleet
-    ? [
-        { label: isAr ? 'المركبات النشطة' : 'Active vehicles', value: '18', color: '#83c8bd' },
-        { label: isAr ? 'في الطريق' : 'On route', value: '12', color: '#e4b56b' },
-        { label: isAr ? 'متوقفة' : 'Stopped', value: '06', color: '#a7b5c9' },
-      ]
-    : [
-        { label: isAr ? 'المسافة اليوم' : 'Distance today', value: '248 km', color: '#e4b56b' },
-        { label: isAr ? 'السرعة المتوسطة' : 'Avg. speed', value: '42 km/h', color: '#83c8bd' },
-        { label: isAr ? 'التنبيهات' : 'Alerts', value: '03', color: '#f2a97b' },
-      ]
-
-  return (
-    <div style={{ background:'#111a2c', border:'1px solid rgba(255,255,255,.12)', borderRadius:18,
-      boxShadow:'0 22px 60px rgba(0,0,0,.36)', overflow:'hidden', aspectRatio:'1.28' }} dir="ltr">
-      <div style={{ height:38, display:'flex', alignItems:'center', gap:8, padding:'0 14px',
-        borderBottom:'1px solid rgba(255,255,255,.08)', background:'#162239' }}>
-        <img src="/athar-gps-mark.svg" alt="" style={{ width:20, height:20, borderRadius:5 }}/>
-        <span style={{ color:'#fff', fontSize:11, fontWeight:800, letterSpacing:'.08em' }}>ATHAR GPS</span>
-        <span style={{ marginLeft:'auto', width:7, height:7, borderRadius:'50%', background:'#83c8bd' }}/>
-        <span style={{ color:muted, fontSize:9 }}>{isAr ? 'متصل الآن' : 'Live'}</span>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'42% 58%', height:'calc(100% - 38px)' }}>
-        <div style={{ padding:14, borderRight:'1px solid rgba(255,255,255,.08)', background:'#0f192b' }}>
-          <div style={{ width:'72%', height:7, borderRadius:4, background:'rgba(255,255,255,.18)', marginBottom:15 }}/>
-          {[isAr ? 'نظرة عامة' : 'Overview', isAr ? 'المركبات' : 'Vehicles', isAr ? 'التقارير' : 'Reports', isAr ? 'التنبيهات' : 'Alerts'].map((item, i) => (
-            <div key={item} style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 7px', marginBottom:5,
-              borderRadius:7, background:i === 0 ? `${accent}22` : 'transparent', color:i === 0 ? accent : muted, fontSize:9 }}>
-              <span style={{ width:6, height:6, borderRadius:2, background:i === 0 ? accent : 'rgba(255,255,255,.25)' }}/>
-              {item}
+    <div className="relative rounded-[30px] border border-primary-100 bg-white p-4 shadow-xl shadow-primary-500/10">
+      <div className="overflow-hidden rounded-[22px] bg-primary-500 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">ATHAR GPS</p>
+            <p className="mt-1 text-sm font-bold text-white">{lang === 'ar' ? 'الأسطول الآن' : 'Flotte en direct'}</p>
+          </div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10"><BellRing size={16} className="text-accent" /></div>
+        </div>
+        <div className="relative h-48 overflow-hidden rounded-2xl border border-white/10 bg-[#24435e]">
+          <div className="absolute inset-0 opacity-35" style={{ backgroundImage: 'linear-gradient(30deg, transparent 48%, #8fb1c8 49%, transparent 50%), linear-gradient(120deg, transparent 48%, #8fb1c8 49%, transparent 50%)', backgroundSize: '70px 70px' }} />
+          <div className="absolute left-[22%] top-[30%] h-3 w-3 rounded-full border-2 border-white bg-accent shadow-[0_0_0_8px_rgba(228,181,107,.2)]" />
+          <div className="absolute right-[27%] top-[56%] h-3 w-3 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_0_8px_rgba(52,211,153,.18)]" />
+          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl bg-white/95 px-3 py-2">
+            <span className="text-[10px] font-bold text-primary-500">{lang === 'ar' ? '3 مركبات متصلة' : '3 véhicules connectés'}</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Live</span>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {[['12', lang === 'ar' ? 'تنبيه' : 'Alertes'], ['248', 'km'], ['96%', lang === 'ar' ? 'اتصال' : 'Signal']].map(([value, label]) => (
+            <div key={label} className="rounded-xl bg-white/10 px-2 py-2.5">
+              <p className="text-sm font-extrabold text-white">{value}</p>
+              <p className="mt-0.5 text-[9px] text-white/55">{label}</p>
             </div>
           ))}
         </div>
-        <div style={{ padding:14, minWidth:0 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginBottom:9 }}>
-            {cards.map(card => (
-              <div key={card.label} style={{ padding:9, borderRadius:8, background:'rgba(255,255,255,.055)' }}>
-                <div style={{ color:muted, fontSize:7, marginBottom:5, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{card.label}</div>
-                <strong style={{ color:card.color, fontSize:12 }}>{card.value}</strong>
-              </div>
-            ))}
-          </div>
-          <div style={{ position:'relative', height:'calc(100% - 71px)', minHeight:120, borderRadius:10, overflow:'hidden',
-            background:'linear-gradient(135deg,#1b3041,#17243a)' }}>
-            <div style={{ position:'absolute', inset:0, opacity:.23,
-              backgroundImage:'linear-gradient(28deg, transparent 47%, rgba(255,255,255,.35) 48%, transparent 49%), linear-gradient(115deg, transparent 48%, rgba(255,255,255,.2) 49%, transparent 50%), linear-gradient(0deg, transparent 49%, rgba(255,255,255,.12) 50%, transparent 51%)',
-              backgroundSize:'80px 62px,90px 74px,100% 42px' }}/>
-            {[['28%','36%'],['56%','54%'],['74%','28%'],['43%','75%']].map(([left, top], i) => (
-              <span key={i} style={{ position:'absolute', left, top, width:11, height:11, borderRadius:'50%',
-                background:i === 0 ? '#e4b56b' : '#83c8bd', border:'3px solid #edf3f2',
-                boxShadow:`0 0 0 5px ${i === 0 ? 'rgba(228,181,107,.2)' : 'rgba(131,200,189,.18)'}` }}/>
-            ))}
-            <div style={{ position:'absolute', left:10, bottom:10, padding:'6px 8px', borderRadius:6,
-              background:'rgba(12,21,37,.84)', color:'#fff', fontSize:8 }}>
-              {fleet ? (isAr ? 'توزيع الأسطول' : 'Fleet distribution') : (isAr ? 'الموقع المباشر' : 'Live location')}
-            </div>
-          </div>
-        </div>
+      </div>
+      <div className="absolute -bottom-5 -left-5 flex items-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 py-2 shadow-lg">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50"><ShieldCheck size={16} className="text-emerald-600" /></div>
+        <div><p className="text-[10px] font-bold text-primary-500">{lang === 'ar' ? 'حساب محمي' : 'Compte protégé'}</p><p className="text-[9px] text-slate-400">{support.hours}</p></div>
       </div>
     </div>
   )
 }
 
-/* ─────────────────────────────────────────────────────
-   MAIN COMPONENT
-───────────────────────────────────────────────────── */
 export default function LandingPage() {
-  const [lang, setLang]       = useState('ar')
-  const [modal, setModal]     = useState(null)
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [support, setSupport] = useState({ whatsapp: '212600000000' })
-  const t = content[lang]
+  const [lang, setLang] = useState('ar')
+  const [support, setSupport] = useState(DEFAULT_SUPPORT)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [openFaq, setOpenFaq] = useState(null)
+  const copy = COPY[lang]
+  const isAr = lang === 'ar'
+  const Arrow = isAr ? ArrowLeft : ArrowRight
 
   useEffect(() => {
-    api.settings.support().then(setSupport).catch(() => {})
+    api.settings.support().then(data => setSupport({ ...DEFAULT_SUPPORT, ...data })).catch(() => {})
   }, [])
 
-  // scroll effect
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50)
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  // fade-in observer
-  useEffect(() => {
-    const els = document.querySelectorAll('.fade-in')
-    const obs = new IntersectionObserver(
-      entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target) } }),
-      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
-    )
-    els.forEach(el => obs.observe(el))
-    return () => obs.disconnect()
-  }, [lang])
-
-  const S = {
-    grad: 'linear-gradient(135deg,#e4b56b,#83c8bd)',
-    gradText: { background:'linear-gradient(135deg,#e4b56b,#83c8bd)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' },
-    card: { background:'#111827', border:'1px solid #1e293b', borderRadius:16 },
-  }
-
-  const wa = (msg) => `https://wa.me/${String(support.whatsapp || '212600000000').replace(/\D/g, '')}?text=${msg}`
+  const faq = isAr
+    ? [['هل يمكنني تجربة الخدمة؟', 'نعم، يتوفر عرض 3 أشهر للعملاء الجدد بعد التواصل واعتماد الطلب.'], ['هل أحتاج إلى جهاز GPS؟', 'نساعدك على اختيار الجهاز المناسب أو ربط جهازك الحالي إذا كان متوافقاً.'], ['هل أستطيع تعديل بيانات التواصل؟', 'نعم، يتم تحديثها من لوحة التحكم وتظهر مباشرة في صفحة الدعم والتواصل.']]
+    : [['Puis-je essayer le service ?', 'Oui, une offre de 3 mois est proposée aux nouveaux clients après validation.'], ['Ai-je besoin d’un tracker ?', 'Nous vous aidons à choisir un appareil ou à connecter votre appareil compatible.'], ['Les contacts sont-ils à jour ?', 'Oui, ils sont gérés depuis le tableau de bord et affichés ici automatiquement.']]
 
   return (
-    <div dir={t.dir} style={{ fontFamily:t.fontFamily, background:'#0a0e1a', color:'#fff', overflowX:'hidden', minHeight:'100vh' }}>
-
-      {/* ── global styles ── */}
+    <div className="min-h-screen overflow-hidden bg-[#f5f7f8] text-primary-500" dir={copy.dir}>
       <style>{`
-        *{margin:0;padding:0;box-sizing:border-box}
-        html{scroll-behavior:smooth}
-        .fade-in{opacity:0;transform:translateY(30px);transition:all 0.6s ease}
-        .fade-in.visible{opacity:1;transform:translateY(0)}
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
-        @keyframes pulse2{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.1);opacity:1}}
-        @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(10px)}}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        .pricing-btn-hover:hover{transform:translateY(-2px)}
-        .store-btn-hover:hover{border-color:rgba(228,181,107,0.5)!important;background:rgba(228,181,107,0.07)!important}
-        .nav-link-hover:hover{color:#e4b56b!important}
-        .feature-card-hover:hover{transform:translateY(-5px);border-color:rgba(228,181,107,0.3)!important;background:#1a2332!important}
-        @media(max-width:900px){
-          .hero-grid{grid-template-columns:1fr!important}
-          .features-grid-resp{grid-template-columns:repeat(2,1fr)!important}
-          .pricing-grid-resp{grid-template-columns:1fr!important;max-width:400px!important;margin:0 auto!important}
-          .footer-grid-resp{grid-template-columns:1fr 1fr!important}
-          .hero-h1{font-size:2.5rem!important}
-          .dash-grid{grid-template-columns:1fr!important}
-          .popular-scale{transform:none!important}
-        }
-        @media(max-width:640px){
-          .hero-h1{font-size:1.9rem!important}
-          .section-h2{font-size:1.75rem!important}
-          .features-grid-resp{grid-template-columns:1fr!important}
-          .footer-grid-resp{grid-template-columns:1fr!important}
-          .hero-stats{flex-direction:column;gap:.75rem}
-          .nav-links-desktop{display:none!important}
-          .nav-mobile-toggle{display:flex!important}
-          .store-btns{flex-direction:column}
-        }
+        .athar-link:hover { color:#9a6a32 !important; }
+        .athar-primary:hover { background:#244b6d; transform:translateY(-1px); }
+        .athar-secondary:hover { border-color:#e4b56b; background:#fffaf0; }
+        .athar-card { transition:transform .25s ease, box-shadow .25s ease; }
+        .athar-card:hover { transform:translateY(-4px); box-shadow:0 18px 45px rgba(23,50,77,.10); }
+        @media (max-width: 760px) { .athar-desktop-nav { display:none !important; } .athar-mobile-menu { display:flex !important; } }
       `}</style>
-
-      {/* ═══════════════ NAV ═══════════════ */}
-      <nav style={{ position:'fixed',top:0,width:'100%',zIndex:1000,padding:'1rem 2rem',
-        background:'rgba(10,14,26,0.85)',backdropFilter:'blur(20px)',
-        borderBottom: scrolled ? '1px solid #1e293b' : '1px solid transparent',
-        transition:'all .3s ease' }}>
-        <div style={{ maxWidth:1200,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center' }}>
-          {/* Logo */}
-          <a href="#" style={{ display:'flex',alignItems:'center',gap:10,textDecoration:'none',color:'#fff' }}>
-            <div style={{ width:36,height:36,borderRadius:8,overflow:'hidden' }}>
-              <img src="/athar-gps-mark.svg" alt="ATHAR GPS" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-            </div>
-            <span style={{ fontSize:'1.3rem',fontWeight:800 }}>ATHAR <span style={{ ...S.gradText }}>GPS</span></span>
-          </a>
-
-          {/* Desktop links */}
-          <ul className="nav-links-desktop" style={{ display:'flex',gap:'1.75rem',listStyle:'none',alignItems:'center' }}>
-            {[['#features',t.nav.features],['#dashboard',t.nav.dashboard],['#fleet',t.nav.fleet],['#pricing',t.nav.pricing]].map(([href,label])=>(
-              <li key={href}>
-                <a href={href} className="nav-link-hover" style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.9rem',fontWeight:500,transition:'color .3s' }}>
-                  {label}
-                </a>
-              </li>
-            ))}
-            {/* Language toggle */}
-            <li>
-              <button onClick={() => setLang(l => l==='ar'?'en':'ar')}
-              style={{ background:'rgba(228,181,107,0.08)',border:'1px solid rgba(228,181,107,0.25)',borderRadius:8,
-                  color:'#e4b56b',padding:'0.4rem 0.9rem',cursor:'pointer',fontSize:'0.85rem',fontWeight:700,
-                  transition:'all .3s',fontFamily:t.fontFamily }}>
-                {lang==='ar' ? 'EN' : 'عربي'}
-              </button>
-            </li>
-            <li>
-            <a href={wa(lang==='ar'?'مرحباً،%20أريد%20الاستفسار%20عن%20ATHAR%20GPS':'Hello,%20I%20want%20to%20know%20more%20about%20ATHAR%20GPS')}
-                target="_blank" rel="noopener noreferrer"
-                style={{ background:S.grad,color:'#0a0e1a',padding:'0.5rem 1.3rem',borderRadius:8,
-                  fontWeight:700,fontSize:'0.9rem',textDecoration:'none',transition:'all .3s' }}>
-                {t.nav.cta}
-              </a>
-            </li>
-          </ul>
-
-          {/* Mobile: lang toggle + hamburger */}
-          <div className="nav-mobile-toggle" style={{ display:'none',alignItems:'center',gap:10 }}>
-            <button onClick={() => setLang(l => l==='ar'?'en':'ar')}
-              style={{ background:'rgba(228,181,107,0.08)',border:'1px solid rgba(228,181,107,0.2)',borderRadius:7,
-                color:'#e4b56b',padding:'0.35rem 0.75rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:700,fontFamily:t.fontFamily }}>
-              {lang==='ar'?'EN':'عربي'}
-            </button>
-            <button onClick={() => setMobileOpen(o=>!o)}
-              style={{ background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',gap:5,padding:4 }}>
-              {[0,1,2].map(i=>(
-                <span key={i} style={{ width:24,height:2,background:'#fff',borderRadius:2,transition:'all .3s',
-                  transform: mobileOpen ? (i===0?'rotate(45deg) translate(5px,5px)':i===2?'rotate(-45deg) translate(5px,-5px)':'scale(0)') : 'none',
-                  opacity: mobileOpen && i===1 ? 0 : 1 }} />
-              ))}
-            </button>
+      <header className="relative z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-[76px] max-w-6xl items-center justify-between px-5 lg:px-8">
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/athar-gps-mark.svg" alt="ATHAR GPS" className="h-10 w-10 rounded-xl" />
+            <div><p className="text-sm font-extrabold tracking-[0.12em] text-primary-500">ATHAR GPS</p><p className="text-[9px] font-bold text-slate-400">{copy.footer}</p></div>
+          </Link>
+          <nav className="athar-desktop-nav hidden items-center gap-7 md:flex">
+            {[[`#features`, copy.nav.features], [`#how`, copy.nav.how], [`#plans`, copy.nav.plans], [`#contact`, copy.nav.support]].map(([href, label]) => <a key={href} href={href} className="athar-link text-xs font-bold text-slate-500 transition-colors">{label}</a>)}
+          </nav>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setLang(isAr ? 'fr' : 'ar')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-primary-500">{copy.language}</button>
+            <Link to="/client/login" className="athar-primary hidden rounded-xl bg-primary-500 px-4 py-2.5 text-xs font-bold text-white transition md:inline-flex">{copy.nav.login}</Link>
+            <button type="button" aria-label="Menu" onClick={() => setMenuOpen(value => !value)} className="rounded-xl border border-slate-200 p-2 md:hidden">{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
           </div>
         </div>
+        {menuOpen && <nav className="athar-mobile-menu hidden flex-col gap-4 border-t border-slate-100 bg-white px-5 py-5 md:hidden">{[[`#features`, copy.nav.features], [`#how`, copy.nav.how], [`#plans`, copy.nav.plans], [`#contact`, copy.nav.support]].map(([href, label]) => <a key={href} href={href} onClick={() => setMenuOpen(false)} className="text-sm font-bold text-slate-600">{label}</a>)}<Link to="/client/login" className="rounded-xl bg-primary-500 px-4 py-3 text-center text-sm font-bold text-white">{copy.nav.login}</Link></nav>}
+      </header>
 
-        {/* Mobile menu */}
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div initial={{ height:0,opacity:0 }} animate={{ height:'auto',opacity:1 }} exit={{ height:0,opacity:0 }}
-              style={{ background:'#0a0e1a',borderTop:'1px solid #1e293b',overflow:'hidden' }}>
-              <ul style={{ listStyle:'none',padding:'1rem 2rem',display:'flex',flexDirection:'column',gap:'1rem' }}>
-                {[['#features',t.nav.features],['#dashboard',t.nav.dashboard],['#fleet',t.nav.fleet],['#pricing',t.nav.pricing]].map(([href,label])=>(
-                  <li key={href}>
-                    <a href={href} onClick={()=>setMobileOpen(false)}
-                      style={{ color:'#94a3b8',textDecoration:'none',fontWeight:500 }}>
-                      {label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
-
-      {/* ═══════════════ HERO ═══════════════ */}
-      <section style={{ minHeight:'100vh',display:'flex',alignItems:'center',position:'relative',overflow:'hidden',padding:'8rem 2rem 4rem' }}>
-        {/* bg glows */}
-        <div style={{ position:'absolute',inset:0,pointerEvents:'none' }}>
-          <div style={{ position:'absolute',top:'-50%',right:'-20%',width:800,height:800,borderRadius:'50%',
-            background:'radial-gradient(circle,rgba(228,181,107,.1) 0%,transparent 70%)',animation:'pulse2 4s ease-in-out infinite' }} />
-          <div style={{ position:'absolute',bottom:'-30%',left:'-10%',width:600,height:600,borderRadius:'50%',
-            background:'radial-gradient(circle,rgba(131,200,189,.08) 0%,transparent 70%)',animation:'pulse2 5s ease-in-out infinite reverse' }} />
-        </div>
-        <div className="hero-grid" style={{ maxWidth:1200,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4rem',alignItems:'center',position:'relative',zIndex:1,width:'100%' }}>
-          <div className="fade-in">
-            <h1 className="hero-h1" style={{ fontSize:'3.5rem',fontWeight:900,lineHeight:1.1,marginBottom:'1.5rem' }}>
-              {t.hero.h1a} <span style={S.gradText}>{t.hero.h1b}</span> {t.hero.h1c}
-            </h1>
-            <p style={{ fontSize:'1.1rem',color:'#94a3b8',lineHeight:1.7,marginBottom:'2rem',maxWidth:500 }}>
-              {t.hero.p}
-            </p>
-
-            {/* Store buttons */}
-            <div className="store-btns" style={{ display:'flex',gap:'0.75rem',flexWrap:'wrap',marginBottom:'2rem' }}>
-              <button onClick={() => setModal('play')} className="store-btn-hover"
-                style={{ display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.05)',
-                  border:'1px solid #1e293b',borderRadius:12,padding:'0.75rem 1.25rem',cursor:'pointer',
-                  transition:'all .3s',color:'#fff',fontFamily:t.fontFamily }}>
-                <PlayIcon />
-                <div style={{ textAlign: lang==='ar'?'right':'left' }}>
-                  <div style={{ fontSize:10,color:'#94a3b8',lineHeight:1 }}>{lang==='ar'?'تنزيل من':'Download on'}</div>
-                  <div style={{ fontSize:'1rem',fontWeight:700,lineHeight:1.4 }}>Google Play</div>
-                </div>
-              </button>
-              <button onClick={() => setModal('apple')} className="store-btn-hover"
-                style={{ display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.05)',
-                  border:'1px solid #1e293b',borderRadius:12,padding:'0.75rem 1.25rem',cursor:'pointer',
-                  transition:'all .3s',color:'#fff',fontFamily:t.fontFamily }}>
-                <AppleIcon />
-                <div style={{ textAlign: lang==='ar'?'right':'left' }}>
-                  <div style={{ fontSize:10,color:'#94a3b8',lineHeight:1 }}>{lang==='ar'?'تنزيل من':'Download on'}</div>
-                  <div style={{ fontSize:'1rem',fontWeight:700,lineHeight:1.4 }}>App Store</div>
-                </div>
-              </button>
-            </div>
-
-            {/* stats */}
-            <div className="hero-stats" style={{ display:'flex',gap:'2rem',paddingTop:'2rem',borderTop:'1px solid #1e293b' }}>
-              {t.hero.stats.map(s => (
-                <div key={s.label}>
-                  <h3 style={{ fontSize:'2rem',fontWeight:800,...S.gradText }}>{s.val}</h3>
-                  <p style={{ fontSize:'0.82rem',color:'#94a3b8',marginTop:2 }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* hero image */}
-          <div className="fade-in" style={{ position:'relative' }}>
-            <div style={{ position:'absolute',inset:-2,background:S.grad,borderRadius:22,zIndex:-1,opacity:.25,filter:'blur(20px)' }} />
-            <img src="/athar-gps-hero.svg" alt="ATHAR GPS fleet command center"
-              style={{ width:'100%',borderRadius:20,boxShadow:'0 25px 60px rgba(0,0,0,.5)',animation:'float 6s ease-in-out infinite' }} />
-          </div>
-        </div>
-
-        {/* scroll indicator */}
-        <div style={{ position:'absolute',bottom:'2rem',left:'50%',transform:'translateX(-50%)',
-          display:'flex',flexDirection:'column',alignItems:'center',gap:6,color:'#94a3b8',fontSize:'0.78rem',animation:'bounce 2s ease-in-out infinite' }}>
-          <span>{lang==='ar'?'تمرير':'Scroll'}</span>
-          <div style={{ width:18,height:18,borderRight:'2px solid #e4b56b',borderBottom:'2px solid #e4b56b',transform:'rotate(45deg)' }} />
-        </div>
-      </section>
-
-      {/* ═══════════════ FEATURES ═══════════════ */}
-      <section id="features" style={{ padding:'6rem 2rem' }}>
-        <div className="fade-in" style={{ textAlign:'center',maxWidth:600,margin:'0 auto 4rem' }}>
-          <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
-            borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
-            {t.features.badge}
-          </span>
-          <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1rem' }}>{t.features.h2}</h2>
-          <p style={{ color:'#94a3b8',fontSize:'1.05rem',lineHeight:1.6 }}>{t.features.p}</p>
-        </div>
-        <div className="features-grid-resp" style={{ maxWidth:1100,margin:'0 auto',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1.25rem' }}>
-          {t.features.items.map((f,i) => (
-            <div key={i} className="fade-in feature-card-hover"
-              style={{ ...S.card,padding:'1.75rem',cursor:'default',transition:'all .4s',position:'relative',overflow:'hidden' }}>
-              <div style={{ position:'absolute',top:0,left:0,right:0,height:3,background:S.grad,opacity:0,transition:'opacity .3s',pointerEvents:'none' }}
-                onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0} />
-               <div style={{ width:52,height:52,background:'rgba(228,181,107,.1)',borderRadius:12,
-                display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.4rem',marginBottom:'1.25rem' }}>
-                {(() => { const Icon = FEATURE_ICONS[i] || Radio; return <Icon size={22} color={i % 2 ? '#83c8bd' : '#e4b56b'} strokeWidth={1.8}/> })()}
-              </div>
-              <h3 style={{ fontSize:'1.1rem',fontWeight:700,marginBottom:'0.6rem' }}>{f.h}</h3>
-              <p style={{ color:'#94a3b8',fontSize:'0.92rem',lineHeight:1.6 }}>{f.p}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ═══════════════ DASHBOARD ═══════════════ */}
-      <section id="dashboard" style={{ padding:'6rem 2rem',background:'linear-gradient(180deg,#0a0e1a 0%,#0d1220 100%)' }}>
-        <div className="dash-grid fade-in" style={{ maxWidth:1100,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4rem',alignItems:'center' }}>
-          <div style={{ position:'relative' }}>
-            <div style={{ position:'absolute',inset:-3,background:S.grad,borderRadius:18,zIndex:-1,opacity:.15,filter:'blur(15px)' }} />
-             <ProductScreen variant="dashboard" lang={lang}/>
-          </div>
+      <main>
+        <section className="mx-auto grid max-w-6xl items-center gap-14 px-5 pb-24 pt-16 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:pb-28 lg:pt-24">
           <div>
-            <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
-              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
-              {t.dashboard.badge}
-            </span>
-            <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1.25rem' }}>{t.dashboard.h2}</h2>
-            <p style={{ color:'#94a3b8',fontSize:'1.05rem',lineHeight:1.7,marginBottom:'1.75rem' }}>{t.dashboard.p}</p>
-            <ul style={{ listStyle:'none',display:'flex',flexDirection:'column',gap:'0.85rem' }}>
-              {t.dashboard.items.map((item,i) => (
-                <li key={i} style={{ display:'flex',alignItems:'center',gap:10,color:'#94a3b8',fontSize:'0.97rem' }}>
-                  <span style={{ width:24,height:24,background:'rgba(131,200,189,.1)',borderRadius:6,
-                    display:'flex',alignItems:'center',justifyContent:'center',color:'#83c8bd',fontSize:'0.8rem',flexShrink:0 }}>✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ FLEET ═══════════════ */}
-      <section id="fleet" style={{ padding:'6rem 2rem' }}>
-        <div className="dash-grid fade-in" style={{ maxWidth:1100,margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4rem',alignItems:'center' }}>
-          <div>
-            <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
-              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
-              {t.fleet.badge}
-            </span>
-            <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1.25rem' }}>{t.fleet.h2}</h2>
-            <p style={{ color:'#94a3b8',fontSize:'1.05rem',lineHeight:1.7,marginBottom:'1.75rem' }}>{t.fleet.p}</p>
-            <ul style={{ listStyle:'none',display:'flex',flexDirection:'column',gap:'0.85rem' }}>
-              {t.fleet.items.map((item,i) => (
-                <li key={i} style={{ display:'flex',alignItems:'center',gap:10,color:'#94a3b8',fontSize:'0.97rem' }}>
-                  <span style={{ width:24,height:24,background:'rgba(131,200,189,.1)',borderRadius:6,
-                    display:'flex',alignItems:'center',justifyContent:'center',color:'#83c8bd',fontSize:'0.8rem',flexShrink:0 }}>✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div style={{ position:'relative' }}>
-            <div style={{ position:'absolute',inset:-3,background:S.grad,borderRadius:18,zIndex:-1,opacity:.15,filter:'blur(15px)' }} />
-             <ProductScreen variant="fleet" lang={lang}/>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ PRICING ═══════════════ */}
-      <section id="pricing" style={{ padding:'6rem 2rem',background:'linear-gradient(180deg,#0d1220 0%,#0a0e1a 100%)' }}>
-        <div className="fade-in" style={{ textAlign:'center',maxWidth:600,margin:'0 auto 4rem' }}>
-            <span style={{ display:'inline-block',background:'rgba(228,181,107,.1)',color:'#e4b56b',padding:'0.4rem 1rem',
-              borderRadius:20,fontSize:'0.85rem',fontWeight:700,marginBottom:'1rem',border:'1px solid rgba(228,181,107,.2)' }}>
-            {t.pricing.badge}
-          </span>
-          <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1rem' }}>{t.pricing.h2}</h2>
-          <p style={{ color:'#94a3b8',fontSize:'1.05rem',lineHeight:1.6 }}>{t.pricing.p}</p>
-        </div>
-
-        <div className="pricing-grid-resp" style={{ maxWidth:1000,margin:'0 auto',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1.25rem',alignItems:'stretch' }}>
-          {t.pricing.plans.map((plan,i) => (
-            <div key={i} className="fade-in popular-scale"
-              style={{ ...S.card,padding:'2.25rem 1.75rem',textAlign:'center',position:'relative',
-                borderColor: plan.popular ? '#e4b56b' : '#1e293b',
-                background: plan.popular ? '#1a2332' : '#111827',
-                transform: plan.popular ? 'scale(1.05)' : 'none',
-                transition:'all .4s',display:'flex',flexDirection:'column' }}>
-
-              {plan.popular && (
-                <div style={{ position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',
-                  background:S.grad,color:'#0a0e1a',padding:'0.3rem 1rem',borderRadius:20,
-                  fontSize:'0.75rem',fontWeight:800,whiteSpace:'nowrap' }}>
-                  {t.pricing.popular}
-                </div>
-              )}
-
-              <h3 style={{ fontSize:'1.25rem',fontWeight:800,marginBottom:4 }}>{plan.name}</h3>
-              <p style={{ color:'#94a3b8',fontSize:'0.88rem',marginBottom:'1.25rem' }}>{plan.sub}</p>
-
-              <div style={{ fontSize:'3rem',fontWeight:900,marginBottom:'0.25rem',...(plan.popular ? S.gradText : {}) }}>
-                {plan.price}
-                <span style={{ fontSize:'1rem',fontWeight:400,color:'#94a3b8' }}> {plan.unit}</span>
-              </div>
-
-              <ul style={{ listStyle:'none',textAlign: lang==='ar'?'right':'left',margin:'1.5rem 0',
-                display:'flex',flexDirection:'column',gap:'0.65rem',flex:1 }}>
-                {plan.features.map((f,j) => (
-                  <li key={j} style={{ display:'flex',alignItems:'center',gap:8,color:'#94a3b8',fontSize:'0.88rem',
-                    flexDirection: lang==='ar'?'row-reverse':'row' }}>
-                    <span style={{ color:'#83c8bd',flexShrink:0 }}>✓</span> {f}
-                  </li>
-                ))}
-              </ul>
-
-              {/* WhatsApp button */}
-              <a href={wa(plan.wa)} target="_blank" rel="noopener noreferrer" className="pricing-btn-hover"
-                style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-                  width:'100%',padding:'0.85rem',borderRadius:12,textDecoration:'none',
-                  fontSize:'0.9rem',fontWeight:700,transition:'all .3s',marginTop:'auto',
-                  ...(plan.btnClass==='primary'
-                    ? { background:S.grad, color:'#0a0e1a', border:'none' }
-                    : { background:'transparent', color:'#fff', border:'1px solid #1e293b' }) }}>
-                <WaIcon />
-                {plan.btnLabel}
-              </a>
+            <p className="mb-4 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.hero.eyebrow}</p>
+            <h1 className="max-w-2xl text-[clamp(2.3rem,5vw,4.25rem)] font-extrabold leading-[1.12] tracking-[-0.04em] text-primary-500">{copy.hero.title}</h1>
+            <p className="mt-6 max-w-xl text-base leading-8 text-slate-500">{copy.hero.body}</p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a href={whatsappLink(support.whatsapp, lang)} target="_blank" rel="noreferrer" className="athar-primary inline-flex items-center gap-2 rounded-xl bg-primary-500 px-5 py-3.5 text-sm font-bold text-white transition">{copy.hero.primary}<Arrow size={17} /></a>
+              <a href="#features" className="athar-secondary inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-primary-500 transition">{copy.hero.secondary}</a>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ═══════════════ CTA ═══════════════ */}
-      <section style={{ padding:'6rem 2rem',textAlign:'center',position:'relative',overflow:'hidden' }}>
-        <div style={{ position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:600,height:600,borderRadius:'50%',
-          background:'radial-gradient(circle,rgba(228,181,107,.09) 0%,transparent 70%)',pointerEvents:'none' }} />
-        <div className="fade-in" style={{ maxWidth:650,margin:'0 auto',position:'relative',zIndex:1 }}>
-          <h2 className="section-h2" style={{ fontSize:'2.3rem',fontWeight:800,marginBottom:'1rem' }}>{t.cta.h2}</h2>
-          <p style={{ color:'#94a3b8',fontSize:'1.05rem',marginBottom:'2rem',lineHeight:1.6 }}>{t.cta.p}</p>
-          <a href={wa(lang==='ar'?'مرحباً،%20أريد%20الاستفسار%20عن%20ATHAR%20GPS':'Hello,%20I%20want%20to%20get%20started%20with%20ATHAR%20GPS')}
-            target="_blank" rel="noopener noreferrer"
-            style={{ display:'inline-flex',alignItems:'center',gap:10,background:S.grad,color:'#0a0e1a',
-              padding:'1rem 2.25rem',borderRadius:12,fontWeight:700,fontSize:'1rem',textDecoration:'none',
-              transition:'all .3s',boxShadow:'0 8px 25px rgba(228,181,107,.25)' }}
-            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 14px 35px rgba(228,181,107,.4)'}}
-            onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 8px 25px rgba(228,181,107,.25)'}}>
-            <WaIcon />
-            {t.cta.btnLabel}
-          </a>
-        </div>
-      </section>
-
-      {/* ═══════════════ FOOTER ═══════════════ */}
-      <footer style={{ padding:'4rem 2rem 2rem',borderTop:'1px solid #1e293b' }}>
-        <div className="footer-grid-resp" style={{ maxWidth:1200,margin:'0 auto',display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:'2.5rem' }}>
-          <div>
-            <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:'1rem' }}>
-              <div style={{ width:36,height:36,borderRadius:8,overflow:'hidden',flexShrink:0 }}>
-                <img src="/athar-gps-mark.svg" alt="ATHAR GPS" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-              </div>
-              <span style={{ fontSize:'1.2rem',fontWeight:800 }}>ATHAR <span style={S.gradText}>GPS</span></span>
-            </div>
-            <p style={{ color:'#94a3b8',fontSize:'0.88rem',lineHeight:1.7,maxWidth:260 }}>{t.footer.desc}</p>
+            <p className="mt-4 flex items-center gap-2 text-[11px] font-semibold text-slate-400"><Clock3 size={14} className="text-accent" />{copy.hero.note}</p>
           </div>
-          {t.footer.cols.map((col,i) => (
-            <div key={i}>
-              <h4 style={{ fontSize:'0.92rem',fontWeight:700,marginBottom:'1.25rem' }}>{col.h}</h4>
-              <ul style={{ listStyle:'none',display:'flex',flexDirection:'column',gap:'0.65rem' }}>
-                {col.links.map((link,j) => (
-                  <li key={j}>
-                    {link.action === 'store' ? (
-                      <button onClick={() => setModal('play')}
-                        className="nav-link-hover"
-                        style={{ background:'none',border:'none',cursor:'pointer',color:'#94a3b8',
-                          fontSize:'0.88rem',padding:0,transition:'color .3s',fontFamily:t.fontFamily,
-                          textAlign: t.dir === 'rtl' ? 'right' : 'left' }}>
-                        {link.label}
-                      </button>
-                    ) : (
-                      <a href={link.external
-                        ? link.href.replace('SUPPORT_WHATSAPP', String(support.whatsapp || '212600000000').replace(/\D/g, ''))
-                        : link.href}
-                        target={link.external ? '_blank' : '_self'}
-                        rel={link.external ? 'noopener noreferrer' : undefined}
-                        className="nav-link-hover"
-                        style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.88rem',transition:'color .3s' }}>
-                        {link.label}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+          <FeatureVisual support={support} lang={lang} />
+        </section>
 
-        <div style={{ maxWidth:1200,margin:'2.5rem auto 0',paddingTop:'1.75rem',borderTop:'1px solid #1e293b',
-          display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'1rem',color:'#94a3b8',fontSize:'0.83rem' }}>
-          <div style={{ display:'flex',alignItems:'center',gap:'1.5rem',flexWrap:'wrap' }}>
-            <span>{t.footer.copy}</span>
-            <a href="/terms" style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.83rem',transition:'color .2s' }}
-              onMouseEnter={e=>e.currentTarget.style.color='#00D97E'} onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>
-              {lang === 'ar' ? 'الشروط والأحكام' : 'CGU'}
-            </a>
-            <a href="/privacy" style={{ color:'#94a3b8',textDecoration:'none',fontSize:'0.83rem',transition:'color .2s' }}
-              onMouseEnter={e=>e.currentTarget.style.color='#00D97E'} onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>
-              {lang === 'ar' ? 'سياسة الخصوصية' : 'Confidentialité'}
-            </a>
+        <section className="border-y border-slate-200 bg-white">
+          <div className="mx-auto grid max-w-6xl grid-cols-1 divide-y divide-slate-100 px-5 py-3 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:px-8" dir={isAr ? 'rtl' : 'ltr'}>
+            {copy.stats.map(([value, label]) => <div key={value} className="flex items-center gap-3 px-4 py-4 sm:justify-center"><Check size={17} className="text-emerald-600" /><div><p className="text-sm font-extrabold text-primary-500">{value}</p><p className="text-[11px] text-slate-400">{label}</p></div></div>)}
           </div>
-          <div style={{ display:'flex',gap:'0.75rem' }}>
-            {[['Google Play','play'],['App Store','apple']].map(([label,key]) => (
-              <button key={key} onClick={() => setModal(key)}
-                style={{ display:'flex',alignItems:'center',gap:7,background:'#111827',border:'1px solid #1e293b',
-                  borderRadius:8,padding:'0.4rem 0.9rem',cursor:'pointer',color:'#94a3b8',fontSize:'0.8rem',
-                  transition:'all .3s',fontFamily:t.fontFamily }}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(0,212,255,.4)';e.currentTarget.style.color='#00d4ff'}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor='#1e293b';e.currentTarget.style.color='#94a3b8'}}>
-                {key==='play'?<PlayIcon size={14} color="currentColor"/>:<AppleIcon size={14} color="currentColor"/>}
-                {label}
-              </button>
-            ))}
+        </section>
+
+        <section id="features" className="mx-auto max-w-6xl px-5 py-24 lg:px-8">
+          <div className="max-w-2xl"><p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.features.eyebrow}</p><h2 className="text-3xl font-extrabold leading-tight text-primary-500 md:text-4xl">{copy.features.title}</h2><p className="mt-4 text-sm leading-7 text-slate-500">{copy.features.body}</p></div>
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {copy.features.items.map(([Icon, title, body]) => <article key={title} className="athar-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-7 flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50"><Icon size={21} className="text-primary-500" /></div><h3 className="text-sm font-extrabold text-primary-500">{title}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{body}</p></article>)}
           </div>
-        </div>
+        </section>
+
+        <section id="how" className="bg-primary-500 text-white">
+          <div className="mx-auto max-w-6xl px-5 py-24 lg:px-8">
+            <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-accent">{copy.how.eyebrow}</p><h2 className="max-w-xl text-3xl font-extrabold leading-tight md:text-4xl">{copy.how.title}</h2>
+            <div className="mt-12 grid gap-4 md:grid-cols-3">{copy.how.steps.map(([number, title, body]) => <article key={number} className="rounded-2xl border border-white/10 bg-white/[.06] p-6"><p className="text-sm font-black text-accent">{number}</p><h3 className="mt-8 text-base font-extrabold">{title}</h3><p className="mt-2 text-xs leading-6 text-white/65">{body}</p></article>)}</div>
+          </div>
+        </section>
+
+        <section id="plans" className="mx-auto max-w-6xl px-5 py-24 lg:px-8">
+          <div className="max-w-2xl"><p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.plans.eyebrow}</p><h2 className="text-3xl font-extrabold leading-tight text-primary-500 md:text-4xl">{copy.plans.title}</h2><p className="mt-4 text-sm leading-7 text-slate-500">{copy.plans.body}</p></div>
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {SUBSCRIPTION_PLANS.map((plan, index) => <article key={plan.id} className={`athar-card relative rounded-2xl border bg-white p-6 shadow-sm ${index === 1 ? 'border-accent ring-1 ring-accent/30' : 'border-slate-200'}`}>{index === 1 && <span className="absolute -top-3 start-5 rounded-full bg-accent px-3 py-1 text-[10px] font-extrabold text-primary-500">{copy.plans.popular}</span>}<p className="text-sm font-extrabold text-primary-500">{isAr ? plan.label : plan.labelFr}</p><div className="mt-5 flex items-end gap-2"><span className="text-4xl font-black text-primary-500">{plan.price}</span><span className="mb-1 text-xs font-bold text-slate-400">{copy.plans.currency}</span></div><p className="mt-2 text-xs text-slate-400">{isAr ? 'دفع نقدي' : 'Paiement comptant'}</p><a href={whatsappLink(support.whatsapp, lang, isAr ? plan.label : plan.labelFr)} target="_blank" rel="noreferrer" className="mt-7 flex items-center justify-center gap-2 rounded-xl bg-primary-500 px-4 py-3 text-xs font-bold text-white">{copy.plans.action}<Arrow size={14} /></a></article>)}
+          </div>
+        </section>
+
+        <section id="contact" className="bg-[#eef3f2]">
+          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-24 lg:grid-cols-[1.2fr_.8fr] lg:px-8">
+            <div><p className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-[#9a6a32]">{copy.contact.eyebrow}</p><h2 className="max-w-xl text-3xl font-extrabold leading-tight text-primary-500 md:text-4xl">{copy.contact.title}</h2><p className="mt-4 max-w-xl text-sm leading-7 text-slate-500">{copy.contact.body}</p><div className="mt-8 flex flex-wrap gap-3"><a href={whatsappLink(support.whatsapp, lang)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#1d9b69] px-5 py-3.5 text-sm font-bold text-white"><MessageCircle size={17} />{copy.contact.whatsapp}</a><a href={supportEmail(support.email, lang)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-primary-500"><Mail size={17} />{copy.contact.email}</a></div></div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50"><CircleHelp size={21} className="text-primary-500" /></div><h3 className="mt-5 text-sm font-extrabold text-primary-500">{copy.contact.hours}</h3><p className="mt-2 text-sm text-slate-500">{support.hours}</p><p className="mt-5 border-t border-slate-100 pt-4 text-xs leading-6 text-slate-400">{support.phone}<br />{support.email}</p></div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8"><div className="grid gap-3 sm:grid-cols-3">{faq.map(([question, answer], index) => <div key={question} className="rounded-2xl border border-slate-200 bg-white"><button type="button" onClick={() => setOpenFaq(openFaq === index ? null : index)} className="flex w-full items-center justify-between gap-3 p-4 text-start text-xs font-bold text-primary-500"><span>{question}</span><ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${openFaq === index ? 'rotate-180' : ''}`} /></button>{openFaq === index && <p className="px-4 pb-4 text-xs leading-6 text-slate-500">{answer}</p>}</div>)}</div></section>
+      </main>
+
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-5 py-8 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><p className="text-sm font-extrabold tracking-[0.12em] text-primary-500">ATHAR GPS</p><p className="mt-1 text-xs text-slate-400">{copy.footer}</p></div><div className="flex flex-wrap items-center gap-3"><ClientAppBadge label={isAr ? 'افتح تطبيق العميل' : 'Ouvrir l’espace client'} /><Link to="/terms" className="text-xs font-bold text-slate-500"> {isAr ? 'الشروط' : 'CGU'} </Link><Link to="/privacy" className="text-xs font-bold text-slate-500">{isAr ? 'الخصوصية' : 'Confidentialité'}</Link></div></div>
       </footer>
-
-      {/* Store Modal */}
-      <StoreModal store={modal} lang={lang} whatsapp={support.whatsapp} onClose={() => setModal(null)} />
     </div>
   )
 }

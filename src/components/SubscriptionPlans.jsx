@@ -1,12 +1,13 @@
 import React from 'react'
 import { Check } from 'lucide-react'
-import { SUBSCRIPTION_PLANS } from '../utils/subscriptions'
+import { FREE_TRIAL_PLAN, SUBSCRIPTION_PLANS } from '../utils/subscriptions'
 
-export default function SubscriptionPlans({ value, onChange, lang = 'ar', compact = false }) {
+export default function SubscriptionPlans({ value, onChange, lang = 'ar', compact = false, includeTrial = false }) {
   const isAr = lang === 'ar'
+  const plans = includeTrial ? [FREE_TRIAL_PLAN, ...SUBSCRIPTION_PLANS] : SUBSCRIPTION_PLANS
   return (
-    <div className={`grid grid-cols-1 sm:grid-cols-3 gap-2.5 ${compact ? '' : 'mt-2'}`}>
-      {SUBSCRIPTION_PLANS.map(plan => {
+    <div className={`grid grid-cols-1 ${includeTrial ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-2.5 ${compact ? '' : 'mt-2'}`}>
+      {plans.map(plan => {
         const selected = value === plan.id
         return (
           <button
@@ -27,11 +28,11 @@ export default function SubscriptionPlans({ value, onChange, lang = 'ar', compac
             <p className="text-xs font-black text-primary-500">
               {isAr ? plan.label : plan.labelFr}
             </p>
-            <p className="text-lg font-black text-slate-800 mt-1">
+            <p className={`text-lg font-black mt-1 ${plan.trial ? 'text-emerald-700' : 'text-slate-800'}`}>
               {plan.price} <span className="text-[10px] font-bold text-slate-400">MAD</span>
             </p>
             <p className="text-[10px] text-slate-400 mt-0.5">
-              {isAr ? 'دفع نقدي' : 'Paiement comptant'}
+              {plan.trial ? (isAr ? 'للعميل الجديد' : 'Nouveaux clients') : (isAr ? 'دفع نقدي' : 'Paiement comptant')}
             </p>
           </button>
         )
