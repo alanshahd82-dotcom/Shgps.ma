@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.override.yml  (#36 — nginx startup race)
+#
+# Copy to /opt/shgps/docker-compose.override.yml (Docker Compose merges it
+# automatically with docker-compose.yml on every `up`/`start`).
+#
+# Changes:
+#   1. nginx retries backend health-check so it waits instead of failing fast.
+#   2. All app services declare depends_on with condition: service_healthy
+#      so Docker Compose only starts nginx AFTER backend is healthy.
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+
+  backend:
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  traccar:
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  nginx:
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    # nginx will get a SIGTERM when Docker Compose tears it down and will
+    # drain in-flight requests gracefully before exiting.
+    stop_grace_period: 10s

@@ -1,5 +1,9 @@
 /**
  * Vehicles tab — scrollable fleet device list with status, speed, and last-seen.
+ *
+ * #11: Tags the driver's own device as "Your Device" instead of hiding it,
+ *      so dispatchers who are also drivers still see the full fleet.
+ * #18: Shows Traccar connection status alongside the WS badge.
  */
 
 import React, { useState } from 'react';
@@ -21,7 +25,7 @@ import { VehicleCard } from '@/components/VehicleCard';
 export default function VehiclesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { vehicles, connected, refresh } = useFleet();
+  const { vehicles, connected, traccarConnected, ownDeviceId, refresh } = useFleet();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -69,26 +73,36 @@ export default function VehiclesScreen() {
               <CountPill count={counts.offline} label="offline" color={colors.offline} />
             </View>
           </View>
-          <View
-            style={[
-              styles.wsIndicator,
-              { backgroundColor: (connected ? colors.online : colors.offline) + '20' },
-            ]}
-          >
+          {/* Connection badges — WS + Traccar (#18) */}
+          <View style={styles.badges}>
             <View
               style={[
-                styles.wsDot,
-                { backgroundColor: connected ? colors.online : colors.offline },
-              ]}
-            />
-            <Text
-              style={[
-                styles.wsLabel,
-                { color: connected ? colors.online : colors.offline },
+                styles.wsIndicator,
+                { backgroundColor: (connected ? colors.online : colors.offline) + '20' },
               ]}
             >
-              {connected ? 'Live' : 'Offline'}
-            </Text>
+              <View
+                style={[
+                  styles.wsDot,
+                  { backgroundColor: connected ? colors.online : colors.offline },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.wsLabel,
+                  { color: connected ? colors.online : colors.offline },
+                ]}
+              >
+                {connected ? 'Live' : 'Offline'}
+              </Text>
+            </View>
+            {/* #18: Traccar health indicator */}
+            {traccarConnected === false && (
+              <View style={[styles.wsIndicator, { backgroundColor: colors.offline + '20' }]}>
+                <Feather name="cloud-off" size={10} color={colors.offline} />
+                <Text style={[styles.wsLabel, { color: colors.offline }]}>GPS off</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -112,6 +126,21 @@ export default function VehiclesScreen() {
           )}
         </View>
       </View>
+
+      {/* #18: Traccar disconnected banner */}
+      {traccarConnected === false && (
+        <View
+          style={[
+            styles.traccarBanner,
+            { backgroundColor: colors.offline + '15', borderBottomColor: colors.offline + '30' },
+          ]}
+        >
+          <Feather name="cloud-off" size={13} color={colors.offline} />
+          <Text style={[styles.traccarText, { color: colors.offline }]}>
+            GPS server unreachable — position data may be stale
+          </Text>
+        </View>
+      )}
 
       {/* Stale banner */}
       {counts.noSignal > 0 && (
@@ -147,7 +176,12 @@ export default function VehiclesScreen() {
             tintColor={colors.primary}
           />
         }
-        renderItem={({ item }) => <VehicleCard vehicle={item} />}
+        renderItem={({ item }) => (
+          <VehicleCard
+            vehicle={item}
+            isOwnDevice={!!ownDeviceId && item.id === ownDeviceId}
+          />
+        )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -212,6 +246,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
   },
+  badges: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
+    marginTop: 4,
+  },
   wsIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,7 +259,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 99,
-    marginTop: 4,
   },
   wsDot: { width: 6, height: 6, borderRadius: 3 },
   wsLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
@@ -237,6 +276,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
     padding: 0,
+  },
+  traccarBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  traccarText: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    flex: 1,
   },
   staleBanner: {
     flexDirection: 'row',

@@ -2,9 +2,12 @@
  * FleetContext
  *
  * - Opens a WebSocket to the shared API server
- * - Receives `position` and `deviceStale` messages
+ * - Receives `position`, `deviceStale`, `geofenceAlert`, and `traccarStatus` messages
  * - Persists vehicle state to AsyncStorage for offline-first loading
- * - Exposes helpers to send own location position updates
+ * - Re-derives staleness immediately when the app returns to the foreground (#10)
+ * - Exposes `ownDeviceId` so map views can hide the driver's own marker (#11)
+ * - Tracks Traccar backend health via `traccarConnected` (#18 / #20)
+ * - Fetches human-readable device names from Traccar on startup (#19)
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +19,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -47,7 +51,17 @@ export interface FleetAlert {
 interface FleetContextValue {
   vehicles: Vehicle[];
   alerts: FleetAlert[];
+  /** WebSocket to this backend is open */
   connected: boolean;
+  /**
+   * Whether the backend can reach Traccar.
+   * `null` = no status received yet (first few seconds).
+   * `true` = Traccar reachable.
+   * `false` = backend lost contact with Traccar. (#18 / #20)
+   */
+  traccarConnected: boolean | null;
+  /** The caller's own device ID — fleet views should hide or label this. (#11) */
+  ownDeviceId: string;
   sendPosition: (deviceId: string, lat: number, lng: number) => void;
   clearAlerts: () => void;
   refresh: () => void;
@@ -124,8 +138,11 @@ const FleetContext = createContext<FleetContextValue>({
   vehicles: SEED_VEHICLES,
   alerts: [],
   connected: false,
+  traccarConnected: null,
+  ownDeviceId: '',
   sendPosition: () => {},
   clearAlerts: () => {},
+  refresh: () => {},
 });
 
 export function useFleet() {
@@ -137,6 +154,8 @@ export function useFleet() {
 interface FleetProviderProps {
   children: React.ReactNode;
   onStaleAlert?: (deviceId: string, deviceName: string) => void;
+  /** The current driver's own device ID — used to hide self-marker on the map. (#11) */
+  ownDeviceId?: string;
 }
 
 function deriveStatus(lastPositionAt: number): DeviceStatus {
@@ -146,10 +165,13 @@ function deriveStatus(lastPositionAt: number): DeviceStatus {
   return 'online';
 }
 
-export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
+export function FleetProvider({ children, onStaleAlert, ownDeviceId = '' }: FleetProviderProps) {
   const [vehicles, setVehicles] = useState<Vehicle[]>(SEED_VEHICLES);
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
   const [connected, setConnected] = useState(false);
+  const [traccarConnected, setTraccarConnected] = useState<boolean | null>(null); // #18
+  const deviceNamesRef = useRef<Map<string, string>>(new Map()); // #19 — ref avoids stale closure
+  const vehiclesRef = useRef<Vehicle[]>(SEED_VEHICLES); // kept in sync for WS callbacks
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(true);
@@ -168,9 +190,11 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
                 const next = [...prev];
                 for (const d of devices) {
                   const idx = next.findIndex((v) => v.id === d.deviceId);
+                  // Apply Traccar name if available (#19)
+                  const traccarName = deviceNamesRef.current.get(d.deviceId);
                   const updated: Vehicle = {
                     id: d.deviceId,
-                    name: d.deviceId,
+                    name: traccarName ?? d.deviceId,
                     driver: '—',
                     lat: d.lat,
                     lng: d.lng,
@@ -205,6 +229,32 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
     );
   }, []);
 
+  // ── #19: Fetch Traccar device names on startup ─────────────────────────────
+  useEffect(() => {
+    const domain = process.env['EXPO_PUBLIC_DOMAIN'];
+    if (!domain) return;
+    fetch(`https://${domain}/api/devices/names`)
+      .then((r) => r.json())
+      .then(({ names }: { names: Record<string, string> }) => {
+        const map = new Map(Object.entries(names));
+        deviceNamesRef.current = map;
+        if (map.size === 0) return;
+        // Rename existing vehicles whose name still equals their raw ID
+        setVehicles((prev) =>
+          prev.map((v) => {
+            const traccarName = map.get(v.id);
+            return traccarName && v.name === v.id ? { ...v, name: traccarName } : v;
+          })
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  // ── Keep vehiclesRef in sync for use in WS callbacks (avoids stale closure) ─
+  useEffect(() => {
+    vehiclesRef.current = vehicles;
+  }, [vehicles]);
+
   // ── Persist vehicles to AsyncStorage whenever state changes ───────────────
   useEffect(() => {
     AsyncStorage.setItem(CACHE_KEY, JSON.stringify(vehicles)).catch(() => {});
@@ -221,6 +271,35 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
       );
     }, 30_000);
     return () => clearInterval(id);
+  }, []);
+
+  // ── #10: Re-derive staleness immediately when app comes back to foreground ─
+  useEffect(() => {
+    const handleAppState = (state: AppStateStatus) => {
+      if (state === 'active') {
+        setVehicles((prev) =>
+          prev.map((v) => ({ ...v, status: deriveStatus(v.lastPositionAt) }))
+        );
+      }
+    };
+    const sub = AppState.addEventListener('change', handleAppState);
+    return () => sub.remove();
+  }, []);
+
+  // ── #10: Web — re-derive staleness when browser tab becomes visible ────────
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const handler = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        setVehicles((prev) =>
+          prev.map((v) => ({ ...v, status: deriveStatus(v.lastPositionAt) }))
+        );
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handler);
+      return () => document.removeEventListener('visibilitychange', handler);
+    }
   }, []);
 
   // ── WebSocket connection ──────────────────────────────────────────────────
@@ -278,9 +357,11 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
               );
             }
             // Upsert: new device seen for the first time via WS
+            // Use Traccar name if available (#19)
+            const traccarName = deviceNamesRef.current.get(deviceId);
             const newVehicle: Vehicle = {
               id: deviceId,
-              name: deviceId,
+              name: traccarName ?? deviceId,
               driver: '—',
               lat,
               lng,
@@ -304,8 +385,9 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
                 : v
             )
           );
-          const vehicle = vehicles.find((v) => v.id === deviceId);
-          const name = vehicle?.name ?? deviceId;
+          // Read vehicle name from ref (avoids stale closure)
+          const vehicle = vehiclesRef.current.find((v) => v.id === deviceId);
+          const name = vehicle?.name ?? deviceNamesRef.current.get(deviceId) ?? deviceId;
           addAlert({
             type: 'stale',
             deviceId,
@@ -334,6 +416,10 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
             geofenceName,
             ts,
           });
+        } else if (msg.type === 'traccarStatus') {
+          // #18 / #20: backend reports whether it can reach Traccar
+          const { connected: tc } = msg as { type: string; connected: boolean };
+          setTraccarConnected(tc);
         }
       };
 
@@ -349,7 +435,8 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
     } catch {
       reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
     }
-  }, [vehicles, addAlert, onStaleAlert]);
+    // vehiclesRef and deviceNamesRef are refs — safe to use without listing as deps
+  }, [addAlert, onStaleAlert]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -376,7 +463,18 @@ export function FleetProvider({ children, onStaleAlert }: FleetProviderProps) {
   }, []);
 
   return (
-    <FleetContext.Provider value={{ vehicles, alerts, connected, sendPosition, clearAlerts, refresh }}>
+    <FleetContext.Provider
+      value={{
+        vehicles,
+        alerts,
+        connected,
+        traccarConnected,
+        ownDeviceId,
+        sendPosition,
+        clearAlerts,
+        refresh,
+      }}
+    >
       {children}
     </FleetContext.Provider>
   );

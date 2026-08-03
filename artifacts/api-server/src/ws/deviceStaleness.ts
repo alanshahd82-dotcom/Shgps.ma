@@ -5,12 +5,16 @@
  * `deviceStale` WebSocket event when a device hasn't reported in
  * STALE_THRESHOLD_MS milliseconds.
  *
+ * Also sends Expo push notifications to all registered devices (#38).
+ *
  * This module is intentionally decoupled from the Traccar transport:
  * call `recordPosition(deviceId)` whenever a position update arrives.
  */
 
 import { WebSocket, WebSocketServer } from "ws";
 import { logger } from "../lib/logger.js";
+import { sendPushNotifications } from "../lib/pushNotifications.js";
+import { getRegisteredTokens } from "../routes/alerts.js";
 
 /** How long with no position update before a device is considered stale (ms). */
 export const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
@@ -106,4 +110,18 @@ function broadcastDeviceStale(
     { deviceId, lastSeenAt, staleForMs: payload.staleForMs, clientsNotified: sent },
     "deviceStale broadcast",
   );
+
+  // ── Push notifications for stale alerts (#38) ─────────────────────────────
+  const tokens = getRegisteredTokens();
+  if (tokens.length > 0) {
+    sendPushNotifications(
+      tokens.map((t) => ({
+        to: t.token,
+        title: "⚠ Vehicle Signal Lost",
+        body: `${deviceId} has not reported GPS in over 5 minutes.`,
+        data: { type: "stale", deviceId },
+        sound: "default" as const,
+      }))
+    );
+  }
 }

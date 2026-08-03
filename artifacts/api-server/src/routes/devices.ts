@@ -2,6 +2,7 @@
  * Device routes
  *
  * GET  /devices          — list all known device positions
+ * GET  /devices/names    — map of Traccar uniqueId → human name (#19)
  * POST /devices/position — accept a position update (used by mobile background task)
  */
 
@@ -9,12 +10,23 @@ import { Router } from "express";
 import { storePosition, getAllPositions } from "../ws/positionStore.js";
 import { recordPosition } from "../ws/deviceStaleness.js";
 import { broadcastPosition } from "../ws/broadcast.js";
+import { getDeviceNames } from "../ws/geofencePoller.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
 
 router.get("/devices", (_req, res) => {
   res.json({ devices: getAllPositions() });
+});
+
+/**
+ * Returns friendly device names from the Traccar cache so the mobile app
+ * can display human-readable labels instead of raw device IDs. (#19)
+ *
+ * Response: { names: { [traccarUniqueId]: "Human Name", … } }
+ */
+router.get("/devices/names", (_req, res) => {
+  res.json({ names: getDeviceNames() });
 });
 
 router.post("/devices/position", (req, res) => {

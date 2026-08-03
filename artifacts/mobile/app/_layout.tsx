@@ -26,10 +26,14 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { scheduleStaleAlert } = useNotifications();
+  const { scheduleStaleAlert, ownDeviceId } = useNotifications();
 
   return (
-    <FleetProvider onStaleAlert={(_deviceId, deviceName) => scheduleStaleAlert(deviceName)}>
+    // Pass ownDeviceId so the fleet map can hide the driver's own marker (#11)
+    <FleetProvider
+      onStaleAlert={(_deviceId, deviceName) => scheduleStaleAlert(deviceName)}
+      ownDeviceId={ownDeviceId}
+    >
       <Stack screenOptions={{ headerBackTitle: 'Back' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>

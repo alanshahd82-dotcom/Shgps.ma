@@ -1,3 +1,8 @@
+/**
+ * VehicleCard
+ *
+ * #11: Accepts `isOwnDevice` to label the driver's own device distinctly.
+ */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -28,9 +33,11 @@ function statusColors(status: DeviceStatus, colors: ReturnType<typeof useColors>
 
 interface VehicleCardProps {
   vehicle: Vehicle;
+  /** When true, renders a "Your Device" tag — the viewer is this vehicle's driver. (#11) */
+  isOwnDevice?: boolean;
 }
 
-export function VehicleCard({ vehicle: v }: VehicleCardProps) {
+export function VehicleCard({ vehicle: v, isOwnDevice = false }: VehicleCardProps) {
   const colors = useColors();
   const s = statusColors(v.status, colors);
   const isStale = v.status === 'noSignal';
@@ -49,7 +56,7 @@ export function VehicleCard({ vehicle: v }: VehicleCardProps) {
       {/* Icon */}
       <View style={[styles.iconWrap, { backgroundColor: s.bg }]}>
         <Feather
-          name="truck"
+          name={isOwnDevice ? 'navigation' : 'truck'}
           size={18}
           color={s.dot}
         />
@@ -67,6 +74,12 @@ export function VehicleCard({ vehicle: v }: VehicleCardProps) {
           >
             {v.name}
           </Text>
+          {/* #11: Tag own device */}
+          {isOwnDevice && (
+            <View style={[styles.ownTag, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={[styles.ownTagText, { color: colors.primary }]}>You</Text>
+            </View>
+          )}
           <View style={[styles.badge, { backgroundColor: s.bg }]}>
             <View style={[styles.dot, { backgroundColor: s.dot }]} />
             <Text style={[styles.badgeText, { color: s.text }]}>{s.label}</Text>
@@ -76,7 +89,7 @@ export function VehicleCard({ vehicle: v }: VehicleCardProps) {
         <View style={styles.meta}>
           <Feather name="user" size={11} color={colors.mutedForeground} />
           <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {v.driver === '—' ? 'Unassigned' : v.driver}
+            {isOwnDevice ? 'Your device' : (v.driver === '—' ? 'Unassigned' : v.driver)}
           </Text>
         </View>
       </View>
@@ -124,13 +137,25 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flexWrap: 'nowrap',
   },
   name: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
     flexShrink: 1,
+  },
+  ownTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 99,
+    flexShrink: 0,
+  },
+  ownTagText: {
+    fontSize: 9,
+    fontFamily: 'Inter_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   badge: {
     flexDirection: 'row',

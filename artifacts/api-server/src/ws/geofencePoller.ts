@@ -4,6 +4,13 @@
  * Polls the Traccar REST API for geofence enter/exit events and broadcasts
  * them to all connected WebSocket clients via `broadcastGeofenceAlert`.
  *
+ * Also:
+ *   - Tracks Traccar connection health and broadcasts `traccarStatus` events
+ *     when the backend loses / recovers the Traccar connection (#20).
+ *   - Exports `getDeviceNames()` so REST routes can serve friendly device
+ *     names to the mobile app (#19).
+ *   - Sends Expo push notifications for geofence alerts (#38).
+ *
  * Required environment variables (set via Replit Secrets):
  *   TRACCAR_URL      — base URL of the Traccar server, e.g. https://demo.traccar.org
  *   TRACCAR_EMAIL    — Traccar account email
@@ -15,7 +22,9 @@
  */
 
 import { logger } from "../lib/logger.js";
-import { broadcastGeofenceAlert, type GeofenceAlertPayload } from "./broadcast.js";
+import { broadcastGeofenceAlert, broadcastTraccarStatus, type GeofenceAlertPayload } from "./broadcast.js";
+import { sendPushNotifications } from "../lib/pushNotifications.js";
+import { getRegisteredTokens } from "../routes/alerts.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -25,6 +34,19 @@ const TRACCAR_PASSWORD = process.env["TRACCAR_PASSWORD"];
 
 /** How often to poll Traccar for new events (ms). */
 const POLL_INTERVAL_MS = 15_000;
+
+/** How many consecutive poll failures before declaring Traccar disconnected. */
+const FAILURE_THRESHOLD = 3;
+
+// ─── Health tracking (#20) ───────────────────────────────────────────────────
+
+let consecutiveFailures = 0;
+let traccarIsConnected = true; // optimistic until first failure
+
+/** Returns the last-known Traccar connection state (for new WS clients). */
+export function isTraccarConnected(): boolean {
+  return traccarIsConnected;
+}
 
 // ─── In-memory event de-duplication ──────────────────────────────────────────
 
@@ -59,6 +81,21 @@ const deviceCache = new Map<number, TraccarDevice>();
 /** Traccar numeric geofenceId → name */
 const geofenceCache = new Map<number, string>();
 
+// ─── Public: device name export (#19) ────────────────────────────────────────
+
+/**
+ * Returns a map of Traccar uniqueId → human-readable name.
+ * Used by the /api/devices/names REST endpoint so the mobile app can label
+ * unknown devices with their Traccar names.
+ */
+export function getDeviceNames(): Record<string, string> {
+  const names: Record<string, string> = {};
+  for (const device of deviceCache.values()) {
+    names[device.uniqueId] = device.name;
+  }
+  return names;
+}
+
 // ─── Timestamp tracking ──────────────────────────────────────────────────────
 
 /** Epoch-ms of the last successful poll; used as the `from` parameter. */
@@ -80,6 +117,7 @@ async function fetchJson<T>(path: string): Promise<T> {
       Authorization: basicAuthHeader(),
       Accept: "application/json",
     },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
     throw new Error(`Traccar ${path} responded ${res.status}`);
@@ -113,6 +151,14 @@ async function poll(): Promise<void> {
   const events = await fetchJson<TraccarEvent[]>(
     `/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&type=geofenceEnter&type=geofenceExit`
   );
+
+  // ── Health recovery (#20) ─────────────────────────────────────────────────
+  consecutiveFailures = 0;
+  if (!traccarIsConnected) {
+    traccarIsConnected = true;
+    broadcastTraccarStatus(true);
+    logger.info("Traccar connection recovered");
+  }
 
   if (events.length === 0) return;
 
@@ -152,10 +198,39 @@ async function poll(): Promise<void> {
 
     broadcastGeofenceAlert(payload);
 
+    // ── Push notifications for geofence alerts (#38) ───────────────────────
+    const tokens = getRegisteredTokens();
+    if (tokens.length > 0) {
+      const verb = eventType === "enter" ? "entered" : "exited";
+      sendPushNotifications(
+        tokens.map((t) => ({
+          to: t.token,
+          title: `📍 Geofence Alert`,
+          body: `${deviceName} ${verb} ${geofenceName}`,
+          data: { type: "geofence", deviceId, eventType, geofenceName },
+          sound: "default" as const,
+        }))
+      );
+    }
+
     logger.info(
       { deviceId, deviceName, eventType, geofenceName, ts },
       "geofenceAlert broadcast"
     );
+  }
+}
+
+// ─── Health failure handler (#20) ─────────────────────────────────────────────
+
+function handlePollFailure(err: unknown): void {
+  consecutiveFailures++;
+  logger.warn({ err, consecutiveFailures }, "Geofence poller: poll failed");
+
+  if (consecutiveFailures >= FAILURE_THRESHOLD && traccarIsConnected) {
+    traccarIsConnected = false;
+    const reason = err instanceof Error ? err.message : String(err);
+    broadcastTraccarStatus(false, reason);
+    logger.warn({ reason }, "Traccar marked as disconnected");
   }
 }
 
@@ -179,7 +254,7 @@ export function startGeofencePoller(): () => void {
   );
 
   const intervalId = setInterval(() => {
-    poll().catch((err) => logger.warn({ err }, "Geofence poller: poll failed"));
+    poll().catch(handlePollFailure);
   }, POLL_INTERVAL_MS);
 
   logger.info({ pollIntervalMs: POLL_INTERVAL_MS, traccarUrl: TRACCAR_URL }, "Geofence poller started");

@@ -1,6 +1,9 @@
 /**
  * Web fallback for FleetMap — shows a grid-based vehicle position overview
  * since react-native-maps doesn't run on web.
+ *
+ * #18: Shows a banner when the backend loses its Traccar connection.
+ * #11: Hides the driver's own device from the fleet grid (ownDeviceId).
  */
 import React from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -26,8 +29,14 @@ function timeAgo(ts: number): string {
 export function FleetMap() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { vehicles, connected } = useFleet();
-  const staleCount = vehicles.filter((v) => v.status === 'noSignal').length;
+  const { vehicles, connected, traccarConnected, ownDeviceId } = useFleet();
+
+  // #11: Exclude the driver's own device from the fleet grid
+  const fleetVehicles = ownDeviceId
+    ? vehicles.filter((v) => v.id !== ownDeviceId)
+    : vehicles;
+
+  const staleCount = fleetVehicles.filter((v) => v.status === 'noSignal').length;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
 
   return (
@@ -57,6 +66,16 @@ export function FleetMap() {
         </Text>
       </View>
 
+      {/* #18: Traccar disconnection banner */}
+      {traccarConnected === false && (
+        <View style={[styles.traccarBanner, { backgroundColor: colors.offline + '15', borderBottomColor: colors.offline + '30' }]}>
+          <Feather name="cloud-off" size={13} color={colors.offline} />
+          <Text style={[styles.traccarBannerText, { color: colors.offline }]}>
+            GPS server unreachable — position data may be stale
+          </Text>
+        </View>
+      )}
+
       {staleCount > 0 && (
         <View style={[styles.staleBanner, { backgroundColor: colors.warning + '15', borderBottomColor: colors.warning + '30' }]}>
           <Feather name="alert-triangle" size={13} color={colors.warning} />
@@ -71,7 +90,7 @@ export function FleetMap() {
         bounces={false}
         overScrollMode="never"
       >
-        {vehicles.map((v) => {
+        {fleetVehicles.map((v) => {
           const color = STATUS_COLORS[v.status];
           return (
             <View
@@ -120,6 +139,11 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   badgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  traccarBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1,
+  },
+  traccarBannerText: { fontSize: 13, fontFamily: 'Inter_500Medium', flex: 1 },
   staleBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1,

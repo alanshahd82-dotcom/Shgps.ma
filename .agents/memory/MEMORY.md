@@ -1,0 +1,2 @@
+- [Traccar Admin Bootstrap](traccar-bootstrap.md) — VPS admin creation requires H2 Shell stop/start dance; password must match container env exactly.
+- [Fleet WS stale-closure pattern](fleet-ws-closure.md) — WS callbacks in FleetContext must read current state via refs, not useState values.

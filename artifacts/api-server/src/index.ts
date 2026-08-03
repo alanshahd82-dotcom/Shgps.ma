@@ -4,8 +4,8 @@ import app from "./app.js";
 import { logger } from "./lib/logger.js";
 import { startStalenessScanner, recordPosition } from "./ws/deviceStaleness.js";
 import { storePosition } from "./ws/positionStore.js";
-import { setWss, broadcastPosition as _broadcast } from "./ws/broadcast.js";
-import { startGeofencePoller } from "./ws/geofencePoller.js";
+import { setWss, broadcastPosition as _broadcast, sendTraccarStatusToClient } from "./ws/broadcast.js";
+import { startGeofencePoller, isTraccarConnected } from "./ws/geofencePoller.js";
 
 const rawPort = process.env["PORT"];
 
@@ -96,8 +96,9 @@ wss.on("connection", (ws, req) => {
     logger.error({ err, ip }, "WebSocket error");
   });
 
-  // Acknowledge connection
+  // Acknowledge connection and send current Traccar health status (#18/#20)
   ws.send(JSON.stringify({ type: "connected", ts: Date.now() }));
+  sendTraccarStatusToClient(ws, isTraccarConnected());
 });
 
 // Start staleness scanner — broadcasts `deviceStale` events when a device

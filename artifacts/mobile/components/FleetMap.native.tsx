@@ -1,6 +1,10 @@
 /**
  * Native (iOS/Android) map implementation — uses react-native-maps.
  * Imported only on native platforms via .native.tsx extension.
+ *
+ * #11: Filters out the driver's own device so it doesn't appear as a
+ *      duplicate marker alongside the system's blue "you are here" dot.
+ * #18: Shows a Traccar disconnection banner when the backend loses Traccar.
  */
 import React, { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -19,18 +23,24 @@ const STATUS_COLORS = {
 export function FleetMap() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { vehicles, connected } = useFleet();
+  const { vehicles, connected, traccarConnected, ownDeviceId } = useFleet();
   const mapRef = useRef<MapView>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const selectedVehicle = vehicles.find((v) => v.id === selected) ?? null;
+  // #11: Remove the driver's own device from the fleet markers — the system's
+  // blue dot already shows the user's location more accurately.
+  const fleetVehicles = ownDeviceId
+    ? vehicles.filter((v) => v.id !== ownDeviceId)
+    : vehicles;
+
+  const selectedVehicle = fleetVehicles.find((v) => v.id === selected) ?? null;
 
   const handleMarkerPress = useCallback((id: string) => {
     setSelected((prev) => (prev === id ? null : id));
   }, []);
 
   const fitAll = useCallback(() => {
-    const coords = vehicles
+    const coords = fleetVehicles
       .filter((v) => v.status !== 'offline')
       .map((v) => ({ latitude: v.lat, longitude: v.lng }));
     if (coords.length > 0) {
@@ -39,9 +49,9 @@ export function FleetMap() {
         animated: true,
       });
     }
-  }, [vehicles]);
+  }, [fleetVehicles]);
 
-  const staleCount = vehicles.filter((v) => v.status === 'noSignal').length;
+  const staleCount = fleetVehicles.filter((v) => v.status === 'noSignal').length;
 
   return (
     <View style={styles.container}>
@@ -59,7 +69,7 @@ export function FleetMap() {
         showsMyLocationButton={false}
         userInterfaceStyle="dark"
       >
-        {vehicles.map((v) => (
+        {fleetVehicles.map((v) => (
           <VehicleMarker
             key={v.id}
             vehicle={v}
@@ -88,7 +98,7 @@ export function FleetMap() {
         </View>
         <View style={styles.hudRight}>
           <Text style={[styles.hudCount, { color: colors.online }]}>
-            {vehicles.filter((v) => v.status === 'online').length} online
+            {fleetVehicles.filter((v) => v.status === 'online').length} online
           </Text>
           {staleCount > 0 && (
             <Text style={[styles.hudCount, { color: colors.warning }]}>
@@ -98,12 +108,31 @@ export function FleetMap() {
         </View>
       </View>
 
+      {/* #18: Traccar disconnection banner */}
+      {traccarConnected === false && (
+        <View
+          style={[
+            styles.traccarBanner,
+            {
+              top: insets.top + 60,
+              backgroundColor: colors.offline + '20',
+              borderColor: colors.offline + '40',
+            },
+          ]}
+        >
+          <Feather name="cloud-off" size={13} color={colors.offline} />
+          <Text style={[styles.traccarBannerText, { color: colors.offline }]}>
+            GPS server unreachable — data may be stale
+          </Text>
+        </View>
+      )}
+
       {staleCount > 0 && (
         <View
           style={[
             styles.staleBanner,
             {
-              top: insets.top + 60,
+              top: insets.top + (traccarConnected === false ? 100 : 60),
               backgroundColor: colors.warning + '20',
               borderColor: colors.warning + '40',
             },
@@ -263,6 +292,12 @@ const styles = StyleSheet.create({
   hudText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   hudRight: { flexDirection: 'row', gap: 12 },
   hudCount: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  traccarBanner: {
+    position: 'absolute', left: 16, right: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  traccarBannerText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
   staleBanner: {
     position: 'absolute', left: 16, right: 16,
     flexDirection: 'row', alignItems: 'center', gap: 6,
