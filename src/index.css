@@ -230,6 +230,15 @@ img {
   overscroll-behavior-y: none;
 }
 
+.client-home-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+.client-home-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* ATHAR GPS product surface */
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {

@@ -90,19 +90,17 @@ export default function Home() {
   })
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
-      <ClientHeader />
+    <div className="client-app relative h-[100dvh] overflow-hidden bg-[#f5f7f8]" dir={isAr ? 'rtl' : 'ltr'}>
+      <ClientHeader fixed showUser />
 
-      <main className="mx-auto max-w-xl space-y-5 px-5 py-5">
-        <section>
-          <p className="text-xs font-medium text-slate-500">{t(lang, 'welcome')}</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-primary-500">
-            {clientAuth?.name || 'ATHAR GPS'}
-          </h1>
-          <p className="mt-1 text-xs text-slate-500">
-            {isAr ? 'ملخص أسطولك اليوم' : 'Résumé de votre flotte aujourd’hui'}
-          </p>
-        </section>
+      <main
+        className="client-home-scroll absolute inset-x-0 overflow-y-auto overscroll-contain px-5 py-5"
+        style={{
+          top: 'calc(4rem + env(safe-area-inset-top, 0px))',
+          bottom: 'calc(4.5rem + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        <div className="mx-auto max-w-xl space-y-5">
 
         <section className="rounded-2xl bg-primary-500 p-5 text-white shadow-lg shadow-primary-500/10">
           <div className="flex items-start justify-between gap-3">
@@ -231,6 +229,7 @@ export default function Home() {
             )}
           </div>
         </section>
+        </div>
       </main>
       <ClientNav />
     </div>
