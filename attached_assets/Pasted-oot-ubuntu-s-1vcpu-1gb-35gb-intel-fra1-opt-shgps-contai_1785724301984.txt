@@ -1,0 +1,46 @@
+oot@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# # تحقق من حالة كل container
+docker compose ps
+
+# سجلات الـ backend
+docker compose logs backend --tail=30
+
+# جرب مباشرة على port الـ backend بدون nginx
+curl -s http://localhost:3000/api/health
+NAME               IMAGE                    COMMAND                   SERVICE     CREATED              STATUS                          PORTS
+shgps-backend-1    shgps-backend            "docker-entrypoint.s…"    backend     About a minute ago   Restarting (1) 21 seconds ago   
+shgps-backup-1     postgres:16-alpine       "/bin/sh -c '\n  whil…"   db-backup   About a minute ago   Up About a minute               5432/tcp
+shgps-certbot-1    certbot/certbot          "/bin/sh -c 'trap ex…"    certbot     19 hours ago         Up 19 hours                     80/tcp, 443/tcp
+shgps-nginx-1      nginx:alpine             "/docker-entrypoint.…"    nginx       19 hours ago         Up 19 hours                     0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp
+shgps-postgres-1   postgres:16-alpine       "docker-entrypoint.s…"    postgres    About a minute ago   Up About a minute (healthy)     5432/tcp
+shgps-traccar-1    traccar/traccar:ubuntu   "/opt/traccar/jre/bi…"    traccar     19 hours ago         Up 19 hours (healthy)           0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp, 0.0.0.0:5023->5023/tcp, [::]:5023->5023/tcp, 0.0.0.0:5027->5027/tcp, [::]:5027->5027/tcp, 0.0.0.0:5029->5029/tcp, [::]:5029->5029/tcp, 0.0.0.0:5055->5055/tcp, [::]:5055->5055/tcp
+backend-1  | ReferenceError: traccar is not defined
+backend-1  |     at connectTraccar (file:///app/src/index.js:146:23)
+backend-1  |     at Server.<anonymous> (file:///app/src/index.js:209:5)
+backend-1  |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+backend-1  | 
+backend-1  | Node.js v20.20.2
+backend-1  | AtharGPS Backend running on port 3001
+backend-1  | [App] Migration failed — serving health checks only: password authentication failed for user "shgps"
+backend-1  | file:///app/src/index.js:146
+backend-1  |   const adminResult = await traccar.ensureAdminUser(
+backend-1  |                       ^
+backend-1  | 
+backend-1  | ReferenceError: traccar is not defined
+backend-1  |     at connectTraccar (file:///app/src/index.js:146:23)
+backend-1  |     at Server.<anonymous> (file:///app/src/index.js:209:5)
+backend-1  |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+backend-1  | 
+backend-1  | Node.js v20.20.2
+backend-1  | AtharGPS Backend running on port 3001
+backend-1  | [App] Migration failed — serving health checks only: password authentication failed for user "shgps"
+backend-1  | file:///app/src/index.js:146
+backend-1  |   const adminResult = await traccar.ensureAdminUser(
+backend-1  |                       ^
+backend-1  | 
+backend-1  | ReferenceError: traccar is not defined
+backend-1  |     at connectTraccar (file:///app/src/index.js:146:23)
+backend-1  |     at Server.<anonymous> (file:///app/src/index.js:209:5)
+backend-1  |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+backend-1  | 
+backend-1  | Node.js v20.20.2
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
