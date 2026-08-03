@@ -1,0 +1,51 @@
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# cd /opt/shgps && git pull origin main && \
+docker compose build --no-cache backend && \
+docker compose up -d backend && \
+sleep 20 && curl -s http://localhost/api/health | python3 -m json.tool
+remote: Enumerating objects: 10, done.
+remote: Counting objects: 100% (10/10), done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 6 (delta 5), reused 6 (delta 5), pack-reused 0 (from 0)
+Unpacking objects: 100% (6/6), 1.44 KiB | 368.00 KiB/s, done.
+From https://github.com/alanshahd82-dotcom/Shgps.ma
+ * branch            main       -> FETCH_HEAD
+   013b9ab..df21c43  main       -> origin/main
+Updating 013b9ab..df21c43
+Fast-forward
+ backend/src/app.js   |  98 ++++++++++++++++++++++++++++++++++++++++
+ backend/src/index.js | 142 ++++++++--------------------------------------------------
+ 2 files changed, 116 insertions(+), 124 deletions(-)
+ create mode 100644 backend/src/app.js
+[+] Building 13.4s (12/12) FINISHED                                                    
+ => [internal] load local bake definitions                                        0.0s
+ => => reading from stdin 512B                                                    0.0s
+ => [internal] load build definition from Dockerfile                              0.0s
+ => => transferring dockerfile: 362B                                              0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                 0.0s
+ => [internal] load .dockerignore                                                 0.0s
+ => => transferring context: 85B                                                  0.0s
+ => [1/5] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362  0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362  0.0s
+ => [internal] load build context                                                 0.0s
+ => => transferring context: 9.39kB                                               0.0s
+ => CACHED [2/5] WORKDIR /app                                                     0.0s
+ => [3/5] COPY package.json ./                                                    0.0s
+ => [4/5] RUN npm install --omit=dev --no-audit --no-fund && ls node_modules/ex  11.2s
+ => [5/5] COPY src ./src                                                          0.1s 
+ => exporting to image                                                            1.3s
+ => => exporting layers                                                           0.8s
+ => => exporting manifest sha256:2475d002ca66bce8a9d4fd259d1a408df522f976bc1cb42  0.0s
+ => => exporting config sha256:b5cbac02f9abae846ac43c8986fe88f87cb19d97627a3c05a  0.0s
+ => => exporting attestation manifest sha256:54855b47fb832348e05181fa3d4325a9193  0.0s
+ => => exporting manifest list sha256:e5b4c1d23a71155581b6a98d3802d994f95c33034c  0.0s
+ => => naming to docker.io/library/shgps-backend:latest                           0.0s
+ => => unpacking to docker.io/library/shgps-backend:latest                        0.5s
+ => resolving provenance for metadata file                                        0.1s
+[+] build 1/1
+ ✔ Image shgps-backend Built                                                      13.5s
+[+] up 3/3
+ ✔ Container shgps-postgres-1 Healthy                                              0.9s
+ ✔ Container shgps-traccar-1  Healthy                                              0.9s
+ ✔ Container shgps-backend-1  Started                                              1.1s
+Expecting value: line 1 column 1 (char 0)
+root@ubuntu-s-1vcpu-1gb-35gb-intel-fra1:/opt/shgps# 
