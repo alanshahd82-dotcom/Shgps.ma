@@ -51,6 +51,9 @@ import {
             found: true, registered: true, deviceId: rows[0].id,
             traccarId: traccarDevice?.id ?? rows[0].traccar_id,
             name: rows[0].name, online,
+            traccarRegistered: !!traccarDevice,
+            hasPosition: !!position,
+            traccarStatus: traccarDevice?.status || null,
             lastUpdate: position?.fixTime || traccarDevice?.lastUpdate || null,
           })
         }
@@ -63,6 +66,8 @@ import {
             const position = allPos.find(p => p.deviceId === td.id) || null
             return res.json({ found: true, registered: false, traccarId: td.id,
               name: td.name, online: td.status === 'online' || !!position,
+              traccarRegistered: true, hasPosition: !!position,
+              traccarStatus: td.status || null,
               lastUpdate: position?.fixTime || td.lastUpdate || null })
           }
         } catch {}

@@ -94,7 +94,7 @@ export default function DeviceSetup() {
   const [apnIndex, setApnIndex]       = useState(0)
   const [customApn, setCustomApn]     = useState({ apn: '', user: '', pass: '' })
   const [simPhone, setSimPhone]       = useState('')
-  const [testStatus, setTestStatus]   = useState(null) // null | 'checking' | 'found' | 'not_found'
+   const [testStatus, setTestStatus]   = useState(null) // null | 'checking' | 'found' | 'registered' | 'not_found'
   const [testData, setTestData]       = useState(null)
   const [clientId, setClientId]       = useState('')
   const [subscriptionPlanId, setSubscriptionPlanId] = useState('3_months')
@@ -131,6 +131,14 @@ export default function DeviceSetup() {
         if (res.online) {
           finished = true
           setTestStatus('found')
+          setTestData(res)
+          clearInterval(pollRef.current)
+        } else if (res.found || res.registered) {
+          // The device exists in the system, but Traccar has not received
+          // a live position/online packet yet. This is different from
+          // "device not registered" and is common while GPS is still off.
+          finished = true
+          setTestStatus('registered')
           setTestData(res)
           clearInterval(pollRef.current)
         } else {
@@ -424,6 +432,37 @@ export default function DeviceSetup() {
                         {new Date(testData.lastUpdate).toLocaleString(isAr ? 'ar-MA' : 'fr-FR')}
                       </p>
                     )}
+                  </div>
+                )}
+
+                {testStatus === 'registered' && (
+                  <div className="space-y-4">
+                    <div className="w-24 h-24 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
+                      <Wifi size={40} className="text-amber-500" />
+                    </div>
+                    <p className="text-amber-600 font-black text-lg">
+                      {isAr ? 'تم تسجيل الجهاز، بانتظار أول إشارة' : 'Appareil enregistré, en attente du premier signal'}
+                    </p>
+                    <p className="text-xs text-slate-500 text-center max-w-sm mx-auto">
+                      {testData?.traccarRegistered
+                        ? (isAr
+                          ? 'ظهر الجهاز في Traccar، لكنه لم يرسل موقعاً صالحاً بعد. شغّل بيانات SIM واتركه في مكان مفتوح حتى يثبت GPS.'
+                          : 'L’appareil apparaît dans Traccar, mais n’a pas encore envoyé de position valide. Activez les données SIM et placez-le à ciel ouvert pour obtenir le GPS.')
+                        : (isAr
+                          ? 'تم حفظ الجهاز في النظام، لكن لم يظهر اتصال منه في Traccar بعد. أعد إرسال APN وSERVER، وتأكد من GPRS ومن المنفذ 5023.'
+                          : 'L’appareil est enregistré dans l’application, mais Traccar n’a pas encore reçu sa connexion. Renvoyez APN et SERVER et vérifiez GPRS et le port 5023.')}
+                    </p>
+                    {testData?.lastUpdate && (
+                      <p className="text-xs text-slate-400">
+                        {isAr ? 'آخر اتصال معروف: ' : 'Dernière communication connue : '}
+                        {new Date(testData.lastUpdate).toLocaleString(isAr ? 'ar-MA' : 'fr-FR')}
+                      </p>
+                    )}
+                    <button onClick={startConnectionTest}
+                      className="mx-auto flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-semibold">
+                      <RefreshCw size={14} />
+                      {isAr ? 'إعادة الفحص' : 'Vérifier à nouveau'}
+                    </button>
                   </div>
                 )}
 
