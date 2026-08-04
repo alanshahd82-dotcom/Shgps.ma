@@ -183,10 +183,11 @@ import {
           )
           const client = clientRows[0]
           if (!client) return res.status(404).json({ error: 'Client not found' })
-          if (Number(client.devices_count) >= Number(client.max_devices ?? 5)) {
+          const maxDevices = Math.max(1, Number(client.max_devices) || 5)
+          if (Number(client.devices_count) >= maxDevices) {
             return res.status(409).json({
               code: 'DEVICE_LIMIT_REACHED',
-              error: `Device limit reached (${client.devices_count}/${client.max_devices ?? 5}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
+              error: `Device limit reached (${client.devices_count}/${maxDevices}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
             })
           }
           if (plan.trial && await clientHasUsedFreeTrial(clientId)) {
@@ -268,7 +269,7 @@ import {
         const account = accountRows[0]
         if (!account) return res.status(404).json({ error: 'Client account not found' })
 
-        const maxDevices = Number(account.max_devices ?? 5)
+        const maxDevices = Math.max(1, Number(account.max_devices) || 5)
         const devicesCount = Number(account.devices_count ?? 0)
         if (devicesCount >= maxDevices) {
           return res.status(409).json({
@@ -410,9 +411,13 @@ import {
               plan.id, subscriptionStartDate, subscriptionEndDate]
           )
           if (finalClientId && maxDevices !== undefined && maxDevices !== null && maxDevices !== '') {
+            const parsedMaxDevices = Number(maxDevices)
+            if (!Number.isInteger(parsedMaxDevices) || parsedMaxDevices < 1) {
+              return res.status(400).json({ error: 'maxDevices must be a positive integer' })
+            }
             await db.query(
               `UPDATE users SET max_devices=$1 WHERE id=$2`,
-              [Number(maxDevices), finalClientId]
+              [parsedMaxDevices, finalClientId]
             )
           }
           await db.query('COMMIT')

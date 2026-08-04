@@ -59,6 +59,13 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS is_active             BOOLEAN DEFAULT TRUE,
         ADD COLUMN IF NOT EXISTS updated_at           TIMESTAMP DEFAULT NOW()
     `)
+    // Older accounts could be created with max_devices=0 by legacy flows.
+    // Zero is not a meaningful device limit; repair those accounts on startup.
+    await db.query(`
+      UPDATE users
+      SET max_devices = 5, updated_at = NOW()
+      WHERE is_admin = FALSE AND (max_devices IS NULL OR max_devices < 1)
+    `)
     await db.query(`
       CREATE TABLE IF NOT EXISTS devices (
         id SERIAL PRIMARY KEY,

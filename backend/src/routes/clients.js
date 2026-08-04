@@ -25,7 +25,7 @@ clientsRouter.get('/', requireAuth, requireAdmin, async (req, res) => {
       data: rows.map(u => ({
         id: u.id, name: u.name, email: u.email, phone: u.phone, city: u.city,
         subscription: u.subscription, status: u.is_active ? 'active' : 'inactive',
-        isActive: u.is_active, maxDevices: u.max_devices ?? 5, expiryDate: u.expiry_date,
+        isActive: u.is_active, maxDevices: Math.max(1, Number(u.max_devices) || 5), expiryDate: u.expiry_date,
         devicesCount: u.devices_count, joinDate: u.created_at, avatar: u.avatar || u.name?.charAt(0),
       })),
       total: countRows[0].total,
@@ -95,7 +95,7 @@ clientsRouter.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     res.json({
       id:user.id, name:user.name, email:user.email, phone:user.phone, city:user.city,
       subscription:user.subscription, status:user.is_active?'active':'inactive',
-      isActive:user.is_active, maxDevices:user.max_devices ?? 5, expiryDate:user.expiry_date,
+      isActive:user.is_active, maxDevices:Math.max(1, Number(user.max_devices) || 5), expiryDate:user.expiry_date,
       devicesCount:countRows[0].devices_count, joinDate:user.created_at, avatar:user.avatar||user.name?.charAt(0),
     })
   } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
@@ -135,7 +135,14 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
   let idx = 1
   if (expiryDate !== undefined) { sets.push(`expiry_date=$${idx++}`); params.push(expiryDate || null) }
   if (plan !== undefined)       { sets.push(`subscription=$${idx++}`); params.push(plan) }
-  if (maxDevices !== undefined) { sets.push(`max_devices=$${idx++}`);  params.push(Number(maxDevices)) }
+  if (maxDevices !== undefined) {
+    const parsedMaxDevices = Number(maxDevices)
+    if (!Number.isInteger(parsedMaxDevices) || parsedMaxDevices < 1) {
+      return res.status(400).json({ error: 'maxDevices must be a positive integer' })
+    }
+    sets.push(`max_devices=$${idx++}`)
+    params.push(parsedMaxDevices)
+  }
   if (isActive !== undefined)   { sets.push(`is_active=$${idx++}`);    params.push(!!isActive) }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' })
   sets.push(`updated_at=NOW()`)
@@ -149,7 +156,7 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
     if (!rows[0]) return res.status(404).json({ error: 'Client not found' })
     const u = rows[0]
     res.json({ id:u.id, name:u.name, email:u.email, subscription:u.subscription,
-      isActive:u.is_active, maxDevices:u.max_devices, expiryDate:u.expiry_date })
+       isActive:u.is_active, maxDevices:Math.max(1, Number(u.max_devices) || 5), expiryDate:u.expiry_date })
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
@@ -168,10 +175,11 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
     )
     const client = clientRows[0]
     if (!client) return res.status(404).json({ error:'Client not found' })
-    if (Number(client.devices_count) >= Number(client.max_devices ?? 5)) {
+    const maxDevices = Math.max(1, Number(client.max_devices) || 5)
+    if (Number(client.devices_count) >= maxDevices) {
       return res.status(409).json({
         code: 'DEVICE_LIMIT_REACHED',
-        error: `Device limit reached (${client.devices_count}/${client.max_devices ?? 5}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
+        error: `Device limit reached (${client.devices_count}/${maxDevices}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
       })
     }
     const subscriptionStartDate = dateOnly(new Date())

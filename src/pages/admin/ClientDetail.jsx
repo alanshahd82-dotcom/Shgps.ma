@@ -211,7 +211,7 @@ function SubscriptionSection({ client, lang, onUpdate }) {
       <div className="grid grid-cols-3 gap-3 mb-4">
         {[
           { label: isAr ? 'الباقة' : 'Forfait', val: client?.subscription || 'Basic' },
-          { label: isAr ? 'الأجهزة' : 'Appareils', val: `${client?.devicesCount ?? 0}/${client?.maxDevices ?? 5}` },
+          { label: isAr ? 'الأجهزة' : 'Appareils', val: `${client?.devicesCount ?? 0}/${Math.max(1, Number(client?.maxDevices) || 5)}` },
           { label: isAr ? 'الانتهاء' : 'Expiration', val: expiry ? expiry.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR') : '—' },
         ].map((s, i) => (
           <div key={i} className="bg-slate-50 rounded-xl p-3 text-center">
@@ -389,18 +389,18 @@ export default function ClientDetail() {
             </h3>
              <button
                onClick={() => setShowAdd(true)}
-               disabled={clientDevices.length >= (client.maxDevices ?? 5)}
+               disabled={clientDevices.length >= Math.max(1, Number(client.maxDevices) || 5)}
                className="btn-primary py-2 px-4 text-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
              >
               <Plus size={14} />
               {t(lang, 'addDevice')}
             </button>
           </div>
-           {clientDevices.length >= (client.maxDevices ?? 5) && (
+           {clientDevices.length >= Math.max(1, Number(client.maxDevices) || 5) && (
              <div className="mx-5 mt-4 flex items-start gap-2 bg-orange-50 border border-orange-100 text-orange-700 rounded-xl px-4 py-3 text-sm">
                <span>{lang === 'ar'
-                 ? `تم الوصول إلى حد الأجهزة (${clientDevices.length}/${client.maxDevices ?? 5}). عدّل الاشتراك لزيادة الحد.`
-                 : `La limite d’appareils est atteinte (${clientDevices.length}/${client.maxDevices ?? 5}). Modifiez l’abonnement pour augmenter la limite.`}</span>
+                 ? `تم الوصول إلى حد الأجهزة (${clientDevices.length}/${Math.max(1, Number(client.maxDevices) || 5)}). عدّل الاشتراك لزيادة الحد.`
+                 : `La limite d’appareils est atteinte (${clientDevices.length}/${Math.max(1, Number(client.maxDevices) || 5)}). Modifiez l’abonnement pour augmenter la limite.`}</span>
              </div>
            )}
 
