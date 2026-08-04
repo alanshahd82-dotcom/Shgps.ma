@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -13,7 +13,7 @@ import ForcePasswordModal from '../../components/ForcePasswordModal'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 
 /* ─── Quick Add Device Modal ──────────────────────────────────────────────── */
-function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
+function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefreshClients, onSuccess }) {
   const isAr = lang === 'ar'
 
   // ── required fields
@@ -238,6 +238,25 @@ function QuickAddModal({ open, onClose, lang, clientList, onSuccess }) {
                                 ))}
                               </div>
                             )}
+                            {search && !filtered.length && (
+                              <p className="mt-1 text-[11px] text-slate-400">
+                                {isAr ? 'لا يوجد عميل مطابق' : 'Aucun client correspondant'}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {!clientList.length && (
+                          <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+                            <span className={clientsError ? 'text-red-500' : 'text-slate-400'}>
+                              {clientsError
+                                ? (isAr ? 'تعذر تحميل قائمة العملاء' : 'Impossible de charger les clients')
+                                : (isAr ? 'جاري تحميل العملاء...' : 'Chargement des clients...')}
+                            </span>
+                            {clientsError && (
+                              <button type="button" onClick={onRefreshClients} className="font-semibold text-primary-500 underline">
+                                {isAr ? 'إعادة المحاولة' : 'Réessayer'}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -298,9 +317,15 @@ export default function AdminLayout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { adminAuth, logoutAdmin, lang, setLang, alertsList, mustChangePassword, clearMustChange,
-          clientList, refreshDevices, refreshClients } = useApp()
+          clientList, clientsError, refreshDevices, refreshClients } = useApp()
   const [sidebarOpen,    setSidebarOpen]    = useState(false)
   const [showQuickAdd,   setShowQuickAdd]   = useState(false)
+
+  useEffect(() => {
+    if (showQuickAdd && !clientList.length) refreshClients?.()
+    // Load the clients when this modal is opened, without refetching on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showQuickAdd])
 
   const handleQuickAddSuccess = () => {
     // Device already created by the modal's API call — just refresh lists
@@ -496,6 +521,8 @@ export default function AdminLayout({ children }) {
         onClose={() => setShowQuickAdd(false)}
         lang={lang}
         clientList={clientList || []}
+        clientsError={clientsError}
+        onRefreshClients={refreshClients}
         onSuccess={handleQuickAddSuccess}
       />
     </div>

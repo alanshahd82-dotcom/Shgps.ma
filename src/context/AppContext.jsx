@@ -131,8 +131,14 @@ export function AppProvider({ children }) {
   async function loadClients() {
     try {
       const res = await api.clients.list()
-      setClientList(Array.isArray(res) ? res : (res.data || []))
-    } catch { /* non-critical */ }
+      const clients = Array.isArray(res) ? res : (res.data || [])
+      setClientList(clients)
+      setClientsError(false)
+      return clients
+    } catch (error) {
+      setClientsError(true)
+      return []
+    }
   }
 
   // ── WebSocket live tracking ────────────────────────────────────────────────

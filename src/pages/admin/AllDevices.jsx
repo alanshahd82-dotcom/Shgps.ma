@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Wifi, WifiOff, Plus, X, AlertCircle,
@@ -21,7 +21,7 @@ function timeAgo(iso, lang) {
   return `${Math.floor(diff / 60)}h`
 }
 
-function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
+function AddDeviceModal({ open, onClose, onAdd, clientList, lang, clientsError, onRefreshClients }) {
   const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId: '', subscriptionPlanId: '3_months' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -108,11 +108,26 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang }) {
                 </label>
                 <select className="input-field text-sm" value={form.clientId}
                   onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}>
-                  <option value="">{lang === 'ar' ? '— بدون عميل —' : '— Sans client —'}</option>
+                   <option value="">
+                     {clientList.length
+                       ? (lang === 'ar' ? '— بدون عميل —' : '— Sans client —')
+                       : clientsError
+                         ? (lang === 'ar' ? 'تعذر تحميل العملاء' : 'Impossible de charger les clients')
+                         : (lang === 'ar' ? 'جاري تحميل العملاء...' : 'Chargement des clients...')}
+                   </option>
                   {clientList.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
+                 {clientsError && (
+                   <button
+                     type="button"
+                     onClick={onRefreshClients}
+                     className="mt-1 text-[11px] font-semibold text-primary-500 underline"
+                   >
+                     {lang === 'ar' ? 'إعادة المحاولة' : 'Réessayer'}
+                   </button>
+                 )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait de l’appareil — paiement comptant'}</label>
@@ -223,7 +238,7 @@ function SyncResultModal({ open, onClose, result, lang }) {
 }
 
 export default function AllDevices() {
-  const { devices, clientList, addDeviceDirect, deleteDevice, lang } = useApp()
+  const { devices, clientList, addDeviceDirect, deleteDevice, lang, clientsError, refreshClients } = useApp()
   const [search, setSearch]         = useState('')
   const [showAdd, setShowAdd]       = useState(false)
   const [syncing, setSyncing]       = useState(false)
@@ -231,6 +246,12 @@ export default function AllDevices() {
   const [toDelete, setToDelete]     = useState(null)
   const [renewDevice, setRenewDevice] = useState(null)
   const [deleting, setDeleting]     = useState(false)
+
+  useEffect(() => {
+    if (showAdd && !clientList.length) refreshClients?.()
+    // Load the clients when this modal is opened, without refetching on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAdd])
 
   const handleDelete = async () => {
     if (!toDelete) return
@@ -447,6 +468,8 @@ export default function AllDevices() {
         onAdd={addDeviceDirect}
         clientList={clientList}
         lang={lang}
+        clientsError={clientsError}
+        onRefreshClients={refreshClients}
       />
       <SubscriptionRenewalModal
         open={!!renewDevice}
