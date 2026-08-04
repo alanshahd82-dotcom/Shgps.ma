@@ -32,6 +32,7 @@ import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
+import ForcePasswordModal from './components/ForcePasswordModal'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ROUTE GUARDS
@@ -58,12 +59,19 @@ function isAdminAuthenticated(adminAuth) {
 }
 
 function ClientRoute({ children }) {
-  const { clientAuth } = useApp()
+  const { clientAuth, mustChangePassword, clearMustChange, lang } = useApp()
   const location = useLocation()
   if (!isClientAuthenticated(clientAuth)) {
     return <Navigate to="/client/login" state={{ from: location }} replace />
   }
-  return children
+  return (
+    <>
+      {children}
+      {mustChangePassword && (
+        <ForcePasswordModal lang={lang} onSuccess={clearMustChange} />
+      )}
+    </>
+  )
 }
 
 function AdminRoute({ children }) {

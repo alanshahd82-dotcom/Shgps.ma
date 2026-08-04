@@ -114,21 +114,46 @@ authRouter.post('/change-password', requireAuth, async (req, res) => {
 
 // ── PUT /api/auth/profile ─────────────────────────────────────────────────
 authRouter.put('/profile', requireAuth, async (req, res) => {
-  const { name, phone, notificationPrefs } = req.body
+  const { name, phone, email, notificationPrefs } = req.body
+  const normalizedEmail = email === undefined ? null : String(email).trim().toLowerCase()
+  if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ code: 'INVALID_EMAIL', error: 'A valid email address is required' })
+  }
   try {
-    await db.query(
+    const { rows } = await db.query(
       `UPDATE users SET
         name              = COALESCE($1, name),
         phone             = COALESCE($2, phone),
-        notification_prefs = COALESCE($3, notification_prefs),
+        email             = COALESCE($3, email),
+        notification_prefs = COALESCE($4, notification_prefs),
         updated_at        = NOW()
-       WHERE id = $4`,
+       WHERE id = $5
+       RETURNING id, email, name, phone, city, subscription, is_admin,
+                 is_active, expiry_date, max_devices, avatar, role,
+                 parent_client_id, must_change_password, notification_prefs`,
       [name || null, phone || null,
+       normalizedEmail,
        notificationPrefs ? JSON.stringify(notificationPrefs) : null,
        req.user.id]
     )
-    res.json({ success: true })
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+    const u = rows[0]
+    res.json({
+      success: true,
+      user: {
+        id: u.id, email: u.email, name: u.name, phone: u.phone, city: u.city,
+        subscription: u.subscription, isAdmin: u.is_admin, isActive: u.is_active,
+        expiryDate: u.expiry_date, maxDevices: u.max_devices, avatar: u.avatar,
+        role: u.role || 'owner', parentClientId: u.parent_client_id || null,
+        mustChangePassword: !!u.must_change_password,
+        notificationPrefs: u.notification_prefs || {},
+      },
+    })
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ code: 'EMAIL_ALREADY_EXISTS', error: 'Email already exists' })
+    }
+    console.error(err); res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // ── GET /api/auth/me ──────────────────────────────────────────────────────

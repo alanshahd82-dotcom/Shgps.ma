@@ -33,7 +33,9 @@ export default function Login() {
       await loginClient(email, password)
       navigate('/client/home')
     } catch (err) {
-      setError(err.message)
+      setError(err.code === 'SUBSCRIPTION_EXPIRED'
+        ? t(lang, 'subscriptionExpiredLogin')
+        : err.message)
     } finally {
       setLoading(false)
     }

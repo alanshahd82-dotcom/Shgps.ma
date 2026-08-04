@@ -47,7 +47,7 @@ function DarkInput({ value, onChange, type = 'text', placeholder = '' }) {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { clientAuth, logoutClient, lang, setLang, darkMode, toggleDarkMode, pushEnabled, requestPushPermission, disablePush, wsConnected } = useApp()
+  const { clientAuth, logoutClient, lang, setLang, darkMode, toggleDarkMode, pushEnabled, requestPushPermission, disablePush, wsConnected, updateUserInContext } = useApp()
   const [tab, setTab] = useState('profile')
   const isAr = lang === 'ar'
 
@@ -85,7 +85,12 @@ export default function Settings() {
   async function saveProfile(e) {
     e.preventDefault(); setSavingProf(true); setProfMsg('')
     try {
-      await api.auth.updateProfile({ name, email })
+      const result = await api.auth.updateProfile({ name, email })
+      if (result?.user) {
+        updateUserInContext(result.user)
+        setName(result.user.name || name)
+        setEmail(result.user.email || email)
+      }
       setProfMsg(isAr ? 'تم الحفظ ✓' : 'Enregistré ✓')
     } catch (err) { setProfMsg(err.message) }
     finally { setSavingProf(false) }
@@ -318,7 +323,9 @@ export default function Settings() {
                   <select value={newUser.role} onChange={e => setNewUser(u => ({ ...u, role:e.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 text-sm outline-none focus:border-accent">
                     <option value="viewer">{isAr?'مشاهد':'Lecteur'}</option>
-                    <option value="operator">{isAr?'مشغّل':'Opérateur'}</option>
+                    <option value="manager">{isAr?'مدير':'Manager'}</option>
+                    <option value="reports">{isAr?'تقارير فقط':'Rapports uniquement'}</option>
+                    <option value="alerts">{isAr?'تنبيهات فقط':'Alertes uniquement'}</option>
                   </select>
                 </div>
                 <motion.button type="submit" disabled={savingSub} whileTap={{ scale:0.97 }}

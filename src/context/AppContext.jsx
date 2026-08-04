@@ -85,6 +85,7 @@ export function AppProvider({ children }) {
           setClientAuth(currentUser)
           localStorage.setItem('athargps_client', JSON.stringify(currentUser))
         }
+        setMustChange(!!currentUser.mustChangePassword)
         await Promise.all([loadDevices(), loadAlerts(), currentUser.isAdmin ? loadClients() : Promise.resolve()])
         if (!cancelled) openWebSocket()
       } catch {
@@ -252,8 +253,10 @@ export function AppProvider({ children }) {
     if (data.user?.expiryDate) {
       const daysLeft = Math.ceil((new Date(data.user.expiryDate) - new Date()) / 86400000)
       if (daysLeft <= 0 || data.user.isActive === false) {
+        const error = new Error('SUBSCRIPTION_EXPIRED')
+        error.code = 'SUBSCRIPTION_EXPIRED'
         setSubscriptionExpired(true)
-        return data
+        throw error
       }
     }
     localStorage.setItem('athargps_last_email', email.trim().toLowerCase())
