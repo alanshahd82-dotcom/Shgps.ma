@@ -41,10 +41,13 @@ function buildCommands({ deviceType, apn }) {
     return [
       { label: 'APN', cmd: `APN,${a}#` },
       { label: 'Server', cmd: `SERVER,1,${s},${GS900_PORT},0#` },
+      { label: 'Upload while stopped', cmd: 'STA_SENDGPS_I#' },
+      { label: 'Upload interval', cmd: 'TIMER,10,10#' },
       { label: 'Status check', cmd: 'STATUS#' },
       { label: 'Server check', cmd: 'SERVER#' },
       { label: 'Network check', cmd: 'GPRSSET#' },
       { label: 'Location check', cmd: 'WHERE#' },
+      { label: 'Stopped upload check', cmd: 'STA_SENDGPS#' },
     ]
   }
   return [
