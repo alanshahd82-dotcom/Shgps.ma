@@ -17,29 +17,38 @@ const DEVICE_TYPES = [
   { value: 'other',    label: 'Autre / أخرى',         emoji: '📦' },
 ]
 const CARRIERS = [
-  { value: 'iam',    label: 'Maroc Telecom (IAM)', apn: 'internet.iam.net' },
+  { value: 'iam',    label: 'Maroc Telecom (IAM)', apn: 'www.iamgprs1.ma' },
   { value: 'orange', label: 'Orange Maroc',         apn: 'internet' },
-  { value: 'inwi',   label: 'inwi',                 apn: 'inwi.net' },
+  { value: 'inwi',   label: 'inwi',                 apn: 'www.inwi.ma' },
 ]
 
 const TRACCAR_HOST = import.meta.env.VITE_TRACCAR_HOST || '64.226.103.251'
-const TRACCAR_PORT = import.meta.env.VITE_TRACCAR_PORT || '5055'
+const WANWAY_PORT = import.meta.env.VITE_WANWAY_PORT || '5029'
+const TELTONIKA_PORT = import.meta.env.VITE_TELTONIKA_PORT || '5027'
 
 function buildCommands({ deviceType, apn }) {
   const s  = TRACCAR_HOST
-  const pt = TRACCAR_PORT
   const p  = '0000'
   const a  = apn || 'internet'
   if (deviceType === 'teltonika') {
     return [
       { label: 'APN',    cmd: `setparam 2001:${a}` },
-      { label: 'Server', cmd: `setparam 2004:${s};2005:${pt}` },
+      { label: 'Server', cmd: `setparam 2004:${s};2005:${TELTONIKA_PORT}` },
+    ]
+  }
+  if (deviceType === 'wanway') {
+    return [
+      { label: 'APN', cmd: `APN,${a}#` },
+      { label: 'Server', cmd: `SERVER.0,${s}.${WANWAY_PORT},0#` },
+      { label: 'Status check', cmd: 'STATUS#' },
+      { label: 'Server check', cmd: 'SERVER#' },
+      { label: 'Network check', cmd: 'GPRSSET#' },
     ]
   }
   return [
     { label: 'Password reset', cmd: `PASSWORD,${p},123456#` },
     { label: 'APN',            cmd: `APN,${p},${a}#` },
-    { label: 'Server IP',      cmd: `ADMINIP,${p},${s},${pt}#` },
+    { label: 'Server IP',      cmd: `ADMINIP,${p},${s},5055#` },
     { label: 'GPRS ON',        cmd: `GPRS,${p}#` },
     { label: 'Interval',       cmd: `INTERVAL,${p},10#` },
     { label: 'Status check',   cmd: `STATUS#` },
@@ -197,7 +206,7 @@ function StepCommands({ commands, lang, onSave, saving, saveError }) {
         </h2>
          <p className="text-slate-500 text-xs mt-1 leading-relaxed">
           {isAr
-            ? 'أرسل هذه الأوامر بالترتيب إلى رقم شريحة الجهاز عبر SMS، ثم احفظ الجهاز'
+             ? 'أرسل كل أمر كرسالة SMS مستقلة بالترتيب. في GS900 انتظر APN_OK وSERVER_OK قبل الفحوصات، ثم احفظ الجهاز'
             : 'Envoyez ces commandes dans l\'ordre au numéro SIM du tracker par SMS, puis enregistrez'}
         </p>
       </div>
@@ -234,8 +243,8 @@ function StepCommands({ commands, lang, onSave, saving, saveError }) {
         <Zap size={14} className="mt-0.5 shrink-0 text-emerald-600" />
         <p className="text-[11px] leading-relaxed text-emerald-700">
           {isAr
-            ? 'بعد إرسال الأوامر، يبدأ الجهاز بالإرسال خلال 2-5 دقائق.'
-            : 'Après envoi, le tracker commence à émettre dans 2-5 minutes.'}
+             ? 'لا توجد في دليل GS900 رسالة واحدة موثقة لكل الإعدادات. أرسل كل أمر SMS مستقلاً وانتظر الرد قبل التالي.'
+             : 'Le manuel GS900 ne documente pas une seule SMS pour toute la configuration. Envoyez chaque commande séparément et attendez la réponse.'}
         </p>
       </div>
 

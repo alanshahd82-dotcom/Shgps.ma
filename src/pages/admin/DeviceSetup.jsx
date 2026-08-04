@@ -13,16 +13,16 @@ import SubscriptionPlans from '../../components/SubscriptionPlans'
 // ── Device Type Cards ─────────────────────────────────────────────────────
 const DEVICE_TYPES = [
   { id: 'gt06',      label: 'GT06 / GL300',    icon: '📡', protocols: ['gt06'], color: '#3B82F6', desc: 'Concox, Meitrack, Coban' },
-  { id: 'wanway',    label: 'WanWay S20',      icon: '🛰',  protocols: ['gl200'], color: '#8B5CF6', desc: 'S20 / S25 / Pro series' },
+  { id: 'wanway',    label: 'WanWay GS900',    icon: '🛰',  protocols: ['wanway'], color: '#8B5CF6', desc: 'GS900 4G tracker' },
   { id: 'teltonika', label: 'Teltonika FMB',   icon: '⚡',  protocols: ['teltonika'], color: '#10B981', desc: 'FMB920 / FMB140 / FMC003' },
   { id: 'coban',     label: 'Coban GPS303',    icon: '📶',  protocols: ['gt06'], color: '#F59E0B', desc: 'GPS303G / GPS103 series' },
   { id: 'generic',   label: 'Generic / Other', icon: '🔧',  protocols: ['osmand'], color: '#6B7280', desc: 'Any NMEA / OsmAnd device' },
 ]
 
 const APN_LIST = [
-  { label: 'IAM (Maroc Telecom)', apn: 'iamgprs', user: 'iam', pass: 'iam' },
+  { label: 'IAM (Maroc Telecom)', apn: 'www.iamgprs1.ma', user: '', pass: '' },
   { label: 'Orange Maroc',        apn: 'gprs',    user: '',    pass: '' },
-  { label: 'Inwi',                apn: 'inwi',    user: 'inwi',pass: 'inwi' },
+  { label: 'Inwi',                apn: 'www.inwi.ma', user: '', pass: '' },
   { label: 'Méditel / Orange',    apn: 'internet',user: '',    pass: '' },
   { label: 'Custom APN',          apn: '',        user: '',    pass: '', custom: true },
 ]
@@ -30,7 +30,9 @@ const APN_LIST = [
 function getSmsCommands(deviceId, apn, user, pass, phone) {
   const cmds = {
     gt06:      [`APN,${apn},${user},${pass}#`, `SERVER,1,64.226.103.251,5023,0#`, `TIMER,1,1#`, `GPRS#`],
-    wanway:    [`*HQ,1234,APN,${apn},${user},${pass}#`, `*HQ,1234,SERVER,1,64.226.103.251,5023,0#`, `*HQ,1234,TIMER,1,1#`],
+    // GS900 commands from the WanWay manual. APN and SERVER are separate;
+    // STATUS, SERVER and GPRSSET are read-only verification commands.
+    wanway:    [`APN,${apn}#`, `SERVER.0,64.226.103.251.5029,0#`, 'STATUS#', 'SERVER#', 'GPRSSET#'],
     teltonika: [`  setparam 2001:${apn};2002:${user};2003:${pass}`, `  setparam 2004:64.226.103.251;2005:5023`],
     coban:     [`begin${phone || ''}`, `apn${phone || ''} ${apn}`, `gprs${phone || ''}`, `adminip${phone || ''} 64.226.103.251 5023`],
     generic:   [`Server: 64.226.103.251`, `Port: 5055 (OsmAnd HTTP)`, `Device ID: ${deviceId || 'imei'}`],
@@ -321,7 +323,7 @@ export default function DeviceSetup() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-3">{isAr ? '* أرسل كل أمر كرسالة SMS مستقلة للرقم أعلاه' : '* Envoyez chaque commande en SMS séparé au numéro ci-dessus'}</p>
+                  <p className="text-[10px] text-slate-500 mt-3">{isAr ? '* أرسل كل أمر كرسالة SMS مستقلة. في GS900 انتظر APN_OK وSERVER_OK قبل الفحوصات.' : '* Envoyez chaque commande comme SMS séparé. Pour GS900, attendez APN_OK et SERVER_OK avant les vérifications.'}</p>
                 </div>
               </div>
             )}
