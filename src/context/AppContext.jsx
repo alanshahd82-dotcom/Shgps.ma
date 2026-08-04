@@ -95,6 +95,9 @@ export function AppProvider({ children }) {
           localStorage.removeItem('athargps_admin')
         }
         setMustChange(!!currentUser.mustChangePassword)
+        // Let protected pages render as soon as the session itself is valid.
+        // Device/client/alert loading is secondary and must not blank the app.
+        if (!cancelled) setAuthReady(true)
         await Promise.all([loadDevices(), loadAlerts(), currentUser.isAdmin ? loadClients() : Promise.resolve()])
         if (!cancelled) openWebSocket()
       } catch (error) {

@@ -58,10 +58,21 @@ function isAdminAuthenticated(adminAuth) {
   }
 }
 
+function AuthLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-3 text-primary-500">
+        <div className="h-8 w-8 rounded-full border-4 border-slate-200 border-t-accent animate-spin" />
+        <p className="text-sm font-semibold">جاري تحميل لوحة التحكم...</p>
+      </div>
+    </div>
+  )
+}
+
 function ClientRoute({ children }) {
   const { clientAuth, authReady, mustChangePassword, clearMustChange, lang } = useApp()
   const location = useLocation()
-  if (!authReady) return null
+  if (!authReady) return <AuthLoading />
   if (!isClientAuthenticated(clientAuth)) {
     return <Navigate to="/client/login" state={{ from: location }} replace />
   }
@@ -78,7 +89,7 @@ function ClientRoute({ children }) {
 function AdminRoute({ children }) {
   const { adminAuth, authReady } = useApp()
   const location = useLocation()
-  if (!authReady) return null
+  if (!authReady) return <AuthLoading />
   if (!isAdminAuthenticated(adminAuth)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
@@ -88,7 +99,7 @@ function AdminRoute({ children }) {
 function ClientEntry() {
   const { clientAuth, authReady } = useApp()
   const hasSeenOnboarding = localStorage.getItem('athargps_onboarding_seen') === 'true'
-  if (!authReady) return null
+  if (!authReady) return <AuthLoading />
   return (
     <Navigate
       to={isClientAuthenticated(clientAuth)
