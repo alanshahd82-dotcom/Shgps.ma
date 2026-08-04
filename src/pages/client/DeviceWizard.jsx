@@ -11,7 +11,7 @@ import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 
 const DEVICE_TYPES = [
-  { value: 'wanway',    label: 'WanWay / TK Series', emoji: '📡' },
+  { value: 'wanway',    label: 'WanWay GS900 / GT06', emoji: '📡' },
   { value: 'concox',   label: 'Concox / GT06N',      emoji: '📟' },
   { value: 'teltonika', label: 'Teltonika FMB',       emoji: '🔧' },
   { value: 'other',    label: 'Autre / أخرى',         emoji: '📦' },
@@ -23,7 +23,8 @@ const CARRIERS = [
 ]
 
 const TRACCAR_HOST = import.meta.env.VITE_TRACCAR_HOST || '64.226.103.251'
-const WANWAY_PORT = import.meta.env.VITE_WANWAY_PORT || '5029'
+// This GS900 firmware reports and accepts the GT06-compatible listener on 5023.
+const GS900_PORT = import.meta.env.VITE_GS900_PORT || '5023'
 const TELTONIKA_PORT = import.meta.env.VITE_TELTONIKA_PORT || '5027'
 
 function buildCommands({ deviceType, apn }) {
@@ -39,7 +40,7 @@ function buildCommands({ deviceType, apn }) {
   if (deviceType === 'wanway') {
     return [
       { label: 'APN', cmd: `APN,${a}#` },
-      { label: 'Server', cmd: `SERVER.0,${s}.${WANWAY_PORT},0#` },
+      { label: 'Server', cmd: `SERVER,1,${s},${GS900_PORT},0#` },
       { label: 'Status check', cmd: 'STATUS#' },
       { label: 'Server check', cmd: 'SERVER#' },
       { label: 'Network check', cmd: 'GPRSSET#' },

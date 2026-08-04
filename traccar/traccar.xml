@@ -17,13 +17,13 @@
        يجعل Traccar يستمع على كل واجهات الشبكة داخل الحاوية           -->
   <entry key='server.address'>0.0.0.0</entry>
 
-  <!-- ══ GT06 / Concox (الصيغة القياسية) ═══════════════════════════════ -->
+  <!-- ══ GT06 / WanWay GS900 compatible firmware ════════════════════════
+       The tested GS900 firmware uses the GT06-compatible listener on 5023. -->
   <entry key='gt06.port'>5023</entry>
   <entry key='gt06.enabled'>true</entry>
   <entry key='gt06.codec'>1</entry>
 
-  <!-- ══ WanWay GS900 (البروتوكول الخاص) ═══════════════════════════════
-       GS900 uses this listener; its documented SERVER SMS targets 5029. -->
+  <!-- ══ WanWay proprietary protocol (other WanWay models) ═════════════ -->
   <entry key='wanway.port'>5029</entry>
   <entry key='wanway.enabled'>true</entry>
 
