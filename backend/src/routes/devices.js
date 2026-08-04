@@ -24,7 +24,7 @@ import {
       return Boolean(rows[0])
     }
 
-    // GET /devices/test-connection?imei= — check if Traccar already has this device/is online
+    // GET /devices/test-connection?imei= — check whether a registered device has sent data
     devicesRouter.get('/test-connection', requireAuth, async (req, res) => {
       const { imei } = req.query
       if (!imei) return res.status(400).json({ error: 'IMEI required' })
@@ -32,26 +32,38 @@ import {
         // Check local DB first
         const { rows } = await db.query('SELECT id, traccar_id, name FROM devices WHERE imei=$1', [imei])
         if (rows[0]) {
+          let traccarDevice = null
           let position = null
           try {
-            const allPos = await traccar.getAllPositions()
-            position = allPos.find(p => p.deviceId === rows[0].traccar_id) || null
+            const [allDevices, allPos] = await Promise.all([
+              traccar.getAllDevices(),
+              traccar.getAllPositions(),
+            ])
+            traccarDevice = allDevices.find(d =>
+              d.id === rows[0].traccar_id || d.uniqueId === imei
+            ) || null
+            position = allPos.find(p =>
+              p.deviceId === traccarDevice?.id || p.deviceId === rows[0].traccar_id
+            ) || null
           } catch {}
+          const online = traccarDevice?.status === 'online' || !!position
           return res.json({
             found: true, registered: true, deviceId: rows[0].id,
-            traccarId: rows[0].traccar_id, name: rows[0].name,
-            online: !!position, lastUpdate: position?.fixTime || null,
+            traccarId: traccarDevice?.id ?? rows[0].traccar_id,
+            name: rows[0].name, online,
+            lastUpdate: position?.fixTime || traccarDevice?.lastUpdate || null,
           })
         }
         // Check Traccar directly (admin-level device list)
         try {
-          const traccarDevices = await traccar.getDevicesByUser(0) // all devices for admin
+          const traccarDevices = await traccar.getAllDevices()
           const td = Array.isArray(traccarDevices) && traccarDevices.find(d => d.uniqueId === imei)
           if (td) {
             const allPos = await traccar.getAllPositions()
             const position = allPos.find(p => p.deviceId === td.id) || null
             return res.json({ found: true, registered: false, traccarId: td.id,
-              name: td.name, online: !!position, lastUpdate: position?.fixTime || null })
+              name: td.name, online: td.status === 'online' || !!position,
+              lastUpdate: position?.fixTime || td.lastUpdate || null })
           }
         } catch {}
         return res.json({ found: false, registered: false, online: false })

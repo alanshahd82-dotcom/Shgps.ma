@@ -54,7 +54,7 @@ function CopyBtn({ text }) {
 }
 
 // ── Stepper ────────────────────────────────────────────────────────────────
-const STEPS = ['النوع', 'البيانات', 'بطاقة SIM', 'الاتصال', 'العميل', 'تأكيد']
+const STEPS = ['النوع', 'البيانات', 'بطاقة SIM', 'العميل', 'الاتصال', 'تأكيد']
 
 function Stepper({ step }) {
   return (
@@ -117,30 +117,44 @@ export default function DeviceSetup() {
   // SMS commands
   const smsCommands = deviceType ? getSmsCommands(deviceType.id, apnData.apn, apnData.user, apnData.pass, simPhone) : []
 
-  // Step 4: connection test
+  // Step 4: connection test — the device is registered before this step.
   const startConnectionTest = async () => {
     setTestStatus('checking')
     setTestData(null)
     let attempts = 0
+    let finished = false
+    clearInterval(pollRef.current)
     const poll = async () => {
+      if (finished) return
       try {
         const res = await api.devices.testConnection(imei)
-        if (res.found || res.online) {
+        if (res.online) {
+          finished = true
           setTestStatus('found')
           setTestData(res)
           clearInterval(pollRef.current)
         } else {
           attempts++
-          if (attempts >= 10) { setTestStatus('not_found'); clearInterval(pollRef.current) }
+          if (attempts >= 10) {
+            finished = true
+            setTestStatus('not_found')
+            clearInterval(pollRef.current)
+          }
         }
-      } catch { attempts++; if (attempts >= 10) { setTestStatus('not_found'); clearInterval(pollRef.current) } }
+      } catch {
+        attempts++
+        if (attempts >= 10) {
+          finished = true
+          setTestStatus('not_found')
+          clearInterval(pollRef.current)
+        }
+      }
     }
     await poll()
-    pollRef.current = setInterval(poll, 3000)
-    setTimeout(() => { clearInterval(pollRef.current); if (testStatus !== 'found') setTestStatus('not_found') }, 30000)
+    if (!finished) pollRef.current = setInterval(poll, 3000)
   }
 
-  // Step 5→6: save device
+  // Step 4→5: save device, then let the next step test the registered device.
   const handleSave = async () => {
     setSaving(true); setError('')
     try {
@@ -153,7 +167,9 @@ export default function DeviceSetup() {
         subscriptionPlanId,
       })
       setSavedDevice(device)
-      setStep(5)
+      setTestStatus(null)
+      setTestData(null)
+      setStep(4)
       loadDevices()
     } catch (err) { setError(err.message) }
     finally { setSaving(false) }
@@ -169,7 +185,8 @@ export default function DeviceSetup() {
   }
 
   const goNext = () => {
-    if (step === 4) { handleSave(); return }
+    if (step === 3) { handleSave(); return }
+    if (step === 4) { setStep(5); return }
     setStep(s => s + 1)
   }
 
@@ -328,8 +345,45 @@ export default function DeviceSetup() {
               </div>
             )}
 
-            {/* ── Step 3: Connection Test ── */}
+            {/* ── Step 3: Assign Client ── */}
             {step === 3 && (
+              <div className="space-y-4">
+                <h2 className="font-black text-primary-500 text-lg mb-1">{isAr ? 'تعيين للعميل' : 'Assigner au client'}</h2>
+                <p className="text-slate-400 text-sm mb-5">{isAr ? 'اختر عميلاً أو اترك فارغاً (غير مخصص)' : 'Choisissez un client ou laissez vide (non assigné)'}</p>
+
+                <div className="bg-primary-50 border border-primary-100 rounded-2xl p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cpu size={14} className="text-primary-400" />
+                    <span className="text-xs font-bold text-primary-500">{name}</span>
+                  </div>
+                  <p className="text-xs text-slate-400">IMEI: {imei} · {deviceType?.label}</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-2">{isAr ? 'العميل' : 'Client'}</label>
+                  <select value={clientId} onChange={e => setClientId(e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary-300">
+                    <option value="">{isAr ? '— غير مخصص —' : '— Non assigné —'}</option>
+                    {(clientList || []).map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-2">{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}</label>
+                  <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} includeTrial />
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 px-3 py-2 rounded-xl border border-red-100">
+                    <AlertCircle size={14} />{error}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Step 4: Connection Test ── */}
+            {step === 4 && (
               <div className="text-center py-4">
                 <h2 className="font-black text-primary-500 text-lg mb-1">{isAr ? 'اختبار الاتصال' : 'Test de connexion'}</h2>
                 <p className="text-slate-400 text-sm mb-8">{isAr ? 'تأكد أن الجهاز يتواصل مع الخادم' : 'Vérifiez que l\'appareil communique avec le serveur'}</p>
@@ -391,43 +445,6 @@ export default function DeviceSetup() {
                 <div className="mt-6 text-xs text-slate-300 text-center">
                   {isAr ? 'يمكن تخطي هذه الخطوة والمتابعة' : 'Vous pouvez ignorer cette étape et continuer'}
                 </div>
-              </div>
-            )}
-
-            {/* ── Step 4: Assign Client ── */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <h2 className="font-black text-primary-500 text-lg mb-1">{isAr ? 'تعيين للعميل' : 'Assigner au client'}</h2>
-                <p className="text-slate-400 text-sm mb-5">{isAr ? 'اختر عميلاً أو اترك فارغاً (غير مخصص)' : 'Choisissez un client ou laissez vide (non assigné)'}</p>
-
-                <div className="bg-primary-50 border border-primary-100 rounded-2xl p-4 mb-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Cpu size={14} className="text-primary-400" />
-                    <span className="text-xs font-bold text-primary-500">{name}</span>
-                  </div>
-                  <p className="text-xs text-slate-400">IMEI: {imei} · {deviceType?.label}</p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-500 block mb-2">{isAr ? 'العميل' : 'Client'}</label>
-                  <select value={clientId} onChange={e => setClientId(e.target.value)}
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary-300">
-                    <option value="">{isAr ? '— غير مخصص —' : '— Non assigné —'}</option>
-                    {(clientList || []).map(c => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 block mb-2">{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}</label>
-                  <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} includeTrial />
-                </div>
-
-                {error && (
-                  <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 px-3 py-2 rounded-xl border border-red-100">
-                    <AlertCircle size={14} />{error}
-                  </div>
-                )}
               </div>
             )}
 
