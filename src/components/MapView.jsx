@@ -70,7 +70,7 @@ function hasValidCoords(device) {
     device &&
     typeof device.lat === 'number' &&
     typeof device.lng === 'number' &&
-    (device.lat !== 0 || device.lng !== 0)
+    (device.lat != null && device.lng != null)
   )
 }
 

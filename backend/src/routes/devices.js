@@ -258,7 +258,7 @@ import {
         const d = rows[0]
         res.status(201).json({
           id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
-          clientId: d.user_id, status: 'offline', lat: 0, lng: 0, speed: 0,
+          clientId: d.user_id, status: 'offline', lat: null, lng: null, speed: 0,
           lastUpdate: null, engineOn: false, battery: null, signal: null, fuel: null,
           subscriptionPlanId: d.subscription_plan_id,
           subscriptionStartDate: d.subscription_start_date,
@@ -360,7 +360,7 @@ import {
           res.status(201).json({
             id: d.id, name: d.name, imei: d.imei, type: 'car', phone: d.phone,
             clientId: d.user_id, status: 'offline',
-            lat: 0, lng: 0, speed: 0, lastUpdate: null,
+            lat: null, lng: null, speed: 0, lastUpdate: null,
             engineOn: false, battery: null, signal: null, fuel: null,
             subscriptionPlanId: d.subscription_plan_id,
             subscriptionStartDate: d.subscription_start_date,
