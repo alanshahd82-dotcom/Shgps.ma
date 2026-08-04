@@ -132,9 +132,10 @@ import {
         const p = pm[d.traccar_id] ?? positionByImei[d.imei] ?? null
         // Traccar device entry (for authoritative status field)
         const td = traccarById[d.traccar_id] ?? traccarByImei[d.imei] ?? null
-        // Status: Traccar device.status is the single source of truth (same as admin dashboard)
-        // Fallback: if device not in Traccar at all, derive from position presence
-        const status = td ? (td.status === 'online' ? 'online' : 'offline') : (p ? 'online' : 'offline')
+        // A position is proof of a live/known device even when it is stationary.
+        // Traccar's device.status can lag behind the last position, so do not
+        // label a stopped device offline merely because speed is zero.
+        const status = td?.status === 'online' || !!p ? 'online' : 'offline'
         const localGeo = geofenceMap[d.id] || null
         const subscription = getSubscriptionSnapshot(d)
         const trackingEnabled = subscription.trackingEnabled
