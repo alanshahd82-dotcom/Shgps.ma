@@ -12,7 +12,10 @@ adminRouter.get('/stats', requireAuth, requireAdmin, async (_req, res) => {
       db.query(`SELECT COUNT(*)::int AS total_clients FROM users WHERE is_admin=false`),
       db.query(`SELECT COUNT(*)::int AS total FROM devices`),
       db.query(`SELECT COUNT(*)::int AS today FROM alerts WHERE created_at >= NOW() - INTERVAL '24 hours'`),
-      db.query(`SELECT COUNT(*)::int AS no_signal FROM devices WHERE traccar_id IS NOT NULL AND updated_at < NOW() - INTERVAL '24 hours' OR updated_at IS NULL`),
+      db.query(`SELECT COUNT(*)::int AS no_signal
+                FROM devices
+                WHERE traccar_id IS NOT NULL
+                  AND (updated_at < NOW() - INTERVAL '24 hours' OR updated_at IS NULL)`),
     ])
 
     // Get live device statuses from Traccar (best-effort)
