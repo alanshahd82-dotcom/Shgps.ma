@@ -34,11 +34,20 @@ function FlyTo({ lat, lng, zoom = 14 }) {
   const map = useMap()
   const prev = useRef(null)
   useEffect(() => {
-    if (!lat || !lng) return
-    const key = lat + ',' + lng
+    const nextLat = Number(lat)
+    const nextLng = Number(lng)
+    if (
+      !Number.isFinite(nextLat) ||
+      !Number.isFinite(nextLng) ||
+      nextLat < -90 ||
+      nextLat > 90 ||
+      nextLng < -180 ||
+      nextLng > 180
+    ) return
+    const key = nextLat + ',' + nextLng
     if (prev.current === key) return
     prev.current = key
-    map.flyTo([lat, lng], zoom, { duration: 1.2 })
+    map.flyTo([nextLat, nextLng], zoom, { duration: 1.2 })
   }, [lat, lng, zoom])
   return null
 }
@@ -56,7 +65,11 @@ export default function LiveMap() {
     let watcher
     if (navigator.geolocation) {
       watcher = navigator.geolocation.watchPosition(
-        p => setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        p => {
+          const lat = Number(p.coords.latitude)
+          const lng = Number(p.coords.longitude)
+          if (Number.isFinite(lat) && Number.isFinite(lng)) setUserPos({ lat, lng })
+        },
         () => {}
       )
     }
@@ -66,7 +79,11 @@ export default function LiveMap() {
   function locateMe() {
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(
-      p => setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      p => {
+        const lat = Number(p.coords.latitude)
+        const lng = Number(p.coords.longitude)
+        if (Number.isFinite(lat) && Number.isFinite(lng)) setUserPos({ lat, lng })
+      },
       () => {}
     )
   }
@@ -80,7 +97,17 @@ export default function LiveMap() {
     )
   }, [devices, search])
 
-  const positioned = filtered.filter(d => Number.isFinite(d.lat) && Number.isFinite(d.lng))
+  const toCoordinate = value => value == null || value === '' ? null : Number(value)
+  const positioned = filtered
+    .map(d => ({ ...d, lat: toCoordinate(d.lat), lng: toCoordinate(d.lng) }))
+    .filter(d =>
+      Number.isFinite(d.lat) &&
+      Number.isFinite(d.lng) &&
+      d.lat >= -90 &&
+      d.lat <= 90 &&
+      d.lng >= -180 &&
+      d.lng <= 180
+    )
   const sel = selected ? devices.find(d => d.id === selected) : null
 
   const ST_COLOR = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }
@@ -100,7 +127,7 @@ export default function LiveMap() {
           <Marker key={d.id} position={[d.lat, d.lng]} icon={makeVehicleIcon(d)}
             eventHandlers={{ click: () => { setSelected(d.id); setPanelOpen(true) } }}/>
         ))}
-        {sel?.lat && sel?.lng && <FlyTo lat={sel.lat} lng={sel.lng}/>}
+        {sel && <FlyTo lat={sel.lat} lng={sel.lng}/>}
       </MapContainer>
       <ClientHeader overlay />
 

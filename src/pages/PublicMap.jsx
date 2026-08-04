@@ -69,7 +69,12 @@ export default function PublicMap() {
     </div>
   )
 
-  const pos = data.position
+  const rawPosition = data.position
+  const lat = rawPosition?.lat == null || rawPosition?.lat === '' ? NaN : Number(rawPosition.lat)
+  const lng = rawPosition?.lng == null || rawPosition?.lng === '' ? NaN : Number(rawPosition.lng)
+  const pos = Number.isFinite(lat) && Number.isFinite(lng)
+    ? { ...rawPosition, lat, lng }
+    : null
   const center = pos ? [pos.lat, pos.lng] : [33.9716, -6.8498] // Rabat fallback
   const expired = new Date(data.expiresAt) < new Date()
 

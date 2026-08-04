@@ -20,6 +20,23 @@ import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
 
+function finiteCoordinate(value) {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function validPosition(lat, lng) {
+  return (
+    lat !== null &&
+    lng !== null &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  )
+}
+
 function speedColor(s) {
   if (s > 120) return '#FF3B30'
   if (s > 80)  return '#FF9500'
@@ -62,8 +79,8 @@ export default function DeviceDetail() {
   const [showRenew, setShowRenew] = useState(false)
   const isAr = lang === 'ar'
   const trackingEnabled = device?.trackingEnabled !== false
-  const latitude = device?.lat ?? device?.last_lat
-  const longitude = device?.lng ?? device?.last_lng
+  const latitude = finiteCoordinate(device?.lat) ?? finiteCoordinate(device?.last_lat)
+  const longitude = finiteCoordinate(device?.lng) ?? finiteCoordinate(device?.last_lng)
   const currentSpeed = device?.speed ?? device?.last_speed
   const ignition = device?.ignition ?? device?.engineOn
   const lastUpdate = device?.lastUpdate ?? device?.last_update
@@ -121,7 +138,9 @@ export default function DeviceDetail() {
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  const positions = trips.filter(p => p.latitude && p.longitude).map(p => [Number(p.latitude), Number(p.longitude)])
+  const positions = trips
+    .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
+    .filter(([lat, lng]) => validPosition(lat, lng))
   const speedData = trips.slice(-40).map((p, i) => ({ i, speed: Math.round(p.speed || 0) }))
   const cardStyle = { background:'#ffffff', border:'1px solid #e2e8f0', boxShadow:'0 4px 16px rgba(23,50,77,.04)' }
 
@@ -203,7 +222,7 @@ export default function DeviceDetail() {
                 <SubscriptionBadge device={device} lang={lang} dark />
               </div>
               {/* Mini map */}
-              {trackingEnabled && latitude && longitude && (
+              {trackingEnabled && validPosition(latitude, longitude) && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
                   <MapContainer center={[latitude, longitude]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false}>
                     <GeoapifyTileLayer />
@@ -218,7 +237,7 @@ export default function DeviceDetail() {
                   { label: isAr?'الجهاز':'Appareil', val: device.name },
                   { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
                   { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
-                  { label: isAr?'الموقع':'Position', val: latitude ? Number(latitude).toFixed(5)+', '+Number(longitude).toFixed(5) : '—' },
+                  { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—' },
                   { label: isAr?'IMEI':'IMEI', val: device.imei || '—' },
                 ].map((row,i,arr) => (
                   <div key={i} className="flex items-center justify-between px-4 py-3"

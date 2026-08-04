@@ -64,12 +64,18 @@ function FlyToDevice({ lat, lng }) {
   return null
 }
 
-/** Returns true only when both coordinates are valid non-zero numbers */
+/** Returns true only when both coordinates are finite GPS numbers */
 function hasValidCoords(device) {
   return (
     device &&
+    typeof device.lat === 'number' &&
+    typeof device.lng === 'number' &&
     Number.isFinite(device.lat) &&
-    Number.isFinite(device.lng)
+    Number.isFinite(device.lng) &&
+    device.lat >= -90 &&
+    device.lat <= 90 &&
+    device.lng >= -180 &&
+    device.lng <= 180
   )
 }
 
