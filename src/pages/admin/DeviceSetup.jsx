@@ -30,9 +30,9 @@ const APN_LIST = [
 function getSmsCommands(deviceId, apn, user, pass, phone) {
   const cmds = {
     gt06:      [`APN,${apn},${user},${pass}#`, `SERVER,1,64.226.103.251,5023,0#`, `TIMER,1,1#`, `GPRS#`],
-    // This GS900 firmware reports the GT06-compatible SERVER format and port.
-    // APN and SERVER are separate; the remaining commands are read-only checks.
-    wanway:    [`APN,${apn}#`, `SERVER,1,64.226.103.251,5023,0#`, 'TIMER,10,10#', 'STA_SENDGPS_I#', 'STATUS#', 'SERVER#', 'GPRSSET#', 'WHERE#', 'STA_SENDGPS#'],
+    // GS900 setup is intentionally limited to the two required SMS commands.
+    // Send APN first, wait for APN_OK, then send SERVER and wait for SERVER_OK.
+    wanway:    [`APN,${apn}#`, `SERVER,1,64.226.103.251,5023,0#`],
     teltonika: [`  setparam 2001:${apn};2002:${user};2003:${pass}`, `  setparam 2004:64.226.103.251;2005:5023`],
     coban:     [`begin${phone || ''}`, `apn${phone || ''} ${apn}`, `gprs${phone || ''}`, `adminip${phone || ''} 64.226.103.251 5023`],
     generic:   [`Server: 64.226.103.251`, `Port: 5055 (OsmAnd HTTP)`, `Device ID: ${deviceId || 'imei'}`],
@@ -348,7 +348,7 @@ export default function DeviceSetup() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-3">{isAr ? '* أرسل كل أمر كرسالة SMS مستقلة. هذا الإصدار من GS900 يستخدم 5023 وصيغة SERVER,1.' : '* Envoyez chaque commande comme SMS séparé. Ce firmware GS900 utilise le port 5023 et le format SERVER,1.'}</p>
+                   <p className="text-[10px] text-slate-500 mt-3">{isAr ? '* أرسل الرسالتين بشكل منفصل: انتظر APN_OK بعد الرسالة الأولى، ثم SERVER_OK بعد الثانية. يستخدم GS900 المنفذ 5023.' : '* Envoyez les 2 SMS séparément : attendez APN_OK puis SERVER_OK. Le GS900 utilise le port 5023.'}</p>
                 </div>
               </div>
             )}

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ChevronRight, Car, Clock, RefreshCw, Plus } from 'lucide-react'
+import { Search, X, ChevronRight, Car, Clock, RefreshCw } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -110,9 +110,6 @@ export default function DeviceList() {
               <h1 className="text-2xl font-extrabold tracking-tight text-primary-500">{t(lang, 'myDevices')}</h1>
               <p className="mt-1 text-xs text-slate-500">{devices.length} {isAr ? 'أجهزة مرتبطة بالحساب' : 'appareil(s) lié(s)'}</p>
             </div>
-            <button onClick={() => navigate('/client/device-wizard')} className="flex h-10 items-center gap-1.5 rounded-xl bg-primary-500 px-3 text-xs font-bold text-white shadow-sm">
-              <Plus size={15} />{isAr ? 'إضافة' : 'Ajouter'}
-            </button>
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
             <Search size={16} className="shrink-0 text-slate-400" />
