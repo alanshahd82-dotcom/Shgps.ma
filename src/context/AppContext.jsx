@@ -11,6 +11,7 @@ export function AppProvider({ children }) {
   const [lang, setLang]                     = useState('ar')
   const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
   const [adminAuth,  setAdminAuth]          = useState(() => loadFromStorage('athargps_admin'))
+  const [authReady,  setAuthReady]          = useState(false)
   const [mustChangePassword, setMustChange] = useState(false)
   const [devices,      setDevices]          = useState([])
   const [alertsList,   setAlertsList]       = useState([])
@@ -69,7 +70,11 @@ export function AppProvider({ children }) {
 
   // Initial data load
   useEffect(() => {
-    if (!clientAuth && !adminAuth) return
+    const token = localStorage.getItem('athargps_token')
+    if (!token) {
+      setAuthReady(true)
+      return
+    }
     let cancelled = false
 
     async function hydrateSession() {
@@ -92,17 +97,23 @@ export function AppProvider({ children }) {
         setMustChange(!!currentUser.mustChangePassword)
         await Promise.all([loadDevices(), loadAlerts(), currentUser.isAdmin ? loadClients() : Promise.resolve()])
         if (!cancelled) openWebSocket()
-      } catch {
+      } catch (error) {
         if (cancelled) return
         closeWebSocket()
-        localStorage.removeItem('athargps_token')
-        localStorage.removeItem('athargps_client')
-        localStorage.removeItem('athargps_admin')
-        setClientAuth(null)
-        setAdminAuth(null)
-        setDevices([])
-        setAlertsList([])
-        setClientList([])
+        // Keep the persisted session during temporary network/server errors.
+        // Only a confirmed 401 means that the token is no longer usable.
+        if (error?.status === 401) {
+          localStorage.removeItem('athargps_token')
+          localStorage.removeItem('athargps_client')
+          localStorage.removeItem('athargps_admin')
+          setClientAuth(null)
+          setAdminAuth(null)
+          setDevices([])
+          setAlertsList([])
+          setClientList([])
+        }
+      } finally {
+        if (!cancelled) setAuthReady(true)
       }
     }
 
@@ -429,7 +440,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       lang, setLang,
-      clientAuth, adminAuth,
+      clientAuth, adminAuth, authReady,
        setClientAuth,
       mustChangePassword, clearMustChange,
       devices, alertsList, clientList,

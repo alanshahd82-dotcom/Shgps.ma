@@ -59,8 +59,9 @@ function isAdminAuthenticated(adminAuth) {
 }
 
 function ClientRoute({ children }) {
-  const { clientAuth, mustChangePassword, clearMustChange, lang } = useApp()
+  const { clientAuth, authReady, mustChangePassword, clearMustChange, lang } = useApp()
   const location = useLocation()
+  if (!authReady) return null
   if (!isClientAuthenticated(clientAuth)) {
     return <Navigate to="/client/login" state={{ from: location }} replace />
   }
@@ -75,8 +76,9 @@ function ClientRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { adminAuth } = useApp()
+  const { adminAuth, authReady } = useApp()
   const location = useLocation()
+  if (!authReady) return null
   if (!isAdminAuthenticated(adminAuth)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
@@ -84,8 +86,9 @@ function AdminRoute({ children }) {
 }
 
 function ClientEntry() {
-  const { clientAuth } = useApp()
+  const { clientAuth, authReady } = useApp()
   const hasSeenOnboarding = localStorage.getItem('athargps_onboarding_seen') === 'true'
+  if (!authReady) return null
   return (
     <Navigate
       to={isClientAuthenticated(clientAuth)
