@@ -363,6 +363,14 @@ import {
       try {
         let deviceName = `GPS-${imei.slice(-6)}` // اسم افتراضي
         let finalClientId = clientId ? Number(clientId) : null
+        const requestedMaxDevices =
+          maxDevices === undefined || maxDevices === null || maxDevices === ''
+            ? null
+            : Number(maxDevices)
+        if (requestedMaxDevices !== null &&
+            (!Number.isInteger(requestedMaxDevices) || requestedMaxDevices < 1)) {
+          return res.status(400).json({ error: 'maxDevices must be a positive integer' })
+        }
         if (finalClientId) {
           const { rows: clientRows } = await db.query(
             `SELECT id, name, max_devices,
@@ -372,14 +380,21 @@ import {
           )
           const client = clientRows[0]
           if (!client) return res.status(404).json({ error: 'Client not found' })
-          const seq = client.devices_count + 1
+          const effectiveMaxDevices = requestedMaxDevices ?? Math.max(1, Number(client.max_devices) || 5)
+          if (Number(client.devices_count) >= effectiveMaxDevices) {
+            return res.status(409).json({
+              code: 'DEVICE_LIMIT_REACHED',
+              error: `Device limit reached (${client.devices_count}/${effectiveMaxDevices}). Increase the client limit before adding another device.`,
+            })
+          }
+          const seq = Number(client.devices_count) + 1
           deviceName = `${client.name} - #${seq}`
-           if (plan.trial && await clientHasUsedFreeTrial(finalClientId)) {
-             return res.status(409).json({
-               code: 'FREE_TRIAL_ALREADY_USED',
-               error: 'This client has already used the free 3-month trial.',
-             })
-           }
+          if (plan.trial && await clientHasUsedFreeTrial(finalClientId)) {
+            return res.status(409).json({
+              code: 'FREE_TRIAL_ALREADY_USED',
+              error: 'This client has already used the free 3-month trial.',
+            })
+          }
         }
 
         // سجّل في Traccar
@@ -410,14 +425,10 @@ import {
             [deviceName, imei, finalClientId, traccarId, phone || null,
               plan.id, subscriptionStartDate, subscriptionEndDate]
           )
-          if (finalClientId && maxDevices !== undefined && maxDevices !== null && maxDevices !== '') {
-            const parsedMaxDevices = Number(maxDevices)
-            if (!Number.isInteger(parsedMaxDevices) || parsedMaxDevices < 1) {
-              return res.status(400).json({ error: 'maxDevices must be a positive integer' })
-            }
+          if (finalClientId && requestedMaxDevices !== null) {
             await db.query(
               `UPDATE users SET max_devices=$1 WHERE id=$2`,
-              [parsedMaxDevices, finalClientId]
+              [requestedMaxDevices, finalClientId]
             )
           }
           await db.query('COMMIT')
