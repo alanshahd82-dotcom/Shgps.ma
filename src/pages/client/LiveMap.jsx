@@ -80,7 +80,7 @@ export default function LiveMap() {
     )
   }, [devices, search])
 
-  const positioned = filtered.filter(d => d.lat != null && d.lng != null)
+  const positioned = filtered.filter(d => Number.isFinite(d.lat) && Number.isFinite(d.lng))
   const sel = selected ? devices.find(d => d.id === selected) : null
 
   const ST_COLOR = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }
