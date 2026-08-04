@@ -68,9 +68,8 @@ function FlyToDevice({ lat, lng }) {
 function hasValidCoords(device) {
   return (
     device &&
-    typeof device.lat === 'number' &&
-    typeof device.lng === 'number' &&
-    (device.lat != null && device.lng != null)
+    Number.isFinite(device.lat) &&
+    Number.isFinite(device.lng)
   )
 }
 
