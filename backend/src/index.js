@@ -313,8 +313,12 @@ async function connectTraccar() {
       body: formBody,
     })
     if (!res.ok) {
-      console.error('[Traccar WS] Session POST failed:', res.status)
-      setTimeout(connectTraccar, 10000)
+      if (res.status === 401 || res.status === 403) {
+        console.error('[Traccar WS] Authentication rejected. Check TRACCAR_ADMIN_EMAIL/PASSWORD against the persistent Traccar database; bridge disabled until restart.')
+        return
+      }
+      console.error('[Traccar WS] Session POST failed:', res.status, '— retrying in 30 s')
+      setTimeout(connectTraccar, 30000)
       return
     }
     const setCookie = res.headers.get('set-cookie') || ''
@@ -323,8 +327,8 @@ async function connectTraccar() {
     userToken = user.token || ''
     console.log('[Traccar WS] Session OK — user:', user.email)
   } catch (err) {
-    console.error('[Traccar WS] Session error:', err.message)
-    setTimeout(connectTraccar, 10000)
+    console.error('[Traccar WS] Session error:', err.message, '— retrying in 30 s')
+    setTimeout(connectTraccar, 30000)
     return
   }
 
@@ -345,8 +349,8 @@ async function connectTraccar() {
   })
 
   traccarWs.on('close', () => {
-    console.log('[Traccar WS] Disconnected — reconnecting in 5 s...')
-    setTimeout(connectTraccar, 5000)
+    console.log('[Traccar WS] Disconnected — reconnecting in 30 s...')
+    setTimeout(connectTraccar, 30000)
   })
 
   traccarWs.on('error', (err) => console.error('[Traccar WS] Error:', err.message))

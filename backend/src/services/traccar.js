@@ -8,7 +8,14 @@ async function call(path, opts = {}) {
     ...opts,
     headers: { Authorization: auth(), 'Content-Type': 'application/json', ...opts.headers },
   })
-  if (!res.ok) throw new Error(`Traccar ${res.status}: ${await res.text()}`)
+  if (!res.ok) {
+    const error = new Error(`Traccar ${res.status}: ${await res.text()}`)
+    error.code = res.status === 401 || res.status === 403
+      ? 'TRACCAR_AUTH_FAILED'
+      : 'TRACCAR_REQUEST_FAILED'
+    error.status = res.status
+    throw error
+  }
   if (res.status === 204) return null
   return res.json()
 }

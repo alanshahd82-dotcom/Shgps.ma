@@ -167,6 +167,12 @@ reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
       })
     } catch (e) {
       console.error('[reports] Traccar history error:', e.message)
+      if (e.code === 'TRACCAR_AUTH_FAILED') {
+        return res.status(503).json({
+          code: 'TRACCAR_AUTH_REQUIRED',
+          error: 'Tracking service authentication is unavailable. Contact the administrator.',
+        })
+      }
       return res.status(502).json({ error: 'Unable to load trip history from Traccar' })
     }
   } catch (err) {
