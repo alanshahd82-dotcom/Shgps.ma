@@ -44,6 +44,7 @@ function buildCommands({ deviceType, apn }) {
       { label: 'Status check', cmd: 'STATUS#' },
       { label: 'Server check', cmd: 'SERVER#' },
       { label: 'Network check', cmd: 'GPRSSET#' },
+      { label: 'Location check', cmd: 'WHERE#' },
     ]
   }
   return [

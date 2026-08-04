@@ -32,7 +32,7 @@ function getSmsCommands(deviceId, apn, user, pass, phone) {
     gt06:      [`APN,${apn},${user},${pass}#`, `SERVER,1,64.226.103.251,5023,0#`, `TIMER,1,1#`, `GPRS#`],
     // This GS900 firmware reports the GT06-compatible SERVER format and port.
     // APN and SERVER are separate; the remaining commands are read-only checks.
-    wanway:    [`APN,${apn}#`, `SERVER,1,64.226.103.251,5023,0#`, 'STATUS#', 'SERVER#', 'GPRSSET#'],
+    wanway:    [`APN,${apn}#`, `SERVER,1,64.226.103.251,5023,0#`, 'STATUS#', 'SERVER#', 'GPRSSET#', 'WHERE#'],
     teltonika: [`  setparam 2001:${apn};2002:${user};2003:${pass}`, `  setparam 2004:64.226.103.251;2005:5023`],
     coban:     [`begin${phone || ''}`, `apn${phone || ''} ${apn}`, `gprs${phone || ''}`, `adminip${phone || ''} 64.226.103.251 5023`],
     generic:   [`Server: 64.226.103.251`, `Port: 5055 (OsmAnd HTTP)`, `Device ID: ${deviceId || 'imei'}`],
