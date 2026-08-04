@@ -111,31 +111,6 @@ import {
         )
       if (repairs.length) await Promise.all(repairs)
 
-      // Traccar can omit a stationary device from the live positions response
-      // when it has not uploaded a new fix. Keep the last known GPS fix so a
-      // connected, stopped device still remains visible on the map.
-      const fallbackPositions = {}
-      await Promise.all(rows
-        .filter(d => {
-          const td = traccarById[d.traccar_id] ?? traccarByImei[d.imei]
-          return !pm[d.traccar_id] && td?.status === 'online'
-        })
-        .map(async d => {
-          const td = traccarById[d.traccar_id] ?? traccarByImei[d.imei]
-          if (!td?.id) return
-          try {
-            const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-            const history = await traccar.getHistory(td.id, from, new Date().toISOString())
-            const latest = (Array.isArray(history) ? history : [])
-              .filter(p => Number.isFinite(Number(p.latitude)) && Number.isFinite(Number(p.longitude)))
-              .sort((a, b) => new Date(a.fixTime || 0) - new Date(b.fixTime || 0))
-              .at(-1)
-            if (latest) fallbackPositions[d.id] = latest
-          } catch (err) {
-            console.warn('[Devices] stationary position fallback skipped:', err.message)
-          }
-        }))
-
       await Promise.all(rows.map(d =>
         syncSubscriptionState(db, d, d.client_name ?? req.user.name ?? null)
           .then(snapshot => { d.subscription_status = snapshot.subscriptionStatus })
@@ -154,9 +129,21 @@ import {
 
       res.json(rows.map(d => {
         // Position: by traccarId first, then IMEI fallback
-        const p = pm[d.traccar_id] ?? positionByImei[d.imei] ?? fallbackPositions[d.id] ?? null
-        // Traccar device entry (for authoritative status field)
+        const livePosition = pm[d.traccar_id] ?? positionByImei[d.imei] ?? null
         const td = traccarById[d.traccar_id] ?? traccarByImei[d.imei] ?? null
+        const hasStoredPosition = Number.isFinite(Number(d.last_lat)) && Number.isFinite(Number(d.last_lng))
+        const storedPosition = hasStoredPosition
+          ? {
+              latitude: Number(d.last_lat),
+              longitude: Number(d.last_lng),
+              speed: d.last_speed ?? 0,
+              fixTime: d.last_update ?? null,
+            }
+          : null
+        // If Traccar has no fresh position for a connected stationary device,
+        // keep its last locally stored GPS fix visible on the map.
+        const p = livePosition ?? (td?.status === 'online' ? storedPosition : null)
+        // Traccar device entry (for authoritative status field)
         // A position is proof of a live/known device even when it is stationary.
         // Traccar's device.status can lag behind the last position, so do not
         // label a stopped device offline merely because speed is zero.
