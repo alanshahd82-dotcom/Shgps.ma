@@ -42,7 +42,7 @@ function isClientAuthenticated(clientAuth) {
   if (!clientAuth || !localStorage.getItem('athargps_token')) return false
   try {
     const stored = JSON.parse(localStorage.getItem('athargps_client'))
-    return !!stored
+    return !!stored && stored.isAdmin !== true
   } catch {
     return false
   }
@@ -52,7 +52,7 @@ function isAdminAuthenticated(adminAuth) {
   if (!adminAuth || !localStorage.getItem('athargps_token')) return false
   try {
     const stored = JSON.parse(localStorage.getItem('athargps_admin'))
-    return !!stored
+    return !!stored && stored.isAdmin === true
   } catch {
     return false
   }

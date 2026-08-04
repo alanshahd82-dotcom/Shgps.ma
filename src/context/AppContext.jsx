@@ -80,10 +80,14 @@ export function AppProvider({ children }) {
         if (cancelled) return
         if (currentUser.isAdmin) {
           setAdminAuth(currentUser)
+          setClientAuth(null)
           localStorage.setItem('athargps_admin', JSON.stringify(currentUser))
+          localStorage.removeItem('athargps_client')
         } else {
           setClientAuth(currentUser)
+          setAdminAuth(null)
           localStorage.setItem('athargps_client', JSON.stringify(currentUser))
+          localStorage.removeItem('athargps_admin')
         }
         setMustChange(!!currentUser.mustChangePassword)
         await Promise.all([loadDevices(), loadAlerts(), currentUser.isAdmin ? loadClients() : Promise.resolve()])
@@ -265,6 +269,10 @@ export function AppProvider({ children }) {
         throw error
       }
     }
+    // The app uses one active API token. Never leave an admin session beside
+    // the client session, otherwise admin requests can be sent as the client.
+    localStorage.removeItem('athargps_admin')
+    setAdminAuth(null)
     localStorage.setItem('athargps_last_email', email.trim().toLowerCase())
     localStorage.setItem('athargps_token',  data.token)
     localStorage.setItem('athargps_client', JSON.stringify(data.user))
@@ -277,6 +285,10 @@ export function AppProvider({ children }) {
   const loginAdmin = async (email, password) => {
     const data = await api.auth.login(email, password)
     if (!data.user.isAdmin) throw new Error('Not an admin account')
+    // The app uses one active API token. Clear any previous client session
+    // before loading admin-only data such as the client selector.
+    localStorage.removeItem('athargps_client')
+    setClientAuth(null)
     localStorage.setItem('athargps_token', data.token)
     localStorage.setItem('athargps_admin', JSON.stringify(data.user))
     setAdminAuth(data.user)
@@ -294,14 +306,16 @@ export function AppProvider({ children }) {
     closeWebSocket()
     localStorage.removeItem('athargps_token')
     localStorage.removeItem('athargps_client')
-    setClientAuth(null); setDevices([]); setAlertsList([])
+    localStorage.removeItem('athargps_admin')
+    setClientAuth(null); setAdminAuth(null); setDevices([]); setAlertsList([]); setClientList([])
   }
 
   const logoutAdmin = () => {
     closeWebSocket()
     localStorage.removeItem('athargps_token')
     localStorage.removeItem('athargps_admin')
-    setAdminAuth(null); setDevices([]); setAlertsList([]); setClientList([])
+    localStorage.removeItem('athargps_client')
+    setAdminAuth(null); setClientAuth(null); setDevices([]); setAlertsList([]); setClientList([])
   }
 
   const clearMustChange = () => {
