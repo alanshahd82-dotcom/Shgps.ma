@@ -29,7 +29,7 @@ function useCountUp(target, duration = 1200) {
   return count
 }
 
-function StatCard({ icon: Icon, label, value, sub, color, delay }) {
+function StatCard({ icon: Icon, label, value, sub, color, delay, onClick }) {
   const numValue    = typeof value === 'number' ? value : 0
   const countedVal  = useCountUp(numValue)
   const displayValue = typeof value === 'number' ? countedVal : value
@@ -44,10 +44,11 @@ function StatCard({ icon: Icon, label, value, sub, color, delay }) {
   }
   return (
     <motion.div
-      className={`rounded-2xl p-5 bg-gradient-to-br ${colors[color] || colors.blue} shadow-lg relative overflow-hidden`}
+      className={`rounded-2xl p-5 bg-gradient-to-br ${colors[color] || colors.blue} shadow-lg relative overflow-hidden${onClick ? ' cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: delay * 0.08, type: 'spring', damping: 20 }}
+      onClick={onClick}
     >
       {/* Ambient glow */}
       <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/5" />
@@ -145,7 +146,7 @@ export default function Dashboard() {
           <StatCard icon={Users}        label={t(lang, 'totalClients')}  value={totalClients} color="blue"   delay={0} />
           <StatCard icon={Cpu}          label={t(lang, 'totalDevices')}  value={totalDevices} color="purple" delay={1} />
           <StatCard icon={Wifi}         label={t(lang, 'onlineDevices')} value={online}       color="green"  delay={2} />
-          <StatCard icon={WifiOff}      label={t(lang, 'offlineDevices')}value={offline}      color="slate"  delay={3} />
+          <StatCard icon={WifiOff}      label={t(lang, 'offlineDevices')}value={offline}      color="slate"  delay={3} onClick={() => navigate('/admin/devices')} />
           <StatCard icon={Bell}         label={t(lang, 'todayAlerts')}   value={todayAlerts}  color="orange" delay={4} />
           <StatCard icon={AlertTriangle} label={lang === 'ar' ? 'بدون إشارة > 24س' : 'Sans signal > 24h'} value={noSignal} color="red" delay={5} />
         </div>
