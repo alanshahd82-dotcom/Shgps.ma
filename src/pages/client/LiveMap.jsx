@@ -82,9 +82,8 @@ export default function LiveMap() {
           const lat = Number(p.coords.latitude)
           const lng = Number(p.coords.longitude)
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          setUserPos({ lat, lng })
-          setLocateTarget({ lat, lng, ts: Date.now() })
-        }
+            setUserPos({ lat, lng })
+          }
         },
         () => {}
       )
@@ -98,7 +97,10 @@ export default function LiveMap() {
       p => {
         const lat = Number(p.coords.latitude)
         const lng = Number(p.coords.longitude)
-        if (Number.isFinite(lat) && Number.isFinite(lng)) setUserPos({ lat, lng })
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          setUserPos({ lat, lng })
+          setLocateTarget({ lat, lng, ts: Date.now() })
+        }
       },
       () => {}
     )
