@@ -30,6 +30,18 @@ function makeVehicleIcon(device) {
   })
 }
 
+function FlyToUser({ target }) {
+  const map = useMap()
+  const prev = useRef(null)
+  useEffect(() => {
+    if (!target) return
+    if (prev.current === target.ts) return
+    prev.current = target.ts
+    map.flyTo([target.lat, target.lng], 16, { duration: 1.2 })
+  }, [target])
+  return null
+}
+
 function FlyTo({ lat, lng, zoom = 14 }) {
   const map = useMap()
   const prev = useRef(null)
@@ -59,6 +71,7 @@ export default function LiveMap() {
   const [selected, setSelected] = useState(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [userPos, setUserPos]   = useState(null)
+  const [locateTarget, setLocateTarget] = useState(null)
   const isAr = lang === 'ar'
 
   useEffect(() => {
@@ -68,7 +81,10 @@ export default function LiveMap() {
         p => {
           const lat = Number(p.coords.latitude)
           const lng = Number(p.coords.longitude)
-          if (Number.isFinite(lat) && Number.isFinite(lng)) setUserPos({ lat, lng })
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          setUserPos({ lat, lng })
+          setLocateTarget({ lat, lng, ts: Date.now() })
+        }
         },
         () => {}
       )
@@ -110,6 +126,20 @@ export default function LiveMap() {
     )
   const sel = selected ? devices.find(d => d.id === selected) : null
 
+  function openMaps(type, device) {
+    const lat = toCoordinate(device.lat)
+    const lng = toCoordinate(device.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    const origin = userPos ? userPos.lat + ',' + userPos.lng : ''
+    if (type === 'google') {
+      window.open(origin
+        ? 'https://www.google.com/maps/dir/' + origin + '/' + lat + ',' + lng
+        : 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng, '_blank')
+    } else {
+      window.open('https://waze.com/ul?ll=' + lat + ',' + lng + '&navigate=yes', '_blank')
+    }
+  }
+
   const ST_COLOR = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }
 
   return (
@@ -128,6 +158,7 @@ export default function LiveMap() {
             eventHandlers={{ click: () => { setSelected(d.id); setPanelOpen(true) } }}/>
         ))}
         {sel && <FlyTo lat={sel.lat} lng={sel.lng}/>}
+        <FlyToUser target={locateTarget}/>
       </MapContainer>
       <ClientHeader overlay />
 
@@ -197,24 +228,43 @@ export default function LiveMap() {
               const c  = ST_COLOR[st] || '#6b7280'
               const isSelected = selected === d.id
               return (
-                <button key={d.id} onClick={() => { setSelected(d.id) }}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left"
-                  style={{
-                    background: isSelected ? 'rgba(0,217,126,0.1)' : 'rgba(255,255,255,0.05)',
-                    border: '1px solid ' + (isSelected ? 'rgba(0,217,126,0.35)' : 'rgba(255,255,255,0.07)'),
-                  }}>
-                  <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: c, minHeight:30 }}/>
-                  <VehicleIcon type={d.type} iconSize={16}/>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-xs truncate">{d.name}</p>
-                    {d.plate && <p className="text-[10px] font-mono" style={{ color:'rgba(255,255,255,0.3)' }}>{d.plate}</p>}
-                  </div>
-                  {d.speed != null && d.speed > 0 && (
-                    <span className="text-xs font-bold flex-shrink-0" style={{ color:'#00D97E' }}>
-                      {Math.round(d.speed)} <span className="font-normal text-[10px]" style={{ color:'rgba(255,255,255,0.35)' }}>km/h</span>
-                    </span>
+                <div key={d.id} className="w-full">
+                  <button onClick={() => { setSelected(d.id) }}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left"
+                    style={{
+                      background: isSelected ? 'rgba(0,217,126,0.1)' : 'rgba(255,255,255,0.05)',
+                      border: '1px solid ' + (isSelected ? 'rgba(0,217,126,0.35)' : 'rgba(255,255,255,0.07)'),
+                    }}>
+                    <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: c, minHeight:30 }}/>
+                    <VehicleIcon type={d.type} iconSize={16}/>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-xs truncate">{d.name}</p>
+                      {d.plate && <p className="text-[10px] font-mono" style={{ color:'rgba(255,255,255,0.3)' }}>{d.plate}</p>}
+                    </div>
+                    {d.speed != null && d.speed > 0 && (
+                      <span className="text-xs font-bold flex-shrink-0" style={{ color:'#00D97E' }}>
+                        {Math.round(d.speed)} <span className="font-normal text-[10px]" style={{ color:'rgba(255,255,255,0.35)' }}>km/h</span>
+                      </span>
+                    )}
+                  </button>
+                  {isSelected && Number.isFinite(toCoordinate(d.lat)) && Number.isFinite(toCoordinate(d.lng)) && (
+                    <div className="flex gap-2 mt-1.5 px-1">
+                      <button
+                        onClick={() => openMaps('google', d)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold"
+                        style={{ background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.35)', color:'#60A5FA' }}>
+                        <Navigation size={12}/>
+                        Google Maps
+                      </button>
+                      <button
+                        onClick={() => openMaps('waze', d)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                        style={{ background:'rgba(0,217,126,0.1)', border:'1px solid rgba(0,217,126,0.25)', color:'#00D97E' }}>
+                        Waze
+                      </button>
+                    </div>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
