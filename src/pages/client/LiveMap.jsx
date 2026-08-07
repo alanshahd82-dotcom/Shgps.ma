@@ -1,37 +1,47 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Search, X, ChevronUp, LocateFixed, Navigation } from 'lucide-react'
-import { MapContainer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp } from 'lucide-react'
+import { MapContainer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
 import { useApp } from '../../context/AppContext'
-import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
-import { VehicleIcon, StatusDot, timeAgo, getDeviceStatusKey } from '../../components/ui'
+import { VehicleIcon, timeAgo, getDeviceStatusKey } from '../../components/ui'
 
-const PANEL_PEEK = 90
-const PANEL_OPEN = 280
-
+// ── Map icons ──────────────────────────────────────────────────────────────────
 const userLocIcon = L.divIcon({
   className: '',
-  html: '<div style="width:16px;height:16px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 0 0 6px rgba(59,130,246,0.22),0 2px 8px rgba(0,0,0,0.3)"></div>',
-  iconSize: [16,16], iconAnchor: [8,8],
+  html: `<div style="position:relative;width:22px;height:22px">
+    <div style="position:absolute;inset:-6px;border-radius:50%;background:rgba(59,130,246,0.18);animation:ping 2s ease-out infinite"></div>
+    <div style="position:absolute;inset:0;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 2px 12px rgba(59,130,246,0.6)"></div>
+  </div>`,
+  iconSize: [22, 22], iconAnchor: [11, 11],
 })
 
-function makeVehicleIcon(device) {
-  const st = getDeviceStatusKey(device)
-  const c  = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }[st] || '#6b7280'
+const ST_CLR = { moving: '#00D97E', idle: '#FF9500', stopped: '#FF3B30', offline: '#6b7280' }
+
+function makeVehicleIcon(device, isSelected) {
+  const st  = getDeviceStatusKey(device)
+  const c   = ST_CLR[st] || '#6b7280'
+  const sz  = isSelected ? 24 : 18
+  const glow = isSelected ? `0 0 0 4px ${c}44,` : ''
+  const pulse = st === 'moving'
+    ? `<div style="position:absolute;inset:-7px;border-radius:50%;background:${c}22;animation:ping 2s ease-out infinite"></div>`
+    : ''
   return L.divIcon({
     className: '',
-    html: '<div style="width:14px;height:14px;border-radius:50%;background:' + c + ';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>',
-    iconSize: [14,14], iconAnchor: [7,7],
+    html: `<div style="position:relative;width:${sz}px;height:${sz}px">
+      ${pulse}
+      <div style="position:absolute;inset:0;border-radius:50%;background:${c};border:${isSelected ? 3 : 2}px solid white;box-shadow:${glow}0 2px 12px rgba(0,0,0,0.5)"></div>
+    </div>`,
+    iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
   })
 }
 
+// ── Map helpers ────────────────────────────────────────────────────────────────
 function FlyToUser({ target }) {
-  const map = useMap()
+  const map  = useMap()
   const prev = useRef(null)
   useEffect(() => {
     if (!target) return
@@ -42,69 +52,70 @@ function FlyToUser({ target }) {
   return null
 }
 
-function FlyTo({ lat, lng, zoom = 14 }) {
-  const map = useMap()
+function FlyTo({ lat, lng, zoom = 15 }) {
+  const map  = useMap()
   const prev = useRef(null)
   useEffect(() => {
-    const nextLat = Number(lat)
-    const nextLng = Number(lng)
-    if (
-      !Number.isFinite(nextLat) ||
-      !Number.isFinite(nextLng) ||
-      nextLat < -90 ||
-      nextLat > 90 ||
-      nextLng < -180 ||
-      nextLng > 180
-    ) return
-    const key = nextLat + ',' + nextLng
+    const la = Number(lat), ln = Number(lng)
+    if (!Number.isFinite(la) || !Number.isFinite(ln)) return
+    if (la < -90 || la > 90 || ln < -180 || ln > 180) return
+    const key = la + ',' + ln
     if (prev.current === key) return
     prev.current = key
-    map.flyTo([nextLat, nextLng], zoom, { duration: 1.2 })
+    map.flyTo([la, ln], zoom, { duration: 1.2 })
   }, [lat, lng, zoom])
   return null
 }
 
+// ── Constants ──────────────────────────────────────────────────────────────────
+const PANEL_PEEK = 132
+const PANEL_OPEN = 480
+
+const ST_LABEL = {
+  moving:  { ar: 'يتحرك',    fr: 'En mouvement' },
+  idle:    { ar: 'خامل',     fr: 'Ralenti'       },
+  stopped: { ar: 'متوقف',    fr: 'Arrêté'        },
+  offline: { ar: 'غير متصل', fr: 'Hors ligne'    },
+}
+
+// ── Component ──────────────────────────────────────────────────────────────────
 export default function LiveMap() {
-  const navigate  = useNavigate()
   const { devices, lang, wsConnected } = useApp()
-  const [search, setSearch]     = useState('')
-  const [selected, setSelected] = useState(null)
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [userPos, setUserPos]   = useState(null)
+  const [search,       setSearch]       = useState('')
+  const [selected,     setSelected]     = useState(null)
+  const [panelOpen,    setPanelOpen]    = useState(false)
+  const [userPos,      setUserPos]      = useState(null)
   const [locateTarget, setLocateTarget] = useState(null)
   const isAr = lang === 'ar'
 
+  // Continuous position watch (updates blue dot only)
   useEffect(() => {
-    let watcher
-    if (navigator.geolocation) {
-      watcher = navigator.geolocation.watchPosition(
-        p => {
-          const lat = Number(p.coords.latitude)
-          const lng = Number(p.coords.longitude)
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            setUserPos({ lat, lng })
-          }
-        },
-        () => {}
-      )
-    }
-    return () => { if (watcher) navigator.geolocation.clearWatch(watcher) }
-  }, [])
-
-  function locateMe() {
     if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
+    const id = navigator.geolocation.watchPosition(
       p => {
         const lat = Number(p.coords.latitude)
         const lng = Number(p.coords.longitude)
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          setUserPos({ lat, lng })
-          setLocateTarget({ lat, lng, ts: Date.now() })
-        }
+        if (Number.isFinite(lat) && Number.isFinite(lng)) setUserPos({ lat, lng })
       },
       () => {}
     )
+    return () => navigator.geolocation.clearWatch(id)
+  }, [])
+
+  // One-shot locate + fly
+  function locateMe() {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(p => {
+      const lat = Number(p.coords.latitude)
+      const lng = Number(p.coords.longitude)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        setUserPos({ lat, lng })
+        setLocateTarget({ lat, lng, ts: Date.now() })
+      }
+    }, () => {})
   }
+
+  const toCoord = v => (v == null || v === '') ? null : Number(v)
 
   const filtered = useMemo(() => {
     const trackable = devices.filter(d => d.trackingEnabled !== false)
@@ -115,168 +126,389 @@ export default function LiveMap() {
     )
   }, [devices, search])
 
-  const toCoordinate = value => value == null || value === '' ? null : Number(value)
-  const positioned = filtered
-    .map(d => ({ ...d, lat: toCoordinate(d.lat), lng: toCoordinate(d.lng) }))
-    .filter(d =>
-      Number.isFinite(d.lat) &&
-      Number.isFinite(d.lng) &&
-      d.lat >= -90 &&
-      d.lat <= 90 &&
-      d.lng >= -180 &&
-      d.lng <= 180
-    )
+  const positioned = useMemo(() =>
+    filtered
+      .map(d => ({ ...d, lat: toCoord(d.lat), lng: toCoord(d.lng) }))
+      .filter(d =>
+        Number.isFinite(d.lat) && Number.isFinite(d.lng) &&
+        d.lat >= -90 && d.lat <= 90 && d.lng >= -180 && d.lng <= 180
+      ),
+  [filtered])
+
   const sel = selected ? devices.find(d => d.id === selected) : null
 
+  // Status summary counts
+  const counts = useMemo(() => {
+    const all = devices.filter(d => d.trackingEnabled !== false)
+    return {
+      moving:  all.filter(d => getDeviceStatusKey(d) === 'moving').length,
+      idle:    all.filter(d => getDeviceStatusKey(d) === 'idle').length,
+      stopped: all.filter(d => getDeviceStatusKey(d) === 'stopped').length,
+      offline: all.filter(d => getDeviceStatusKey(d) === 'offline').length,
+    }
+  }, [devices])
+
   function openMaps(type, device) {
-    const lat = toCoordinate(device.lat)
-    const lng = toCoordinate(device.lng)
+    const lat = toCoord(device.lat)
+    const lng = toCoord(device.lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-    const origin = userPos ? userPos.lat + ',' + userPos.lng : ''
+    const origin = userPos ? `${userPos.lat},${userPos.lng}` : ''
     if (type === 'google') {
-      window.open(origin
-        ? 'https://www.google.com/maps/dir/' + origin + '/' + lat + ',' + lng
-        : 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng, '_blank')
+      window.open(
+        origin
+          ? `https://www.google.com/maps/dir/${origin}/${lat},${lng}`
+          : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+        '_blank'
+      )
     } else {
-      window.open('https://waze.com/ul?ll=' + lat + ',' + lng + '&navigate=yes', '_blank')
+      window.open(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`, '_blank')
     }
   }
 
-  const ST_COLOR = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }
+  const panelH = panelOpen ? PANEL_OPEN : PANEL_PEEK
 
   return (
-    <div className="relative w-full" style={{ height: '100dvh' }}>
-      {/* Map */}
+    <div className="relative w-full overflow-hidden" style={{ height: '100dvh' }}>
+
+      {/* ── Map ── */}
       <MapContainer
         center={[31.7917, -7.0926]}
         zoom={6}
-        style={{ width:'100%', height:'100%', position:'absolute', inset:0, zIndex:0 }}
+        style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
         <GeoapifyTileLayer />
-        {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon}/>}
+        {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
         {positioned.map(d => (
-          <Marker key={d.id} position={[d.lat, d.lng]} icon={makeVehicleIcon(d)}
-            eventHandlers={{ click: () => { setSelected(d.id); setPanelOpen(true) } }}/>
+          <Marker
+            key={d.id}
+            position={[d.lat, d.lng]}
+            icon={makeVehicleIcon(d, selected === d.id)}
+            eventHandlers={{ click: () => { setSelected(d.id); setPanelOpen(true) } }}
+          />
         ))}
-        {sel && <FlyTo lat={sel.lat} lng={sel.lng}/>}
-        <FlyToUser target={locateTarget}/>
+        {sel && <FlyTo lat={sel.lat} lng={sel.lng} />}
+        <FlyToUser target={locateTarget} />
       </MapContainer>
+
       <ClientHeader overlay />
 
-      {/* WS indicator */}
-      <div className="absolute top-20 left-4 z-20">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-          style={{ background: wsConnected ? 'rgba(0,217,126,0.85)' : 'rgba(255,59,48,0.85)', color:'white', backdropFilter:'blur(10px)' }}>
-          <div className="w-1.5 h-1.5 rounded-full bg-white"/>
+      {/* ── Live indicator ── */}
+      <div className="absolute z-20" style={{ top: 72, left: 14 }}>
+        <div
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold"
+          style={{
+            background: wsConnected ? 'rgba(0,217,126,0.92)' : 'rgba(239,68,68,0.92)',
+            color: 'white',
+            backdropFilter: 'blur(16px)',
+            boxShadow: wsConnected
+              ? '0 2px 16px rgba(0,217,126,0.5)'
+              : '0 2px 16px rgba(239,68,68,0.5)',
+          }}
+        >
+          <span
+            className="rounded-full bg-white"
+            style={{ width: 6, height: 6, display: 'inline-block',
+              animation: wsConnected ? 'ping 2s ease-out infinite' : 'none' }}
+          />
           {wsConnected ? 'Live' : 'Offline'}
         </div>
       </div>
 
-      {/* Search bar */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 w-64">
-        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl"
-          style={{ background:'rgba(8,15,31,0.9)', border:'1px solid rgba(255,255,255,0.12)', backdropFilter:'blur(16px)' }}>
-          <Search size={14} style={{ color:'rgba(255,255,255,0.4)' }} className="flex-shrink-0"/>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={isAr ? 'بحث...' : 'Chercher...'}
-            className="flex-1 bg-transparent text-white text-sm outline-none placeholder-white/30"
-            style={{ fontSize: 13 }}/>
-          {search && <button onClick={() => setSearch('')}><X size={13} style={{ color:'rgba(255,255,255,0.35)' }}/></button>}
-        </div>
-      </div>
-
-      {/* Locate me button */}
-      <div className="absolute z-20" style={{ bottom: panelOpen ? (PANEL_OPEN + 16) : (PANEL_PEEK + 16), right: 16 }}>
-        <motion.button
-          onClick={locateMe}
-          whileTap={{ scale: 0.9 }}
-          style={{ width:42, height:42, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
-            background:'rgba(8,15,31,0.9)', border:'1px solid rgba(255,255,255,0.12)', backdropFilter:'blur(16px)' }}>
-          <LocateFixed size={18} style={{ color:'#00D97E' }}/>
-        </motion.button>
-      </div>
-
-      {/* Sliding panel */}
+      {/* ── Search bar ── */}
       <div
-        className="absolute left-0 right-0 z-20 transition-all duration-300 ease-out"
+        className="absolute z-20"
         style={{
-          bottom: 0,
-          height: panelOpen ? PANEL_OPEN : PANEL_PEEK,
-          background:'rgba(8,15,31,0.97)',
-          borderTop:'1px solid rgba(255,255,255,0.1)',
-          backdropFilter:'blur(24px)',
-          borderRadius:'20px 20px 0 0',
+          top: 68,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'min(300px, calc(100% - 110px))',
         }}
       >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-2 cursor-pointer" onClick={() => setPanelOpen(p => !p)}>
-          <div className="w-10 h-1 rounded-full" style={{ background:'rgba(255,255,255,0.25)' }}/>
+        <div
+          className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl"
+          style={{
+            background: 'rgba(6,12,26,0.94)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(24px)',
+            boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
+          }}
+        >
+          <Search size={13} style={{ color: 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={isAr ? 'اسم الجهاز أو اللوحة...' : 'Nom ou plaque...'}
+            className="flex-1 bg-transparent outline-none text-white"
+            style={{ fontSize: 13, minWidth: 0 }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')}>
+              <X size={13} style={{ color: 'rgba(255,255,255,0.35)' }} />
+            </button>
+          )}
         </div>
-
-        {/* Count + toggle */}
-        <div className="flex items-center justify-between px-4 pb-3">
-          <p className="text-white text-sm font-bold">
-            {positioned.length} {isAr ? 'جهاز' : 'appareils'}
-          </p>
-          <ChevronUp size={16} style={{ color:'rgba(255,255,255,0.35)', transform: panelOpen ? 'rotate(180deg)' : 'none', transition:'transform 0.3s' }}/>
-        </div>
-
-        {/* Vehicle list */}
-        {panelOpen && (
-          <div className="overflow-y-auto px-4 space-y-2.5" style={{ maxHeight: PANEL_OPEN - 70 }}>
-            {filtered.map(d => {
-              const st = getDeviceStatusKey(d)
-              const c  = ST_COLOR[st] || '#6b7280'
-              const isSelected = selected === d.id
-              return (
-                <div key={d.id} className="w-full">
-                  <button onClick={() => { setSelected(d.id) }}
-                    className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left"
-                    style={{
-                      background: isSelected ? 'rgba(0,217,126,0.1)' : 'rgba(255,255,255,0.05)',
-                      border: '1px solid ' + (isSelected ? 'rgba(0,217,126,0.35)' : 'rgba(255,255,255,0.07)'),
-                    }}>
-                    <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: c, minHeight:30 }}/>
-                    <VehicleIcon type={d.type} iconSize={16}/>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-xs truncate">{d.name}</p>
-                      {d.plate && <p className="text-[10px] font-mono" style={{ color:'rgba(255,255,255,0.3)' }}>{d.plate}</p>}
-                    </div>
-                    {d.speed != null && d.speed > 0 && (
-                      <span className="text-xs font-bold flex-shrink-0" style={{ color:'#00D97E' }}>
-                        {Math.round(d.speed)} <span className="font-normal text-[10px]" style={{ color:'rgba(255,255,255,0.35)' }}>km/h</span>
-                      </span>
-                    )}
-                  </button>
-                  {isSelected && Number.isFinite(toCoordinate(d.lat)) && Number.isFinite(toCoordinate(d.lng)) && (
-                    <div className="flex gap-2 mt-1.5 px-1">
-                      <button
-                        onClick={() => openMaps('google', d)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold"
-                        style={{ background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.35)', color:'#60A5FA' }}>
-                        <Navigation size={12}/>
-                        Google Maps
-                      </button>
-                      <button
-                        onClick={() => openMaps('waze', d)}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                        style={{ background:'rgba(0,217,126,0.1)', border:'1px solid rgba(0,217,126,0.25)', color:'#00D97E' }}>
-                        Waze
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Bottom nav space */}
-        <div style={{ height:65 }}/>
       </div>
 
-      <ClientNav/>
+      {/* ── Locate button ── */}
+      <motion.button
+        onClick={locateMe}
+        whileTap={{ scale: 0.88 }}
+        className="absolute z-20 flex items-center justify-center"
+        style={{
+          bottom: panelH + 14,
+          right: 14,
+          width: 46,
+          height: 46,
+          borderRadius: '50%',
+          background: 'rgba(6,12,26,0.95)',
+          border: '1.5px solid rgba(0,217,126,0.45)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,217,126,0.1)',
+          transition: 'bottom 0.35s cubic-bezier(0.4,0,0.2,1)',
+        }}
+      >
+        <LocateFixed size={18} style={{ color: '#00D97E' }} />
+      </motion.button>
+
+      {/* ── Bottom Panel ── */}
+      <div
+        className="absolute left-0 right-0 z-20"
+        style={{
+          bottom: 0,
+          height: panelH,
+          transition: 'height 0.35s cubic-bezier(0.4,0,0.2,1)',
+          borderRadius: '22px 22px 0 0',
+          background: 'rgba(5,10,24,0.98)',
+          backdropFilter: 'blur(32px)',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+          boxShadow: '0 -12px 48px rgba(0,0,0,0.7)',
+        }}
+      >
+        {/* Drag handle */}
+        <button
+          className="w-full flex justify-center pt-3 pb-1"
+          onClick={() => setPanelOpen(p => !p)}
+        >
+          <div
+            className="rounded-full transition-all duration-300"
+            style={{
+              width: panelOpen ? 32 : 40,
+              height: 4,
+              background: 'rgba(255,255,255,0.18)',
+            }}
+          />
+        </button>
+
+        {/* Panel header */}
+        <button
+          className="w-full flex items-center justify-between px-4 py-2"
+          onClick={() => setPanelOpen(p => !p)}
+        >
+          {/* Status chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[
+              { key: 'moving',  color: '#00D97E', bg: 'rgba(0,217,126,0.12)',  border: 'rgba(0,217,126,0.25)',  label: { ar: 'يتحرك',    fr: 'Mvt'      } },
+              { key: 'idle',    color: '#FF9500', bg: 'rgba(255,149,0,0.12)',  border: 'rgba(255,149,0,0.25)',  label: { ar: 'خامل',     fr: 'Ralenti'  } },
+              { key: 'stopped', color: '#FF3B30', bg: 'rgba(255,59,48,0.12)',  border: 'rgba(255,59,48,0.25)',  label: { ar: 'متوقف',    fr: 'Arrêté'   } },
+              { key: 'offline', color: '#9ca3af', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.22)', label: { ar: 'غير متصل', fr: 'Hors ligne' } },
+            ].map(({ key, color, bg, border, label }) =>
+              counts[key] > 0 ? (
+                <span
+                  key={key}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                  style={{ background: bg, color, border: `1px solid ${border}` }}
+                >
+                  <span className="rounded-full" style={{ width: 6, height: 6, background: color, display: 'inline-block' }} />
+                  {counts[key]} {label[lang] || label.fr}
+                </span>
+              ) : null
+            )}
+          </div>
+
+          <motion.div animate={{ rotate: panelOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
+            <ChevronUp size={16} style={{ color: 'rgba(255,255,255,0.25)' }} />
+          </motion.div>
+        </button>
+
+        {/* Device list */}
+        <AnimatePresence>
+          {panelOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-y-auto px-3"
+              style={{ maxHeight: PANEL_OPEN - 95, paddingBottom: 74 }}
+            >
+              {filtered.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  >
+                    <Search size={18} style={{ color: 'rgba(255,255,255,0.15)' }} />
+                  </div>
+                  <p className="text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                    {isAr ? 'لا توجد نتائج' : 'Aucun résultat'}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {filtered.map((d, idx) => {
+                  const st         = getDeviceStatusKey(d)
+                  const c          = ST_CLR[st] || '#6b7280'
+                  const isSelected = selected === d.id
+                  const hasPos     = Number.isFinite(toCoord(d.lat)) && Number.isFinite(toCoord(d.lng))
+
+                  return (
+                    <motion.div
+                      key={d.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18, delay: idx * 0.03 }}
+                    >
+                      {/* ── Card ── */}
+                      <button
+                        onClick={() => { setSelected(isSelected ? null : d.id) }}
+                        className="w-full text-left"
+                        style={{
+                          background: isSelected
+                            ? 'linear-gradient(135deg, rgba(0,217,126,0.1) 0%, rgba(0,217,126,0.04) 100%)'
+                            : 'rgba(255,255,255,0.04)',
+                          border: `1.5px solid ${isSelected ? 'rgba(0,217,126,0.45)' : 'rgba(255,255,255,0.06)'}`,
+                          borderRadius: isSelected && hasPos ? '16px 16px 0 0' : 16,
+                          padding: '11px 14px',
+                          transition: 'all 0.25s ease',
+                          boxShadow: isSelected ? `0 0 24px rgba(0,217,126,0.12), inset 0 1px 0 rgba(0,217,126,0.15)` : 'none',
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+
+                          {/* Vehicle icon + status dot */}
+                          <div className="relative flex-shrink-0">
+                            <VehicleIcon type={d.type} iconSize={15} />
+                            <span
+                              className="absolute -bottom-0.5 -right-0.5 rounded-full border-2"
+                              style={{
+                                width: 10, height: 10,
+                                background: c,
+                                borderColor: '#050a18',
+                                boxShadow: st === 'moving' ? `0 0 6px ${c}` : 'none',
+                              }}
+                            />
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-white leading-tight truncate">{d.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              {d.plate && (
+                                <span
+                                  className="text-[10px] font-mono px-1.5 py-0.5 rounded-md"
+                                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)' }}
+                                >
+                                  {d.plate}
+                                </span>
+                              )}
+                              {d.lastUpdate && (
+                                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                                  {timeAgo(d.lastUpdate, lang)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Status / speed badge */}
+                          <div className="flex-shrink-0">
+                            {st === 'moving' && d.speed > 0 ? (
+                              <div className="flex items-end gap-0.5">
+                                <span className="font-black text-base leading-none" style={{ color: '#00D97E' }}>
+                                  {Math.round(d.speed)}
+                                </span>
+                                <span className="text-[9px] leading-none mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                  km/h
+                                </span>
+                              </div>
+                            ) : (
+                              <span
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                style={{
+                                  background: `${c}1a`,
+                                  color: c,
+                                  border: `1px solid ${c}33`,
+                                }}
+                              >
+                                {ST_LABEL[st]?.[lang] || ST_LABEL[st]?.fr || st}
+                              </span>
+                            )}
+                          </div>
+
+                        </div>
+                      </button>
+
+                      {/* ── Nav buttons (expanded) ── */}
+                      <AnimatePresence>
+                        {isSelected && hasPos && (
+                          <motion.div
+                            initial={{ opacity: 0, scaleY: 0.8 }}
+                            animate={{ opacity: 1, scaleY: 1 }}
+                            exit={{ opacity: 0, scaleY: 0.8 }}
+                            transition={{ duration: 0.2 }}
+                            style={{ originY: 0 }}
+                          >
+                            <div
+                              className="flex gap-2.5 p-3"
+                              style={{
+                                background: 'rgba(0,217,126,0.05)',
+                                border: '1.5px solid rgba(0,217,126,0.3)',
+                                borderTop: '1px solid rgba(0,217,126,0.15)',
+                                borderRadius: '0 0 16px 16px',
+                              }}
+                            >
+                              <button
+                                onClick={() => openMaps('google', d)}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs"
+                                style={{
+                                  background: 'rgba(59,130,246,0.18)',
+                                  border: '1px solid rgba(59,130,246,0.4)',
+                                  color: '#93C5FD',
+                                }}
+                              >
+                                <Navigation size={13} />
+                                Google Maps
+                              </button>
+                              <button
+                                onClick={() => openMaps('waze', d)}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs"
+                                style={{
+                                  background: 'rgba(0,217,126,0.12)',
+                                  border: '1px solid rgba(0,217,126,0.38)',
+                                  color: '#00D97E',
+                                }}
+                              >
+                                <MapPin size={13} />
+                                Waze
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <ClientNav />
     </div>
   )
 }
