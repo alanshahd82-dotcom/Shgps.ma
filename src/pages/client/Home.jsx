@@ -48,7 +48,7 @@ function QuickLink({ icon: Icon, title, description, onClick }) {
         <span className="block text-xs font-bold text-slate-900">{title}</span>
         <span className="mt-0.5 block truncate text-[10px] text-slate-500">{description}</span>
       </span>
-      <ChevronRight size={15} className="shrink-0 text-slate-300" />
+      <ChevronRight size={15} className="shrink-0 text-slate-300 rtl:rotate-180" />
     </button>
   )
 }
@@ -119,7 +119,7 @@ export default function Home() {
             </span>
             <button onClick={() => navigate('/client/map')} className="flex items-center gap-1 text-xs font-bold text-accent">
               {isAr ? 'فتح الخريطة' : 'Ouvrir la carte'}
-              <ChevronRight size={14} />
+              <ChevronRight size={14} className="rtl:rotate-180" />
             </button>
           </div>
         </section>
@@ -216,7 +216,7 @@ export default function Home() {
                   <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
                     {device.speed > 0 ? Math.round(device.speed) : '—'}
                     {device.speed > 0 && <small className="font-normal text-slate-400">km/h</small>}
-                    <ChevronRight size={14} className="ms-1 text-slate-300" />
+                    <ChevronRight size={14} className="ms-1 text-slate-300 rtl:rotate-180" />
                   </span>
                 </button>
               )
