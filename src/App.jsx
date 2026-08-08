@@ -28,6 +28,7 @@ import GlobalMap from './pages/admin/GlobalMap'
 import AdminAlerts from './pages/admin/AdminAlerts'
 import DeviceSetup from './pages/admin/DeviceSetup'
 import SupportSettings from './pages/admin/SupportSettings'
+import Leads from './pages/admin/Leads'
 import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
@@ -159,6 +160,7 @@ export default function App() {
           <Route path="/admin/alerts"       element={<AdminRoute><AdminAlerts /></AdminRoute>} />
           <Route path="/admin/setup"        element={<AdminRoute><DeviceSetup /></AdminRoute>} />
           <Route path="/admin/support"      element={<AdminRoute><SupportSettings /></AdminRoute>} />
+          <Route path="/admin/leads"        element={<AdminRoute><Leads /></AdminRoute>} />
 
           {/* ── Catch-all → Landing ────────────────────────────────────── */}
           <Route path="*" element={<Navigate to="/" replace />} />
