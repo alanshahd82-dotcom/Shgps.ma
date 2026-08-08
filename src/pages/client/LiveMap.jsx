@@ -128,7 +128,11 @@ export default function LiveMap() {
 
   const positioned = useMemo(() =>
     filtered
-      .map(d => ({ ...d, lat: toCoord(d.lat), lng: toCoord(d.lng) }))
+      .map(d => ({
+        ...d,
+        lat: toCoord(d.lat) ?? toCoord(d.last_lat),
+        lng: toCoord(d.lng) ?? toCoord(d.last_lng),
+      }))
       .filter(d =>
         Number.isFinite(d.lat) && Number.isFinite(d.lng) &&
         d.lat >= -90 && d.lat <= 90 && d.lng >= -180 && d.lng <= 180
@@ -149,8 +153,8 @@ export default function LiveMap() {
   }, [devices])
 
   function openMaps(type, device) {
-    const lat = toCoord(device.lat)
-    const lng = toCoord(device.lng)
+    const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
+    const lng = toCoord(device.lng) ?? toCoord(device.last_lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
     const origin = userPos ? `${userPos.lat},${userPos.lng}` : ''
     if (type === 'google') {
@@ -187,7 +191,7 @@ export default function LiveMap() {
             eventHandlers={{ click: () => { setSelected(d.id); setPanelOpen(true) } }}
           />
         ))}
-        {sel && <FlyTo lat={sel.lat} lng={sel.lng} />}
+        {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
         <FlyToUser target={locateTarget} />
       </MapContainer>
 
@@ -244,7 +248,7 @@ export default function LiveMap() {
             style={{ fontSize: 13, minWidth: 0 }}
           />
           {search && (
-            <button onClick={() => setSearch('')}>
+            <button onClick={() => setSearch('')} aria-label={isAr ? 'مسح البحث' : 'Effacer'}>
               <X size={13} style={{ color: 'rgba(255,255,255,0.35)' }} />
             </button>
           )}
@@ -255,6 +259,7 @@ export default function LiveMap() {
       <motion.button
         onClick={locateMe}
         whileTap={{ scale: 0.88 }}
+        aria-label={isAr ? 'تحديد موقعي' : 'Me localiser'}
         className="absolute z-20 flex items-center justify-center"
         style={{
           bottom: panelH + 14,
@@ -305,6 +310,8 @@ export default function LiveMap() {
         <button
           className="w-full flex items-center justify-between px-4 py-2"
           onClick={() => setPanelOpen(p => !p)}
+          aria-label={isAr ? (panelOpen ? 'إغلاق القائمة' : 'فتح القائمة') : (panelOpen ? 'Fermer' : 'Ouvrir')}
+          aria-expanded={panelOpen}
         >
           {/* Status chips */}
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -362,7 +369,8 @@ export default function LiveMap() {
                   const st         = getDeviceStatusKey(d)
                   const c          = ST_CLR[st] || '#6b7280'
                   const isSelected = selected === d.id
-                  const hasPos     = Number.isFinite(toCoord(d.lat)) && Number.isFinite(toCoord(d.lng))
+                  const hasPos     = (Number.isFinite(toCoord(d.lat)) || Number.isFinite(toCoord(d.last_lat))) &&
+                                     (Number.isFinite(toCoord(d.lng)) || Number.isFinite(toCoord(d.last_lng)))
 
                   return (
                     <motion.div
@@ -415,9 +423,14 @@ export default function LiveMap() {
                                   {d.plate}
                                 </span>
                               )}
-                              {d.lastUpdate && (
+                              {(d.lastUpdate || d.last_update) && (
                                 <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                                  {timeAgo(d.lastUpdate, lang)}
+                                  {timeAgo(d.lastUpdate || d.last_update, lang)}
+                                </span>
+                              )}
+                              {!hasPos && (
+                                <span className="text-[10px]" style={{ color: 'rgba(239,68,68,0.6)' }}>
+                                  {isAr ? 'لا يوجد موقع GPS' : 'Pas de position GPS'}
                                 </span>
                               )}
                             </div>
