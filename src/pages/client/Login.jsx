@@ -29,9 +29,16 @@ export default function Login() {
       await loginClient(email, password)
       navigate('/client/home')
     } catch (err) {
-      setError(err.code === 'SUBSCRIPTION_EXPIRED'
-        ? t(lang, 'subscriptionExpiredLogin')
-        : err.message)
+      if (err.code === 'SUBSCRIPTION_EXPIRED') {
+        setError(t(lang, 'subscriptionExpiredLogin'))
+      } else if (err.status === 429) {
+        const minutes = String(err.message).match(/(\d+)/)?.[1] || '15'
+        setError(t(lang, 'loginLocked').replace('{min}', minutes))
+      } else if (err.status === 401) {
+        setError(t(lang, 'invalidCredentials'))
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
