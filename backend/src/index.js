@@ -220,6 +220,16 @@ app.use(cors({
   credentials: true,
 }))
 
+// ── Security Headers ────────────────────────────────────────────────────
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000')
+  }
+  next()
+})
+
 app.use(express.json({ limit: '1mb' }))
 
 app.use('/api/auth',        authRouter)
@@ -259,13 +269,29 @@ const server = createServer(app)
 const wss = new WebSocketServer({ server, path: '/api/socket' })
 const frontendClients = new Set()
 
+// Cache: Traccar device ID → local user_id (owner). Refreshed on start + hourly.
+let traccarOwnerCache = new Map()
+async function refreshTraccarOwnerCache() {
+  try {
+    const { rows } = await db.query('SELECT traccar_id, user_id FROM devices WHERE traccar_id IS NOT NULL')
+    const m = new Map()
+    for (const row of rows) m.set(row.traccar_id, row.user_id)
+    traccarOwnerCache = m
+    console.log('[WS] Device ownership cache refreshed —', m.size, 'device(s)')
+  } catch (err) {
+    console.warn('[WS] Ownership cache refresh skipped:', err.message)
+  }
+}
+
 wss.on('connection', (ws, req) => {
   try {
     const url   = new URL(req.url, 'http://localhost')
     const token = url.searchParams.get('token')
     if (!token) { ws.close(1008, 'Unauthorized'); return }
-    jwt.verify(token, config.jwtSecret)
+    const decoded = jwt.verify(token, config.jwtSecret)
     if (isRevoked(token)) { ws.close(1008, 'Token revoked'); return }
+    ws.userId  = decoded.id
+    ws.isAdmin = decoded.is_admin || false
   } catch {
     ws.close(1008, 'Invalid token')
     return
@@ -350,8 +376,30 @@ async function connectTraccar() {
 
   traccarWs.on('message', (data) => {
     const msg = data.toString()
+    let parsed = null
+    try { parsed = JSON.parse(msg) } catch {}
+
     for (const client of frontendClients) {
-      if (client.readyState === WebSocket.OPEN) client.send(msg)
+      if (client.readyState !== WebSocket.OPEN) continue
+
+      // Admins receive all device data
+      if (client.isAdmin) { client.send(msg); continue }
+
+      // Non-JSON messages (e.g. pings) — forward as-is
+      if (!parsed) { client.send(msg); continue }
+
+      // Collect Traccar device IDs referenced in this message
+      const deviceIds = new Set()
+      if (Array.isArray(parsed.positions)) parsed.positions.forEach(p => deviceIds.add(p.deviceId))
+      if (Array.isArray(parsed.devices))   parsed.devices.forEach(d => deviceIds.add(d.id))
+      if (Array.isArray(parsed.events))    parsed.events.forEach(e => deviceIds.add(e.deviceId))
+
+      // No device IDs in message (e.g. heartbeat) — forward as-is
+      if (deviceIds.size === 0) { client.send(msg); continue }
+
+      // Send only if at least one device in the message belongs to this client
+      const allowed = [...deviceIds].some(tid => traccarOwnerCache.get(tid) === client.userId)
+      if (allowed) client.send(msg)
     }
   })
 
@@ -386,6 +434,8 @@ server.listen(PORT, async () => {
   await runMigrations()
   await runSubscriptionCheck()
   setInterval(runSubscriptionCheck, 6 * 60 * 60 * 1000)
+  await refreshTraccarOwnerCache()
+  setInterval(refreshTraccarOwnerCache, 60 * 60 * 1000)
   if (config.traccar.email && config.traccar.password) {
     connectTraccar()
   } else {
