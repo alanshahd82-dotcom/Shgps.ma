@@ -203,7 +203,7 @@ export default function DeviceSetup() {
       <div className="p-4 max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/admin')}
+          <button onClick={() => navigate('/admin/dashboard')}
             className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
             <ChevronLeft size={16} className="text-primary-500" />
           </button>
@@ -533,7 +533,7 @@ export default function DeviceSetup() {
         {/* ── Navigation Buttons ── */}
         {step < 5 && (
           <div className="flex items-center justify-between mt-8 pt-4 border-t border-gray-100">
-            <button onClick={() => step === 0 ? navigate('/admin') : setStep(s => s - 1)}
+            <button onClick={() => step === 0 ? navigate('/admin/dashboard') : setStep(s => s - 1)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-slate-600 text-sm font-semibold hover:bg-gray-50">
               <ChevronLeft size={16} />
               {isAr ? 'رجوع' : 'Retour'}
