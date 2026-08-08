@@ -126,7 +126,7 @@ export default function Settings() {
 
   async function removeSubUser(id) {
     openConfirm({
-      title:     isAr ? 'حذف المستخدم' : 'Supprimer l'utilisateur',
+      title:     isAr ? 'حذف المستخدم' : "Supprimer l'utilisateur",
       message:   isAr ? 'هل أنت متأكد من حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.'
                       : 'Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.',
       danger:    true,
