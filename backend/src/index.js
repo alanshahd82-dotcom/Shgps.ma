@@ -17,6 +17,7 @@ import { sharingRouter }     from './routes/sharing.js'
 import { leadsRouter }           from './routes/leads.js'
 import { driverBehaviorRouter } from './routes/driverBehavior.js'
 import { subUsersRouter }       from './routes/subUsers.js'
+import { subAdminsRouter }      from './routes/subAdmins.js'
 import { settingsRouter }       from './routes/settings.js'
 import { config }        from './config.js'
 import { isRevoked }    from './services/tokenBlacklist.js'
@@ -187,6 +188,21 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS parent_client_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'owner'
     `)
+    // Sub-admins support
+    await db.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS is_sub_admin BOOLEAN DEFAULT false,
+        ADD COLUMN IF NOT EXISTS parent_admin_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS admin_permissions JSONB DEFAULT '{"add_clients":true,"add_devices":true,"view_reports":true,"view_map":true,"view_alerts":true,"device_setup":false,"support_settings":false}'
+    `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sub_admin_client_access (
+        sub_admin_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        client_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at   TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (sub_admin_id, client_id)
+      )
+    `)
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_users_parent_client_id ON users(parent_client_id)
     `)
@@ -248,6 +264,7 @@ app.use('/api/sharing',     sharingRouter)
 app.use('/api/leads',           leadsRouter)
 app.use('/api/driver-behavior', driverBehaviorRouter)
 app.use('/api/sub-users',       subUsersRouter)
+app.use('/api/sub-admins',      subAdminsRouter)
 app.use('/api/settings',        settingsRouter)
 
 app.get('/api/health', async (_req, res) => {

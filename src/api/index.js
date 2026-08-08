@@ -24,6 +24,14 @@ async function apiFetch(path, options = {}) {
 }
 
 export const api = {
+  subAdmins: {
+    list:          ()                  => apiFetch('/sub-admins'),
+    create:        (data)              => apiFetch('/sub-admins', { method: 'POST', body: JSON.stringify(data) }),
+    update:        (id, data)          => apiFetch(`/sub-admins/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete:        (id)                => apiFetch(`/sub-admins/${id}`, { method: 'DELETE' }),
+    getClients:    (id)                => apiFetch(`/sub-admins/${id}/clients`),
+    assignClients: (id, clientIds)     => apiFetch(`/sub-admins/${id}/clients`, { method: 'PUT', body: JSON.stringify({ clientIds }) }),
+  },
   auth: {
     login:          (email, password) => apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     me:             ()                => apiFetch('/auth/me'),

@@ -82,9 +82,11 @@ authRouter.post('/login', validateBody(schemas.login), async (req, res) => {
       user: {
         id: user.id, email: user.email, name: user.name, phone: user.phone,
         city: user.city, subscription: user.subscription, isAdmin: user.is_admin,
-         isActive: user.is_active, expiryDate: user.expiry_date, maxDevices: user.max_devices,
-         avatar: user.avatar, role: user.role || 'owner', parentClientId: user.parent_client_id || null,
-         mustChangePassword: !!user.must_change_password,
+        isSubAdmin: !!user.is_sub_admin, adminPermissions: user.admin_permissions || null,
+        parentAdminId: user.parent_admin_id || null,
+        isActive: user.is_active, expiryDate: user.expiry_date, maxDevices: user.max_devices,
+        avatar: user.avatar, role: user.role || 'owner', parentClientId: user.parent_client_id || null,
+        mustChangePassword: !!user.must_change_password,
         notificationPrefs: user.notification_prefs || {},
       },
     })
@@ -166,9 +168,11 @@ authRouter.get('/me', requireAuth, (req, res) => {
   const u = req.user
   res.json({
     id: u.id, email: u.email, name: u.name, phone: u.phone, city: u.city,
-    subscription: u.subscription, isAdmin: u.is_admin, isActive: u.is_active,
-    expiryDate: u.expiry_date, maxDevices: u.max_devices, avatar: u.avatar,
-    role: u.role || 'owner',
+    subscription: u.subscription, isAdmin: u.is_admin,
+    isSubAdmin: !!u.is_sub_admin, adminPermissions: u.admin_permissions || null,
+    parentAdminId: u.parent_admin_id || null,
+    isActive: u.is_active, expiryDate: u.expiry_date, maxDevices: u.max_devices,
+    avatar: u.avatar, role: u.role || 'owner',
     parentClientId: u.parent_client_id || null,
     mustChangePassword: !!u.must_change_password,
     notificationPrefs: u.notification_prefs || {},

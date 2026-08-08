@@ -11,16 +11,36 @@ clientsRouter.get('/', requireAuth, requireAdmin, async (req, res) => {
   const page   = Math.max(1, parseInt(req.query.page)  || 1)
   const limit  = Math.min(100, parseInt(req.query.limit) || 50)
   const offset = (page - 1) * limit
+  const isSubAdmin = req.user.is_sub_admin
   try {
-    const { rows } = await db.query(`
-      SELECT u.id,u.name,u.email,u.phone,u.city,u.subscription,u.is_active,
-             u.max_devices,u.expiry_date,u.avatar,u.created_at,
-             COUNT(d.id)::int AS devices_count
-      FROM users u LEFT JOIN devices d ON u.id=d.user_id
-      WHERE u.is_admin=false GROUP BY u.id ORDER BY u.created_at DESC
-      LIMIT $1 OFFSET $2`, [limit, offset])
-    const { rows: countRows } = await db.query(
-      `SELECT COUNT(*)::int AS total FROM users WHERE is_admin=false`)
+    let rows, countRows
+    if (isSubAdmin) {
+      // Sub-admin: only see clients assigned to them
+      ;({ rows } = await db.query(`
+        SELECT u.id,u.name,u.email,u.phone,u.city,u.subscription,u.is_active,
+               u.max_devices,u.expiry_date,u.avatar,u.created_at,
+               COUNT(d.id)::int AS devices_count
+        FROM sub_admin_client_access sac
+        JOIN users u ON u.id=sac.client_id
+        LEFT JOIN devices d ON d.user_id=u.id
+        WHERE sac.sub_admin_id=$1
+        GROUP BY u.id ORDER BY u.created_at DESC
+        LIMIT $2 OFFSET $3`, [req.user.id, limit, offset]))
+      ;({ rows: countRows } = await db.query(
+        `SELECT COUNT(*)::int AS total FROM sub_admin_client_access WHERE sub_admin_id=$1`,
+        [req.user.id]))
+    } else {
+      // Main admin: see all clients
+      ;({ rows } = await db.query(`
+        SELECT u.id,u.name,u.email,u.phone,u.city,u.subscription,u.is_active,
+               u.max_devices,u.expiry_date,u.avatar,u.created_at,
+               COUNT(d.id)::int AS devices_count
+        FROM users u LEFT JOIN devices d ON u.id=d.user_id
+        WHERE u.is_admin=false GROUP BY u.id ORDER BY u.created_at DESC
+        LIMIT $1 OFFSET $2`, [limit, offset]))
+      ;({ rows: countRows } = await db.query(
+        `SELECT COUNT(*)::int AS total FROM users WHERE is_admin=false`))
+    }
     res.json({
       data: rows.map(u => ({
         id: u.id, name: u.name, email: u.email, phone: u.phone, city: u.city,

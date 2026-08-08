@@ -14,7 +14,7 @@ import jwt from 'jsonwebtoken'
     try {
       const { userId } = jwt.verify(token, config.jwtSecret)
       const { rows } = await db.query(
-        'SELECT id,email,name,is_admin,is_active,max_devices,expiry_date,traccar_id,phone,city,subscription,avatar,must_change_password,notification_prefs,parent_client_id,role FROM users WHERE id=$1',
+        'SELECT id,email,name,is_admin,is_sub_admin,admin_permissions,parent_admin_id,is_active,max_devices,expiry_date,traccar_id,phone,city,subscription,avatar,must_change_password,notification_prefs,parent_client_id,role FROM users WHERE id=$1',
         [userId]
       )
       if (!rows[0] || !rows[0].is_active) return res.status(401).json({ error: 'Account not found or inactive' })
@@ -27,6 +27,13 @@ import jwt from 'jsonwebtoken'
 
     export function requireAdmin(req, res, next) {
     if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin access required' })
+    next()
+    }
+
+    // Only the main (top-level) admin — sub-admins are blocked
+    export function requireMainAdmin(req, res, next) {
+    if (!req.user?.is_admin || req.user?.is_sub_admin)
+      return res.status(403).json({ error: 'Main admin access required' })
     next()
     }
     

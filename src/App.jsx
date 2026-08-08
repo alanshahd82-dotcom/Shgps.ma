@@ -25,6 +25,7 @@ import AdminLogin from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/Dashboard'
 import Clients from './pages/admin/Clients'
 import ClientDetail from './pages/admin/ClientDetail'
+import SubAdmins    from './pages/admin/SubAdmins'
 import AllDevices from './pages/admin/AllDevices'
 import GlobalMap from './pages/admin/GlobalMap'
 import AdminAlerts from './pages/admin/AdminAlerts'
@@ -167,6 +168,7 @@ export default function App() {
           <Route path="/admin/setup"        element={<AdminRoute><DeviceSetup /></AdminRoute>} />
           <Route path="/admin/support"      element={<AdminRoute><SupportSettings /></AdminRoute>} />
           <Route path="/admin/leads"        element={<AdminRoute><Leads /></AdminRoute>} />
+          <Route path="/admin/sub-admins"   element={<AdminRoute><SubAdmins /></AdminRoute>} />
 
           {/* ── Catch-all → 404 ───────────────────────────────────────── */}
           <Route path="*" element={<NotFound />} />

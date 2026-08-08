@@ -85,7 +85,16 @@ import {
     devicesRouter.get('/', requireAuth, async (req, res) => {
     try {
       const { rows } = req.user.is_admin
-        ? await db.query('SELECT d.*,u.name AS client_name FROM devices d LEFT JOIN users u ON d.user_id=u.id ORDER BY d.created_at DESC')
+        ? req.user.is_sub_admin
+          // Sub-admin: only devices of assigned clients
+          ? await db.query(`
+              SELECT d.*,u.name AS client_name FROM devices d
+              LEFT JOIN users u ON d.user_id=u.id
+              WHERE d.user_id IN (
+                SELECT client_id FROM sub_admin_client_access WHERE sub_admin_id=$1
+              ) ORDER BY d.created_at DESC`, [req.user.id])
+          // Main admin: all devices
+          : await db.query('SELECT d.*,u.name AS client_name FROM devices d LEFT JOIN users u ON d.user_id=u.id ORDER BY d.created_at DESC')
         : await db.query('SELECT * FROM devices WHERE user_id=$1 ORDER BY created_at DESC', [req.user.id])
 
       // Build position map by Traccar device ID

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield, Wrench,
   Plus, CheckCircle2, AlertCircle, CalendarDays, Hash, User2, Smartphone, CircleHelp,
-  Phone, AlertTriangle, SlidersHorizontal, Inbox
+  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
@@ -341,15 +341,21 @@ export default function AdminLayout({ children }) {
     navigate('/admin/login')
   }
 
+  const isSubAdmin   = !!adminAuth?.isSubAdmin
+  const adminPerms   = adminAuth?.adminPermissions || {}
+
   const navItems = [
     { path: '/admin/dashboard', icon: LayoutDashboard, label: t(lang, 'adminDashboard') },
-    { path: '/admin/clients', icon: Users, label: t(lang, 'clientsList') },
-    { path: '/admin/devices', icon: Cpu, label: t(lang, 'allDevices') },
-    { path: '/admin/map', icon: Map, label: t(lang, 'globalMap') },
-    { path: '/admin/alerts', icon: Bell, label: t(lang, 'allAlerts'), badge: allUnread },
-    { path: '/admin/setup', icon: Wrench, label: t(lang, 'deviceSetup') },
-    { path: '/admin/support', icon: CircleHelp, label: lang === 'ar' ? 'بيانات الدعم' : 'Support' },
-    { path: '/admin/leads', icon: Inbox, label: lang === 'ar' ? 'طلبات التواصل' : 'Demandes' },
+    { path: '/admin/clients',   icon: Users,            label: t(lang, 'clientsList') },
+    { path: '/admin/devices',   icon: Cpu,              label: t(lang, 'allDevices') },
+    ...((!isSubAdmin || adminPerms.view_map)     ? [{ path: '/admin/map',         icon: Map,       label: t(lang, 'globalMap') }]          : []),
+    ...((!isSubAdmin || adminPerms.view_alerts)  ? [{ path: '/admin/alerts',      icon: Bell,      label: t(lang, 'allAlerts'), badge: allUnread }] : []),
+    ...((!isSubAdmin || adminPerms.device_setup) ? [{ path: '/admin/setup',       icon: Wrench,    label: t(lang, 'deviceSetup') }]        : []),
+    ...(!isSubAdmin ? [
+      { path: '/admin/support',    icon: CircleHelp, label: lang === 'ar' ? 'بيانات الدعم'     : 'Support'  },
+      { path: '/admin/leads',      icon: Inbox,      label: lang === 'ar' ? 'طلبات التواصل'   : 'Demandes' },
+      { path: '/admin/sub-admins', icon: UserCog,    label: lang === 'ar' ? 'مسؤولون فرعيون'  : 'Sous-admins' },
+    ] : []),
   ]
 
   const SidebarContent = () => (
