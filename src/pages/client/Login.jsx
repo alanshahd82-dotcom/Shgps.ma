@@ -48,9 +48,9 @@ export default function Login() {
   const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أريد طلب حساب ATHAR GPS' : 'Bonjour, je souhaite demander un compte ATHAR GPS')}`
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f7f8]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen flex flex-col bg-[#f5f7f8] overflow-x-hidden" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Top bar */}
-      <div className="flex justify-between items-center px-5 pt-12 pb-4">
+      <div className="flex justify-between items-center px-4 pt-12 pb-4">
         <button
           onClick={() => setLang(isAr ? 'fr' : 'ar')}
           className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-primary-500 shadow-sm transition-colors"
@@ -61,7 +61,7 @@ export default function Login() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 flex flex-col items-center justify-center px-7">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 w-full">
 
         {/* Logo */}
         <motion.div
@@ -73,8 +73,8 @@ export default function Login() {
           <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
             <img src="/athar-gps-mark.svg" alt="ATHAR GPS" width="52" height="52" draggable={false}/>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-widest text-primary-500">ATHAR GPS</h1>
-          <p className="mt-1.5 text-xs tracking-wide text-slate-500">{t(lang, 'tagline')}</p>
+          <h1 className="text-2xl font-extrabold tracking-wider text-primary-500">ATHAR GPS</h1>
+          <p className="mt-1.5 text-xs tracking-normal text-slate-500">{t(lang, 'tagline')}</p>
         </motion.div>
 
         {/* Card */}
@@ -85,7 +85,7 @@ export default function Login() {
           className="w-full max-w-sm"
         >
           <div
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-primary-500/5"
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-primary-500/5"
           >
             <h2 className="mb-5 text-center text-sm font-extrabold tracking-wide text-primary-500">
               {t(lang, 'clientLogin')}
@@ -113,7 +113,7 @@ export default function Login() {
             <form onSubmit={handleLogin} className="space-y-4">
               {/* Email */}
               <div>
-                  <label className="mb-2 block text-xs font-bold tracking-wide text-slate-500">
+                  <label className="mb-2 block text-xs font-bold text-slate-500">
                   {t(lang, 'email')}
                 </label>
                 <input
@@ -125,7 +125,7 @@ export default function Login() {
 
               {/* Password */}
               <div>
-                <label className="mb-2 block text-xs font-bold tracking-wide text-slate-500">
+                <label className="mb-2 block text-xs font-bold text-slate-500">
                   {t(lang, 'password')}
                 </label>
                 <div className="relative">
@@ -164,15 +164,19 @@ export default function Login() {
               </div>
             </form>
             <div className="mt-5 border-t border-slate-100 pt-4">
-              <p className="mb-3 text-center text-[11px] text-slate-400">
-                {isAr ? 'ليس لديك حساب؟ تواصل معنا لتفعيل اشتراكك' : 'Pas encore de compte ? Contactez-nous pour activer votre abonnement'}
+              <p className="mb-3 text-center text-[11px] text-slate-400 leading-5 break-words">
+                {isAr ? 'ليس لديك حساب؟ تواصل معنا لتفعيل اشتراكك' : 'ليس لديك حساب؟ تواصل معنا'}
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <a href={whatsapp} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-[11px] font-bold text-emerald-700">
-                  <MessageCircle size={14} /> WhatsApp
+                <a href={whatsapp} target="_blank" rel="noreferrer"
+                  className="flex items-center justify-center gap-1 rounded-xl border border-emerald-100 bg-emerald-50 px-2 py-2.5 text-[11px] font-bold text-emerald-700 min-w-0">
+                  <MessageCircle size={13} className="flex-shrink-0" />
+                  <span className="truncate">WhatsApp</span>
                 </a>
-                <a href={`mailto:${support.email}`} className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-primary-500">
-                  <Mail size={14} /> {isAr ? 'إيميل' : 'Email'}
+                <a href={`mailto:${support.email}`}
+                  className="flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2.5 text-[11px] font-bold text-primary-500 min-w-0">
+                  <Mail size={13} className="flex-shrink-0" />
+                  <span className="truncate">{isAr ? 'إيميل' : 'Email'}</span>
                 </a>
               </div>
             </div>
@@ -180,8 +184,10 @@ export default function Login() {
         </motion.div>
       </div>
 
-      <div className="pb-10 text-center">
-        <p className="text-xs text-slate-400">© {new Date().getFullYear()} ATHAR GPS · Fleet intelligence</p>
+      <div className="pb-10 px-4 text-center">
+        <p className="text-[11px] text-slate-400 break-words leading-5">
+          © {new Date().getFullYear()} ATHAR GPS · Fleet intelligence
+        </p>
       </div>
     </div>
   )
