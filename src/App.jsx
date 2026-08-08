@@ -31,6 +31,7 @@ import AdminAlerts from './pages/admin/AdminAlerts'
 import DeviceSetup from './pages/admin/DeviceSetup'
 import SupportSettings from './pages/admin/SupportSettings'
 import Leads from './pages/admin/Leads'
+import NotFound from './pages/NotFound'
 import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
@@ -166,8 +167,8 @@ export default function App() {
           <Route path="/admin/support"      element={<AdminRoute><SupportSettings /></AdminRoute>} />
           <Route path="/admin/leads"        element={<AdminRoute><Leads /></AdminRoute>} />
 
-          {/* ── Catch-all → Landing ────────────────────────────────────── */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* ── Catch-all → 404 ───────────────────────────────────────── */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AppProvider>
