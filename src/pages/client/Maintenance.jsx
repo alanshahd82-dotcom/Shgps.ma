@@ -241,7 +241,7 @@ export default function Maintenance() {
 
       <ConfirmModal
         open={confirmOpen}
-        title={isAr ? 'حذف السجل' : 'Supprimer l'enregistrement'}
+        title={isAr ? 'حذف السجل' : "Supprimer l'enregistrement"}
         message={isAr ? 'هل أنت متأكد من حذف سجل الصيانة هذا؟' : 'Êtes-vous sûr de vouloir supprimer cet enregistrement ?'}
         danger
         onConfirm={confirmDelete}
