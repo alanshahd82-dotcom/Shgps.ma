@@ -114,15 +114,8 @@ CREATE TABLE IF NOT EXISTS leads (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Default admin. Change this password immediately in production.
-INSERT INTO users (email, password_hash, name, is_admin, avatar)
-VALUES (
-  'admin@athargps.ma',
-  '$2b$10$ZvUexuJI0dAHaSm6hq2jZOPjS5wlvvIHLywBCz.8hK72GQSMu2z1m',
-  'مدير النظام',
-  true,
-  'م'
-) ON CONFLICT (email) DO NOTHING;
+-- NOTE: No default admin account is seeded here.
+-- Run `node src/setup-admin.js` after first deployment to create an admin account.
 
 INSERT INTO app_settings (key, value)
 VALUES (
