@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt    from 'jsonwebtoken'
+import crypto from 'crypto'
+import { Resend } from 'resend'
 import { db }          from '../db.js'
 import { config }      from '../config.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -171,6 +173,129 @@ authRouter.get('/me', requireAuth, (req, res) => {
     mustChangePassword: !!u.must_change_password,
     notificationPrefs: u.notification_prefs || {},
   })
+})
+
+// ── POST /api/auth/forgot-password ────────────────────────────────────────
+authRouter.post('/forgot-password', async (req, res) => {
+  // Always return the same response to avoid revealing if email is registered
+  const GENERIC_OK = { message: 'If this email is registered, you will receive a reset link shortly.' }
+  const { email } = req.body
+  if (!email || typeof email !== 'string') return res.json(GENERIC_OK)
+
+  try {
+    const { rows } = await db.query(
+      'SELECT id, name, email FROM users WHERE email=$1 AND is_active=TRUE AND is_admin=FALSE',
+      [email.toLowerCase().trim()]
+    )
+    if (!rows.length) return res.json(GENERIC_OK)
+    const user = rows[0]
+
+    // Invalidate any previous unused tokens for this user
+    await db.query(
+      'UPDATE password_reset_tokens SET used=TRUE WHERE user_id=$1 AND used=FALSE',
+      [user.id]
+    )
+
+    // Create new token — 32 bytes hex, expires in 1 hour
+    const token     = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+    await db.query(
+      'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+      [user.id, token, expiresAt]
+    )
+
+    // Send email via Resend
+    if (config.resend.apiKey) {
+      const resend      = new Resend(config.resend.apiKey)
+      const resetUrl    = `${config.frontendUrl}/client/reset-password?token=${token}`
+      const displayName = user.name || 'العميل'
+      await resend.emails.send({
+        from: config.resend.mailFrom,
+        to:   user.email,
+        subject: 'ATHAR GPS — إعادة تعيين كلمة المرور / Réinitialisation du mot de passe',
+        html: `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f7f8;font-family:sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 16px">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden">
+        <tr><td style="background:#17324d;padding:28px 32px;text-align:center">
+          <h1 style="margin:0;color:#fff;font-size:20px;letter-spacing:3px;font-weight:900">ATHAR GPS</h1>
+          <p style="margin:6px 0 0;color:#c1cfe0;font-size:12px">تتبع GPS احترافي</p>
+        </td></tr>
+        <tr><td style="padding:32px">
+          <p style="margin:0 0 8px;color:#17324d;font-size:15px;font-weight:700">مرحباً ${displayName}،</p>
+          <p style="margin:0 0 24px;color:#64748b;font-size:13px;line-height:1.7">
+            تلقّينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. اضغط على الزر أدناه لإعادة التعيين.
+            صلاحية الرابط ساعة واحدة فقط وقابل للاستخدام مرة واحدة.
+          </p>
+          <div style="text-align:center;margin:24px 0">
+            <a href="${resetUrl}" style="display:inline-block;background:#17324d;color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;font-size:14px">
+              إعادة تعيين كلمة المرور
+            </a>
+          </div>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+          <p style="margin:0 0 4px;color:#17324d;font-size:13px;font-weight:600">Bonjour ${displayName},</p>
+          <p style="margin:0 0 16px;color:#64748b;font-size:12px;line-height:1.7;direction:ltr;text-align:left">
+            Nous avons reçu une demande de réinitialisation de votre mot de passe.
+            Ce lien est valable 1 heure et ne peut être utilisé qu'une seule fois.
+          </p>
+          <div style="text-align:center;margin:16px 0 24px">
+            <a href="${resetUrl}" style="display:inline-block;background:#17324d;color:#fff;text-decoration:none;padding:12px 28px;border-radius:12px;font-weight:700;font-size:13px">
+              Réinitialiser le mot de passe
+            </a>
+          </div>
+          <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center">
+            إذا لم تطلب ذلك، تجاهل هذا البريد. / Si vous n'avez pas fait cette demande, ignorez cet email.
+          </p>
+        </td></tr>
+        <tr><td style="background:#f8fafc;padding:16px;text-align:center">
+          <p style="margin:0;color:#94a3b8;font-size:11px">© ${new Date().getFullYear()} ATHAR GPS · Fleet intelligence</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+      })
+    }
+
+    res.json(GENERIC_OK)
+  } catch (err) {
+    console.error('[forgot-password]', err.message)
+    res.json(GENERIC_OK) // never expose errors
+  }
+})
+
+// ── POST /api/auth/reset-password ────────────────────────────────────────
+authRouter.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body
+  if (!token || !newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'Token and password (min 8 chars) are required.' })
+  }
+  try {
+    const { rows } = await db.query(
+      `SELECT t.id, t.user_id, t.expires_at, t.used
+       FROM password_reset_tokens t
+       WHERE t.token=$1`,
+      [token]
+    )
+    if (!rows.length || rows[0].used || new Date(rows[0].expires_at) < new Date()) {
+      return res.status(400).json({ code: 'TOKEN_INVALID', error: 'This link is invalid or has expired.' })
+    }
+    const { id: tokenId, user_id } = rows[0]
+    const hash = await bcrypt.hash(newPassword, 12)
+
+    await db.query('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, user_id])
+    await db.query('UPDATE password_reset_tokens SET used=TRUE WHERE id=$1', [tokenId])
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[reset-password]', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 authRouter.post('/logout', requireAuth, (req, res) => {

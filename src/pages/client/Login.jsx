@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Eye, EyeOff, Mail, MessageCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
@@ -154,6 +154,14 @@ export default function Login() {
               >
                 {loading ? '...' : t(lang, 'loginBtn')}
               </motion.button>
+
+              {/* Forgot password */}
+              <div className="mt-3 text-center">
+                <Link to="/client/forgot-password"
+                  className="text-[11px] font-semibold text-slate-400 hover:text-primary-500 transition-colors">
+                  {t(lang, 'forgotPassword')}
+                </Link>
+              </div>
             </form>
             <div className="mt-5 border-t border-slate-100 pt-4">
               <p className="mb-3 text-center text-[11px] text-slate-400">

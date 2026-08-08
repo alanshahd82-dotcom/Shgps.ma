@@ -7,6 +7,8 @@ import { AppProvider, useApp } from './context/AppContext'
 import LandingPage from './pages/LandingPage'
 import ClientWelcome from './pages/client/ClientWelcome'
 import ClientLogin from './pages/client/Login'
+import ForgotPassword from './pages/client/ForgotPassword'
+import ResetPassword from './pages/client/ResetPassword'
 import ClientHome from './pages/client/Home'
 import DeviceList from './pages/client/DeviceList'
 import DeviceDetail from './pages/client/DeviceDetail'
@@ -133,8 +135,10 @@ export default function App() {
 
           {/* ── Client app ─────────────────────────────────────────────── */}
           <Route path="/client" element={<ClientEntry />} />
-          <Route path="/client/start" element={<ClientWelcome />} />
-          <Route path="/client/login"  element={<ClientLogin />} />
+          <Route path="/client/start"            element={<ClientWelcome />} />
+          <Route path="/client/login"           element={<ClientLogin />} />
+          <Route path="/client/forgot-password" element={<ForgotPassword />} />
+          <Route path="/client/reset-password"  element={<ResetPassword />} />
 
           <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />

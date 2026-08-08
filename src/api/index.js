@@ -31,6 +31,8 @@ export const api = {
     changePassword: (currentPassword, newPassword) =>
       apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
     updateProfile:  (data) => apiFetch('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
+    forgotPassword: (email) => apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword:  (token, newPassword) => apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
   },
   devices: {
     list:           ()              => apiFetch('/devices'),

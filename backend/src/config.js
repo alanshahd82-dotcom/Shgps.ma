@@ -14,6 +14,10 @@ export const config = {
     password: process.env.TRACCAR_ADMIN_PASSWORD || '',
   },
   frontendUrl: process.env.FRONTEND_URL || '',
+  resend: {
+    apiKey:   process.env.RESEND_API_KEY || '',
+    mailFrom: process.env.MAIL_FROM      || 'noreply@athargps.ma',
+  },
   geoapify: {
     apiKey: process.env.GEOAPIFY_API_KEY || '',
     style: process.env.GEOAPIFY_MAP_STYLE || 'osm-bright',

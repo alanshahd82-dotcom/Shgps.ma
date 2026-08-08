@@ -206,6 +206,16 @@ async function runMigrations() {
         UNIQUE(sub_user_id, device_id)
       )
     `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token      VARCHAR(64) NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used       BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `)
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)
