@@ -79,6 +79,7 @@ export default function Settings() {
   const closeConfirm = () => setConfirmModal(m => ({ ...m, open: false }))
 
   const [subErr, setSubErr] = useState('')
+  const [subLoadErr, setSubLoadErr] = useState('')
   const showSubErr = (msg) => { setSubErr(msg); setTimeout(() => setSubErr(''), 4000) }
 
   useEffect(() => {
@@ -86,8 +87,9 @@ export default function Settings() {
   }, [tab])
 
   async function loadSubUsers() {
-    setLoadingSub(true)
-    try { setSubUsers((await api.subUsers.list()) || []) } catch (e) { console.error(e) }
+    setLoadingSub(true); setSubLoadErr('')
+    try { setSubUsers((await api.subUsers.list()) || []) }
+    catch (e) { setSubLoadErr(isAr ? 'تعذّر تحميل المستخدمين. حاول مرة أخرى.' : 'Impossible de charger les utilisateurs. Réessayez.') }
     finally { setLoadingSub(false) }
   }
 
@@ -194,11 +196,20 @@ export default function Settings() {
             <Field label={t(lang,'email')}>
               <DarkInput value={email} onChange={e => setEmail(e.target.value)} type="email"/>
             </Field>
-            {profMsg && <p className={`text-xs text-center ${profMsg.includes('✓') ? 'text-emerald-700' : 'text-danger'}`}>{profMsg}</p>}
+            {email !== (clientAuth?.email || '') && (
+              <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.25)' }}>
+                <Info size={14} className="text-amber-500 flex-shrink-0 mt-0.5"/>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  {isAr ? 'تغيير البريد الإلكتروني سيؤثر على تسجيل الدخول. تأكد من صحة البريد قبل الحفظ.' : "Modifier l'email affectera votre connexion. Vérifiez l'adresse avant d'enregistrer."}
+                </p>
+              </div>
+            )}
+            {profMsg && <p className={`text-xs text-center ${profMsg.includes('✓') ? 'text-emerald-700' : 'text-red-500'}`}>{profMsg}</p>}
             <motion.button type="submit" disabled={savingProf} whileTap={{ scale:0.97 }}
-               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-               style={{ background:'#17324d' }}>
-              {savingProf ? '...' : t(lang,'save')}
+               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+               style={{ background:'#17324d' }} aria-busy={savingProf}>
+              {savingProf && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"/>}
+              {savingProf ? (isAr?'جارٍ الحفظ...':'Enregistrement...') : t(lang,'save')}
             </motion.button>
           </motion.form>
         )}
@@ -227,11 +238,12 @@ export default function Settings() {
                 </div>
               </Field>
             ))}
-            {passMsg && <p className={`text-xs text-center ${passMsg.includes('✓') ? 'text-emerald-700' : 'text-danger'}`}>{passMsg}</p>}
+            {passMsg && <p className={`text-xs text-center ${passMsg.includes('✓') ? 'text-emerald-700' : 'text-red-500'}`}>{passMsg}</p>}
             <motion.button type="submit" disabled={savingPass} whileTap={{ scale:0.97 }}
-               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
-               style={{ background:'#17324d' }}>
-              {savingPass ? '...' : (isAr ? 'تغيير كلمة المرور' : 'Changer le mot de passe')}
+               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+               style={{ background:'#17324d' }} aria-busy={savingPass}>
+              {savingPass && <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"/>}
+              {savingPass ? (isAr?'جارٍ التغيير...':'Modification...') : (isAr ? 'تغيير كلمة المرور' : 'Changer le mot de passe')}
             </motion.button>
           </motion.form>
         )}
@@ -283,6 +295,14 @@ export default function Settings() {
             {loadingSub ? (
               <div className="flex justify-center py-8">
                  <div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
+              </div>
+            ) : subLoadErr ? (
+              <div className="p-5 rounded-2xl text-center" style={cardClass}>
+                <p className="text-xs text-red-500 mb-3">{subLoadErr}</p>
+                <button onClick={loadSubUsers}
+                  className="text-xs font-bold px-4 py-2 rounded-xl text-white" style={{ background:'#17324d' }}>
+                  {isAr?'إعادة المحاولة':'Réessayer'}
+                </button>
               </div>
             ) : subUsers.length === 0 ? (
               <div className="p-6 rounded-2xl text-center" style={cardClass}>
