@@ -1,6 +1,8 @@
 import './env.js'        // ← must be first: populates process.env before config.js is evaluated
 import express from 'express'
 import cors from 'cors'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import jwt from 'jsonwebtoken'
@@ -24,6 +26,11 @@ import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
+
+// App version read from package.json instead of a hard-coded value.
+const APP_VERSION = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')
+).version
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -238,6 +245,10 @@ async function runMigrations() {
 const app  = express()
 const PORT = process.env.PORT || 3001
 
+// Trust the first proxy in front of the server so rate limiting based on
+// x-forwarded-for resolves the real client IP correctly.
+app.set('trust proxy', 1)
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || false,
   credentials: true,
@@ -283,7 +294,7 @@ app.get('/api/health', async (_req, res) => {
     traccarStatus = r.ok ? 'reachable' : 'error'
   } catch {}
   const ok = dbStatus === 'connected'
-  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', db: dbStatus, traccar: traccarStatus, version: '1.2.0', ts: new Date().toISOString() })
+  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', db: dbStatus, traccar: traccarStatus, version: APP_VERSION, ts: new Date().toISOString() })
 })
 
 // --- HTTP server ---------------------------------------------------------------

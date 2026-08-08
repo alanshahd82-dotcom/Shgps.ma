@@ -17,7 +17,7 @@ if (!email || !password) {
   process.exit(1)
 }
 
-const hash = await bcrypt.hash(password, 10)
+const hash = await bcrypt.hash(password, 12)
 
 const { rows } = await db.query(
   `INSERT INTO users (email, password_hash, name, is_active)

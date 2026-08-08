@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://athargps.com/sitemap.xml

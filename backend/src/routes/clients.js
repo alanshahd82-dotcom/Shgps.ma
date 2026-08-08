@@ -70,7 +70,7 @@ clientsRouter.post('/', requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'maxDevices must be a positive integer' })
   }
   try {
-    const hash = await bcrypt.hash(password, 10)
+    const hash = await bcrypt.hash(password, 12)
     const { rows } = await db.query(`
       INSERT INTO users (name,email,password_hash,phone,subscription,avatar,must_change_password,max_devices,expiry_date)
       VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8)
@@ -136,7 +136,7 @@ clientsRouter.post('/:id/reset-password', requireAuth, requireAdmin, async (req,
   const { password } = req.body
   if (!password) return res.status(400).json({ error: 'Password required' })
   try {
-    const hash = await bcrypt.hash(password, 10)
+    const hash = await bcrypt.hash(password, 12)
     const { rows } = await db.query(
       `UPDATE users SET password_hash=$1, must_change_password=true, updated_at=NOW()
        WHERE id=$2 AND is_admin=false RETURNING id`,

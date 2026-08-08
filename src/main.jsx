@@ -4,13 +4,16 @@ import App from './App'
 import './index.css'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png?url'
+import markerIcon from 'leaflet/dist/images/marker-icon.png?url'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png?url'
 
 // Fix Leaflet default marker icon
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 })
 
 const root = ReactDOM.createRoot(document.getElementById('root'))

@@ -109,7 +109,7 @@ authRouter.post('/change-password', requireAuth, validateBody(schemas.changePass
     if (!(await bcrypt.compare(currentPassword, rows[0].password_hash)))
       return res.status(401).json({ error: 'WRONG_CURRENT' })
 
-    const hash = await bcrypt.hash(newPassword, 10)
+    const hash = await bcrypt.hash(newPassword, 12)
     await db.query(
       'UPDATE users SET password_hash=$1, must_change_password=false, updated_at=NOW() WHERE id=$2',
       [hash, req.user.id]
@@ -276,9 +276,12 @@ authRouter.post('/forgot-password', async (req, res) => {
 // ── POST /api/auth/reset-password ────────────────────────────────────────
 authRouter.post('/reset-password', async (req, res) => {
   const { token, newPassword } = req.body
-  if (!token || !newPassword || newPassword.length < 8) {
+  if (!token || !newPassword) {
     return res.status(400).json({ error: 'Token and password (min 8 chars) are required.' })
   }
+  // Strength: 8+ chars, at least one uppercase, one digit, one special char
+  const strongPwd = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()\-_=+{};:',.<>?/\\|`~]).{8,}$/.test(newPassword)
+  if (!strongPwd) return res.status(400).json({ error: 'WEAK_PASSWORD' })
   try {
     const { rows } = await db.query(
       `SELECT t.id, t.user_id, t.expires_at, t.used

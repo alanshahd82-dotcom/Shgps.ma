@@ -30,7 +30,7 @@ if (password.length < 8) {
   process.exit(1)
 }
 
-const hash = await bcrypt.hash(password, 10)
+const hash = await bcrypt.hash(password, 12)
 const avatar = name[0] || 'م'
 
 const { rows } = await db.query(

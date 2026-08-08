@@ -49,7 +49,7 @@ subUsersRouter.post('/', requireAuth, requireRole('manager'), validateBody(schem
     const { rows: existing } = await db.query('SELECT id FROM users WHERE email=$1', [email.toLowerCase().trim()])
     if (existing.length > 0) return res.status(409).json({ error: 'Email already in use' })
 
-    const passwordHash = await bcrypt.hash(password, 10)
+    const passwordHash = await bcrypt.hash(password, 12)
 
     const { rows } = await db.query(
       `INSERT INTO users
