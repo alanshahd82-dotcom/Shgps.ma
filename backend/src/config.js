@@ -1,12 +1,11 @@
 // backend/src/config.js
-const jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-in-production'
 if (!process.env.JWT_SECRET) {
-  console.warn('[WARN] JWT_SECRET not set in environment. Using insecure default — set it in .env for production!')
+  throw new Error('[FATAL] JWT_SECRET environment variable is required but not set. Set it in your .env file before starting the server.')
 }
 
 export const config = {
   port:        process.env.PORT || 3001,
-  jwtSecret,
+  jwtSecret:   process.env.JWT_SECRET,
   jwtExpiry:   '7d',
   databaseUrl: process.env.DATABASE_URL,
   traccar: {
