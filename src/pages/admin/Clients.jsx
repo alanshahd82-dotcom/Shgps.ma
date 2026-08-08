@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Trash2, ChevronRight, User, Phone, X, KeyRound, CheckCircle2, AlertCircle, Pencil, CalendarClock } from 'lucide-react'
+import { Search, Plus, Trash2, ChevronRight, User, Phone, X, KeyRound, CheckCircle2, AlertCircle, Pencil, CalendarClock, AlertTriangle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import ConfirmModal from '../../components/ConfirmModal'
+import Button from '../../components/ui/Button'
 
 function AddClientModal({ open, onClose, onAdd, lang }) {
   const [form, setForm]         = useState({ name: '', email: '', phone: '', subscription: 'Basic' })
@@ -82,13 +83,13 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                     <p className="text-xs text-slate-400 mb-2">{lang === 'ar' ? 'كلمة المرور المُولّدة' : 'Mot de passe généré'}</p>
                     <p className="font-mono text-xl font-bold text-primary-500 tracking-widest">{genPwd}</p>
                   </div>
-                  <button
+                  <Button
                     onClick={() => { setCopied(true); navigator.clipboard?.writeText(genPwd).catch(() => {}) }}
-                    className="w-full btn-primary py-3 text-sm flex items-center justify-center gap-2"
+                    variant="primary" className="w-full py-3 text-sm"
                   >
                     <KeyRound size={15} />
                     {copied ? (lang === 'ar' ? '✓ تم النسخ' : '✓ Copié') : (lang === 'ar' ? 'نسخ كلمة المرور' : 'Copier le mot de passe')}
-                  </button>
+                  </Button>
                   <button onClick={handleCopyAndClose} className="w-full btn-secondary py-3 text-sm">
                     {lang === 'ar' ? 'إغلاق' : 'Fermer'}
                   </button>
@@ -182,11 +183,11 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                     <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3 text-sm">
                       {t(lang, 'cancel')}
                     </button>
-                    <button
+                    <Button
                       type="submit"
                       form="add-client-form"
                       disabled={loading}
-                      className="flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                      variant="primary" className="flex-1 py-3 text-sm"
                     >
                       {loading ? (
                         <>
@@ -199,7 +200,7 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                       ) : (
                         <span>{t(lang, 'add')}</span>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
@@ -402,9 +403,9 @@ function EditClientModal({ open, onClose, client, onSave, lang }) {
               </label>
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3 text-sm">{t(lang, 'cancel')}</button>
-                <button type="submit" disabled={loading} className="flex-1 btn-primary py-3 text-sm disabled:opacity-60">
+                <Button type="submit" disabled={loading} variant="primary" className="flex-1 py-3 text-sm">
                   {loading ? '...' : t(lang, 'save')}
-                </button>
+                </Button>
               </div>
             </form>
           </motion.div>
@@ -420,7 +421,7 @@ function SubscriptionBadge({ client }) {
   if (!client.expiryDate) return null
   const days = Math.ceil((new Date(client.expiryDate) - new Date()) / 86400000)
   if (days <= 0) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-100 text-red-600">🔴 Expiré</span>
-  if (days <= 30) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-orange-100 text-orange-600">⚠️ {days}j</span>
+  if (days <= 30) return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-orange-100 text-orange-600"><AlertTriangle className="w-3 h-3" />{days}j</span>
   return null
 }
 
@@ -496,8 +497,8 @@ export default function Clients() {
           <div className="mb-4 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <p className="text-sm text-red-600 font-medium">
               {lang === 'ar'
-                ? '⚠️ تعذّر تحميل قائمة العملاء. تحقق من اتصال الخادم.'
-                : '⚠️ Impossible de charger les clients. Vérifiez la connexion au serveur.'}
+                ? <><AlertTriangle className="w-4 h-4 inline me-1" />{'تعذّر تحميل قائمة العملاء. تحقق من اتصال الخادم.'}</>
+                : <><AlertTriangle className="w-4 h-4 inline me-1" />{'Impossible de charger les clients. Vérifiez la connexion au serveur.'}</>}
             </p>
             <button
               onClick={refreshClients}
@@ -516,10 +517,10 @@ export default function Clients() {
               {clientList.length} {lang === 'ar' ? 'عميل مسجّل' : 'client(s) enregistré(s)'}
             </p>
           </div>
-          <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2 text-sm">
+          <Button onClick={() => setShowAdd(true)} variant="primary" className="text-sm">
             <Plus size={16} />
             {t(lang, 'addClient')}
-          </button>
+          </Button>
         </div>
 
         {/* Search */}
