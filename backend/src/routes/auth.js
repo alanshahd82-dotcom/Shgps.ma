@@ -7,7 +7,9 @@ import { requireAuth } from '../middleware/auth.js'
 
 export const authRouter = Router()
 
-import { revokeToken, isRevoked } from '../services/tokenBlacklist.js'
+import { revokeToken, isRevoked }   from '../services/tokenBlacklist.js'
+import { validateBody, schemas }    from '../validation/schemas.js'
+import { logAudit }                from '../services/auditLog.js'
 
 // ── Rate limiting (in-memory) ──────────────────────────────────────────────
 const loginAttempts = new Map()
@@ -42,7 +44,7 @@ function recordAttempt(ip) {
 function clearAttempts(ip) { loginAttempts.delete(ip) }
 
 // ── POST /api/auth/login ───────────────────────────────────────────────────
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', validateBody(schemas.login), async (req, res) => {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
           || req.socket?.remoteAddress
           || 'unknown'
@@ -88,7 +90,7 @@ authRouter.post('/login', async (req, res) => {
 })
 
 // ── POST /api/auth/change-password ────────────────────────────────────────
-authRouter.post('/change-password', requireAuth, async (req, res) => {
+authRouter.post('/change-password', requireAuth, validateBody(schemas.changePassword), async (req, res) => {
   const { currentPassword, newPassword } = req.body
   if (!currentPassword || !newPassword)
     return res.status(400).json({ error: 'Both passwords required' })
@@ -108,6 +110,7 @@ authRouter.post('/change-password', requireAuth, async (req, res) => {
       'UPDATE users SET password_hash=$1, must_change_password=false, updated_at=NOW() WHERE id=$2',
       [hash, req.user.id]
     )
+    await logAudit(req.user.id, 'password_changed', 'user', req.user.id, {})
     res.json({ success: true })
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
