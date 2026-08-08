@@ -19,7 +19,7 @@ export default {
           900: '#02060D',
         },
         accent: {
-        DEFAULT: '#E4B56B',
+        DEFAULT: '#00D97E',
           50: '#E0FFF3',
           100: '#B3FFE3',
           200: '#66FFD0',
