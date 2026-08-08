@@ -3,15 +3,7 @@ import { Mail, Phone, MessageCircle, Save, TriangleAlert, Play, Apple } from 'lu
 import AdminLayout from './AdminLayout'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
-
-const DEFAULT_SUPPORT = {
-  email: 'support@athargps.ma',
-  phone: '+212600000000',
-  whatsapp: '212600000000',
-  hours: 'كل يوم من 09:00 إلى 18:00',
-  googlePlayUrl: '',
-  appStoreUrl: '',
-}
+import { DEFAULT_SUPPORT } from '../../config/support.js'
 
 export default function SupportSettings() {
   const { lang } = useApp()

@@ -7,15 +7,7 @@ import {
 import { Link } from 'react-router-dom'
 import { api } from '../api/index.js'
 import { SUBSCRIPTION_PLANS } from '../utils/subscriptions'
-
-const DEFAULT_SUPPORT = {
-  email: 'support@athargps.ma',
-  phone: '+212600000000',
-  whatsapp: '212600000000',
-  hours: 'كل يوم من 09:00 إلى 18:00',
-  googlePlayUrl: '',
-  appStoreUrl: '',
-}
+import { DEFAULT_SUPPORT } from '../config/support.js'
 
 const COPY = {
   ar: {

@@ -5,11 +5,7 @@ import { Eye, EyeOff, Mail, MessageCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
-
-const DEFAULT_SUPPORT = {
-  email: 'support@athargps.ma',
-  whatsapp: '212600000000',
-}
+import { DEFAULT_SUPPORT } from '../../config/support.js'
 
 export default function Login() {
   const navigate = useNavigate()

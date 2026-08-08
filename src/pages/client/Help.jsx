@@ -4,13 +4,7 @@ import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
-
-const DEFAULT_SUPPORT = {
-  email: 'support@athargps.ma',
-  phone: '+212600000000',
-  whatsapp: '212600000000',
-  hours: 'كل يوم من 09:00 إلى 18:00',
-}
+import { DEFAULT_SUPPORT } from '../../config/support.js'
 
 const FAQ_AR = [
   ['كيف أرى مركبتي؟', 'افتح الخريطة المباشرة أو اضغط على أجهزتي ثم اختر المركبة.'],
