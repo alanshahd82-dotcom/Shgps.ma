@@ -1,5 +1,7 @@
 import { Router } from 'express'
-    import { requireAuth } from '../middleware/auth.js'
+    import { requireAuth }  from '../middleware/auth.js'
+import { requireRole }  from '../middleware/requireRole.js'
+import { logAudit }    from '../services/auditLog.js'
     import { db }          from '../db.js'
     import * as traccar    from '../services/traccar.js'
 import {
@@ -462,7 +464,7 @@ import {
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
     })
 
-    devicesRouter.post('/:id/command', requireAuth, async (req, res) => {
+    devicesRouter.post('/:id/command', requireAuth, requireRole('manager'), async (req, res) => {
     try {
       const allowedCommands = new Set(['engine_stop', 'engine_start', 'engineStop', 'engineResume'])
       if (!allowedCommands.has(req.body?.type)) {
@@ -484,6 +486,7 @@ import {
       }
 
       await traccar.sendCommand(dev.traccar_id, req.body.type)
+      await logAudit(req.user.id, `engine_${req.body.type}`, 'device', dev.id, { imei: dev.imei, command: req.body.type })
       res.json({ success:true })
     } catch (err) { console.error(err); res.status(500).json({ error:'Failed to send command' }) }
     })
@@ -552,6 +555,7 @@ import {
           }
         }
         // حذف من قاعدة البيانات (CASCADE يعالج الجداول الفرعية)
+        await logAudit(req.user.id, 'device_deleted', 'device', dev.id, { imei: dev.imei, name: dev.name })
         await db.query('DELETE FROM devices WHERE id=$1', [dev.id])
         res.json({ success: true })
       } catch (err) {
