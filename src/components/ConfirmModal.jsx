@@ -1,12 +1,30 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle } from 'lucide-react'
 
 export default function ConfirmModal({ open, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, danger = false }) {
+  const cancelRef = useRef(null)
+
+  // Focus cancel button when modal opens
+  useEffect(() => {
+    if (open && cancelRef.current) cancelRef.current.focus()
+  }, [open])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (e.key === 'Escape') onCancel?.() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onCancel])
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-modal-title"
           className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={onCancel}
@@ -21,12 +39,12 @@ export default function ConfirmModal({ open, title, message, confirmLabel, cance
           >
             <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-6">
               {/* Icon */}
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-100' : 'bg-amber-100'}`}>
-                <AlertTriangle className={`w-7 h-7 ${danger ? 'text-red-500' : 'text-amber-500'}`} />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-100' : 'bg-emerald-50'}`}>
+                <AlertTriangle className={`w-7 h-7 ${danger ? 'text-red-500' : 'text-emerald-500'}`} />
               </div>
 
               {/* Title */}
-              <h3 className="text-lg font-bold text-center text-primary-500 mb-2">{title}</h3>
+              <h3 id="confirm-modal-title" className="text-lg font-bold text-center text-primary-500 mb-2">{title}</h3>
 
               {/* Message */}
               <p className="text-sm text-slate-500 text-center leading-relaxed mb-6">{message}</p>
@@ -34,6 +52,7 @@ export default function ConfirmModal({ open, title, message, confirmLabel, cance
               {/* Buttons */}
               <div className="flex gap-3">
                 <button
+                  ref={cancelRef}
                   onClick={onCancel}
                   className="flex-1 py-3 rounded-2xl border border-gray-200 text-slate-600 font-semibold hover:bg-gray-50 transition-colors"
                 >
