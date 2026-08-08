@@ -1,5 +1,5 @@
 // ATHAR GPS Service Worker v5 — Network-first with offline fallback
-const CACHE_NAME = 'athargps-v5'
+const CACHE_NAME = 'athargps-v6'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -48,7 +48,8 @@ self.addEventListener('fetch', (event) => {
         if (response.ok) {
           const ext = url.pathname.split('.').pop()
           if (['js','css','png','svg','jpg','jpeg','webp','woff2'].includes(ext)) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()))
+            const cloned = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned))
           }
         }
         return response
