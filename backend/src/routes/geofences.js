@@ -1,5 +1,7 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth }    from '../middleware/auth.js'
+import { requireRole }    from '../middleware/requireRole.js'
+import { validateBody, schemas } from '../validation/schemas.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
 
@@ -73,7 +75,7 @@ geofencesRouter.get('/:id', requireAuth, async (req, res) => {
 })
 
 // POST /api/geofences — create a geofence (local + attempt Traccar sync)
-geofencesRouter.post('/', requireAuth, async (req, res) => {
+geofencesRouter.post('/', requireAuth, requireRole('manager'), validateBody(schemas.createGeofence), async (req, res) => {
   try {
     const { name, center, radius, deviceId, notifyEnter, notifyExit } = req.body
     if (!name || !center || !radius) {
