@@ -55,7 +55,7 @@ services:
       TRACCAR_ADMIN_PASSWORD: ${TRACCAR_ADMIN_PASSWORD}
       GEOAPIFY_API_KEY:       ${GEOAPIFY_API_KEY}
       GEOAPIFY_MAP_STYLE:     ${GEOAPIFY_MAP_STYLE:-osm-bright}
-      FRONTEND_URL:           http://${DOMAIN}
+      FRONTEND_URL:           ${FRONTEND_URL}
       NODE_ENV:               production
     depends_on:
       postgres:
