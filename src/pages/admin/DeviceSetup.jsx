@@ -43,7 +43,7 @@ function getSmsCommands(deviceId, apn, user, pass, phone) {
 function CopyBtn({ text }) {
   const [copied, setCopied] = useState(false)
   const copy = async () => {
-    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch {}
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch (err) { console.error('[DeviceSetup] Clipboard write failed:', err) }
   }
   return (
     <button onClick={copy}

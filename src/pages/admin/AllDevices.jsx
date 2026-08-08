@@ -257,7 +257,7 @@ export default function AllDevices() {
   const handleDelete = async () => {
     if (!toDelete) return
     setDeleting(true)
-    try { await deleteDevice(toDelete.id) } catch {}
+    try { await deleteDevice(toDelete.id) } catch (err) { console.error('[AllDevices] Delete device failed:', err) }
     setDeleting(false)
     setToDelete(null)
   }

@@ -125,7 +125,7 @@ clientsRouter.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { rows } = await db.query('SELECT traccar_id FROM users WHERE id=$1 AND is_admin=false', [req.params.id])
     if (!rows[0]) return res.status(404).json({ error:'Client not found' })
-    if (rows[0].traccar_id) try { await traccar.deleteUser(rows[0].traccar_id) } catch {}
+    if (rows[0].traccar_id) try { await traccar.deleteUser(rows[0].traccar_id) } catch (err) { console.warn('[clients/delete] Traccar user removal failed (continuing):', err.message) }
     await db.query('DELETE FROM users WHERE id=$1 AND is_admin=false', [req.params.id])
     res.json({ success:true })
   } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }

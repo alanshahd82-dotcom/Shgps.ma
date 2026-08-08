@@ -52,7 +52,7 @@ import {
             position = allPos.find(p =>
               p.deviceId === traccarDevice?.id || p.deviceId === rows[0].traccar_id
             ) || null
-          } catch {}
+          } catch (err) { console.warn('[devices/check] Traccar lookup failed:', err.message) }
           const online = traccarDevice?.status === 'online' || !!position
           return res.json({
             found: true, registered: true, deviceId: rows[0].id,
@@ -77,7 +77,7 @@ import {
               traccarStatus: td.status || null,
               lastUpdate: position?.fixTime || td.lastUpdate || null })
           }
-        } catch {}
+        } catch (err) { console.warn('[devices/check] Traccar direct lookup failed:', err.message) }
         return res.json({ found: false, registered: false, online: false })
       } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
     })
@@ -116,7 +116,7 @@ import {
           const td = traccarById[p.deviceId]
           if (td?.uniqueId) positionByImei[td.uniqueId] = p
         }
-      } catch {}
+      } catch (err) { console.warn('[devices/list] Traccar fetch failed, serving last-known positions:', err.message) }
 
       // Auto-repair: devices with null traccar_id that exist in Traccar by IMEI
       const repairs = rows
@@ -141,7 +141,7 @@ import {
           [rows.map(d => d.id)]
         )
         for (const g of gRows) geofenceMap[g.device_id] = g
-      } catch {}
+      } catch (err) { console.warn('[devices/list] Geofence load failed:', err.message) }
 
       res.json(rows.map(d => {
         // Position: by traccarId first, then IMEI fallback
@@ -471,7 +471,7 @@ import {
       const subscription = getSubscriptionSnapshot(dev)
       let history = []
       if (subscription.trackingEnabled) {
-        try { history = await traccar.getHistory(dev.traccar_id) } catch {}
+        try { history = await traccar.getHistory(dev.traccar_id) } catch (err) { console.warn('[devices/:id] History fetch failed:', err.message) }
       }
 
       // Load geofence state from local DB
@@ -482,7 +482,7 @@ import {
           [dev.id]
         )
         localGeo = gRows[0] || null
-      } catch {}
+      } catch (err) { console.warn('[devices/:id] Geofence load failed:', err.message) }
 
       res.json({
         ...dev,

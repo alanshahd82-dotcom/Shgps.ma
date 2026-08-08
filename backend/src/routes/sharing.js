@@ -56,7 +56,7 @@ sharingRouter.get('/:token', async (req, res) => {
     try {
       const positions = await traccar.getAllPositions()
       position = positions.find(p => p.deviceId === link.traccar_id) || null
-    } catch {}
+    } catch (err) { console.warn('[sharing] Traccar position fetch failed:', err.message) }
 
     res.json({
       deviceName: link.name,

@@ -70,7 +70,6 @@ export const translations = {
     allDevices: 'جميع الأجهزة',
     viewAll: 'عرض الكل',
     todayKm: 'كم اليوم',
-    weeklyKm: 'كم الأسبوع',
     lastEvents: 'آخر الأحداث',
     kmToday: 'الكيلومترات اليوم',
     running: 'سائرة',
@@ -79,24 +78,18 @@ export const translations = {
     noSignal: 'بلا إشارة',
 
     // Device
-    device: 'الجهاز',
     status: 'الحالة',
     online: 'متصل',
     offline: 'غير متصل',
     speed: 'السرعة',
     battery: 'البطارية',
     signal: 'الإشارة',
-    lastUpdate: 'آخر تحديث',
     engineOn: 'المحرك شغال',
     engineOff: 'المحرك متوقف',
     fuel: 'الوقود',
-    totalDistance: 'المسافة الإجمالية',
     km: 'كم',
     kmh: 'كم/س',
-    trips: 'الرحلات',
     tripHistory: 'سجل الرحلات',
-    from: 'من',
-    to: 'إلى',
     distance: 'المسافة',
     duration: 'المدة',
 
@@ -113,11 +106,7 @@ export const translations = {
 
     // Geofence
     geofence: 'السياج الجغرافي',
-    geofenceTitle: 'تحديد المنطقة الجغرافية',
     geofenceDesc: 'انقر على الخريطة لتحديد مركز المنطقة',
-    geofenceRadius: 'نطاق المنطقة',
-    geofenceActive: 'السياج الجغرافي نشط',
-    geofenceAlert: 'تنبيه: خروج من المنطقة المحددة!',
     activateGeofence: 'تفعيل السياج',
     deactivateGeofence: 'إلغاء السياج',
 
@@ -126,11 +115,7 @@ export const translations = {
     noAlerts: 'لا توجد تنبيهات',
     markAllRead: 'تحديد الكل كمقروء',
     speed_alert: 'تجاوز السرعة',
-    geofence_alert: 'خروج من المنطقة',
-    battery_alert: 'بطارية منخفضة',
     power_alert: 'انقطاع الطاقة',
-    engine_alert: 'تنبيه المحرك',
-    unread: 'غير مقروء',
 
     // Settings
     settingsTitle: 'الإعدادات',
@@ -143,7 +128,6 @@ export const translations = {
     geofenceAlerts: 'تنبيهات السياج الجغرافي',
     batteryAlerts: 'تنبيهات البطارية',
     languageSelect: 'اختيار اللغة',
-    appVersion: 'إصدار التطبيق',
     darkMode: 'الوضع الداكن',
     darkModeDesc: 'تفعيل المظهر الداكن للتطبيق',
     appearance: 'المظهر',
@@ -151,20 +135,12 @@ export const translations = {
     // Reports
     reportsTitle: 'التقارير',
     reportsSubtitle: 'تحليل رحلاتك',
-    totalDistanceLbl: 'المسافة الإجمالية',
-    movingDuration: 'وقت الحركة',
-    stoppedDuration: 'وقت التوقف',
-    avgSpeedLbl: 'متوسط السرعة',
-    maxSpeedLbl: 'أقصى سرعة',
-    tripsCount: 'عدد الرحلات',
     exportCsv: 'تصدير CSV',
-    analyze: 'تحليل',
 
     // Trip replay
     replayGoStart: 'البداية',
     replayGoEnd: 'النهاية',
     speedChart: 'مخطط السرعة',
-    tripSummary: 'ملخص الرحلة',
     avgSpeed: 'متوسط السرعة',
     maxSpeed: 'أقصى سرعة',
     stopTime: 'وقت التوقف',
@@ -176,43 +152,21 @@ export const translations = {
     onlineDevices: 'أجهزة متصلة',
     offlineDevices: 'أجهزة غير متصلة',
     todayAlerts: 'تنبيهات اليوم',
-    monthlyRevenue: 'الإيرادات الشهرية',
     clientsList: 'قائمة العملاء',
     addClient: 'إضافة عميل',
     addDevice: 'إضافة جهاز',
     imei: 'رقم IMEI',
-    subscription: 'الاشتراك',
-    expiryDate: 'تاريخ الانتهاء',
     globalMap: 'الخريطة الشاملة',
     allAlerts: 'جميع التنبيهات',
     deviceSetup: 'تهيئة الأجهزة',
-    ds_title: 'تهيئة الأجهزة',
-    ds_subtitle: 'أوامر SMS لبرمجة أجهزة WanWay / Concox / GT06',
-    ds_cmds_ready: 'أوامر جاهزة',
-    ds_config: 'إعدادات الجهاز',
-    ds_carrier: 'شبكة الجوال',
-    ds_apn: 'قيمة APN',
-    ds_pass: 'كلمة سر الجهاز',
-    ds_server_addr: 'عنوان السيرفر',
-    ds_domain: 'النطاق',
-    ds_ip: 'عنوان IP',
-    ds_port: 'المنفذ',
-    ds_commands: 'الأوامر الجاهزة',
-    ds_copy: 'نسخ',
-    ds_copied: 'تم النسخ ✓',
-    ds_copy_all: 'نسخ التسلسل كاملاً',
-    ds_note: 'أرسلها بالترتيب إلى شريحة الجهاز عبر SMS، وانتظر ردّ SERVER_OK و APN_OK.',
-    ds_live: 'الأوامر تتحدث مع كل تغيير',
     revenueChart: 'مخطط الإيرادات',
     deviceStatus: 'حالة الأجهزة',
     city: 'المدينة',
-    joinDate: 'تاريخ الانضمام',
     actions: 'الإجراءات',
     search: 'بحث...',
     filter: 'تصفية',
     sortBy: 'ترتيب حسب',
     resetPassword: 'إعادة تعيين كلمة المرور',
-    traccarSync: 'مزامنة Traccar',
 
     // Sharing
     share_location:    'مشاركة الموقع',
@@ -220,8 +174,6 @@ export const translations = {
     copy_link:         'نسخ الرابط',
 
     // Maintenance
-    maintenance:        'الصيانة',
-    add_maintenance_log:'إضافة سجل صيانة',
 
     // Driver behavior
     driver_score:    'درجة السلامة',
@@ -244,18 +196,11 @@ export const translations = {
     wsDisconnected: 'جاري إعادة الاتصال...',
 
     // Geofences page
-    geofencesPage: 'السياجات الجغرافية',
-    geofencesDesc: 'إدارة مناطق التنبيه الجغرافية',
-    addGeofence: 'إضافة سياج',
-    noGeofences: 'لا توجد سياجات جغرافية',
 
     // Device Wizard
-    deviceWizard: 'معالج الجهاز',
-    deviceWizardDesc: 'تكوين جهاز GPS جديد',
 
     // Notifications
     notificationsTitle: 'الإشعارات',
-    enablePush: 'تفعيل الإشعارات الفورية',
     pushEnabled: 'الإشعارات الفورية مفعّلة',
     pushDenied: 'تم رفض الإذن من المتصفح',
 
@@ -279,7 +224,6 @@ export const translations = {
     noDevices:            'لا توجد أجهزة',
     noGeofences:          'لا توجد مناطق',
     noHistory:            'لا يوجد تاريخ',
-    noMaintenanceLogs:    'لا سجلات صيانة',
     noTrips:              'لا توجد رحلات',
     notificationSettings: 'إعدادات الإشعارات',
     pageNotFound:         'الصفحة غير موجودة',
@@ -320,7 +264,6 @@ export const translations = {
     device:               'الجهاز',
     deviceWizard:         'معالج الإضافة',
     deviceWizardDesc:     'أضف جهازك خطوة بخطوة',
-    stepVehicleData:      'بيانات المركبة',
     enablePush:           'تفعيل الإشعارات',
     traccarSync:          'مزامنة Traccar',
     ds_apn:               'APN الشبكة',
@@ -475,7 +418,6 @@ export const translations = {
     allDevices: 'Tous les appareils',
     viewAll: 'Voir tout',
     todayKm: 'KM auj.',
-    weeklyKm: 'KM semaine',
     lastEvents: 'Derniers événements',
     kmToday: "Kilomètres aujourd'hui",
     running: 'En marche',
@@ -484,7 +426,6 @@ export const translations = {
     noSignal: 'Sans signal',
 
     // Device
-    device: 'Appareil',
     status: 'Statut',
     online: 'En ligne',
     offline: 'Hors ligne',
@@ -495,13 +436,9 @@ export const translations = {
     engineOn: 'Moteur allumé',
     engineOff: 'Moteur éteint',
     fuel: 'Carburant',
-    totalDistance: 'Distance totale',
     km: 'km',
     kmh: 'km/h',
-    trips: 'Trajets',
     tripHistory: 'Historique des trajets',
-    from: 'De',
-    to: 'À',
     distance: 'Distance',
     duration: 'Durée',
 
@@ -518,11 +455,7 @@ export const translations = {
 
     // Geofence
     geofence: 'Géofence',
-    geofenceTitle: 'Définir la zone géographique',
     geofenceDesc: 'Cliquez sur la carte pour définir le centre de la zone',
-    geofenceRadius: 'Rayon de la zone',
-    geofenceActive: 'Géofence active',
-    geofenceAlert: 'Alerte : sortie de la zone définie !',
     activateGeofence: 'Activer la géofence',
     deactivateGeofence: 'Désactiver la géofence',
 
@@ -531,11 +464,7 @@ export const translations = {
     noAlerts: 'Aucune alerte',
     markAllRead: 'Tout marquer comme lu',
     speed_alert: 'Excès de vitesse',
-    geofence_alert: 'Sortie de zone',
-    battery_alert: 'Batterie faible',
     power_alert: 'Coupure de courant',
-    engine_alert: 'Alerte moteur',
-    unread: 'Non lu',
 
     // Settings
     settingsTitle: 'Paramètres',
@@ -586,8 +515,6 @@ export const translations = {
     addClient: 'Ajouter un client',
     addDevice: 'Ajouter un appareil',
     imei: 'Numéro IMEI',
-    subscription: 'Abonnement',
-    expiryDate: "Date d'expiration",
     globalMap: 'Carte globale',
     allAlerts: 'Toutes les alertes',
     deviceSetup: 'Config. appareils',
@@ -694,7 +621,6 @@ export const translations = {
     deviceSetupTitle:   'Installer un appareil',
     deviceSetupWizard:  'Assistant d\'installation',
     stepDeviceType:     'Type',
-    stepVehicleData:    'Données',
     stepSim:            'SIM',
     stepConnectionTest: 'Connexion',
     stepAssignClient:   'Client',
@@ -764,6 +690,8 @@ export const translations = {
     geofence_alert:     'Alerte zone',
     device:             'Appareil',
     stepVehicleData:    'Données du véhicule',
+    notificationSettings: 'Paramètres des notifications',
+    pushNotif:            'Notifications push',
     noMaintenanceLogs:  'Aucun entretien',
   }
 }

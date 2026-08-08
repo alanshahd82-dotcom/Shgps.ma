@@ -59,7 +59,7 @@ export function AppProvider({ children }) {
 
   // Send a browser notification (used when WS alert arrives & push is enabled)
   const sendBrowserNotification = (title, body, opts = {}) => {
-    if (!pushEnabled || Notification.permission !== 'granted') return
+    if (!pushEnabled || !('Notification' in window) || Notification.permission !== 'granted') return
     try {
       const n = new Notification(title, { body, icon: '/athar-gps-mark.svg', badge: '/athar-gps-mark.svg', ...opts })
       n.onclick = () => { window.focus(); n.close() }
@@ -236,7 +236,7 @@ export function AppProvider({ children }) {
               read:       false,
             }))
             // Fire browser notifications for new alerts (if enabled)
-            if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
+            if (localStorage.getItem('athargps_push') === 'true' && 'Notification' in window && Notification.permission === 'granted') {
               for (const ev of data.events) {
                 try {
                   new Notification('ATHAR GPS', {
@@ -249,7 +249,7 @@ export function AppProvider({ children }) {
             return [...newAlerts, ...prev].slice(0, 100) // keep last 100
           })
         }
-      } catch {}
+      } catch (err) { console.error('[AppContext] WS message handling error:', err) }
     }
 
     ws.onclose = () => {

@@ -37,7 +37,7 @@ leadsRouter.post('/', leadsRateLimit, async (req, res) => {
   try {
     const { name, phone, email, package: pkg, message } = req.body
     if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' })
-    if (!/^\+?[\d\s\-]{8,15}$/.test(phone))
+    if (!/^\+?[\d\s-]{8,15}$/.test(phone))
       return res.status(400).json({ error: 'Invalid phone number' })
     const { rows } = await db.query(
       `INSERT INTO leads (name, phone, email, package, message) VALUES ($1,$2,$3,$4,$5) RETURNING *`,

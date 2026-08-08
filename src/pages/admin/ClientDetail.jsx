@@ -194,7 +194,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
   const handleEngine = async () => {
     setEngineLoading(true)
     try { await toggleEngine(live.id, live.engineOn) }
-    catch {}
+    catch (err) { console.error('[ClientDetail] Engine toggle failed:', err) }
     finally { setEngineLoading(false) }
   }
 

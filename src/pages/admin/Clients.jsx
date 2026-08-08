@@ -461,7 +461,7 @@ export default function Clients() {
 
   const handleDelete = async () => {
     if (!toDelete) return
-    try { await deleteClient(toDelete.id) } catch {}
+    try { await deleteClient(toDelete.id) } catch (err) { console.error('[Clients] Delete client failed:', err) }
     setToDelete(null)
   }
 

@@ -283,11 +283,11 @@ app.get('/api/health', async (_req, res) => {
   try {
     await db.query('SELECT 1')
     dbStatus = 'connected'
-  } catch {}
+  } catch (err) { console.error('[Health] DB check failed:', err.message) }
   try {
     const r = await fetch(config.traccar.url + '/api/server', { signal: AbortSignal.timeout(3000) })
     traccarStatus = r.ok ? 'reachable' : 'error'
-  } catch {}
+  } catch (err) { console.warn('[Health] Traccar unreachable:', err.message) }
   const ok = dbStatus === 'connected'
   res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', db: dbStatus, traccar: traccarStatus, version: pkg.version, ts: new Date().toISOString() })
 })
@@ -365,8 +365,8 @@ async function connectTraccar() {
 
   await ensureTraccarAdmin(baseUrl)
 
-  let sessionCookie = ''
-  let userToken = ''
+  let sessionCookie
+  let userToken
   try {
     const formBody = 'email=' + encodeURIComponent(config.traccar.email)
                    + '&password=' + encodeURIComponent(config.traccar.password)
@@ -407,7 +407,7 @@ async function connectTraccar() {
   traccarWs.on('message', (data) => {
     const msg = data.toString()
     let parsed = null
-    try { parsed = JSON.parse(msg) } catch {}
+    try { parsed = JSON.parse(msg) } catch (err) { console.warn('[Traccar WS] JSON parse error:', err.message) }
 
     for (const client of frontendClients) {
       if (client.readyState !== WebSocket.OPEN) continue
