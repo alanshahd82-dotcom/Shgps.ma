@@ -26,7 +26,7 @@ jobs:
             git reset --hard origin/main
             
             # تثبيت الاعتمادات وبناء الواجهة
-            npm install
+            npm ci
             npm run build
             
             # إعادة بناء وتشغيل حاويات Docker
