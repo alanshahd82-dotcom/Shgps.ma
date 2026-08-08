@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { requireRole } from '../middleware/requireRole.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
@@ -50,7 +51,7 @@ function buildTrips(positions) {
 
 // GET /api/reports/trips?deviceId=X&from=ISO&to=ISO
 // Keep the original /api/reports route as a backwards-compatible alias.
-reportsRouter.get(['/', '/trips'], requireAuth, async (req, res) => {
+reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'), async (req, res) => {
   const { deviceId, from, to } = req.query
   if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
