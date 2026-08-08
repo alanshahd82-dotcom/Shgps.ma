@@ -5,7 +5,8 @@ import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
   ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery,
-  Gauge, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal
+  Gauge, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
+  Pencil, Check, X as CloseX
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
 import { useApp } from '../../context/AppContext'
@@ -81,6 +82,10 @@ export default function DeviceDetail() {
   const [cmdMsg, setCmdMsg] = useState('')
   const [shareErr, setShareErr] = useState('')
   const [imeiCopied, setImeiCopied] = useState(false)
+  const [editing,   setEditing]   = useState(false)
+  const [editForm,  setEditForm]  = useState({ name: '', driver: '', plate: '' })
+  const [saving,    setSaving]    = useState(false)
+  const [saveMsg,   setSaveMsg]   = useState('')
   const isAr = lang === 'ar'
   const trackingEnabled = device?.trackingEnabled !== false
   const latitude = finiteCoordinate(device?.lat) ?? finiteCoordinate(device?.last_lat)
@@ -130,6 +135,25 @@ export default function DeviceDetail() {
       setCmdMsg(isAr ? 'تم إرسال الأمر بنجاح ✓' : 'Commande envoyée avec succès ✓')
     } catch (e) { setCmdMsg(isAr ? 'تعذّر إرسال الأمر. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.') }
     finally { setSending(false); setConfirm(null) }
+  }
+
+  function openEdit() {
+    setEditForm({ name: device?.name || '', driver: device?.driver || '', plate: device?.plate || '' })
+    setEditing(true)
+    setSaveMsg('')
+  }
+
+  async function saveEdit() {
+    setSaving(true); setSaveMsg('')
+    try {
+      const updated = await api.devices.updateInfo(id, editForm)
+      setDevice(d => ({ ...d, ...updated }))
+      setSaveMsg(isAr ? 'تم الحفظ بنجاح ✓' : 'Enregistré ✓')
+      setEditing(false)
+      setTimeout(() => setSaveMsg(''), 3000)
+    } catch (e) {
+      setSaveMsg(isAr ? 'تعذّر الحفظ. حاول مرة أخرى.' : 'Erreur. Réessayez.')
+    } finally { setSaving(false) }
   }
 
   async function generateShareLink() {
@@ -249,33 +273,76 @@ export default function DeviceDetail() {
                   </MapContainer>
                 </div>
               )}
-              {/* Detail rows */}
+              {/* Detail rows + edit */}
+              {saveMsg && (
+                <div className={`text-xs text-center px-4 py-2 rounded-xl font-medium ${saveMsg.includes('✓') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  {saveMsg}
+                </div>
+              )}
               <div className="rounded-2xl overflow-hidden" style={cardStyle}>
-                {[
-                  { label: isAr?'الجهاز':'Appareil', val: device.name },
-                  { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
-                  { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
-                  { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—' },
-                  { label: isAr?'IMEI':'IMEI', val: device.imei ? (device.imei.slice(0,6)+'✦✦✦✦✦✦'+device.imei.slice(-4)) : '—', copy: device.imei },
-                  { label: isAr?'آخر تحديث':'Dernier signal', val: lastUpdate ? timeAgo(lastUpdate, lang) : (isAr?'لا توجد بيانات':'Aucune donnée') },
-                ].map((row,i,arr) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-3"
-                     style={{ borderBottom: i<arr.length-1 ? '1px solid #f1f5f9' : 'none' }}>
-                     <span className="text-xs text-slate-500">{row.label}</span>
-                     <div className="flex items-center gap-2">
-                       <span className="text-xs font-semibold text-slate-800 text-right max-w-40 truncate">{row.val}</span>
-                       {row.copy && (
-                         <button
-                           onClick={() => { navigator.clipboard.writeText(row.copy).catch(()=>{}); setImeiCopied(true); setTimeout(()=>setImeiCopied(false),2000) }}
-                           aria-label={isAr?'نسخ IMEI':'Copier IMEI'}
-                           className="flex-shrink-0 p-1 rounded-lg text-slate-400 transition-colors"
-                         >
-                           {imeiCopied ? <CheckCheck size={12} className="text-emerald-600"/> : <Copy size={12}/>}
-                         </button>
-                       )}
-                     </div>
+                {/* Edit header */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isAr ? 'معلومات الجهاز' : 'Appareil'}</span>
+                  {!editing
+                    ? <button onClick={openEdit} className="flex items-center gap-1 text-[11px] font-bold text-primary-500 hover:opacity-70 transition-opacity">
+                        <Pencil size={11}/>{isAr ? 'تعديل' : 'Modifier'}
+                      </button>
+                    : <div className="flex items-center gap-2">
+                        <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-slate-600"><CloseX size={14}/></button>
+                        <button onClick={saveEdit} disabled={saving}
+                          className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:opacity-70 disabled:opacity-50">
+                          {saving ? <Loader2 size={11} className="animate-spin"/> : <Check size={11}/>}
+                          {isAr ? 'حفظ' : 'Enregistrer'}
+                        </button>
+                      </div>}
+                </div>
+
+                {editing ? (
+                  /* Edit form */
+                  <div className="divide-y divide-slate-100">
+                    {[
+                      { label: isAr?'اسم الجهاز':'Nom', key:'name', placeholder: isAr?'مثال: سيارة المدير':'Ex: Voiture du directeur' },
+                      { label: isAr?'السائق':'Conducteur', key:'driver', placeholder: isAr?'اسم السائق':'Nom du conducteur' },
+                      { label: isAr?'اللوحة':'Plaque', key:'plate', placeholder: isAr?'رقم اللوحة':'Numéro de plaque' },
+                    ].map(field => (
+                      <div key={field.key} className="flex items-center gap-3 px-4 py-2.5">
+                        <span className="text-xs text-slate-500 w-20 flex-shrink-0">{field.label}</span>
+                        <input
+                          className="flex-1 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-300"
+                          value={editForm[field.key]}
+                          onChange={e => setEditForm(f => ({ ...f, [field.key]: e.target.value }))}
+                          placeholder={field.placeholder}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  /* Read-only rows */
+                  [
+                    { label: isAr?'الجهاز':'Appareil', val: device.name },
+                    { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
+                    { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
+                    { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—' },
+                    { label: isAr?'IMEI':'IMEI', val: device.imei ? (device.imei.slice(0,6)+'✦✦✦✦✦✦'+device.imei.slice(-4)) : '—', copy: device.imei },
+                    { label: isAr?'آخر تحديث':'Dernier signal', val: lastUpdate ? timeAgo(lastUpdate, lang) : (isAr?'لا توجد بيانات':'Aucune donnée') },
+                  ].map((row,i,arr) => (
+                    <div key={i} className="flex items-center justify-between px-4 py-3"
+                       style={{ borderBottom: i<arr.length-1 ? '1px solid #f1f5f9' : 'none' }}>
+                       <span className="text-xs text-slate-500">{row.label}</span>
+                       <div className="flex items-center gap-2">
+                         <span className="text-xs font-semibold text-slate-800 text-right max-w-40 truncate">{row.val}</span>
+                         {row.copy && (
+                           <button
+                             onClick={() => { navigator.clipboard.writeText(row.copy).catch(()=>{}); setImeiCopied(true); setTimeout(()=>setImeiCopied(false),2000) }}
+                             aria-label={isAr?'نسخ IMEI':'Copier IMEI'}
+                             className="flex-shrink-0 p-1 rounded-lg text-slate-400 transition-colors">
+                             {imeiCopied ? <CheckCheck size={12} className="text-emerald-600"/> : <Copy size={12}/>}
+                           </button>
+                         )}
+                       </div>
+                    </div>
+                  ))
+                )}
               </div>
             </motion.div>
           )}
@@ -335,33 +402,56 @@ export default function DeviceDetail() {
             </motion.div>
           )}
 
-          {/* COMMANDS */}
-          {tab === 'commands' && (
-            <motion.div key="cmds" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
-              {cmdMsg && (
-                <div className={`text-xs text-center px-4 py-2.5 rounded-xl font-medium ${cmdMsg.includes('✓') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                  {cmdMsg}
+          {/* COMMANDS — single dynamic engine button */}
+          {tab === 'commands' && (() => {
+            const engineOn = !!ignition
+            const cmdColor = engineOn ? '#FF3B30' : '#00D97E'
+            const CmdIcon  = engineOn ? ZapOff : Zap
+            const cmdLabel = engineOn ? (isAr ? 'إيقاف المحرك' : 'Couper le moteur') : (isAr ? 'تشغيل المحرك' : 'Démarrer le moteur')
+            const cmdDesc  = engineOn ? (isAr ? 'سيتم إيقاف محرك المركبة عن بعد' : 'Coupure moteur à distance') : (isAr ? 'سيتم تشغيل محرك المركبة عن بعد' : 'Démarrage moteur à distance')
+            const cmdType  = engineOn ? 'engine_stop' : 'engine_start'
+            return (
+              <motion.div key="cmds" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
+                {cmdMsg && (
+                  <div className={`text-xs text-center px-4 py-2.5 rounded-xl font-medium ${cmdMsg.includes('✓') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                    {cmdMsg}
+                  </div>
+                )}
+                {/* Engine status indicator */}
+                <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl"
+                  style={{ background: (engineOn ? '#00D97E' : '#6b7280') + '14', border: '1px solid ' + (engineOn ? '#00D97E' : '#6b7280') + '30' }}>
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: engineOn ? '#00D97E' : '#6b7280' }}/>
+                  <p className="text-sm font-bold" style={{ color: engineOn ? '#16866d' : '#6b7280' }}>
+                    {isAr
+                      ? (engineOn ? 'المحرك يعمل حالياً' : 'المحرك متوقف حالياً')
+                      : (engineOn ? 'Moteur en marche' : 'Moteur à l\'arrêt')}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mr-auto ml-auto">{isAr ? 'آخر تحديث:' : 'Mis à jour:'} {timeAgo(lastUpdate, lang)}</p>
                 </div>
-              )}
-              {COMMANDS.map(({ type, ar, fr, color, Icon }) => (
-                <motion.button key={type} whileTap={{ scale:0.97 }}
-                  onClick={() => setConfirm({ type, label: isAr ? ar : fr })}
+                {/* Single action button */}
+                <motion.button whileTap={{ scale:0.97 }}
+                  onClick={() => setConfirm({ type: cmdType, label: cmdLabel })}
                   disabled={sending}
                   className="w-full flex items-center gap-4 p-4 rounded-2xl disabled:opacity-50 transition-all"
-                  style={{ background: color+'18', border:'1.5px solid '+color+'44' }}>
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: color+'22' }}>
-                    <Icon size={22} style={{ color }}/>
+                  style={{ background: cmdColor+'18', border:'1.5px solid '+cmdColor+'44' }}>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: cmdColor+'22' }}>
+                    {sending
+                      ? <Loader2 size={22} className="animate-spin" style={{ color: cmdColor }}/>
+                      : <CmdIcon size={22} style={{ color: cmdColor }}/>}
                   </div>
-                  <div className="text-left">
-                    <p className="text-slate-800 font-bold text-sm">{isAr ? ar : fr}</p>
-                    <p className="text-xs mt-0.5 text-slate-500">
-                      {type === 'engine_stop' ? (isAr?'إيقاف المحرك عن بعد':'Coupure moteur à distance') : (isAr?'تشغيل المحرك عن بعد':'Démarrage moteur à distance')}
-                    </p>
+                  <div className={isAr ? 'text-right' : 'text-left'}>
+                    <p className="text-slate-800 font-bold text-sm">{cmdLabel}</p>
+                    <p className="text-xs mt-0.5 text-slate-500">{cmdDesc}</p>
                   </div>
                 </motion.button>
-              ))}
-            </motion.div>
-          )}
+                <p className="text-[10px] text-slate-400 text-center px-4">
+                  {isAr
+                    ? 'حالة الزر تعكس الحالة الحقيقية للجهاز. لن تتغير إلا بعد تأكيد تنفيذ الأمر.'
+                    : 'L\'état du bouton reflète l\'état réel de l\'appareil.'}
+                </p>
+              </motion.div>
+            )
+          })()}
 
           {/* SHARE */}
           {tab === 'share' && (

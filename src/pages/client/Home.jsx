@@ -22,13 +22,13 @@ const STATUS = {
 
 function Stat({ label, value, color, icon: Icon }) {
   return (
-    <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+    <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] px-3 py-3 shadow-sm">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: color + '14' }}>
         <Icon size={16} style={{ color }} />
       </span>
       <span className="min-w-0">
-        <strong className="block text-lg font-extrabold leading-none text-slate-900">{value}</strong>
-        <span className="mt-1 block truncate text-[10px] font-semibold text-slate-500">{label}</span>
+        <strong className="block text-lg font-extrabold leading-none text-slate-900 dark:text-white">{value}</strong>
+        <span className="mt-1 block truncate text-[10px] font-semibold text-slate-500 dark:text-slate-400">{label}</span>
       </span>
     </div>
   )
@@ -39,7 +39,7 @@ function QuickLink({ icon: Icon, title, description, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-start shadow-sm transition-colors hover:border-accent/50 hover:shadow-md"
+      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] px-3.5 py-3 text-start shadow-sm transition-colors hover:border-accent/50 hover:shadow-md"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-500">
         <Icon size={17} />
@@ -89,7 +89,7 @@ export default function Home() {
   })
 
   return (
-    <div className="client-app client-home-screen fixed inset-0 overflow-hidden bg-[#f5f7f8]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app client-home-screen fixed inset-0 overflow-hidden bg-[#f5f7f8] dark:bg-[#0b1524]" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader fixed showUser />
 
       <main

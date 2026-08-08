@@ -123,6 +123,10 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'active'
     `)
     await db.query(`
+      ALTER TABLE devices
+        ADD COLUMN IF NOT EXISTS driver VARCHAR(120)
+    `)
+    await db.query(`
       CREATE TABLE IF NOT EXISTS local_geofences (
         id           SERIAL PRIMARY KEY,
         user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,

@@ -381,6 +381,32 @@ import {
       }
     })
 
+    // PATCH /:id/info — device owner (or admin) can edit name / driver / plate
+    devicesRouter.patch('/:id/info', requireAuth, async (req, res) => {
+      const { name, driver, plate } = req.body
+      if (name === undefined && driver === undefined && plate === undefined)
+        return res.status(400).json({ error: 'Nothing to update' })
+      try {
+        const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
+        if (!devRows[0]) return res.status(404).json({ error: 'Device not found' })
+        const device = devRows[0]
+        const ownerId = req.user.parent_client_id || req.user.id
+        if (!req.user.is_admin && device.user_id !== ownerId)
+          return res.status(403).json({ error: 'Access denied' })
+        const sets = []; const vals = []; let i = 1
+        if (name   !== undefined) { sets.push(`name=$${i++}`);   vals.push(String(name).trim())   }
+        if (driver !== undefined) { sets.push(`driver=$${i++}`); vals.push(String(driver).trim()) }
+        if (plate  !== undefined) { sets.push(`plate=$${i++}`);  vals.push(String(plate).trim())  }
+        sets.push(`updated_at=NOW()`)
+        vals.push(req.params.id)
+        const { rows } = await db.query(
+          `UPDATE devices SET ${sets.join(',')} WHERE id=$${i} RETURNING id,name,driver,plate,updated_at`,
+          vals
+        )
+        res.json(rows[0])
+      } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+    })
+
     // PATCH /:id/subscription — admin or the device owner can renew by plan.
     // Renewal starts at the later of today or the current end date so active
     // time is never lost. This endpoint never changes user-level subscriptions.
