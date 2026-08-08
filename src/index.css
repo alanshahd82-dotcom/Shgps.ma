@@ -7,7 +7,7 @@
 @layer base {
   :root {
     --primary: #17324d;
-    --accent: #e4b56b;
+    --accent: #00D97E;
     --warning: #c8843c;
     --danger: #c95d58;
     --bg: #f5f7f8;
@@ -22,6 +22,17 @@
   html, body, #root {
     height: 100%;
     width: 100%;
+  }
+
+
+  .dark {
+    --primary: #0F2044;
+    --accent: #00D97E;
+    --bg: #0b1524;
+    --color-surface: #112240;
+    --color-foreground: #e2e8f0;
+    --color-muted-foreground: #94a3b8;
+    --color-destructive: #FF3B30;
   }
 
   body {
@@ -39,7 +50,7 @@
 @layer components {
   .btn-primary {
     @apply bg-accent text-primary-500 font-semibold px-6 py-3 rounded-xl
-           hover:bg-amber-400 active:scale-95 transition-all duration-200 shadow-sm;
+           hover:bg-emerald-400 active:scale-95 transition-all duration-200 shadow-sm;
   }
 
   .btn-secondary {
