@@ -31,6 +31,8 @@ export default function Maintenance() {
   const [saving, setSaving]         = useState(false)
   const [confirmOpen, setConfirmOpen]     = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState(null)
+  const [opErr, setOpErr]               = useState('')
+  const showOpErr = (msg) => { setOpErr(msg); setTimeout(() => setOpErr(''), 4000) }
   const isAr = lang === 'ar'
 
   const selectedDevice = devices.find(d => String(d.id) === String(deviceId))
@@ -58,7 +60,7 @@ export default function Maintenance() {
       setShowForm(false)
       setFormData({ type: 'oil_change', date: '', mileage: '', notes: '', next_mileage: '' })
       load()
-    } catch (e) { alert(e.message) }
+    } catch (e) { showOpErr(e.message) }
     finally { setSaving(false) }
   }
 
@@ -69,7 +71,7 @@ export default function Maintenance() {
 
   async function confirmDelete() {
     setConfirmOpen(false)
-    try { await api.maintenance.remove(pendingDeleteId); load() } catch (e) { alert(e.message) }
+    try { await api.maintenance.remove(pendingDeleteId); load() } catch (e) { showOpErr(e.message) }
     setPendingDeleteId(null)
   }
 
@@ -239,6 +241,11 @@ export default function Maintenance() {
         )}
       </AnimatePresence>
 
+      {opErr && (
+        <div className="fixed bottom-24 left-4 right-4 z-50 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm font-medium text-center shadow-lg">
+          {opErr}
+        </div>
+      )}
       <ConfirmModal
         open={confirmOpen}
         title={isAr ? 'حذف السجل' : "Supprimer l'enregistrement"}
