@@ -29,9 +29,10 @@ export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
 export function getDeviceStatusKey(device) {
   if (!device) return 'offline'
   if (device.status !== 'online') return 'offline'
-  const speed = device.speed || 0
+  const speed = device.speed ?? device.last_speed ?? 0
   if (speed > 2) return 'moving'
-  if (device.engineOn) return 'idle'
+  const eng = device.engineOn ?? device.ignition ?? false
+  if (eng) return 'idle'
   return 'stopped'
 }
 
