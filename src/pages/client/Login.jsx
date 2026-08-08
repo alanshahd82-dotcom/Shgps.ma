@@ -104,7 +104,7 @@ export default function Login() {
                     className="rounded-xl px-4 py-2.5 text-xs text-center"
                     style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)', color: '#ff6b60' }}
                   >
-                    {t(lang, 'invalidCredentials')}
+                    {error}
                   </div>
                 </motion.div>
               )}
@@ -165,7 +165,7 @@ export default function Login() {
             </form>
             <div className="mt-5 border-t border-slate-100 pt-4">
               <p className="mb-3 text-center text-[11px] text-slate-400 leading-5 break-words">
-                {isAr ? 'ليس لديك حساب؟ تواصل معنا لتفعيل اشتراكك' : 'ليس لديك حساب؟ تواصل معنا'}
+                {isAr ? 'ليس لديك حساب؟ تواصل معنا لتفعيل اشتراكك' : 'Vous n\'avez pas de compte ? Contactez-nous pour activer votre abonnement.'}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <a href={whatsapp} target="_blank" rel="noreferrer"

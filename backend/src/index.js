@@ -1,6 +1,6 @@
+import './env.js'        // ← must be first: populates process.env before config.js is evaluated
 import express from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import jwt from 'jsonwebtoken'
@@ -23,8 +23,6 @@ import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
-
-dotenv.config()
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -110,11 +108,6 @@ async function runMigrations() {
       `INSERT INTO app_settings (key, value) VALUES ('support_contacts', $1)
        ON CONFLICT (key) DO NOTHING`,
       [JSON.stringify(DEFAULT_SUPPORT_SETTINGS)]
-    )
-    await db.query(
-      `UPDATE app_settings
-       SET value = REPLACE(value, 'support@shgps.ma', 'support@athargps.ma'), updated_at=NOW()
-       WHERE key='support_contacts' AND value LIKE '%support@shgps.ma%'`
     )
     await db.query(`
       ALTER TABLE devices
@@ -300,8 +293,8 @@ wss.on('connection', (ws, req) => {
     if (!token) { ws.close(1008, 'Unauthorized'); return }
     const decoded = jwt.verify(token, config.jwtSecret)
     if (isRevoked(token)) { ws.close(1008, 'Token revoked'); return }
-    ws.userId  = decoded.id
-    ws.isAdmin = decoded.is_admin || false
+    ws.userId  = decoded.userId
+    ws.isAdmin = decoded.isAdmin || false
   } catch {
     ws.close(1008, 'Invalid token')
     return

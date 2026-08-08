@@ -35,6 +35,15 @@ export const schemas = {
     password: z.string().min(8, 'Password must be at least 8 characters'),
   }),
 
+  // POST /api/driver-behavior/scores
+  driverBehaviorScore: z.object({
+    deviceId:      z.union([z.string().min(1), z.number().int().positive()]),
+    score:         z.number().min(0, 'score must be between 0 and 100').max(100, 'score must be between 0 and 100'),
+    speedingEvents: z.number().int().min(0, 'speedingEvents must be a non-negative integer').optional(),
+    idleMin:       z.number().int().min(0, 'idleMin must be a non-negative integer').optional(),
+    tripCount:     z.number().int().min(0, 'tripCount must be a non-negative integer').optional(),
+  }),
+
   // POST /api/geofences (create geofence)
   createGeofence: z.object({
     name:   z.string().min(1, 'Geofence name is required'),

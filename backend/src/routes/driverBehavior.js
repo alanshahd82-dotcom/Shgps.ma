@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { validateBody, schemas } from '../validation/schemas.js'
 import { db } from '../db.js'
 
 export const driverBehaviorRouter = Router()
 
 // POST /api/driver-behavior/scores — save a score
-driverBehaviorRouter.post('/scores', requireAuth, async (req, res) => {
+driverBehaviorRouter.post('/scores', requireAuth, validateBody(schemas.driverBehaviorScore), async (req, res) => {
   try {
     const { deviceId, score, speedingEvents, idleMin, tripCount } = req.body
     if (!deviceId || score === undefined) {
