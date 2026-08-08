@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ChevronRight, Car, Clock, RefreshCw } from 'lucide-react'
+import { Search, X, ChevronRight, Car, Clock, RefreshCw, Wifi } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -134,9 +134,11 @@ export default function DeviceList() {
         <div className="space-y-2.5">
           <AnimatePresence mode="popLayout">
             {filtered.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-16 text-center">
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
                 <Car size={30} className="mx-auto mb-3 text-slate-300" />
+                <Car size={40} className="mx-auto mb-3 text-slate-300" />
                 <p className="text-sm font-bold text-slate-700">{search ? (isAr ? 'لا توجد نتائج' : 'Aucun résultat') : (isAr ? 'لا توجد أجهزة' : 'Aucun appareil')}</p>
+                <p className="mt-1 text-xs text-slate-400">{search ? (isAr ? 'حاول كلمة بحث مختلفة' : 'Essayez un autre terme') : (isAr ? 'تواصل مع الدعم لإضافة جهاز' : 'Contactez le support pour ajouter un appareil')}</p>
                 <p className="mt-1 text-xs text-slate-400">{isAr ? 'ستظهر الأجهزة المرتبطة بحسابك هنا' : 'Les appareils liés à votre compte apparaîtront ici'}</p>
               </motion.div>
             ) : filtered.map((device, index) => (
