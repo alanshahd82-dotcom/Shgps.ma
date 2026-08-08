@@ -13,11 +13,6 @@ const alertIcons = {
   engine: { icon: AlertTriangle, color: 'text-purple-500', bg: 'bg-purple-100' },
 }
 
-const severityColors = {
-  danger: 'border-red-400 bg-red-50',
-  warning: 'border-orange-400 bg-orange-50',
-  info: 'border-blue-400 bg-blue-50',
-}
 
 function timeAgo(iso, lang) {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -28,7 +23,7 @@ function timeAgo(iso, lang) {
 }
 
 export default function AdminAlerts() {
-  const { alertsList, clientList, markAlertRead, markAllAlertsRead, lang } = useApp()
+  const { alertsList, markAlertRead, markAllAlertsRead, lang } = useApp()
   const [filter, setFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
 
@@ -39,7 +34,6 @@ export default function AdminAlerts() {
   })
 
   const unread = alertsList.filter(a => !a.read).length
-  const getClient = (clientId) => clientList.find(c => c.id === clientId)
 
   return (
     <AdminLayout>
@@ -120,12 +114,11 @@ export default function AdminAlerts() {
             filtered.map((alert, i) => {
               const cfg = alertIcons[alert.type] || alertIcons.speed
               const Icon = cfg.icon
-              const client = getClient(alert.clientId)
               return (
                 <motion.div
                   key={alert.id}
                   className={`bg-white rounded-2xl border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer ${
-                    !alert.read ? severityColors[alert.severity] || 'border-gray-300' : 'border-gray-200'
+                    !alert.read ? 'border-orange-400 bg-orange-50' : 'border-gray-200'
                   }`}
                   onClick={() => markAlertRead(alert.id)}
                   initial={{ opacity: 0, y: 10 }}
@@ -143,26 +136,20 @@ export default function AdminAlerts() {
                       <div className="flex items-start justify-between gap-3 mb-1">
                         <div>
                           <p className="font-bold text-primary-500 text-sm">{alert.deviceName}</p>
-                          {client && (
-                            <p className="text-xs text-slate-400">{client.name}</p>
+                          {alert.clientName && (
+                            <p className="text-xs text-slate-400">{alert.clientName}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {!alert.read && (
                             <span className="w-2 h-2 bg-red-500 rounded-full mt-1" />
                           )}
-                          <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${
-                            alert.severity === 'danger' ? 'bg-red-100 text-red-600' :
-                            alert.severity === 'warning' ? 'bg-orange-100 text-orange-600' :
-                            'bg-blue-100 text-blue-600'
-                          }`}>
-                            {alert.severity}
-                          </span>
+
                         </div>
                       </div>
                       <p className="text-sm text-slate-600 leading-relaxed mb-2">{alert.message}</p>
                       <div className="flex items-center justify-between">
-                        <p className="text-xs text-slate-400">{timeAgo(alert.timestamp, lang)}</p>
+                        <p className="text-xs text-slate-400">{timeAgo(alert.time, lang)}</p>
                         {alert.read && (
                           <span className="text-[10px] text-slate-400 flex items-center gap-1">
                             <CheckCheck size={10} />
