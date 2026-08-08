@@ -78,6 +78,9 @@ export default function Settings() {
     setConfirmModal({ open: true, title, message, danger, onConfirm })
   const closeConfirm = () => setConfirmModal(m => ({ ...m, open: false }))
 
+  const [subErr, setSubErr] = useState('')
+  const showSubErr = (msg) => { setSubErr(msg); setTimeout(() => setSubErr(''), 4000) }
+
   useEffect(() => {
     if (tab === 'subusers') loadSubUsers()
   }, [tab])
@@ -120,7 +123,7 @@ export default function Settings() {
     try {
       await api.subUsers.create(newUser)
       setShowAdd(false); setNewUser({ name:'', email:'', password:'', role:'viewer' }); loadSubUsers()
-    } catch (err) { alert(err.message) }
+    } catch (err) { showSubErr(err.message) }
     finally { setSavingSub(false) }
   }
 
@@ -132,7 +135,7 @@ export default function Settings() {
       danger:    true,
       onConfirm: async () => {
         closeConfirm()
-        try { await api.subUsers.remove(id); loadSubUsers() } catch (e) { alert(e.message) }
+        try { await api.subUsers.remove(id); loadSubUsers() } catch (e) { showSubErr(e.message) }
       },
     })
   }
@@ -359,6 +362,11 @@ export default function Settings() {
         )}
       </AnimatePresence>
 
+      {subErr && (
+        <div className="fixed bottom-24 left-4 right-4 z-50 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-red-600 text-sm font-medium text-center shadow-lg">
+          {subErr}
+        </div>
+      )}
       <ConfirmModal
         open={confirmModal.open}
         title={confirmModal.title}
