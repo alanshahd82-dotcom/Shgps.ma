@@ -6,6 +6,7 @@ import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
+import ConfirmModal  from '../../components/ConfirmModal'
 import { VehicleIcon } from '../../components/ui'
 
 const SERVICE_TYPES = [
@@ -28,6 +29,8 @@ export default function Maintenance() {
   const [showDevices, setShowDevices] = useState(false)
   const [formData, setFormData]     = useState({ type: 'oil_change', date: '', mileage: '', notes: '', next_mileage: '' })
   const [saving, setSaving]         = useState(false)
+  const [confirmOpen, setConfirmOpen]     = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState(null)
   const isAr = lang === 'ar'
 
   const selectedDevice = devices.find(d => String(d.id) === String(deviceId))
@@ -60,8 +63,14 @@ export default function Maintenance() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm(isAr ? 'حذف السجل؟' : 'Supprimer cet enregistrement ?')) return
-    try { await api.maintenance.remove(id); load() } catch (e) { alert(e.message) }
+    setPendingDeleteId(id)
+    setConfirmOpen(true)
+  }
+
+  async function confirmDelete() {
+    setConfirmOpen(false)
+    try { await api.maintenance.remove(pendingDeleteId); load() } catch (e) { alert(e.message) }
+    setPendingDeleteId(null)
   }
 
   const getSvc = key => SERVICE_TYPES.find(s => s.key === key) || SERVICE_TYPES[SERVICE_TYPES.length - 1]
@@ -230,6 +239,14 @@ export default function Maintenance() {
         )}
       </AnimatePresence>
 
+      <ConfirmModal
+        open={confirmOpen}
+        title={isAr ? 'حذف السجل' : 'Supprimer l'enregistrement'}
+        message={isAr ? 'هل أنت متأكد من حذف سجل الصيانة هذا؟' : 'Êtes-vous sûr de vouloir supprimer cet enregistrement ?'}
+        danger
+        onConfirm={confirmDelete}
+        onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null) }}
+      />
       <ClientNav/>
     </div>
   )
