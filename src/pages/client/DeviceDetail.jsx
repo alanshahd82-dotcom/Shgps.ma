@@ -77,6 +77,10 @@ export default function DeviceDetail() {
   const [confirm, setConfirm] = useState(null)
   const [sending, setSending] = useState(false)
   const [showRenew, setShowRenew] = useState(false)
+  const [tripsError, setTripsError] = useState('')
+  const [cmdMsg, setCmdMsg] = useState('')
+  const [shareErr, setShareErr] = useState('')
+  const [imeiCopied, setImeiCopied] = useState(false)
   const isAr = lang === 'ar'
   const trackingEnabled = device?.trackingEnabled !== false
   const latitude = finiteCoordinate(device?.lat) ?? finiteCoordinate(device?.last_lat)
@@ -107,13 +111,13 @@ export default function DeviceDetail() {
   useEffect(() => {
     if (tab !== 'route' || !trackingEnabled) return
     async function loadTrips() {
-      setTripsLoading(true)
+      setTripsLoading(true); setTripsError('')
       try {
         const now  = new Date()
         const from = new Date(now); from.setHours(0, 0, 0, 0)
         const data = await api.reports.get(id, from.toISOString(), now.toISOString())
         setTrips(data.trips || [])
-      } catch (e) { setTrips([]) }
+      } catch (e) { setTripsError(isAr ? 'تعذّر تحميل الرحلات. تحقق من اتصالك وأعد المحاولة.' : 'Impossible de charger les trajets. Vérifiez votre connexion.') }
       finally { setTripsLoading(false) }
     }
     loadTrips()
@@ -121,7 +125,10 @@ export default function DeviceDetail() {
 
   async function sendCommand(type) {
     setSending(true)
-    try { await api.devices.sendCommand(id, type) } catch (e) { alert(e.message) }
+    try {
+      await api.devices.sendCommand(id, type)
+      setCmdMsg(isAr ? 'تم إرسال الأمر بنجاح ✓' : 'Commande envoyée avec succès ✓')
+    } catch (e) { setCmdMsg(isAr ? 'تعذّر إرسال الأمر. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.') }
     finally { setSending(false); setConfirm(null) }
   }
 
@@ -130,11 +137,11 @@ export default function DeviceDetail() {
       const data = await api.sharing.create(id, 24)
       const token = data.token || data.share_token || data.shareToken
       if (token) setShareLink(window.location.origin + '/share/' + token)
-    } catch (e) { alert(e.message) }
+    } catch (e) { setShareErr(isAr ? 'تعذّر إنشاء الرابط. حاول مرة أخرى.' : 'Impossible de créer le lien. Réessayez.') }
   }
 
   function copyLink() {
-    navigator.clipboard.writeText(shareLink)
+    navigator.clipboard.writeText(shareLink).catch(() => {})
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
@@ -221,6 +228,17 @@ export default function DeviceDetail() {
                  <span className="text-xs text-slate-500">{isAr ? 'اشتراك الجهاز' : 'Abonnement appareil'}</span>
                 <SubscriptionBadge device={device} lang={lang} dark />
               </div>
+              {/* Offline / stale data guidance */}
+              {device.status !== 'online' && lastUpdate && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl" style={{ background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.15)' }}>
+                  <span className="text-red-400 flex-shrink-0">⚡</span>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {isAr
+                      ? `آخر اتصال منذ ${timeAgo(lastUpdate, lang)}. تحقق من طاقة الجهاز وتغطية الشبكة.`
+                      : `Dernier signal il y a ${timeAgo(lastUpdate, lang)}. Vérifiez l'alimentation et la couverture réseau.`}
+                  </p>
+                </div>
+              )}
               {/* Mini map */}
               {trackingEnabled && validPosition(latitude, longitude) && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
@@ -238,12 +256,24 @@ export default function DeviceDetail() {
                   { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
                   { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
                   { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—' },
-                  { label: isAr?'IMEI':'IMEI', val: device.imei || '—' },
+                  { label: isAr?'IMEI':'IMEI', val: device.imei ? (device.imei.slice(0,6)+'✦✦✦✦✦✦'+device.imei.slice(-4)) : '—', copy: device.imei },
+                  { label: isAr?'آخر تحديث':'Dernier signal', val: lastUpdate ? timeAgo(lastUpdate, lang) : (isAr?'لا توجد بيانات':'Aucune donnée') },
                 ].map((row,i,arr) => (
                   <div key={i} className="flex items-center justify-between px-4 py-3"
                      style={{ borderBottom: i<arr.length-1 ? '1px solid #f1f5f9' : 'none' }}>
                      <span className="text-xs text-slate-500">{row.label}</span>
-                     <span className="text-xs font-semibold text-slate-800 text-right max-w-48 truncate">{row.val}</span>
+                     <div className="flex items-center gap-2">
+                       <span className="text-xs font-semibold text-slate-800 text-right max-w-40 truncate">{row.val}</span>
+                       {row.copy && (
+                         <button
+                           onClick={() => { navigator.clipboard.writeText(row.copy).catch(()=>{}); setImeiCopied(true); setTimeout(()=>setImeiCopied(false),2000) }}
+                           aria-label={isAr?'نسخ IMEI':'Copier IMEI'}
+                           className="flex-shrink-0 p-1 rounded-lg text-slate-400 transition-colors"
+                         >
+                           {imeiCopied ? <CheckCheck size={12} className="text-emerald-600"/> : <Copy size={12}/>}
+                         </button>
+                       )}
+                     </div>
                   </div>
                 ))}
               </div>
@@ -258,6 +288,20 @@ export default function DeviceDetail() {
               ) : tripsLoading ? (
                 <div className="flex justify-center py-12">
                   <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
+                </div>
+              ) : tripsError ? (
+                <div className="flex flex-col items-center p-6 rounded-2xl text-center" style={cardStyle}>
+                  <p className="text-xs font-semibold text-red-500 mb-3">{tripsError}</p>
+                  <button
+                    onClick={() => { setTrips([]); setTripsError(''); setTab('info'); setTimeout(()=>setTab('route'),80) }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background:'#17324d' }}>
+                    {isAr?'إعادة المحاولة':'Réessayer'}
+                  </button>
+                </div>
+              ) : trips.length === 0 ? (
+                <div className="flex flex-col items-center py-14" style={cardStyle}>
+                  <RouteIcon size={32} className="mb-3 text-slate-300"/>
+                  <p className="text-sm font-semibold text-slate-500">{isAr?'لا توجد رحلات مسجلة اليوم':'Aucun trajet enregistré aujourd\'hui'}</p>
                 </div>
               ) : (
                 <>
@@ -294,6 +338,11 @@ export default function DeviceDetail() {
           {/* COMMANDS */}
           {tab === 'commands' && (
             <motion.div key="cmds" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
+              {cmdMsg && (
+                <div className={`text-xs text-center px-4 py-2.5 rounded-xl font-medium ${cmdMsg.includes('✓') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  {cmdMsg}
+                </div>
+              )}
               {COMMANDS.map(({ type, ar, fr, color, Icon }) => (
                 <motion.button key={type} whileTap={{ scale:0.97 }}
                   onClick={() => setConfirm({ type, label: isAr ? ar : fr })}
@@ -319,6 +368,7 @@ export default function DeviceDetail() {
             <motion.div key="share" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
               <div className="p-5 rounded-2xl text-center" style={cardStyle}>
                  <Share2 size={32} className="mx-auto mb-3 text-primary-500"/>
+                 {shareErr && <p className="text-xs text-red-500 mb-2">{shareErr}</p>}
                  <p className="text-slate-800 font-extrabold mb-1">{isAr ? 'مشاركة الموقع المباشر' : 'Partage de localisation live'}</p>
                  <p className="text-xs mb-4 text-slate-500">
                   {isAr ? 'أنشئ رابطاً مؤقتاً لمشاركة الموقع المباشر للجهاز' : 'Créez un lien temporaire pour partager la position en temps réel'}
