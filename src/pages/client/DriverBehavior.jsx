@@ -71,7 +71,7 @@ export default function DriverBehavior() {
 
   useEffect(() => { load() }, [load])
 
-  const score = data?.summary?.score ?? 0
+  const score = data?.summary?.latest?.score ?? 0
   const events = data?.scores || []
   const tips = data?.summary?.tips || []
 
@@ -157,10 +157,10 @@ export default function DriverBehavior() {
               <ResponsiveContainer width="100%" height={120}>
                 <BarChart data={events} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <XAxis dataKey="recorded_date" tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}/>
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}/>
                   <Tooltip contentStyle={{ background: '#17324d', border: '1px solid #31516e', borderRadius: 10, color: 'white', fontSize: 11 }}/>
-                  <Bar dataKey="count" fill="#16866d" radius={[4,4,0,0]}/>
+                  <Bar dataKey="speeding_events" fill="#16866d" radius={[4,4,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
