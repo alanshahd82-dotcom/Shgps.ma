@@ -23,5 +23,5 @@ Thumbs.db
 android/
 ios/
 
-# dist/ is intentionally tracked for server deployment
-# do NOT add dist/ here
+# Build output — not tracked in git; generated during deployment
+dist/
