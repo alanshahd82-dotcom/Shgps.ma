@@ -302,7 +302,7 @@ function SubscriptionSection({ client, lang, onUpdate }) {
 export default function ClientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { clientList, devices, addDevice, lang, refreshDevices } = useApp()
+  const { clientList, devices, addDevice, lang, refreshDevices, refreshClients } = useApp()
   const client = clientList.find(c => String(c.id) === String(id))
   const clientDevices = devices.filter(d => String(d.clientId) === String(id) || String(d.user_id) === String(id))
   const [showAdd, setShowAdd] = useState(false)
@@ -368,7 +368,7 @@ export default function ClientDetail() {
         </div>
 
         {/* Subscription Section */}
-        <SubscriptionSection client={client} lang={lang} onUpdate={() => window.location.reload()} />
+        <SubscriptionSection client={client} lang={lang} onUpdate={refreshClients} />
 
         {/* Map */}
         {clientDevices.length > 0 && (

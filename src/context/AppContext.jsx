@@ -24,6 +24,10 @@ export function AppProvider({ children }) {
   const [pushEnabled,    setPushEnabled]    = useState(() => localStorage.getItem('athargps_push') === 'true')
   const wsRef      = useRef(null)
   const wsRetryRef = useRef(0) // exponential backoff counter
+  const devicesRef = useRef([]) // mirror of devices — readable inside stale WS closures
+
+  // Keep devicesRef current so WS closures can look up device names without stale state
+  useEffect(() => { devicesRef.current = devices }, [devices])
 
   // ── Dark mode ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -223,12 +227,13 @@ export function AppProvider({ children }) {
           // Push new events to alertsList
           setAlertsList(prev => {
             const newAlerts = data.events.map(ev => ({
-              id:        ev.id || Date.now(),
-              type:      ev.type || 'event',
-              deviceId:  ev.deviceId,
-              message:   ev.attributes?.message || ev.type,
-              createdAt: ev.eventTime || new Date().toISOString(),
-              read:      false,
+              id:         ev.id || Date.now(),
+              type:       ev.type || 'event',
+              deviceId:   ev.deviceId,
+              deviceName: devicesRef.current.find(d => d.id === ev.deviceId)?.name || '',
+              message:    ev.attributes?.message || ev.type,
+              time:       ev.eventTime || new Date().toISOString(),
+              read:       false,
             }))
             // Fire browser notifications for new alerts (if enabled)
             if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {

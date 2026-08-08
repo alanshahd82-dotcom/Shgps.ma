@@ -6,11 +6,35 @@ import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 
 const alertIcons = {
-  speed: { icon: Zap, color: 'text-orange-500', bg: 'bg-orange-100' },
-  geofence: { icon: MapPin, color: 'text-red-500', bg: 'bg-red-100' },
-  battery: { icon: Battery, color: 'text-yellow-500', bg: 'bg-yellow-100' },
-  power: { icon: Zap, color: 'text-red-600', bg: 'bg-red-100' },
-  engine: { icon: AlertTriangle, color: 'text-purple-500', bg: 'bg-purple-100' },
+  // Generic / legacy
+  speed:    { icon: Zap,           color: 'text-orange-500', bg: 'bg-orange-100' },
+  geofence: { icon: MapPin,         color: 'text-red-500',    bg: 'bg-red-100'    },
+  battery:  { icon: Battery,        color: 'text-yellow-500', bg: 'bg-yellow-100' },
+  power:    { icon: Zap,           color: 'text-red-600',    bg: 'bg-red-100'    },
+  engine:   { icon: AlertTriangle,  color: 'text-purple-500', bg: 'bg-purple-100' },
+  // Traccar event types
+  deviceOverspeed:    { icon: Zap,           color: 'text-orange-500', bg: 'bg-orange-100' },
+  geofenceExit:       { icon: MapPin,         color: 'text-red-500',    bg: 'bg-red-100'    },
+  geofenceEnter:      { icon: MapPin,         color: 'text-blue-500',   bg: 'bg-blue-100'   },
+  devicePowerCut:     { icon: Zap,           color: 'text-red-600',    bg: 'bg-red-100'    },
+  deviceMoving:       { icon: AlertTriangle,  color: 'text-purple-500', bg: 'bg-purple-100' },
+  deviceStopped:      { icon: AlertTriangle,  color: 'text-slate-500',  bg: 'bg-slate-100'  },
+  deviceOnline:       { icon: Zap,           color: 'text-green-500',  bg: 'bg-green-100'  },
+  deviceOffline:      { icon: Zap,           color: 'text-red-500',    bg: 'bg-red-100'    },
+  deviceFuelDrop:     { icon: Battery,        color: 'text-yellow-600', bg: 'bg-yellow-100' },
+  deviceFuelIncrease: { icon: Battery,        color: 'text-green-500',  bg: 'bg-green-100'  },
+  alarm:              { icon: AlertTriangle,  color: 'text-red-500',    bg: 'bg-red-100'    },
+  // App-generated types
+  subscription_expired:  { icon: AlertTriangle, color: 'text-red-600',    bg: 'bg-red-100'    },
+  subscription_expiring: { icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-100' },
+}
+
+// Group-based type filter: maps a filter key to a predicate on alert.type
+const TYPE_FILTER = {
+  speed:        t => t === 'deviceOverspeed' || t === 'speed',
+  geofence:     t => t === 'geofenceExit'  || t === 'geofenceEnter' || t === 'geofence',
+  subscription: t => t === 'subscription_expired' || t === 'subscription_expiring',
+  power:        t => t === 'devicePowerCut' || t === 'deviceOnline' || t === 'deviceOffline' || t === 'power',
 }
 
 
@@ -29,7 +53,7 @@ export default function AdminAlerts() {
 
   const filtered = alertsList.filter(a => {
     const matchRead = filter === 'all' || (filter === 'unread' && !a.read) || (filter === 'read' && a.read)
-    const matchType = typeFilter === 'all' || a.type === typeFilter
+    const matchType = typeFilter === 'all' || (TYPE_FILTER[typeFilter]?.(a.type) ?? a.type === typeFilter)
     return matchRead && matchType
   })
 
@@ -83,11 +107,11 @@ export default function AdminAlerts() {
           <div className="h-8 w-px bg-gray-200 self-center mx-1" />
 
           {[
-            { val: 'all', label: lang === 'ar' ? 'نوع الكل' : 'Tout type' },
-            { val: 'speed', label: lang === 'ar' ? 'سرعة' : 'Vitesse' },
-            { val: 'geofence', label: 'Géofence' },
-            { val: 'battery', label: lang === 'ar' ? 'بطارية' : 'Batterie' },
-            { val: 'power', label: lang === 'ar' ? 'طاقة' : 'Alimentation' },
+            { val: 'all',          label: lang === 'ar' ? 'كل الأنواع' : 'Tout type'    },
+            { val: 'speed',        label: lang === 'ar' ? 'سرعة'       : 'Vitesse'      },
+            { val: 'geofence',     label: 'Géofence'                                     },
+            { val: 'subscription', label: lang === 'ar' ? 'اشتراك'     : 'Abonnement'   },
+            { val: 'power',        label: lang === 'ar' ? 'طاقة'       : 'Alimentation' },
           ].map(f => (
             <button
               key={f.val}
@@ -112,7 +136,7 @@ export default function AdminAlerts() {
             </div>
           ) : (
             filtered.map((alert, i) => {
-              const cfg = alertIcons[alert.type] || alertIcons.speed
+              const cfg = alertIcons[alert.type] || alertIcons.alarm || alertIcons.engine
               const Icon = cfg.icon
               return (
                 <motion.div

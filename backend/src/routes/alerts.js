@@ -23,12 +23,24 @@ import { requireRole } from '../middleware/requireRole.js'
     })
 
     alertsRouter.patch('/read-all', requireAuth, async (req, res) => {
-    try { await db.query('UPDATE alerts SET is_read=true WHERE user_id=$1',[req.user.id]); res.json({success:true}) }
-    catch { res.status(500).json({error:'Server error'}) }
+      try {
+        if (req.user.is_admin) {
+          await db.query('UPDATE alerts SET is_read=true')
+        } else {
+          await db.query('UPDATE alerts SET is_read=true WHERE user_id=$1', [req.user.id])
+        }
+        res.json({ success: true })
+      } catch { res.status(500).json({ error: 'Server error' }) }
     })
 
     alertsRouter.patch('/:id/read', requireAuth, async (req, res) => {
-    try { await db.query('UPDATE alerts SET is_read=true WHERE id=$1 AND user_id=$2',[req.params.id,req.user.id]); res.json({success:true}) }
-    catch { res.status(500).json({error:'Server error'}) }
+      try {
+        if (req.user.is_admin) {
+          await db.query('UPDATE alerts SET is_read=true WHERE id=$1', [req.params.id])
+        } else {
+          await db.query('UPDATE alerts SET is_read=true WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id])
+        }
+        res.json({ success: true })
+      } catch { res.status(500).json({ error: 'Server error' }) }
     })
     
