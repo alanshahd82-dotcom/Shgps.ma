@@ -1,7 +1,10 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { db } from '../db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth }    from '../middleware/auth.js'
+import { requireRole }    from '../middleware/requireRole.js'
+import { validateBody, schemas } from '../validation/schemas.js'
+import { logAudit }    from '../services/auditLog.js'
 
 export const subUsersRouter = Router()
 
@@ -32,7 +35,7 @@ subUsersRouter.get('/', requireAuth, async (req, res) => {
 })
 
 // POST /api/sub-users — create a sub-user
-subUsersRouter.post('/', requireAuth, async (req, res) => {
+subUsersRouter.post('/', requireAuth, requireRole('manager'), validateBody(schemas.createSubUser), async (req, res) => {
   try {
     const { name, email, password, role } = req.body
     if (!name || !email || !password) {
@@ -56,6 +59,7 @@ subUsersRouter.post('/', requireAuth, async (req, res) => {
       [email.toLowerCase().trim(), passwordHash, name.trim(), assignedRole, req.user.id]
     )
     const u = rows[0]
+    await logAudit(req.user.id, 'sub_user_created', 'user', u.id, { email: u.email, role: u.role })
     res.status(201).json({
       id:        u.id,
       email:     u.email,
@@ -109,7 +113,7 @@ subUsersRouter.patch('/:id', requireAuth, async (req, res) => {
 })
 
 // DELETE /api/sub-users/:id
-subUsersRouter.delete('/:id', requireAuth, async (req, res) => {
+subUsersRouter.delete('/:id', requireAuth, requireRole('manager'), async (req, res) => {
   try {
     const { rows } = await db.query(
       'SELECT id FROM users WHERE id=$1 AND parent_client_id=$2',
@@ -117,6 +121,7 @@ subUsersRouter.delete('/:id', requireAuth, async (req, res) => {
     )
     if (!rows[0]) return res.status(404).json({ error: 'Sub-user not found' })
 
+    await logAudit(req.user.id, 'sub_user_deleted', 'user', Number(req.params.id), {})
     await db.query('DELETE FROM users WHERE id=$1', [req.params.id])
     res.json({ success: true })
   } catch (err) {
