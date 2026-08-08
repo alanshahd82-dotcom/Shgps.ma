@@ -278,9 +278,9 @@ import {
     })
 
     // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone، مع خطة الجهاز.
-    devicesRouter.post('/quick-add', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
+    devicesRouter.post('/quick-add', requireAuth, validateBody(schemas.quickAddDevice), async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
-      const { imei, phone, clientId, maxDevices, subscriptionPlanId } = req.body
+      const { imei, phone, clientId, maxDevices, subscriptionPlanId, expiresAt } = req.body
       if (!imei)  return res.status(400).json({ error: 'IMEI required' })
       if (!phone) return res.status(400).json({ error: 'Phone required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
@@ -336,7 +336,10 @@ import {
         } catch (e) { console.warn('Traccar skipped:', e.message) }
 
         const subscriptionStartDate = dateOnly(new Date())
-        const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
+        // expiresAt يُقدَّم من الواجهة إذا أراد المسؤول تحديد تاريخ انتهاء مخصص
+        const subscriptionEndDate = expiresAt
+          ? dateOnly(new Date(expiresAt))
+          : addMonths(subscriptionStartDate, plan.durationMonths)
 
         // إدراج الجهاز + تحديث حد الأجهزة في معاملة واحدة
         await db.query('BEGIN')

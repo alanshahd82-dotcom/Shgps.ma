@@ -1,5 +1,11 @@
 import './env.js'        // ← must be first: populates process.env before config.js is evaluated
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 import express from 'express'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8'))
 import cors from 'cors'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
@@ -283,7 +289,7 @@ app.get('/api/health', async (_req, res) => {
     traccarStatus = r.ok ? 'reachable' : 'error'
   } catch {}
   const ok = dbStatus === 'connected'
-  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', db: dbStatus, traccar: traccarStatus, version: '1.2.0', ts: new Date().toISOString() })
+  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', db: dbStatus, traccar: traccarStatus, version: pkg.version, ts: new Date().toISOString() })
 })
 
 // --- HTTP server ---------------------------------------------------------------
