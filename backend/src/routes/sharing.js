@@ -1,5 +1,7 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth }  from '../middleware/auth.js'
+import { requireRole }  from '../middleware/requireRole.js'
+import { logAudit }    from '../services/auditLog.js'
 import { db } from '../db.js'
 import crypto from 'crypto'
 import * as traccar from '../services/traccar.js'
@@ -8,7 +10,7 @@ import { getSubscriptionSnapshot } from '../services/subscriptions.js'
 export const sharingRouter = Router()
 
 // POST /api/sharing — create share link for a device (24h)
-sharingRouter.post('/', requireAuth, async (req, res) => {
+sharingRouter.post('/', requireAuth, requireRole('manager'), async (req, res) => {
   try {
     const { deviceId, expireHours = 24 } = req.body
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
@@ -31,6 +33,7 @@ sharingRouter.post('/', requireAuth, async (req, res) => {
       [token, deviceId, expiresAt]
     )
 
+    await logAudit(req.user.id, 'share_link_created', 'device', deviceId, { token, expiresAt })
     res.status(201).json({ token, expiresAt })
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
