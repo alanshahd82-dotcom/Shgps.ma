@@ -2,6 +2,7 @@ import { Router } from 'express'
     import { requireAuth }  from '../middleware/auth.js'
 import { requireRole }  from '../middleware/requireRole.js'
 import { logAudit }    from '../services/auditLog.js'
+import { validateBody, schemas } from '../validation/schemas.js'
     import { db }          from '../db.js'
     import * as traccar    from '../services/traccar.js'
 import {
@@ -190,7 +191,7 @@ import {
     })
 
     // POST / — إنشاء جهاز جديد مباشرة (أدمن فقط)
-    devicesRouter.post('/', requireAuth, async (req, res) => {
+    devicesRouter.post('/', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       const { name, imei, type, plate, clientId, subscriptionPlanId } = req.body
       if (!name || !imei) return res.status(400).json({ error: 'Name and IMEI required' })
@@ -268,7 +269,7 @@ import {
     })
 
     // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone، مع خطة الجهاز.
-    devicesRouter.post('/quick-add', requireAuth, async (req, res) => {
+    devicesRouter.post('/quick-add', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       const { imei, phone, clientId, maxDevices, subscriptionPlanId } = req.body
       if (!imei)  return res.status(400).json({ error: 'IMEI required' })
