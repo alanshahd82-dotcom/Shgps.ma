@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Plus, Cpu, Battery, Signal, Wifi, WifiOff, X, CalendarDays, RefreshCw, PauseCircle, PlayCircle, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ChevronLeft, Plus, Cpu, Battery, Signal, Wifi, WifiOff, X, CalendarDays, RefreshCw, PauseCircle, PlayCircle, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
@@ -10,6 +10,7 @@ import MapView from '../../components/MapView'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
+import Button from '../../components/ui/Button'
 
 function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
   const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId, subscriptionPlanId: '3_months' })
@@ -118,7 +119,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
             {/* Fixed footer – always visible */}
             <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
               <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-              <button type="submit" form="add-device-detail-form" disabled={loading} className="flex-1 btn-primary py-3 disabled:opacity-60">{loading ? '...' : t(lang, 'add')}</button>
+              <Button type="submit" form="add-device-detail-form" disabled={loading} variant="primary" className="flex-1 py-3">{loading ? '...' : t(lang, 'add')}</Button>
             </div>
           </motion.div>
         </motion.div>
@@ -151,7 +152,7 @@ function SubscriptionSection({ client, lang, onUpdate }) {
   const statusBadge = isExpired
     ? <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-red-100 text-red-600">🔴 {isAr ? 'منتهي' : 'Expiré'}</span>
     : isSoon
-      ? <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-orange-100 text-orange-600">⚠️ {daysLeft} {isAr ? 'يوم' : 'j'}</span>
+      ? <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-orange-100 text-orange-600 inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{daysLeft} {isAr ? 'يوم' : 'j'}</span>
       : !isActive
         ? <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-gray-100 text-gray-500">⏸ {isAr ? 'موقوف' : 'Suspendu'}</span>
         : <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-600">✓ {isAr ? 'نشط' : 'Actif'}</span>
@@ -387,14 +388,14 @@ export default function ClientDetail() {
             <h3 className="font-bold text-primary-500">
               {lang === 'ar' ? 'الأجهزة المرتبطة' : 'Appareils associés'} ({clientDevices.length})
             </h3>
-             <button
+             <Button
                onClick={() => setShowAdd(true)}
                disabled={clientDevices.length >= Math.max(1, Number(client.maxDevices) || 5)}
-               className="btn-primary py-2 px-4 text-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+               variant="primary" size="sm"
              >
               <Plus size={14} />
               {t(lang, 'addDevice')}
-            </button>
+            </Button>
           </div>
            {clientDevices.length >= Math.max(1, Number(client.maxDevices) || 5) && (
              <div className="mx-5 mt-4 flex items-start gap-2 bg-orange-50 border border-orange-100 text-orange-700 rounded-xl px-4 py-3 text-sm">
