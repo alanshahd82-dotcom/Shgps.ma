@@ -12,6 +12,7 @@ import ConfirmModal from '../../components/ConfirmModal'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
+import Button from '../../components/ui/Button'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -138,10 +139,10 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang, clientsError, 
             {/* Fixed footer – always visible */}
             <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
               <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-              <button type="submit" form="add-device-form" disabled={loading || !form.name || !imeiValid}
-                className="flex-1 btn-primary py-3 disabled:opacity-50">
+              <Button type="submit" form="add-device-form" disabled={loading || !form.name || !imeiValid}
+                variant="primary" className="flex-1 py-3">
                 {loading ? '...' : t(lang, 'add')}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>
@@ -228,7 +229,7 @@ function SyncResultModal({ open, onClose, result, lang }) {
                     <span className="font-semibold">{lang === 'ar' ? 'كل شيء متزامن!' : 'Tout est synchronisé!'}</span>
                   </div>
                 )}
-                <button onClick={onClose} className="w-full btn-primary py-3">{t(lang, 'close')}</button>
+                <Button onClick={onClose} variant="primary" className="w-full py-3">{t(lang, 'close')}</Button>
               </div>
           </motion.div>
         </motion.div>
@@ -321,10 +322,10 @@ export default function AllDevices() {
                 ? (lang === 'ar' ? 'مزامنة...' : 'Sync...')
                 : (lang === 'ar' ? 'مزامنة Traccar' : 'Sync Traccar')}
             </button>
-            <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2 text-sm">
+            <Button onClick={() => setShowAdd(true)} variant="primary" className="text-sm">
               <Plus size={16} />
               {t(lang, 'addDevice')}
-            </button>
+            </Button>
           </div>
         </div>
 
