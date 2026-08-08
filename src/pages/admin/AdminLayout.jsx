@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield, Wrench,
-  Plus, CheckCircle2, AlertCircle, CalendarDays, Hash, User2, Smartphone, CircleHelp
+  Plus, CheckCircle2, AlertCircle, CalendarDays, Hash, User2, Smartphone, CircleHelp,
+  Phone, AlertTriangle, SlidersHorizontal
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
@@ -111,11 +112,11 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                 <p className="text-slate-500 text-sm mb-0.5">{done.name}</p>
                 <p className="text-slate-400 text-xs font-mono mb-1">{done.imei}</p>
                 {done.phone && (
-                  <p className="text-slate-400 text-xs mb-4">📞 {done.phone}</p>
+                  <p className="text-slate-400 text-xs mb-4 flex items-center gap-1.5"><Phone size={12} />{done.phone}</p>
                 )}
                 {!done.clientId && (
                   <p className="text-xs text-amber-500 bg-amber-50 rounded-xl px-3 py-2 mb-4">
-                    {isAr ? '⚠️ الجهاز غير مربوط بعميل — يمكن ربطه لاحقاً من قائمة الأجهزة' : '⚠️ Appareil non assigné — à lier depuis la liste'}
+                    <><AlertTriangle size={13} className="inline me-1 shrink-0" />{isAr ? 'الجهاز غير مربوط بعميل — يمكن ربطه لاحقاً من قائمة الأجهزة' : 'Appareil non assigné — à lier depuis la liste'}</>
                   </p>
                 )}
                 <div className="flex gap-3">
@@ -168,7 +169,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                 {/* ② Phone — required */}
                 <div>
                   <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
-                    <span className="text-base leading-none">📞</span>
+                    <Phone size={14} className="shrink-0" />
                     {isAr ? 'رقم الهاتف (شريحة الجهاز)' : 'Numéro de téléphone (SIM)'}
                     <span className="text-red-400 text-[10px] font-normal ml-1">{isAr ? '(إلزامي)' : '(requis)'}</span>
                   </label>
@@ -188,7 +189,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                   onClick={() => setExpanded(v => !v)}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs font-semibold text-slate-400 hover:bg-slate-100 transition-colors"
                 >
-                  <span>{isAr ? '⚙️ إعدادات إضافية (اختياري)' : '⚙️ Options supplémentaires (facultatif)'}</span>
+                  <span className="flex items-center gap-1.5"><SlidersHorizontal size={13} /><span>{isAr ? 'إعدادات إضافية (اختياري)' : 'Options supplémentaires (facultatif)'}</span></span>
                   <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>▾</motion.span>
                 </button>
 
