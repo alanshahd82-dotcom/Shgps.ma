@@ -30,8 +30,12 @@ import {
       if (!imei) return res.status(400).json({ error: 'IMEI required' })
       try {
         // Check local DB first
-        const { rows } = await db.query('SELECT id, traccar_id, name FROM devices WHERE imei=$1', [imei])
+        const { rows } = await db.query('SELECT id, traccar_id, name, user_id FROM devices WHERE imei=$1', [imei])
         if (rows[0]) {
+          // Reject if the device belongs to a different user (and requester is not admin)
+          if (!req.user.is_admin && rows[0].user_id !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied' })
+          }
           let traccarDevice = null
           let position = null
           try {
