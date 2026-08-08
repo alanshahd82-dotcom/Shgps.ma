@@ -170,7 +170,7 @@ export default function Login() {
       </div>
 
       <div className="pb-10 text-center">
-        <p className="text-xs text-slate-400">© 2025 ATHAR GPS · Fleet intelligence</p>
+        <p className="text-xs text-slate-400">© {new Date().getFullYear()} ATHAR GPS · Fleet intelligence</p>
       </div>
     </div>
   )
