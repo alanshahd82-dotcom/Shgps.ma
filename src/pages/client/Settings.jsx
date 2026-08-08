@@ -10,6 +10,7 @@ import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
+import ConfirmModal  from '../../components/ConfirmModal'
 
 const TABS = [
   { key: 'profile',   Icon: User,  ar: 'الملف',       fr: 'Profil'      },
@@ -71,6 +72,11 @@ export default function Settings() {
   const [showAdd, setShowAdd]       = useState(false)
   const [newUser, setNewUser]       = useState({ name:'', email:'', password:'', role:'viewer' })
   const [savingSub, setSavingSub]   = useState(false)
+  const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', danger: false, onConfirm: () => {} })
+
+  const openConfirm = ({ title, message, danger = false, onConfirm }) =>
+    setConfirmModal({ open: true, title, message, danger, onConfirm })
+  const closeConfirm = () => setConfirmModal(m => ({ ...m, open: false }))
 
   useEffect(() => {
     if (tab === 'subusers') loadSubUsers()
@@ -119,17 +125,31 @@ export default function Settings() {
   }
 
   async function removeSubUser(id) {
-    if (!window.confirm(isAr ? 'حذف المستخدم؟' : 'Supprimer cet utilisateur ?')) return
-    try { await api.subUsers.remove(id); loadSubUsers() } catch (e) { alert(e.message) }
+    openConfirm({
+      title:     isAr ? 'حذف المستخدم' : 'Supprimer l'utilisateur',
+      message:   isAr ? 'هل أنت متأكد من حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.'
+                      : 'Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.',
+      danger:    true,
+      onConfirm: async () => {
+        closeConfirm()
+        try { await api.subUsers.remove(id); loadSubUsers() } catch (e) { alert(e.message) }
+      },
+    })
   }
 
   async function handleLogout() {
-    const confirmed = window.confirm(isAr
-      ? 'هل تريد تسجيل الخروج من ATHAR GPS؟ ستحتاج إلى كلمة المرور عند الدخول مرة أخرى.'
-      : 'Voulez-vous vous déconnecter d’ATHAR GPS ? Vous devrez saisir votre mot de passe pour revenir.')
-    if (!confirmed) return
-    await logoutClient()
-    navigate('/client/login')
+    openConfirm({
+      title:     isAr ? 'تسجيل الخروج' : 'Déconnexion',
+      message:   isAr
+        ? 'هل تريد تسجيل الخروج من ATHAR GPS؟ ستحتاج إلى كلمة المرور عند الدخول مرة أخرى.'
+        : "Voulez-vous vous déconnecter d'ATHAR GPS ? Vous devrez saisir votre mot de passe pour revenir.",
+      danger:    false,
+      onConfirm: async () => {
+        closeConfirm()
+        await logoutClient()
+        navigate('/client/login')
+      },
+    })
   }
 
   const inputClass = { background: '#f8fafc', border: '1px solid #e2e8f0', color: '#17324d' }
@@ -339,6 +359,14 @@ export default function Settings() {
         )}
       </AnimatePresence>
 
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        danger={confirmModal.danger}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirm}
+      />
       <ClientNav/>
     </div>
   )
