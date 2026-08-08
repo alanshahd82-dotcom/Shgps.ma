@@ -46,7 +46,7 @@ function timeAgoShort(ts) {
 }
 
 export default function Alerts() {
-  const { alertsList, lang, markAlertRead, markAllRead } = useApp()
+  const { alertsList, lang, markAlertRead, markAllAlertsRead } = useApp()
   const [filter, setFilter] = useState('all')
   const isAr = lang === 'ar'
 
@@ -74,7 +74,7 @@ export default function Alerts() {
         </div>
         {unread > 0 && (
           <motion.button whileTap={{ scale: 0.94 }}
-            onClick={() => markAllRead && markAllRead()}
+            onClick={() => markAllAlertsRead && markAllAlertsRead()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
              style={{ background: '#e8f5f0', color: '#16866d', border: '1px solid #bfe4d7' }}>
             <CheckCheck size={13}/>
