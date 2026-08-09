@@ -124,7 +124,7 @@ function SubAdminModal({ open, onClose, onSaved, editing, lang, clientList }) {
                     : (isAr ? 'مسؤول فرعي جديد' : 'Nouveau sous-admin')}
                 </h3>
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20">
+              <button onClick={onClose} aria-label={isAr ? 'إغلاق' : 'Fermer'} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20">
                 <X size={16} className="text-white"/>
               </button>
             </div>

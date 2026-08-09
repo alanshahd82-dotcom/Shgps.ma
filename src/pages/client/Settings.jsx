@@ -158,10 +158,10 @@ export default function Settings() {
   }
 
   const inputClass = { background: '#f8fafc', border: '1px solid #e2e8f0', color: '#17324d' }
-  const cardClass  = { background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(23,50,77,.04)' }
+  const cardClass  = { border: '1px solid #e2e8f0', boxShadow: '0 4px 16px rgba(23,50,77,.04)' }
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
@@ -189,7 +189,7 @@ export default function Settings() {
         {/* ── PROFILE ── */}
         {tab === 'profile' && (
           <motion.form key="prof" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} onSubmit={saveProfile}
-            className="space-y-4 p-5 rounded-2xl" style={cardClass}>
+            className="space-y-4 p-5 rounded-2xl bg-white dark:bg-[#112240]" style={cardClass}>
             <Field label={t(lang,'profile')}>
               <DarkInput value={name} onChange={e => setName(e.target.value)}/>
             </Field>
@@ -217,7 +217,7 @@ export default function Settings() {
         {/* ── PASSWORD ── */}
         {tab === 'password' && (
           <motion.form key="pass" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} onSubmit={savePassword}
-            className="space-y-4 p-5 rounded-2xl" style={cardClass}>
+            className="space-y-4 p-5 rounded-2xl bg-white dark:bg-[#112240]" style={cardClass}>
             {[
               { label: t(lang,'currentPassword'), val: curPass, set: setCurPass },
               { label: t(lang,'newPassword'),     val: newPass, set: setNewPass },
@@ -251,7 +251,7 @@ export default function Settings() {
         {/* ── APPEARANCE ── */}
         {tab === 'appear' && (
           <motion.div key="appear" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }}
-            className="space-y-3 p-5 rounded-2xl" style={cardClass}>
+            className="space-y-3 p-5 rounded-2xl bg-white dark:bg-[#112240]" style={cardClass}>
             {[
               { Icon: Globe, label: isAr ? 'اللغة' : 'Langue', ctrl: (
                 <div className="flex gap-2">
@@ -270,7 +270,7 @@ export default function Settings() {
                <div key={i} className="flex items-center justify-between py-2" style={{ borderBottom: i < 2 ? '1px solid #f1f5f9' : 'none' }}>
                 <div className="flex items-center gap-2.5">
                    <Icon size={16} className="text-slate-400"/>
-                   <span className="text-slate-800 text-sm">{label}</span>
+                   <span className="text-slate-800 dark:text-slate-100 text-sm">{label}</span>
                 </div>
                 {ctrl}
               </div>
@@ -282,7 +282,7 @@ export default function Settings() {
         {tab === 'subusers' && (
           <motion.div key="sub" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} className="space-y-3">
             <div className="flex items-center justify-between">
-               <p className="text-xs font-bold tracking-wide uppercase text-slate-500">
+               <p className="text-xs font-bold tracking-wide uppercase text-slate-500 dark:text-slate-400">
                 {isAr ? 'المستخدمون الفرعيون' : 'Sous-utilisateurs'}
               </p>
               <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowAdd(true)}
@@ -297,7 +297,7 @@ export default function Settings() {
                  <div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
               </div>
             ) : subLoadErr ? (
-              <div className="p-5 rounded-2xl text-center" style={cardClass}>
+              <div className="p-5 rounded-2xl text-center bg-white dark:bg-[#112240]" style={cardClass}>
                 <p className="text-xs text-red-500 mb-3">{subLoadErr}</p>
                 <button onClick={loadSubUsers}
                   className="text-xs font-bold px-4 py-2 rounded-xl text-white" style={{ background:'#17324d' }}>
@@ -305,24 +305,24 @@ export default function Settings() {
                 </button>
               </div>
             ) : subUsers.length === 0 ? (
-              <div className="p-6 rounded-2xl text-center" style={cardClass}>
+              <div className="p-6 rounded-2xl text-center bg-white dark:bg-[#112240]" style={cardClass}>
                  <Users size={28} className="mx-auto mb-2 text-slate-300"/>
                  <p className="text-sm text-slate-500">{isAr ? 'لا يوجد مستخدمون فرعيون' : 'Aucun sous-utilisateur'}</p>
               </div>
             ) : subUsers.map(u => (
-              <div key={u.id} className="flex items-center gap-3 p-4 rounded-2xl" style={cardClass}>
+              <div key={u.id} className="flex items-center gap-3 p-4 rounded-2xl bg-white dark:bg-[#112240]" style={cardClass}>
                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                    style={{ background:'#e8f5f0' }}>
                    <span className="text-sm font-bold text-[#16866d]">{(u.name||'?')[0].toUpperCase()}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                   <p className="text-slate-800 font-bold text-sm truncate">{u.name}</p>
-                   <p className="text-xs truncate text-slate-500">{u.email}</p>
+                   <p className="text-slate-800 dark:text-white font-bold text-sm truncate">{u.name}</p>
+                   <p className="text-xs truncate text-slate-500 dark:text-slate-400">{u.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold"
                      style={{ background:'#e8f5f0', color:'#16866d' }}>{u.role || 'viewer'}</span>
-                  <button onClick={() => removeSubUser(u.id)}><Trash2 size={14} style={{ color:'rgba(255,59,48,0.6)' }}/></button>
+                  <button onClick={() => removeSubUser(u.id)} aria-label={isAr ? 'حذف المستخدم' : "Supprimer l'utilisateur"}><Trash2 size={14} style={{ color:'rgba(255,59,48,0.6)' }}/></button>
                 </div>
               </div>
             ))}
@@ -344,7 +344,7 @@ export default function Settings() {
             <div className="absolute inset-0" style={{ background:'rgba(0,0,0,0.6)' }} onClick={() => setShowAdd(false)}/>
             <motion.div
               initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }} transition={{ type:'spring', stiffness:300, damping:30 }}
-              className="relative w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+              className="relative w-full rounded-t-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#112240] p-5 shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-primary-500 font-extrabold text-base">{isAr ? 'إضافة مستخدم' : 'Ajouter utilisateur'}</h3>
                 <button onClick={() => setShowAdd(false)} aria-label={isAr ? 'إغلاق' : 'Fermer'}><X size={20} className="text-slate-400"/></button>

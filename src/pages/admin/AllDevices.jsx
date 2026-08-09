@@ -62,7 +62,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang, clientsError, 
               <h3 className="font-bold text-white text-lg">
                 {lang === 'ar' ? 'إضافة جهاز جديد' : 'Ajouter un appareil'}
               </h3>
-              <button onClick={handleClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+              <button onClick={handleClose} aria-label={lang === 'ar' ? 'إغلاق' : 'Fermer'} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
                 <X size={16} className="text-white" />
               </button>
             </div>
@@ -172,7 +172,7 @@ function SyncResultModal({ open, onClose, result, lang }) {
                   {lang === 'ar' ? 'نتيجة المزامنة' : 'Résultat de la synchronisation'}
                 </h3>
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+              <button onClick={onClose} aria-label={lang === 'ar' ? 'إغلاق' : 'Fermer'} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
                 <X size={16} className="text-white" />
               </button>
             </div>

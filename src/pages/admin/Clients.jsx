@@ -60,7 +60,7 @@ function AddClientModal({ open, onClose, onAdd, lang }) {
                   </div>
                   <h3 className="font-bold text-white text-base">{t(lang, 'addClient')}</h3>
                 </div>
-                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
+                <button onClick={onClose} aria-label={lang === 'ar' ? 'إغلاق' : 'Fermer'} className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center">
                   <X size={16} className="text-white" />
                 </button>
               </div>
@@ -249,7 +249,7 @@ function ResetPasswordModal({ open, onClose, client, lang }) {
                   {lang === 'ar' ? 'إعادة تعيين كلمة المرور' : 'Réinitialiser le mot de passe'}
                 </h3>
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+              <button onClick={onClose} aria-label={lang === 'ar' ? 'إغلاق' : 'Fermer'} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
                 <X size={16} className="text-white" />
               </button>
             </div>
@@ -347,7 +347,7 @@ function EditClientModal({ open, onClose, client, onSave, lang }) {
                 <Pencil size={16} className="text-white" />
                 <h3 className="font-bold text-white">{lang === 'ar' ? 'تعديل اشتراك العميل' : 'Modifier l’abonnement'}</h3>
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+              <button onClick={onClose} aria-label={lang === 'ar' ? 'إغلاق' : 'Fermer'} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
                 <X size={16} className="text-white" />
               </button>
             </div>

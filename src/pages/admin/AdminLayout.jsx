@@ -95,7 +95,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                   </p>
                 </div>
               </div>
-              <button onClick={handleClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20">
+              <button onClick={handleClose} aria-label={isAr ? 'إغلاق' : 'Fermer'} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20">
                 <X size={16} className="text-white" />
               </button>
             </div>
@@ -469,6 +469,7 @@ export default function AdminLayout({ children }) {
             >
               <button
                 onClick={() => setSidebarOpen(false)}
+                aria-label={isAr ? 'إغلاق القائمة' : 'Fermer le menu'}
                 className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
               >
                 <X size={16} />
@@ -484,6 +485,7 @@ export default function AdminLayout({ children }) {
         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
+            aria-label={isAr ? 'فتح القائمة' : 'Ouvrir le menu'}
             className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center"
           >
             <Menu size={20} className="text-primary-500" />

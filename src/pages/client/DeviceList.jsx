@@ -34,13 +34,13 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
 
   return (
     <motion.article initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.035, 0.18) }}
-      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#112240] shadow-sm">
       <button onClick={onClick} className="flex w-full items-center gap-3 p-4 text-start">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ background: status.soft }}>
           <VehicleIcon type={device.type} iconSize={22} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-extrabold text-slate-900">{device.name}</span>
+          <span className="block truncate text-sm font-extrabold text-slate-900 dark:text-white">{device.name}</span>
           <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
             {device.plate && <span className="font-mono">{device.plate}</span>}
             {device.driver && <span>{device.driver}</span>}
@@ -101,9 +101,9 @@ export default function DeviceList() {
   const attentionDevice = devices.find(device => getSubscriptionSnapshot(device).status !== 'active')
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
-      <header className="border-b border-slate-200 bg-white px-5 pb-4 pt-5">
+      <header className="border-b border-slate-200 dark:border-white/10 bg-white dark:bg-[#112240] px-5 pb-4 pt-5">
         <div className="mx-auto max-w-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -111,10 +111,10 @@ export default function DeviceList() {
               <p className="mt-1 text-xs text-slate-500">{devices.length} {isAr ? 'أجهزة مرتبطة بالحساب' : 'appareil(s) lié(s)'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0d1e36] px-3.5 py-3">
             <Search size={16} className="shrink-0 text-slate-400" />
-            <input value={search} onChange={event => setSearch(event.target.value)} placeholder={isAr ? 'ابحث باسم المركبة أو اللوحة' : 'Rechercher par nom ou plaque'} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" />
-            {search && <button onClick={() => setSearch('')}><X size={15} className="text-slate-400" /></button>}
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder={isAr ? 'ابحث باسم المركبة أو اللوحة' : 'Rechercher par nom ou plaque'} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-100 outline-none placeholder:text-slate-400" />
+            {search && <button onClick={() => setSearch('')} aria-label={isAr ? 'مسح البحث' : 'Effacer la recherche'}><X size={15} className="text-slate-400" /></button>}
           </div>
         </div>
       </header>
@@ -125,7 +125,7 @@ export default function DeviceList() {
         <div className="flex gap-2 overflow-x-auto pb-1">
           {FILTERS.map(item => (
             <button key={item.key} onClick={() => setFilter(item.key)}
-              className={`shrink-0 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors ${filter === item.key ? 'border-primary-500 bg-primary-500 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>
+              className={`shrink-0 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors ${filter === item.key ? 'border-primary-500 bg-primary-500 text-white' : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#112240] text-slate-600 dark:text-slate-300'}`}>
               {item[isAr ? 'ar' : 'fr']} <span className="ms-1 opacity-60">{counts[item.key]}</span>
             </button>
           ))}
@@ -134,7 +134,7 @@ export default function DeviceList() {
         <div className="space-y-2.5">
           <AnimatePresence mode="popLayout">
             {filtered.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-dashed border-slate-300 dark:border-white/10 bg-white dark:bg-[#112240] px-5 py-12 text-center">
                 <Car size={30} className="mx-auto mb-3 text-slate-300" />
                 <Car size={40} className="mx-auto mb-3 text-slate-300" />
                 <p className="text-sm font-bold text-slate-700">{search ? (isAr ? 'لا توجد نتائج' : 'Aucun résultat') : (isAr ? 'لا توجد أجهزة' : 'Aucun appareil')}</p>

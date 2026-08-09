@@ -266,7 +266,7 @@ img {
 /* ATHAR GPS product surface */
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 3px solid rgba(228,181,107,.45);
+  outline: 3px solid rgba(0,217,126,.45);
   outline-offset: 2px;
 }
 .page-enter { animation: pageIn .28s ease-out both; }
