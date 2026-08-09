@@ -6,11 +6,14 @@
 
 @layer base {
   :root {
-    --primary: #17324d;
-    --accent: #00D97E;
-    --warning: #c8843c;
-    --danger: #c95d58;
-    --bg: #f5f7f8;
+    --primary: #0b1b33;
+    --accent: #38d39f;
+    --warning: #d9ad62;
+    --danger: #e46b68;
+    --bg: #07111f;
+    --color-foreground: #edf4f2;
+    --color-surface: #0e2035;
+    --color-muted-foreground: #8da2b5;
   }
 
   * {
@@ -25,28 +28,14 @@
   }
 
 
-  .dark {
-    --primary: #0F2044;
-    --accent: #00D97E;
-    --bg: #0b1524;
-    --color-surface: #112240;
-    --color-foreground: #e2e8f0;
-    --color-muted-foreground: #94a3b8;
-    --color-destructive: #FF3B30;
-  }
+  .dark { --primary: #0b1b33; --accent: #38d39f; --bg: #07111f; --color-surface: #0e2035; --color-foreground: #edf4f2; --color-muted-foreground: #8da2b5; --color-destructive: #e46b68; }
 
   body {
     font-family: 'Cairo', system-ui, sans-serif;
-    background: var(--bg, #f5f7f8);
-    color: var(--color-foreground, #17324d);
+    background: var(--bg);
+    color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
     transition: background 0.25s, color 0.25s;
-  }
-
-  :root {
-    --color-foreground: #17324d;
-    --color-surface: #ffffff;
-    --color-muted-foreground: #64748b;
   }
 
   [dir="ltr"] body {
@@ -55,6 +44,9 @@
 }
 
 @layer components {
+  .glass-card {
+    @apply rounded-2xl border border-white/10 bg-[#0e2035]/85 shadow-[0_16px_45px_rgba(0,0,0,.22)] backdrop-blur-xl;
+  }
   .btn-primary {
     @apply bg-accent text-primary-500 font-semibold px-6 py-3 rounded-xl
            hover:bg-emerald-400 active:scale-95 transition-all duration-200 shadow-sm;
@@ -224,10 +216,10 @@
 
 /* Glass morphism */
   .glass {
-   background: rgba(255, 255, 255, 0.9);
+    background: rgba(14, 32, 53, 0.82);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Admin sidebar */
@@ -276,7 +268,7 @@
 }
 
 /* Native mobile viewport and safe-area handling */
- html { background: #f5f7f8; overscroll-behavior: none; }
+ html { background: #07111f; overscroll-behavior: none; color-scheme: dark; }
 body { min-height: 100dvh; overscroll-behavior: none; touch-action: pan-x pan-y; }
 #root { min-height: 100dvh; overscroll-behavior: none; }
 .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
@@ -314,6 +306,61 @@ img {
   overscroll-behavior: none;
   touch-action: manipulation;
 }
+
+.client-app { background: #07111f !important; color: #edf4f2; }
+.client-app .bg-white { background-color: #0e2035 !important; }
+.client-app .bg-slate-50 { background-color: #0a192c !important; }
+.client-app .border-slate-200,
+.client-app .border-slate-100,
+.client-app .border-slate-300 { border-color: rgba(255,255,255,.10) !important; }
+.client-app .text-slate-900,
+.client-app .text-slate-800,
+.client-app .text-slate-700 { color: #edf4f2 !important; }
+.client-app .text-slate-600 { color: #b2c0cc !important; }
+.client-app .text-slate-500,
+.client-app .text-slate-400 { color: #8da2b5 !important; }
+.client-app .text-slate-300 { color: #61788d !important; }
+.client-app .shadow-sm { box-shadow: 0 12px 32px rgba(0,0,0,.18) !important; }
+.client-app .bg-primary-500 { background-color: #0b1b33 !important; }
+.client-app .text-primary-500 { color: #edf4f2 !important; }
+.client-app .bg-primary-50 { background-color: rgba(56,211,159,.12) !important; }
+.client-app .text-danger { color: #e46b68 !important; }
+.client-app .bg-emerald-50 { background-color: rgba(56,211,159,.12) !important; }
+.client-app .text-emerald-700 { color: #75e6bd !important; }
+.client-app .bg-red-50 { background-color: rgba(228,107,104,.12) !important; }
+.client-app .text-red-600, .client-app .text-red-500 { color: #f28c88 !important; }
+.client-app .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255,255,255,.08) !important; }
+.client-app .bg-\[\#f5f7f8\] { background-color: #07111f !important; }
+.client-app .bg-red-50,
+.client-app .bg-orange-50,
+.client-app .bg-yellow-50 { background-color: rgba(228,107,104,.10) !important; }
+.client-app [style*="#ffffff"],
+.client-app [style*="#fff"],
+.client-app [style*="#f8fafc"],
+.client-app [style*="rgb(255, 255, 255)"],
+.client-app [style*="rgb(248, 250, 252)"] {
+  background-color: #0e2035 !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+.client-app [style*="#e2e8f0"],
+.client-app [style*="#f1f5f9"] {
+  border-color: rgba(255,255,255,.10) !important;
+}
+.client-app input,
+.client-app textarea,
+.client-app select { color: #edf4f2 !important; background-color: #0a192c !important; border-color: rgba(255,255,255,.10) !important; }
+.client-app input::placeholder,
+.client-app textarea::placeholder { color: #61788d !important; }
+.glass-card {
+  background: rgba(14,32,53,.82);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 16px 38px rgba(0,0,0,.20);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.client-app .live-dot::after { animation: liveRipple 1.5s ease-out infinite; }
+.client-app input::placeholder { color: #71879b; }
+.client-app button { -webkit-tap-highlight-color: transparent; }
 
 /* ATHAR GPS product surface */
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, MapPinned, Activity, CarFront, CircleHelp,
-  BarChart3, CalendarDays, RefreshCw, ShieldCheck
+  BarChart3, CalendarDays, RefreshCw, ShieldCheck, Bell, Gauge
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
@@ -14,10 +14,10 @@ import SubscriptionBadge from '../../components/SubscriptionBadge'
 import { getSubscriptionSnapshot, getSubscriptionPlan } from '../../utils/subscriptions'
 
 const STATUS = {
-  moving:  { ar: 'تتحرك', fr: 'En mouvement', color: '#16866d', soft: '#e8f5f0' },
-  idle:    { ar: 'خاملة', fr: 'Au ralenti', color: '#b06b1b', soft: '#fff4e5' },
-  stopped: { ar: 'متوقفة', fr: 'À l’arrêt', color: '#b64949', soft: '#fceded' },
-  offline: { ar: 'غير متصلة', fr: 'Hors ligne', color: '#6b7785', soft: '#eef1f4' },
+  moving:  { ar: 'تتحرك', fr: 'En mouvement', color: '#38d39f', soft: 'rgba(56,211,159,.12)' },
+  idle:    { ar: 'خاملة', fr: 'Au ralenti', color: '#d9ad62', soft: 'rgba(217,173,98,.12)' },
+  stopped: { ar: 'متوقفة', fr: 'À l’arrêt', color: '#e46b68', soft: 'rgba(228,107,104,.12)' },
+  offline: { ar: 'غير متصلة', fr: 'Hors ligne', color: '#8da2b5', soft: 'rgba(141,162,181,.12)' },
 }
 
 function Stat({ label, value, color, icon: Icon }) {
@@ -34,21 +34,17 @@ function Stat({ label, value, color, icon: Icon }) {
   )
 }
 
-function QuickLink({ icon: Icon, title, description, onClick }) {
+function QuickLink({ icon: Icon, title, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] px-3.5 py-3 text-start shadow-sm transition-colors hover:border-accent/50 hover:shadow-md"
+      className="group flex min-w-0 flex-1 flex-col items-center gap-2 rounded-2xl border border-white/10 bg-[#0e2035] px-2 py-3 text-center shadow-[0_12px_30px_rgba(0,0,0,.16)] transition-all hover:-translate-y-0.5 hover:border-[#38d39f]/50 active:scale-95"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-500">
+      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#38d39f]/10 text-[#38d39f] transition-colors group-hover:bg-[#38d39f]/20">
         <Icon size={17} />
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-bold text-slate-900">{title}</span>
-        <span className="mt-0.5 block truncate text-[10px] text-slate-500">{description}</span>
-      </span>
-      <ChevronRight size={15} className="shrink-0 text-slate-300 rtl:rotate-180" />
+      <span className="block truncate text-[10px] font-bold text-[#edf4f2]">{title}</span>
     </button>
   )
 }
@@ -89,7 +85,7 @@ export default function Home() {
   })
 
   return (
-    <div className="client-app client-home-screen fixed inset-0 overflow-hidden bg-[#f5f7f8] dark:bg-[#0b1524]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app client-home-screen fixed inset-0 overflow-hidden bg-[#07111f]" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader fixed showUser />
 
       <main
@@ -101,7 +97,9 @@ export default function Home() {
       >
         <div className="mx-auto max-w-xl space-y-5">
 
-        <section className="rounded-2xl bg-primary-500 p-5 text-white shadow-lg shadow-primary-500/10">
+        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0b1b33] p-5 text-white shadow-[0_22px_55px_rgba(0,0,0,.28)]">
+          <div className="pointer-events-none absolute -end-12 -top-16 h-48 w-48 rounded-full border border-[#d9ad62]/20" />
+          <div className="pointer-events-none absolute -end-4 -top-8 h-32 w-32 rounded-full border border-[#38d39f]/15" />
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold text-white/65">{isAr ? 'الأسطول الآن' : 'Flotte maintenant'}</p>
@@ -114,7 +112,7 @@ export default function Home() {
           </div>
           <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3">
             <span className="flex items-center gap-2 text-xs font-semibold text-white/80">
-              <span className="h-2 w-2 rounded-full bg-accent" />
+              <span className="live-dot h-2 w-2 rounded-full bg-accent text-accent" />
               {stats.moving} {isAr ? 'في حركة الآن' : 'en mouvement'}
             </span>
             <button onClick={() => navigate('/client/map')} className="flex items-center gap-1 text-xs font-bold text-accent">
@@ -146,7 +144,7 @@ export default function Home() {
                 <CalendarDays size={17} />
               </span>
               <div>
-                <h2 className="text-sm font-extrabold text-slate-900">{isAr ? 'الاشتراك' : 'Abonnement'}</h2>
+            <h2 className="text-sm font-extrabold text-slate-900">{isAr ? 'الاشتراك' : 'Abonnement'}</h2>
                 <p className="mt-0.5 text-[10px] text-slate-500">
                   {devices.length ? `${subscriptionSummary.active}/${devices.length} ${isAr ? 'نشط' : 'actifs'}` : (isAr ? 'لا توجد أجهزة بعد' : 'Aucun appareil')}
                 </p>
@@ -183,10 +181,11 @@ export default function Home() {
             <h2 className="text-sm font-extrabold text-slate-900">{isAr ? 'اختصارات' : 'Accès rapide'}</h2>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">ATHAR GPS</span>
           </div>
-          <div className="grid gap-2">
-            <QuickLink icon={MapPinned} title={isAr ? 'الخريطة المباشرة' : 'Carte en direct'} description={isAr ? 'تابع مواقع مركباتك الآن' : 'Suivez vos véhicules maintenant'} onClick={() => navigate('/client/map')} />
-            <QuickLink icon={BarChart3} title={isAr ? 'التقارير' : 'Rapports'} description={isAr ? 'الرحلات والمسافات والسرعات' : 'Trajets, distances et vitesses'} onClick={() => navigate('/client/reports')} />
-            <QuickLink icon={CircleHelp} title={isAr ? 'مركز المساعدة' : 'Centre d’aide'} description={isAr ? 'إجابات وطرق التواصل' : 'Réponses et contact support'} onClick={() => navigate('/client/help')} />
+          <div className="flex gap-2">
+            <QuickLink icon={MapPinned} title={isAr ? 'الخريطة' : 'Carte'} onClick={() => navigate('/client/map')} />
+            <QuickLink icon={BarChart3} title={isAr ? 'التقارير' : 'Rapports'} onClick={() => navigate('/client/reports')} />
+            <QuickLink icon={Bell} title={isAr ? 'التنبيهات' : 'Alertes'} onClick={() => navigate('/client/alerts')} />
+            <QuickLink icon={Gauge} title={isAr ? 'سلوك السائق' : 'Conducteur'} onClick={() => navigate('/client/driver-behavior')} />
           </div>
         </section>
 
@@ -200,14 +199,15 @@ export default function Home() {
               const status = STATUS[getDeviceStatusKey(device)] || STATUS.offline
               return (
                 <button key={device.id} type="button" onClick={() => navigate('/client/device/' + device.id)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-start shadow-sm transition-colors hover:border-accent/50">
+                  className="relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0e2035] p-3 text-start shadow-[0_12px_30px_rgba(0,0,0,.16)] transition-all hover:border-[#38d39f]/40 hover:-translate-y-0.5">
+                  <span className="absolute inset-y-0 start-0 w-1" style={{ background: status.color }} />
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ background: status.soft }}>
                     <VehicleIcon type={device.type} iconSize={19} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-bold text-slate-900">{device.name}</span>
                     <span className="mt-1 flex items-center gap-1.5 text-[10px]" style={{ color: status.color }}>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: status.color }} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${getDeviceStatusKey(device) === 'moving' ? 'live-dot' : ''}`} style={{ background: status.color }} />
                       {isAr ? status.ar : status.fr}
                       {device.lastUpdate && <span className="text-slate-400">· {timeAgo(device.lastUpdate)}</span>}
                     </span>

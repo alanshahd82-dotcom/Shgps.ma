@@ -5,7 +5,7 @@ import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
   ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery,
-  Gauge, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
+  Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
   Pencil, Check, X as CloseX
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
@@ -173,32 +173,34 @@ export default function DeviceDetail() {
     .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
     .filter(([lat, lng]) => validPosition(lat, lng))
   const speedData = trips.slice(-40).map((p, i) => ({ i, speed: Math.round(p.speed || 0) }))
-  const cardStyle = { background:'#ffffff', border:'1px solid #e2e8f0', boxShadow:'0 4px 16px rgba(23,50,77,.04)' }
+  const cardStyle = { background:'#0e2035', border:'1px solid rgba(255,255,255,.10)', boxShadow:'0 16px 38px rgba(0,0,0,.20)' }
+  const distanceToday = device?.distanceToday ?? device?.distance_today ?? device?.distance_km ?? device?.distance
+  const signalStrength = device?.signalStrength ?? device?.signal_strength ?? device?.signal ?? device?.rssi
 
   if (loading && !device) return (
-      <div className="client-app min-h-screen flex items-center justify-center bg-[#f5f7f8]">
+      <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">
        <div className="w-9 h-9 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
     </div>
   )
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center gap-3">
-         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200 bg-white"
+        <div className="mx-4 mt-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#102945] to-[#0e2035] px-4 pb-5 pt-4 shadow-[0_18px_48px_rgba(0,0,0,.25)] flex items-center gap-3">
+         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/10 bg-[#07111f] active:scale-95"
            >
            <ChevronLeft size={20} className="text-primary-500" style={{ transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </button>
         <div className="flex-1 min-w-0">
-           <h1 className="text-primary-500 font-extrabold text-lg truncate">{device?.name || '...'}</h1>
-           {device?.plate && <p className="text-xs font-mono text-slate-500">{device.plate}</p>}
+            <h1 className="text-[#edf4f2] font-extrabold text-lg truncate">{device?.name || '...'}</h1>
+            <p className="text-xs font-mono text-slate-500">{device?.plate || device?.imei || (isAr ? 'معرّف غير متاح' : 'Identifier unavailable')}</p>
         </div>
         {/* Live indicator */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-shrink-0"
           style={{ background: stColor + '1a', border:'1px solid ' + stColor + '44' }}>
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background:stColor }}/>
+           <div className={`w-1.5 h-1.5 rounded-full ${st === 'moving' ? 'live-dot' : ''}`} style={{ background:stColor }}/>
              <span className="text-xs font-bold" style={{ color:stColor }}>{stLabel}</span>
         </div>
       </div>
@@ -212,17 +214,17 @@ export default function DeviceDetail() {
 
       {/* Quick stats */}
       {device && (
-        <div className="flex gap-2.5 px-5 mb-4 overflow-x-auto" style={{ scrollbarWidth:'none' }}>
+        <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
           {[
-             { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : '—', color:'#16866d' },
-             { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? device.battery+'%' : '—', color: device.battery < 30 ? '#b64949' : '#16866d' },
-            { Icon:Activity,label:isAr?'المحرك':'Moteur', val: ignition ? (isAr?'شغّال':'Marche') : (isAr?'موقوف':'Arrêt'), color: ignition ? '#00D97E' : '#6b7280' },
-            { Icon:Clock,   label:isAr?'آخر تحديث':'Mis à jour', val: timeAgo(lastUpdate), color:'rgba(255,255,255,0.5)' },
+             { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : '—', color:'#38d39f' },
+             { Icon:Navigation, label:isAr?'المسافة اليوم':'Distance aujourd’hui', val: distanceToday != null ? Number(distanceToday).toFixed(1)+' km' : '—', color:'#d9ad62' },
+             { Icon:Wifi, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff' },
+             { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? device.battery+'%' : '—', color: device.battery < 30 ? '#e46b68' : '#38d39f' },
           ].map(({ Icon, label, val, color },i) => (
-            <div key={i} className="flex-shrink-0 flex flex-col items-center p-3.5 rounded-2xl min-w-20"
+            <div key={i} className="flex min-w-0 flex-col items-center rounded-2xl p-3.5"
               style={cardStyle}>
               <Icon size={16} style={{ color }} className="mb-1.5"/>
-               <span className="text-xs font-bold text-slate-800">{val}</span>
+               <span className="text-xs font-bold text-[#edf4f2]">{val}</span>
                <span className="text-[9px] mt-0.5 text-slate-400">{label}</span>
             </div>
           ))}
@@ -235,8 +237,8 @@ export default function DeviceDetail() {
           <motion.button key={key} whileTap={{ scale:0.94 }} onClick={() => setTab(key)}
             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
                style={tab===key
-               ? { background:'#17324d', color:'white' }
-               : { background:'white', color:'#64748b', border:'1px solid #e2e8f0' }}>
+               ? { background:'#38d39f', color:'#07111f' }
+               : { background:'#0e2035', color:'#8da2b5', border:'1px solid rgba(255,255,255,.10)' }}>
             <Icon size={12}/>{isAr ? ar : fr}
           </motion.button>
         ))}
@@ -255,7 +257,7 @@ export default function DeviceDetail() {
               {/* Offline / stale data guidance */}
               {device.status !== 'online' && lastUpdate && (
                 <div className="flex items-start gap-2.5 p-3.5 rounded-xl" style={{ background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.15)' }}>
-                  <span className="text-red-400 flex-shrink-0">⚡</span>
+                   <Zap size={14} className="text-red-400 flex-shrink-0" />
                   <p className="text-xs text-slate-500 leading-relaxed">
                     {isAr
                       ? `آخر اتصال منذ ${timeAgo(lastUpdate, lang)}. تحقق من طاقة الجهاز وتغطية الشبكة.`
@@ -308,7 +310,7 @@ export default function DeviceDetail() {
                       <div key={field.key} className="flex items-center gap-3 px-4 py-2.5">
                         <span className="text-xs text-slate-500 w-20 flex-shrink-0">{field.label}</span>
                         <input
-                          className="flex-1 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-300"
+                           className="flex-1 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/40"
                           value={editForm[field.key]}
                           onChange={e => setEditForm(f => ({ ...f, [field.key]: e.target.value }))}
                           placeholder={field.placeholder}
@@ -474,12 +476,12 @@ export default function DeviceDetail() {
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 p-3 rounded-xl text-left break-all"
-                     style={{ background:'#f0faf6', border:'1px solid #bfe4d7' }}>
-                       <p className="flex-1 text-xs text-slate-700 break-all">{shareLink}</p>
+                     style={{ background:'rgba(56,211,159,.08)', border:'1px solid rgba(56,211,159,.25)' }}>
+                       <p className="flex-1 text-xs text-[#a8e6cf] break-all">{shareLink}</p>
                     </div>
                     <button onClick={copyLink}
                       className="flex items-center gap-2 mx-auto px-4 py-2.5 rounded-xl text-xs font-semibold"
-                      style={{ background: copied ? '#e8f5f0' : '#f8fafc', color: copied ? '#16866d' : '#17324d', border: '1px solid #e2e8f0' }}>
+                      style={{ background: copied ? 'rgba(56,211,159,.15)' : 'rgba(255,255,255,.07)', color: copied ? '#38d39f' : '#edf4f2', border: '1px solid rgba(255,255,255,.12)' }}>
                       {copied ? <CheckCheck size={14}/> : <Copy size={14}/>}
                       {copied ? (isAr?'تم النسخ!':'Copié !') : (isAr?'نسخ الرابط':'Copier le lien')}
                     </button>
