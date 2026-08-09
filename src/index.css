@@ -362,6 +362,32 @@ img {
 .client-app input::placeholder { color: #71879b; }
 .client-app button { -webkit-tap-highlight-color: transparent; }
 
+/* Trip replay timeline */
+.replay-range {
+  height: 6px;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38d39f, #d9ad62);
+  cursor: pointer;
+}
+.replay-range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  appearance: none;
+  border: 3px solid #07111f;
+  border-radius: 50%;
+  background: #38d39f;
+  box-shadow: 0 0 0 2px rgba(56,211,159,.35);
+}
+.replay-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 3px solid #07111f;
+  border-radius: 50%;
+  background: #38d39f;
+  box-shadow: 0 0 0 2px rgba(56,211,159,.35);
+}
+
 /* ATHAR GPS product surface */
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {

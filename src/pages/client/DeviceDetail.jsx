@@ -522,14 +522,16 @@ export default function DeviceDetail() {
         />
       )}
 
-      <TripReplay
-        deviceId={id}
-        deviceName={device?.name}
-        startTime={replayTrip?.startTime}
-        endTime={replayTrip?.endTime}
-        positions={replayTrip?.route || []}
-        onClose={() => setReplayTrip(null)}
-      />
+      {replayTrip && (
+        <TripReplay
+          deviceId={id}
+          deviceName={device?.name}
+          startTime={replayTrip.startTime}
+          endTime={replayTrip.endTime}
+          positions={replayTrip.route || []}
+          onClose={() => setReplayTrip(null)}
+        />
+      )}
 
       <SubscriptionRenewalModal
         open={showRenew}

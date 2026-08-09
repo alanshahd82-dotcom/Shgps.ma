@@ -62,6 +62,39 @@ function bearing(a, b) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
 }
 
+function timeForProgress(points, value) {
+  if (!points.length) return 0
+  const index = Math.min(points.length - 1, Math.max(0, Math.floor(value)))
+  const nextIndex = Math.min(points.length - 1, index + 1)
+  const ratio = Math.min(1, Math.max(0, value - index))
+  const start = new Date(points[index].fixTime).getTime()
+  const end = new Date(points[nextIndex].fixTime).getTime()
+  return start + (end - start) * ratio
+}
+
+function progressForTime(points, time) {
+  if (!points.length) return 0
+  if (time <= new Date(points[0].fixTime).getTime()) return 0
+  const lastIndex = points.length - 1
+  if (time >= new Date(points[lastIndex].fixTime).getTime()) return lastIndex
+
+  let low = 0
+  let high = lastIndex
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2)
+    const middleTime = new Date(points[middle].fixTime).getTime()
+    if (middleTime === time) return middle
+    if (middleTime < time) low = middle + 1
+    else high = middle - 1
+  }
+
+  const index = Math.max(0, high)
+  const start = new Date(points[index].fixTime).getTime()
+  const end = new Date(points[index + 1].fixTime).getTime()
+  const ratio = end > start ? (time - start) / (end - start) : 0
+  return index + Math.min(1, Math.max(0, ratio))
+}
+
 function labelIcon(label, background) {
   return L.divIcon({
     className: 'athar-replay-marker',
@@ -174,13 +207,13 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       rafRef.current = null
       return undefined
     }
-    if (virtualTimeRef.current === null) virtualTimeRef.current = new Date(route[0].fixTime).getTime() + (progress / (route.length - 1)) * durationMs
+    if (virtualTimeRef.current === null) virtualTimeRef.current = timeForProgress(route, progress)
     const step = frameTime => {
       if (lastFrameRef.current === null) lastFrameRef.current = frameTime
       const delta = Math.min(100, frameTime - lastFrameRef.current)
       lastFrameRef.current = frameTime
       virtualTimeRef.current += delta * multiplier
-      const nextProgress = Math.min(route.length - 1, ((virtualTimeRef.current - new Date(route[0].fixTime).getTime()) / durationMs) * (route.length - 1))
+      const nextProgress = progressForTime(route, virtualTimeRef.current)
       setProgress(nextProgress)
       if (nextProgress >= route.length - 1) {
         setPlaying(false)
@@ -193,6 +226,22 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     rafRef.current = requestAnimationFrame(step)
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); rafRef.current = null; lastFrameRef.current = null }
   }, [playing, multiplier, route, durationMs])
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        onClose()
+      } else if (event.key === ' ') {
+        event.preventDefault()
+        if (route.length > 1) {
+          if (progress >= route.length - 1) reset()
+          setPlaying(value => !value)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose, route.length, progress])
 
   useEffect(() => {
     if (route.length > 1 && !loading && !error) {
