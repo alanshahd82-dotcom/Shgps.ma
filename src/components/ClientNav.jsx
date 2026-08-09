@@ -39,8 +39,8 @@ export default function ClientNav() {
       {/* More panel — slides up above nav bar */}
       {moreOpen && (
         <div
-          className="fixed bottom-[68px] right-4 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden min-w-[170px]"
-          style={{ boxShadow: '0 -4px 32px rgba(23,50,77,0.13)' }}
+          className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-50 min-w-[170px] overflow-hidden rounded-2xl border border-white/10 bg-[#0e2035]/95 shadow-2xl backdrop-blur-xl"
+          style={{ boxShadow: '0 -4px 32px rgba(0,0,0,.35)' }}
         >
           {MORE_NAV.map(item => {
             const active = location.pathname === item.path ||
@@ -50,7 +50,7 @@ export default function ClientNav() {
               <button
                 key={item.path}
                 onClick={() => navTo(item.path)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/5"
               >
                 <div className="relative">
                   <Icon size={18} style={{ color: active ? '#00D97E' : '#64748b' }} />
@@ -63,7 +63,7 @@ export default function ClientNav() {
                     </span>
                   )}
                 </div>
-                <span className="text-sm font-semibold" style={{ color: active ? '#00D97E' : '#374151' }}>
+                <span className="text-sm font-semibold" style={{ color: active ? '#38d39f' : '#a2b3c1' }}>
                   {t(lang, item.labelKey)}
                 </span>
               </button>
@@ -74,16 +74,16 @@ export default function ClientNav() {
 
       {/* Bottom bar */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-30"
+        className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] left-1/2 z-30 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[1.35rem]"
         style={{
           paddingBottom: 'env(safe-area-inset-bottom,0px)',
-          background: 'rgba(255,255,255,0.97)',
-          borderTop: '1px solid #e2e8f0',
-          boxShadow: '0 -8px 24px rgba(23,50,77,0.06)',
+           background: 'rgba(14,32,53,0.86)',
+           border: '1px solid rgba(255,255,255,.1)',
+           boxShadow: '0 16px 42px rgba(0,0,0,.35)',
           backdropFilter: 'blur(16px)',
         }}
       >
-        <div className="flex items-stretch">
+        <div className="flex items-stretch px-1.5">
           {/* Primary 4 items */}
           {PRIMARY_NAV.map(item => {
             const active = location.pathname === item.path ||
@@ -93,7 +93,7 @@ export default function ClientNav() {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className="flex-1 flex flex-col items-center justify-center pt-2.5 pb-2 relative transition-all"
+                    className="flex-1 flex flex-col items-center justify-center rounded-xl py-2.5 relative transition-all active:scale-95"
               >
                 {active && (
                   <div
@@ -101,8 +101,8 @@ export default function ClientNav() {
                     style={{ background: '#00D97E' }}
                   />
                 )}
-                <Icon size={21} style={{ color: active ? '#0F2044' : '#9aa7b5', transition: 'color 0.2s' }} />
-                <span className="text-xs font-semibold mt-1" style={{ color: active ? '#0F2044' : '#9aa7b5', transition: 'color 0.2s' }}>
+                 <Icon size={20} style={{ color: active ? '#38d39f' : '#7890a4', transition: 'color 0.2s' }} />
+                 <span className="text-[10px] font-semibold mt-1" style={{ color: active ? '#edf4f2' : '#7890a4', transition: 'color 0.2s' }}>
                   {t(lang, item.labelKey)}
                 </span>
               </button>
@@ -112,7 +112,7 @@ export default function ClientNav() {
           {/* More button */}
           <button
             onClick={() => setMoreOpen(v => !v)}
-            className="flex-1 flex flex-col items-center justify-center pt-2.5 pb-2 relative transition-all"
+            className="flex-1 flex flex-col items-center justify-center rounded-xl py-2.5 relative transition-all active:scale-95"
           >
             {isMoreActive && (
               <div
@@ -122,11 +122,11 @@ export default function ClientNav() {
             )}
             <MoreHorizontal
               size={21}
-              style={{ color: (moreOpen || isMoreActive) ? '#0F2044' : '#9aa7b5', transition: 'color 0.2s' }}
+              style={{ color: (moreOpen || isMoreActive) ? '#38d39f' : '#7890a4', transition: 'color 0.2s' }}
             />
             <span
               className="text-xs font-semibold mt-1"
-              style={{ color: (moreOpen || isMoreActive) ? '#0F2044' : '#9aa7b5', transition: 'color 0.2s' }}
+              style={{ color: (moreOpen || isMoreActive) ? '#edf4f2' : '#7890a4', transition: 'color 0.2s' }}
             >
               {lang === 'ar' ? 'المزيد' : 'Plus'}
             </span>

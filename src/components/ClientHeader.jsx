@@ -13,7 +13,7 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
 
   return (
     <header
-      className={`${fixed ? 'fixed' : overlay ? 'absolute' : 'sticky'} inset-x-0 top-0 z-40 border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-md`}
+      className={`${fixed ? 'fixed' : overlay ? 'absolute' : 'sticky'} inset-x-0 top-0 z-40 border-b border-white/10 bg-[#07111f]/85 shadow-[0_8px_30px_rgba(0,0,0,.18)] backdrop-blur-xl`}
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="mx-auto flex h-16 max-w-xl items-center justify-between px-5">
@@ -21,10 +21,10 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
         <div className="flex min-w-0 items-center gap-2.5">
           {showUser && (
             <div className="min-w-0 max-w-[8.5rem] text-end">
-              <p className="truncate text-[9px] font-semibold text-slate-400">
+              <p className="truncate text-[9px] font-semibold text-[#8da2b5]">
                 {isAr ? 'مرحباً بك' : 'Bienvenue'}
               </p>
-              <p className="truncate text-xs font-extrabold text-primary-500">{displayName}</p>
+              <p className="truncate text-xs font-extrabold text-[#edf4f2]">{displayName}</p>
             </div>
           )}
           <button
@@ -32,7 +32,7 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
             onClick={() => navigate('/client/alerts')}
             aria-label={isAr ? 'التنبيهات' : 'Notifications'}
             aria-current={location.pathname === '/client/alerts' ? 'page' : undefined}
-            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-primary-500 shadow-sm transition-colors hover:border-accent focus-visible:outline-none"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-[#0e2035] text-[#d9ad62] shadow-sm transition-all hover:border-[#38d39f]/60 active:scale-95 focus-visible:outline-none"
           >
             <Bell size={18} strokeWidth={2} />
             {unreadCount > 0 && (

@@ -20,7 +20,7 @@ function ScoreRing({ score, size = 148 }) {
   const circ = 2 * Math.PI * R
   const offset = circ - (score / 100) * circ
   const color = score >= 80 ? '#16866d' : score >= 60 ? '#b06b1b' : '#b64949'
-  const label = score >= 80 ? (score >= 90 ? '🏆 ممتاز' : '✅ جيد جداً') : score >= 60 ? '⚠️ مقبول' : '❌ ضعيف'
+  const label = score >= 80 ? (score >= 90 ? 'ممتاز' : 'جيد جداً') : score >= 60 ? 'مقبول' : 'ضعيف'
   return (
     <div className="flex flex-col items-center">
       <div className="relative" style={{ width: size, height: size }}>
