@@ -102,7 +102,7 @@ export default function DeviceList() {
   const attentionDevice = devices.find(device => getSubscriptionSnapshot(device).status !== 'active')
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
       <header className="border-b border-slate-200 bg-white px-5 pb-4 pt-5">
         <div className="mx-auto max-w-xl">

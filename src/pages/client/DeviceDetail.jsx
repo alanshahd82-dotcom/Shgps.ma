@@ -178,7 +178,7 @@ export default function DeviceDetail() {
   const signalStrength = device?.signalStrength ?? device?.signal_strength ?? device?.signal ?? device?.rssi
 
   if (loading && !device) return (
-      <div className="client-app min-h-screen flex items-center justify-center bg-[#f5f7f8]">
+      <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">
        <div className="w-9 h-9 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
     </div>
   )
@@ -476,12 +476,12 @@ export default function DeviceDetail() {
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 p-3 rounded-xl text-left break-all"
-                     style={{ background:'#f0faf6', border:'1px solid #bfe4d7' }}>
-                       <p className="flex-1 text-xs text-slate-700 break-all">{shareLink}</p>
+                     style={{ background:'rgba(56,211,159,.08)', border:'1px solid rgba(56,211,159,.25)' }}>
+                       <p className="flex-1 text-xs text-[#a8e6cf] break-all">{shareLink}</p>
                     </div>
                     <button onClick={copyLink}
                       className="flex items-center gap-2 mx-auto px-4 py-2.5 rounded-xl text-xs font-semibold"
-                      style={{ background: copied ? '#e8f5f0' : '#f8fafc', color: copied ? '#16866d' : '#17324d', border: '1px solid #e2e8f0' }}>
+                      style={{ background: copied ? 'rgba(56,211,159,.15)' : 'rgba(255,255,255,.07)', color: copied ? '#38d39f' : '#edf4f2', border: '1px solid rgba(255,255,255,.12)' }}>
                       {copied ? <CheckCheck size={14}/> : <Copy size={14}/>}
                       {copied ? (isAr?'تم النسخ!':'Copié !') : (isAr?'نسخ الرابط':'Copier le lien')}
                     </button>
