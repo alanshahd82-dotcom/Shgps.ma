@@ -32,6 +32,7 @@ import AdminAlerts from './pages/admin/AdminAlerts'
 import DeviceSetup from './pages/admin/DeviceSetup'
 import SupportSettings from './pages/admin/SupportSettings'
 import Leads from './pages/admin/Leads'
+import AdminDriverBehavior from './pages/admin/AdminDriverBehavior'
 import NotFound from './pages/NotFound'
 import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
@@ -169,6 +170,7 @@ export default function App() {
           <Route path="/admin/support"      element={<AdminRoute><SupportSettings /></AdminRoute>} />
           <Route path="/admin/leads"        element={<AdminRoute><Leads /></AdminRoute>} />
           <Route path="/admin/sub-admins"   element={<AdminRoute><SubAdmins /></AdminRoute>} />
+          <Route path="/admin/driver-behavior" element={<AdminRoute><AdminDriverBehavior /></AdminRoute>} />
 
           {/* ── Catch-all → 404 ───────────────────────────────────────── */}
           <Route path="*" element={<NotFound />} />
