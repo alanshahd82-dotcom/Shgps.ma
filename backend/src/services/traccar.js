@@ -36,7 +36,9 @@ export const getHistory = (deviceId, from, to) => {
     from: from || new Date(Date.now()-86400000).toISOString(),
     to:   to   || new Date().toISOString(),
   })
-  return call(`/api/reports/route?${p}`)
+  // Traccar's standard history endpoint is /api/positions.
+  // /api/reports/route is not a Traccar endpoint and returns 404/502.
+  return call(`/api/positions?${p}`)
 }
 
 // ─── المرحلة 1: إصلاح إرسال الأمر (إضافة attributes) ──────────

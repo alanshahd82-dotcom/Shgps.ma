@@ -175,6 +175,73 @@ async function runMigrations() {
         UNIQUE (device_id, recorded_date)
       )
     `)
+    // Keep installations created with the older driver-behavior migration
+    // compatible with the current API columns and queries.
+    await db.query(`
+      ALTER TABLE driver_behavior_scores
+        ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        ADD COLUMN IF NOT EXISTS speeding_events INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS idle_min INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS trip_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS recorded_date DATE,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
+    `)
+    await db.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_name='driver_behavior_scores' AND column_name='date'
+        ) THEN
+          EXECUTE $sql$
+            UPDATE driver_behavior_scores
+            SET recorded_date = COALESCE(recorded_date, date, CURRENT_DATE),
+                speeding_events = COALESCE(speeding_events, 0),
+                idle_min = COALESCE(idle_min, 0),
+                trip_count = COALESCE(trip_count, 0),
+                updated_at = COALESCE(updated_at, NOW())
+            WHERE recorded_date IS NULL
+          $sql$;
+        ELSE
+          UPDATE driver_behavior_scores
+          SET recorded_date = COALESCE(recorded_date, CURRENT_DATE),
+              speeding_events = COALESCE(speeding_events, 0),
+              idle_min = COALESCE(idle_min, 0),
+              trip_count = COALESCE(trip_count, 0),
+              updated_at = COALESCE(updated_at, NOW())
+          WHERE recorded_date IS NULL;
+        END IF;
+      END $$;
+    `)
+    await db.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_name='driver_behavior_scores' AND column_name='client_id'
+        ) THEN
+          EXECUTE $sql$
+            UPDATE driver_behavior_scores
+            SET user_id = COALESCE(user_id, client_id)
+            WHERE user_id IS NULL
+          $sql$;
+          EXECUTE 'ALTER TABLE driver_behavior_scores ALTER COLUMN client_id DROP NOT NULL';
+        END IF;
+        IF EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_name='driver_behavior_scores' AND column_name='date'
+        ) THEN
+          EXECUTE 'ALTER TABLE driver_behavior_scores ALTER COLUMN date DROP NOT NULL';
+        END IF;
+      END $$;
+    `)
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS driver_behavior_scores_device_date_idx
+      ON driver_behavior_scores(device_id, recorded_date)
+    `)
     await db.query(`
       CREATE TABLE IF NOT EXISTS leads (
         id         SERIAL PRIMARY KEY,

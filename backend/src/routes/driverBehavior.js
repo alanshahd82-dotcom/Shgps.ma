@@ -49,6 +49,7 @@ driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
   try {
     const { deviceId, days = 30 } = req.query
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+    const parsedDays = Math.min(Math.max(Number.parseInt(String(days), 10) || 30, 1), 365)
 
     // Verify device access
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
@@ -61,9 +62,9 @@ driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
     const { rows } = await db.query(
       `SELECT score, speeding_events, idle_min, trip_count, recorded_date
        FROM driver_behavior_scores
-       WHERE device_id=$1 AND recorded_date >= NOW() - INTERVAL '${parseInt(days)} days'
+       WHERE device_id=$1 AND recorded_date >= CURRENT_DATE - $2::int
        ORDER BY recorded_date DESC`,
-      [deviceId]
+      [deviceId, parsedDays]
     )
     res.json(rows)
   } catch (err) {

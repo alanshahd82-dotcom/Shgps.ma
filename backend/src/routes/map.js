@@ -1,5 +1,5 @@
 import { Router } from 'express'
-    import { requireAuth, requireAdmin } from '../middleware/auth.js'
+    import { requireAuth } from '../middleware/auth.js'
     import { db }       from '../db.js'
     import * as traccar from '../services/traccar.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
@@ -90,10 +90,32 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
   }
 })
 
-    mapRouter.get('/positions', requireAuth, requireAdmin, async (_req, res) => {
+    mapRouter.get('/positions', requireAuth, async (req, res) => {
     try {
+      const deviceQuery = req.user.is_admin
+        ? req.user.is_sub_admin
+          ? {
+              text: `SELECT d.*,u.name AS client_name
+                     FROM devices d
+                     LEFT JOIN users u ON d.user_id=u.id
+                     WHERE d.user_id IN (
+                       SELECT client_id FROM sub_admin_client_access WHERE sub_admin_id=$1
+                     )`,
+              values: [req.user.id],
+            }
+          : {
+              text: 'SELECT d.*,u.name AS client_name FROM devices d LEFT JOIN users u ON d.user_id=u.id',
+              values: [],
+            }
+        : {
+            text: `SELECT d.*,u.name AS client_name
+                   FROM devices d
+                   LEFT JOIN users u ON d.user_id=u.id
+                   WHERE d.user_id=$1`,
+            values: [req.user.parent_client_id || req.user.id],
+          }
       const [{ rows }, positions] = await Promise.all([
-        db.query('SELECT d.*,u.name AS client_name FROM devices d LEFT JOIN users u ON d.user_id=u.id'),
+        db.query(deviceQuery.text, deviceQuery.values),
         traccar.getAllPositions().catch(()=>[]),
       ])
       const pm = {}
