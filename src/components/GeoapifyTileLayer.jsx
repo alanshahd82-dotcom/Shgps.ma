@@ -1,7 +1,7 @@
 import React from 'react'
 import { TileLayer } from 'react-leaflet'
 
-const TILE_URL = '/api/map/tiles/{z}/{x}/{y}.png?style=osm-bright'
+const TILE_URL = '/api/map/tiles/{z}/{x}/{y}.png?style=dark-matter'
 
 export default function GeoapifyTileLayer() {
   return (

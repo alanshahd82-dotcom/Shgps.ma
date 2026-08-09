@@ -211,8 +211,9 @@ export default function LiveMap() {
           }}
         >
           <span
-            className="rounded-full bg-white"
+            className="rounded-full"
             style={{ width: 6, height: 6, display: 'inline-block',
+              background: wsConnected ? '#38d39f' : '#e46b68',
               animation: wsConnected ? 'ping 2s ease-out infinite' : 'none' }}
           />
           {wsConnected ? 'Live' : 'Offline'}
@@ -267,14 +268,14 @@ export default function LiveMap() {
           width: 46,
           height: 46,
           borderRadius: '50%',
-          background: 'rgba(6,12,26,0.95)',
-          border: '1.5px solid rgba(0,217,126,0.45)',
+          background: 'rgba(14,32,53,0.92)',
+          border: '1px solid rgba(56,211,159,0.35)',
           backdropFilter: 'blur(20px)',
           boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,217,126,0.1)',
           transition: 'bottom 0.35s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        <LocateFixed size={18} style={{ color: '#00D97E' }} />
+        <LocateFixed size={18} style={{ color: '#38d39f' }} />
       </motion.button>
 
       {/* ── Bottom Panel ── */}
@@ -301,7 +302,7 @@ export default function LiveMap() {
             style={{
               width: panelOpen ? 32 : 40,
               height: 4,
-              background: 'rgba(255,255,255,0.18)',
+              background: 'rgba(255,255,255,0.15)',
             }}
           />
         </button>
