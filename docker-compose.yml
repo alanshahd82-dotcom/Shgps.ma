@@ -12,6 +12,12 @@ services:
     restart: unless-stopped
     networks:
       - shgps
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shgps -d shgps"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -20,6 +26,9 @@ services:
   traccar:
     image: traccar/traccar:ubuntu
     container_name: shgps-traccar-1
+    # Custom entrypoint: removes stale H2 lock file before startup to prevent
+    # "database.mv.db is locked" errors after unclean container shutdowns.
+    entrypoint: ["/bin/bash", "/opt/traccar/entrypoint.sh"]
     ports:
       - "5023:5023"   # GT06 / WanWay GS900E
       - "5029:5029"   # WanWay protocol
@@ -29,7 +38,14 @@ services:
     volumes:
       - traccar_data:/opt/traccar/data
       - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+      - ./traccar/entrypoint.sh:/opt/traccar/entrypoint.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+    # Give Traccar up to 30 s to flush the H2 MVStore on SIGTERM before Docker
+    # sends SIGKILL; this prevents lock files from being left behind.
+    stop_grace_period: 30s
     networks:
       - shgps
     healthcheck:
