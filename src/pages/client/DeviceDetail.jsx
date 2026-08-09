@@ -20,6 +20,7 @@ import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
+import TripReplay from '../../components/TripReplay'
 
 function finiteCoordinate(value) {
   if (value == null || value === '') return null
@@ -79,6 +80,7 @@ export default function DeviceDetail() {
   const [sending, setSending] = useState(false)
   const [showRenew, setShowRenew] = useState(false)
   const [tripsError, setTripsError] = useState('')
+  const [replayTrip, setReplayTrip] = useState(null)
   const [cmdMsg, setCmdMsg] = useState('')
   const [shareErr, setShareErr] = useState('')
   const [imeiCopied, setImeiCopied] = useState(false)
@@ -399,6 +401,22 @@ export default function DeviceDetail() {
                       </ResponsiveContainer>
                     </div>
                   )}
+                  <div className="space-y-2">
+                    {trips.map((trip, index) => (
+                      <div key={`${trip.startTime || trip.start_time || index}-${index}`} className="flex items-center gap-3 rounded-2xl p-3" style={cardStyle}>
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background:'rgba(56,211,159,.12)' }}>
+                          <RouteIcon size={16} style={{ color:'#38d39f' }}/>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold text-slate-800">{trip.startTime ? new Date(trip.startTime).toLocaleString(isAr ? 'ar-MA' : 'fr-FR') : (isAr ? `الرحلة ${index + 1}` : `Trajet ${index + 1}`)}</p>
+                          <p className="mt-1 text-[10px] text-slate-500">{trip.distanceKm ?? 0} km · {trip.maxSpeed ?? 0} km/h · {trip.points ?? trip.route?.length ?? 0} {isAr ? 'نقطة' : 'points'}</p>
+                        </div>
+                        <button onClick={() => setReplayTrip(trip)} className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-[#07111f]" style={{ background:'#38d39f' }}>
+                          <Play size={12} fill="currentColor" />{isAr ? 'إعادة العرض' : 'Revoir'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
             </motion.div>
@@ -503,6 +521,15 @@ export default function DeviceDetail() {
           lang={lang}
         />
       )}
+
+      <TripReplay
+        deviceId={id}
+        deviceName={device?.name}
+        startTime={replayTrip?.startTime}
+        endTime={replayTrip?.endTime}
+        positions={replayTrip?.route || []}
+        onClose={() => setReplayTrip(null)}
+      />
 
       <SubscriptionRenewalModal
         open={showRenew}

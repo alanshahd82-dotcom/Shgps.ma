@@ -74,6 +74,14 @@ export const api = {
   map: {
     positions: () => apiFetch('/map/positions'),
   },
+  stats: {
+    getPositions: (deviceId, from, to) => {
+      const params = new URLSearchParams({ deviceId: String(deviceId) })
+      if (from) params.set('from', from)
+      if (to) params.set('to', to)
+      return apiFetch(`/stats/positions?${params}`)
+    },
+  },
   reports: {
     get: (deviceId, from, to) => {
       const params = new URLSearchParams({ deviceId })

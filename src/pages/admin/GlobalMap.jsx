@@ -1,14 +1,24 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Wifi, WifiOff } from 'lucide-react'
+import { CalendarRange, Loader2, Play, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
+import TripReplay from '../../components/TripReplay'
+import { api } from '../../api/index.js'
 
 export default function GlobalMap() {
   const { devices, clientList, lang } = useApp()
   const [selectedDeviceId, setSelectedDeviceId] = useState(null)
+  const [replayDevice, setReplayDevice] = useState(null)
+  const [replayPositions, setReplayPositions] = useState([])
+  const [replayLoading, setReplayLoading] = useState(false)
+  const [replayError, setReplayError] = useState('')
+  const defaultStart = useMemo(() => { const date = new Date(); date.setHours(0, 0, 0, 0); return date.toISOString().slice(0, 16) }, [])
+  const defaultEnd = useMemo(() => new Date().toISOString().slice(0, 16), [])
+  const [replayFrom, setReplayFrom] = useState(defaultStart)
+  const [replayTo, setReplayTo] = useState(defaultEnd)
   const online = devices.filter(d => d.status === 'online')
   const offline = devices.filter(d => d.status !== 'online')
 
@@ -33,6 +43,32 @@ export default function GlobalMap() {
               </div>
             </div>
           </div>
+
+          {selectedDeviceId && (
+            <div className="mx-3 mb-3 rounded-2xl border border-primary-100 bg-primary-50/50 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-bold text-primary-500"><CalendarRange size={14} />{t(lang, 'replay')}</div>
+              <label className="mb-1 block text-[10px] text-slate-500">{t(lang, 'from')}</label>
+              <input type="datetime-local" value={replayFrom} onChange={event => setReplayFrom(event.target.value)} className="mb-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-[11px] text-primary-500" />
+              <label className="mb-1 block text-[10px] text-slate-500">{t(lang, 'to')}</label>
+              <input type="datetime-local" value={replayTo} onChange={event => setReplayTo(event.target.value)} className="mb-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-[11px] text-primary-500" />
+              {replayError && <p className="mb-2 text-[10px] font-semibold text-red-500">{replayError}</p>}
+              <button onClick={async () => {
+                const device = devices.find(item => String(item.id) === String(selectedDeviceId))
+                if (!device) return
+                setReplayLoading(true); setReplayError('')
+                try {
+                  const points = await api.stats.getPositions(device.id, new Date(replayFrom).toISOString(), new Date(replayTo).toISOString())
+                  if (!Array.isArray(points) || points.length < 2) throw new Error('empty')
+                  setReplayPositions(points); setReplayDevice(device)
+                } catch {
+                  setReplayError(lang === 'ar' ? 'لا توجد نقاط كافية في هذه الفترة.' : 'Pas assez de points sur cette période.')
+                } finally { setReplayLoading(false) }
+              }} disabled={replayLoading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-60">
+                {replayLoading ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
+                {t(lang, 'replay')}
+              </button>
+            </div>
+          )}
 
           {/* Device list */}
           <div className="p-3 space-y-1">
@@ -97,6 +133,7 @@ export default function GlobalMap() {
           />
         </div>
       </div>
+      {replayDevice && <TripReplay deviceId={replayDevice.id} deviceName={replayDevice.name} startTime={replayFrom} endTime={replayTo} positions={replayPositions} onClose={() => { setReplayDevice(null); setReplayPositions([]) }} />}
     </AdminLayout>
   )
 }
