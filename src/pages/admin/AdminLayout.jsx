@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield, Wrench,
   Plus, CheckCircle2, AlertCircle, CalendarDays, Hash, User2, Smartphone, CircleHelp,
-  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog
+  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog, Gauge
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
@@ -354,6 +354,7 @@ export default function AdminLayout({ children }) {
     ...(!isSubAdmin ? [
       { path: '/admin/support',    icon: CircleHelp, label: lang === 'ar' ? 'بيانات الدعم'     : 'Support'  },
       { path: '/admin/leads',      icon: Inbox,      label: lang === 'ar' ? 'طلبات التواصل'   : 'Demandes' },
+      { path: '/admin/driver-behavior', icon: Gauge, label: lang === 'ar' ? 'سلوك السائق' : 'Comportement' },
       { path: '/admin/sub-admins', icon: UserCog,    label: lang === 'ar' ? 'مسؤولون فرعيون'  : 'Sous-admins' },
     ] : []),
   ]
