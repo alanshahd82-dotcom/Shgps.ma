@@ -47,6 +47,7 @@ function CopyBtn({ text }) {
   }
   return (
     <button onClick={copy}
+      aria-label={copied ? 'تم النسخ / Copié' : 'نسخ / Copier'}
       className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${copied ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
       {copied ? <Check size={12} /> : <Copy size={12} />}
     </button>

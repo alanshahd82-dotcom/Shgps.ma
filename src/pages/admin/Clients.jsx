@@ -663,7 +663,14 @@ export default function Clients() {
                 transition={{ delay: i * 0.03 }}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3" onClick={() => navigate(`/admin/clients/${client.id}`)}>
+                  <div
+                    className="flex items-center gap-3 cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`فتح تفاصيل ${client.name}`}
+                    onClick={() => navigate(`/admin/clients/${client.id}`)}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && navigate(`/admin/clients/${client.id}`)}
+                  >
                     <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center font-bold text-primary-500">
                       {client.avatar || client.name?.[0]}
                     </div>

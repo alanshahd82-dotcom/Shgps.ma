@@ -109,7 +109,7 @@ export default function Terms() {
     <div className="min-h-screen" style={{ background: '#0a1628' }}>
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
-        <button onClick={() => navigate(-1)} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+        <button onClick={() => navigate(-1)} aria-label="رجوع / Retour" className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
           <ChevronLeft size={18} className="text-white" />
         </button>
         <div className="flex-1 min-w-0">
@@ -120,6 +120,7 @@ export default function Terms() {
           <p className="text-blue-200/50 text-[10px]">{c.updated}</p>
         </div>
         <button onClick={() => setLang(l => l === 'ar' ? 'en' : 'ar')}
+          aria-label={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
           className="text-xs bg-white/10 text-white/70 px-3 py-1.5 rounded-lg font-medium">
           {lang === 'ar' ? 'EN' : 'AR'}
         </button>

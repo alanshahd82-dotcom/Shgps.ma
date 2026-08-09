@@ -168,6 +168,7 @@ export default function AdminLogin() {
               <button
                 type="button"
                 onClick={() => setShowPass(v => !v)}
+                aria-label={showPass ? 'إخفاء كلمة المرور / Masquer' : 'إظهار كلمة المرور / Afficher'}
                 className="absolute top-1/2 -translate-y-1/2 transition-colors"
                 style={{
                   insetInlineEnd: '1rem',
