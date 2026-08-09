@@ -1,39 +1,38 @@
 import jwt from 'jsonwebtoken'
-    import { config } from '../config.js'
-    import { db } from '../db.js'
-    import { isRevoked } from '../services/tokenBlacklist.js'
+import { config } from '../config.js'
+import { db } from '../db.js'
+import { isRevoked } from '../services/tokenBlacklist.js'
 
-    export async function requireAuth(req, res, next) {
-    const header = req.headers.authorization
-    if (!header?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' })
-    const token = header.split(' ')[1]
+export async function requireAuth(req, res, next) {
+  const header = req.headers.authorization
+  if (!header?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' })
+  const token = header.split(' ')[1]
 
-    // ── رفض التوكن إذا كان في القائمة السوداء (تم تسجيل الخروج) ─────────────
-    if (isRevoked(token)) return res.status(401).json({ error: 'Token revoked. Please login again.' })
+  // رفض التوكن إذا كان في القائمة السوداء (تم تسجيل الخروج)
+  if (isRevoked(token)) return res.status(401).json({ error: 'Token revoked. Please login again.' })
 
-    try {
-      const { userId } = jwt.verify(token, config.jwtSecret)
-      const { rows } = await db.query(
-        'SELECT id,email,name,is_admin,is_sub_admin,admin_permissions,parent_admin_id,is_active,max_devices,expiry_date,traccar_id,phone,city,subscription,avatar,must_change_password,notification_prefs,parent_client_id,role FROM users WHERE id=$1',
-        [userId]
-      )
-      if (!rows[0] || !rows[0].is_active) return res.status(401).json({ error: 'Account not found or inactive' })
-      req.user = rows[0]
-      next()
-    } catch {
-      res.status(401).json({ error: 'Invalid or expired token' })
-    }
-    }
-
-    export function requireAdmin(req, res, next) {
-    if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin access required' })
+  try {
+    const { userId } = jwt.verify(token, config.jwtSecret)
+    const { rows } = await db.query(
+      'SELECT id,email,name,is_admin,is_sub_admin,admin_permissions,parent_admin_id,is_active,max_devices,expiry_date,traccar_id,phone,city,subscription,avatar,must_change_password,notification_prefs,parent_client_id,role FROM users WHERE id=$1',
+      [userId]
+    )
+    if (!rows[0] || !rows[0].is_active) return res.status(401).json({ error: 'Account not found or inactive' })
+    req.user = rows[0]
     next()
-    }
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' })
+  }
+}
 
-    // Only the main (top-level) admin — sub-admins are blocked
-    export function requireMainAdmin(req, res, next) {
-    if (!req.user?.is_admin || req.user?.is_sub_admin)
-      return res.status(403).json({ error: 'Main admin access required' })
-    next()
-    }
-    
+export function requireAdmin(req, res, next) {
+  if (!req.user?.is_admin) return res.status(403).json({ error: 'Admin access required' })
+  next()
+}
+
+// Only the main (top-level) admin — sub-admins are blocked
+export function requireMainAdmin(req, res, next) {
+  if (!req.user?.is_admin || req.user?.is_sub_admin)
+    return res.status(403).json({ error: 'Main admin access required' })
+  next()
+}

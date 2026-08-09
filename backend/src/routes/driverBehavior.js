@@ -17,7 +17,8 @@ driverBehaviorRouter.post('/scores', requireAuth, validateBody(schemas.driverBeh
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
     const dev = devRows[0]
     if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id) {
+    const scoreOwnerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && dev.user_id !== scoreOwnerId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
@@ -54,7 +55,8 @@ driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
     const dev = devRows[0]
     if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id) {
+    const histOwnerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && dev.user_id !== histOwnerId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
@@ -81,7 +83,8 @@ driverBehaviorRouter.get('/summary', requireAuth, async (req, res) => {
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
     const dev = devRows[0]
     if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id) {
+    const summaryOwnerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && dev.user_id !== summaryOwnerId) {
       return res.status(403).json({ error: 'Access denied' })
     }
 

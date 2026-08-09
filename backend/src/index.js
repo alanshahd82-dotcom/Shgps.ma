@@ -24,6 +24,8 @@ import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
+import helmet    from 'helmet'
+import rateLimit from 'express-rate-limit'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -243,15 +245,21 @@ app.use(cors({
   credentials: true,
 }))
 
-// ── Security Headers ────────────────────────────────────────────────────
-app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff')
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-  if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=63072000')
-  }
-  next()
+// ── Security Headers (Helmet) ────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: false,           // API-only server — no HTML pages
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow CORS
+}))
+
+// ── Global API rate limiter: 300 req / 15 min per IP ────────────────────
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — please try again later.' },
 })
+app.use('/api/', apiLimiter)
 
 app.use(express.json({ limit: '1mb' }))
 
@@ -453,16 +461,35 @@ async function runSubscriptionCheck() {
 }
 
 // --- Start --------------------------------------------------------------------
+let _subsInterval
+let _cacheInterval
+
 server.listen(PORT, async () => {
   console.log('ATHAR GPS Backend running on port ' + PORT)
   await runMigrations()
   await runSubscriptionCheck()
-  setInterval(runSubscriptionCheck, 6 * 60 * 60 * 1000)
+  _subsInterval = setInterval(runSubscriptionCheck, 6 * 60 * 60 * 1000)
   await refreshTraccarOwnerCache()
-  setInterval(refreshTraccarOwnerCache, 60 * 60 * 1000)
+  _cacheInterval = setInterval(refreshTraccarOwnerCache, 60 * 60 * 1000)
   if (config.traccar.email && config.traccar.password) {
     connectTraccar()
   } else {
     console.warn('[Traccar WS] No credentials — bridge disabled')
   }
 })
+
+// --- Graceful shutdown --------------------------------------------------------
+function gracefulShutdown(signal) {
+  console.log(`[Server] Received ${signal} — shutting down gracefully...`)
+  clearInterval(_subsInterval)
+  clearInterval(_cacheInterval)
+  server.close(async () => {
+    console.log('[Server] HTTP server closed')
+    try { await db.end(); console.log('[Server] DB pool closed') } catch {}
+    process.exit(0)
+  })
+  // Force exit if not done in 10 s
+  setTimeout(() => { console.error('[Server] Forced exit'); process.exit(1) }, 10_000).unref()
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'))

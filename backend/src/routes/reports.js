@@ -60,7 +60,8 @@ reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'
     const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
     const dev = rows[0]
     if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id)
+    const rptOwnerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && dev.user_id !== rptOwnerId)
       return res.status(403).json({ error: 'Access denied' })
     if (!getSubscriptionSnapshot(dev).trackingEnabled) {
       return res.json({
@@ -196,7 +197,7 @@ reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
         : `SELECT id, traccar_id, subscription_end_date FROM devices
            WHERE user_id=$1 AND traccar_id IS NOT NULL
              AND (subscription_end_date IS NULL OR subscription_end_date >= CURRENT_DATE)`,
-      req.user.is_admin ? [] : [req.user.id]
+      req.user.is_admin ? [] : [req.user.parent_client_id || req.user.id]
     )
 
     if (!deviceRows.length) {

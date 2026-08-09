@@ -12,6 +12,10 @@ export const subUsersRouter = Router()
 
 // GET /api/sub-users — list sub-users created by this client
 subUsersRouter.get('/', requireAuth, async (req, res) => {
+  // Sub-users cannot manage other sub-users
+  if (req.user.parent_client_id) {
+    return res.status(403).json({ error: 'Sub-users cannot manage accounts' })
+  }
   try {
     const { rows } = await db.query(
       `SELECT id, email, name, role, is_active, created_at
@@ -75,7 +79,11 @@ subUsersRouter.post('/', requireAuth, requireRole('manager'), validateBody(schem
 })
 
 // PATCH /api/sub-users/:id — update role or active status
-subUsersRouter.patch('/:id', requireAuth, async (req, res) => {
+subUsersRouter.patch('/:id', requireAuth, requireRole('manager'), validateBody(schemas.updateSubUser), async (req, res) => {
+  // Sub-users cannot manage other sub-users
+  if (req.user.parent_client_id) {
+    return res.status(403).json({ error: 'Sub-users cannot manage accounts' })
+  }
   try {
     const { role, isActive } = req.body
     const { rows } = await db.query(

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { validateBody, schemas } from '../validation/schemas.js'
 import { db } from '../db.js'
 
 export const maintenanceRouter = Router()
@@ -10,11 +11,12 @@ maintenanceRouter.get('/', requireAuth, async (req, res) => {
     const { deviceId } = req.query
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
-    // Verify access
+    // Verify access — sub-users look up devices through their parent's ownership
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
     const dev = devRows[0]
     if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id)
+    const ownerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && dev.user_id !== ownerId)
       return res.status(403).json({ error: 'Access denied' })
 
     const { rows } = await db.query(
@@ -26,15 +28,15 @@ maintenanceRouter.get('/', requireAuth, async (req, res) => {
 })
 
 // POST /api/maintenance — add log
-maintenanceRouter.post('/', requireAuth, async (req, res) => {
+maintenanceRouter.post('/', requireAuth, validateBody(schemas.createMaintenance), async (req, res) => {
   try {
     const { deviceId, type, note, mileage, date, nextDueMileage } = req.body
-    if (!deviceId || !type) return res.status(400).json({ error: 'deviceId and type are required' })
 
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
     const dev = devRows[0]
     if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id)
+    const ownerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && dev.user_id !== ownerId)
       return res.status(403).json({ error: 'Access denied' })
 
     const { rows } = await db.query(
@@ -52,7 +54,8 @@ maintenanceRouter.delete('/:id', requireAuth, async (req, res) => {
     const { rows } = await db.query('SELECT ml.*, d.user_id FROM maintenance_logs ml JOIN devices d ON d.id=ml.device_id WHERE ml.id=$1', [req.params.id])
     const log = rows[0]
     if (!log) return res.status(404).json({ error: 'Not found' })
-    if (!req.user.is_admin && log.user_id !== req.user.id)
+    const ownerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && log.user_id !== ownerId)
       return res.status(403).json({ error: 'Access denied' })
     await db.query('DELETE FROM maintenance_logs WHERE id=$1', [req.params.id])
     res.json({ success: true })

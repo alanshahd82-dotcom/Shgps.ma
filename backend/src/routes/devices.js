@@ -382,7 +382,7 @@ import {
     })
 
     // PATCH /:id/info — device owner (or admin) can edit name / driver / plate
-    devicesRouter.patch('/:id/info', requireAuth, async (req, res) => {
+    devicesRouter.patch('/:id/info', requireAuth, validateBody(schemas.updateDeviceInfo), async (req, res) => {
       const { name, driver, plate } = req.body
       if (name === undefined && driver === undefined && plate === undefined)
         return res.status(400).json({ error: 'Nothing to update' })
@@ -410,7 +410,7 @@ import {
     // PATCH /:id/subscription — admin or the device owner can renew by plan.
     // Renewal starts at the later of today or the current end date so active
     // time is never lost. This endpoint never changes user-level subscriptions.
-    devicesRouter.patch('/:id/subscription', requireAuth, async (req, res) => {
+    devicesRouter.patch('/:id/subscription', requireAuth, validateBody(schemas.updateDeviceSubscription), async (req, res) => {
       const { subscriptionPlanId } = req.body
       const plan = getSubscriptionPlan(subscriptionPlanId)
       if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
@@ -418,7 +418,8 @@ import {
         const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
         const device = rows[0]
         if (!device) return res.status(404).json({ error: 'Device not found' })
-        if (!req.user.is_admin && device.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+        const subOwnerId = req.user.parent_client_id || req.user.id
+        if (!req.user.is_admin && device.user_id !== subOwnerId) return res.status(403).json({ error: 'Access denied' })
          if (plan.trial && !req.user.is_admin) {
            return res.status(403).json({
              code: 'FREE_TRIAL_REQUIRES_APPROVAL',
@@ -464,7 +465,8 @@ import {
       const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
       const dev = rows[0]
       if (!dev) return res.status(404).json({ error:'Device not found' })
-      if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error:'Access denied' })
+      const getOwnerId = req.user.parent_client_id || req.user.id
+      if (!req.user.is_admin && dev.user_id !== getOwnerId) return res.status(403).json({ error:'Access denied' })
       const subscription = getSubscriptionSnapshot(dev)
       let history = []
       if (subscription.trackingEnabled) {
@@ -512,7 +514,8 @@ import {
       const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
       const dev = rows[0]
       if (!dev) return res.status(404).json({ error:'Device not found' })
-      if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error:'Access denied' })
+      const cmdOwnerId = req.user.parent_client_id || req.user.id
+      if (!req.user.is_admin && dev.user_id !== cmdOwnerId) return res.status(403).json({ error:'Access denied' })
 
       // ── تحقق من وجود traccar_id قبل إرسال الأمر ──────────────────────────
       if (!dev.traccar_id) {
@@ -533,7 +536,8 @@ import {
         const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
         const dev = rows[0]
         if (!dev) return res.status(404).json({ error: 'Device not found' })
-        if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+        const geoOwnerId = req.user.parent_client_id || req.user.id
+        if (!req.user.is_admin && dev.user_id !== geoOwnerId) return res.status(403).json({ error: 'Access denied' })
 
         const { name, latitude, longitude, radius } = req.body
         if (!latitude || !longitude || !radius) {
@@ -605,7 +609,8 @@ import {
         const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
         const dev = rows[0]
         if (!dev) return res.status(404).json({ error: 'Device not found' })
-        if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+        const delGeoOwnerId = req.user.parent_client_id || req.user.id
+        if (!req.user.is_admin && dev.user_id !== delGeoOwnerId) return res.status(403).json({ error: 'Access denied' })
 
         // حذف من قاعدة البيانات المحلية
         await db.query('DELETE FROM local_geofences WHERE device_id=$1', [dev.id])

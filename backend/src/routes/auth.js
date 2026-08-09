@@ -9,7 +9,7 @@ import { requireAuth } from '../middleware/auth.js'
 
 export const authRouter = Router()
 
-import { revokeToken, isRevoked }   from '../services/tokenBlacklist.js'
+import { revokeToken }              from '../services/tokenBlacklist.js'
 import { validateBody, schemas }    from '../validation/schemas.js'
 import { logAudit }                from '../services/auditLog.js'
 
@@ -120,7 +120,7 @@ authRouter.post('/change-password', requireAuth, validateBody(schemas.changePass
 })
 
 // ── PUT /api/auth/profile ─────────────────────────────────────────────────
-authRouter.put('/profile', requireAuth, async (req, res) => {
+authRouter.put('/profile', requireAuth, validateBody(schemas.updateProfile), async (req, res) => {
   const { name, phone, email, notificationPrefs } = req.body
   const normalizedEmail = email === undefined ? null : String(email).trim().toLowerCase()
   if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
@@ -274,11 +274,8 @@ authRouter.post('/forgot-password', async (req, res) => {
 })
 
 // ── POST /api/auth/reset-password ────────────────────────────────────────
-authRouter.post('/reset-password', async (req, res) => {
+authRouter.post('/reset-password', validateBody(schemas.resetPassword), async (req, res) => {
   const { token, newPassword } = req.body
-  if (!token || !newPassword || newPassword.length < 8) {
-    return res.status(400).json({ error: 'Token and password (min 8 chars) are required.' })
-  }
   try {
     const { rows } = await db.query(
       `SELECT t.id, t.user_id, t.expires_at, t.used

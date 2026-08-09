@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { requireAuth, requireMainAdmin } from '../middleware/auth.js'
+import { validateBody, schemas } from '../validation/schemas.js'
 import { db } from '../db.js'
 
 export const subAdminsRouter = Router()
@@ -32,7 +33,7 @@ subAdminsRouter.get('/', requireAuth, requireMainAdmin, async (req, res) => {
 })
 
 // POST /api/sub-admins — create sub-admin
-subAdminsRouter.post('/', requireAuth, requireMainAdmin, async (req, res) => {
+subAdminsRouter.post('/', requireAuth, requireMainAdmin, validateBody(schemas.createSubAdmin), async (req, res) => {
   const { name, email, password, adminPermissions } = req.body
   if (!name || !email || !password)
     return res.status(400).json({ error: 'name, email, password required' })
@@ -55,7 +56,7 @@ subAdminsRouter.post('/', requireAuth, requireMainAdmin, async (req, res) => {
 })
 
 // PATCH /api/sub-admins/:id — update sub-admin
-subAdminsRouter.patch('/:id', requireAuth, requireMainAdmin, async (req, res) => {
+subAdminsRouter.patch('/:id', requireAuth, requireMainAdmin, validateBody(schemas.updateSubAdmin), async (req, res) => {
   const { name, isActive, adminPermissions, password } = req.body
   const sets = []
   const vals = []
@@ -108,7 +109,7 @@ subAdminsRouter.get('/:id/clients', requireAuth, requireMainAdmin, async (req, r
 })
 
 // PUT /api/sub-admins/:id/clients — replace client assignments
-subAdminsRouter.put('/:id/clients', requireAuth, requireMainAdmin, async (req, res) => {
+subAdminsRouter.put('/:id/clients', requireAuth, requireMainAdmin, validateBody(schemas.assignSubAdminClients), async (req, res) => {
   const { clientIds } = req.body
   if (!Array.isArray(clientIds)) return res.status(400).json({ error: 'clientIds must be array' })
   try {

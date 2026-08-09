@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { validateBody, schemas } from '../validation/schemas.js'
 import { db }       from '../db.js'
 import * as traccar from '../services/traccar.js'
 import { addMonths, dateOnly, getSubscriptionPlan } from '../services/subscriptions.js'
@@ -55,7 +56,7 @@ clientsRouter.get('/', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
-clientsRouter.post('/', requireAuth, requireAdmin, async (req, res) => {
+clientsRouter.post('/', requireAuth, requireAdmin, validateBody(schemas.createClient), async (req, res) => {
   const { name, email, phone, subscription, maxDevices, expiryDate } = req.body
   let { password } = req.body
   if (!name || !email) return res.status(400).json({ error: 'Name and email are required' })
@@ -92,7 +93,7 @@ clientsRouter.post('/', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-clientsRouter.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+clientsRouter.put('/:id', requireAuth, requireAdmin, validateBody(schemas.updateClient), async (req, res) => {
   const { name, phone, city, subscription, is_active, maxDevices, expiryDate } = req.body
   const parsedMaxDevices = maxDevices === undefined || maxDevices === '' ? null : Number(maxDevices)
   const hasExpiryDate = Object.prototype.hasOwnProperty.call(req.body, 'expiryDate')
@@ -132,7 +133,7 @@ clientsRouter.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
 })
 
 // POST /api/clients/:id/reset-password — reset client password (admin)
-clientsRouter.post('/:id/reset-password', requireAuth, requireAdmin, async (req, res) => {
+clientsRouter.post('/:id/reset-password', requireAuth, requireAdmin, validateBody(schemas.resetClientPassword), async (req, res) => {
   const { password } = req.body
   if (!password) return res.status(400).json({ error: 'Password required' })
   try {
@@ -148,7 +149,7 @@ clientsRouter.post('/:id/reset-password', requireAuth, requireAdmin, async (req,
 })
 
 // PATCH /api/clients/:id/subscription — update subscription fields (admin)
-clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, res) => {
+clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, validateBody(schemas.updateClientSubscription), async (req, res) => {
   const { expiryDate, plan, maxDevices, isActive } = req.body
   const params = []
   const sets = []
@@ -180,7 +181,7 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
-clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) => {
+clientsRouter.post('/:id/devices', requireAuth, requireAdmin, validateBody(schemas.addClientDevice), async (req, res) => {
   const { name, imei, type, plate, subscriptionPlanId } = req.body
   if (!name||!imei) return res.status(400).json({ error:'Name and IMEI required' })
   const plan = getSubscriptionPlan(subscriptionPlanId)
