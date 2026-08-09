@@ -7,7 +7,6 @@ import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
-import { VehicleIcon, getDeviceStatusKey } from '../../components/ui'
 
 const PERIODS = [
   { key: 7,  ar: '7 أيام',  fr: '7 jours'  },
@@ -84,7 +83,7 @@ export default function DriverBehavior() {
   }
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
@@ -93,10 +92,10 @@ export default function DriverBehavior() {
 
         {/* Device picker */}
         <button onClick={() => setShowDevices(s => !s)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl mb-3 border border-slate-200 bg-white shadow-sm">
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl mb-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-sm">
           <div className="flex items-center gap-2">
              <Car size={15} className="text-primary-500"/>
-             <span className="text-slate-800 text-sm font-bold">
+             <span className="text-slate-800 dark:text-slate-100 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
@@ -106,10 +105,10 @@ export default function DriverBehavior() {
         <AnimatePresence>
           {showDevices && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="w-full px-4 py-3 text-left text-sm"
+                  className="w-full px-4 py-3 text-start text-sm"
                   style={{ color: String(d.id) === deviceId ? '#17324d' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
                   {d.name}
                 </button>
@@ -141,17 +140,28 @@ export default function DriverBehavior() {
       ) : (
         <div className="px-5 space-y-5">
           {/* Score ring */}
-             <div className="p-6 rounded-xl flex flex-col items-center bg-white border border-slate-200 shadow-sm">
-             <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
+          {data?.summary?.latest == null ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700">
+                <Gauge size={26} className="text-slate-300 dark:text-slate-600"/>
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {isAr ? 'لا توجد بيانات سلوك للفترة المحددة' : 'Aucune donnée pour cette période'}
+              </p>
+            </div>
+          ) : (
+             <div className="p-6 rounded-xl flex flex-col items-center bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700 shadow-sm">
+             <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500 dark:text-slate-400">
               {isAr ? 'نقاط السلامة' : 'Score de sécurité'}
             </p>
             <ScoreRing score={score}/>
           </div>
+          )}
 
           {/* Event chart */}
           {events.length > 0 && (
-             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-               <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
+             <div className="p-4 rounded-xl bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700 shadow-sm">
+               <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500 dark:text-slate-400">
                 {isAr ? 'الأحداث' : 'Événements'}
               </p>
               <ResponsiveContainer width="100%" height={120}>

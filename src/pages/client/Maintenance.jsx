@@ -47,9 +47,9 @@ export default function Maintenance() {
     try {
       const data = await api.maintenance.list(deviceId)
       setLogs(Array.isArray(data) ? data : data.logs || [])
-    } catch (e) { console.error(e) }
+    } catch (e) { showOpErr(isAr ? 'تعذّر تحميل السجلات. تحقق من اتصالك وأعد المحاولة.' : 'Impossible de charger les enregistrements.') }
     finally { setLoading(false) }
-  }, [deviceId])
+  }, [deviceId, isAr])
 
   useEffect(() => { load() }, [load])
 
@@ -78,13 +78,14 @@ export default function Maintenance() {
   const getSvc = key => SERVICE_TYPES.find(s => s.key === key) || SERVICE_TYPES[SERVICE_TYPES.length - 1]
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowForm(true)}
+          aria-label={isAr ? 'إضافة سجل صيانة' : 'Ajouter maintenance'}
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background: '#17324d' }}>
           <Plus size={20} color="white"/>
@@ -94,10 +95,10 @@ export default function Maintenance() {
       {/* Device picker */}
       <div className="px-5 mb-4">
         <button onClick={() => setShowDevices(s => !s)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-sm">
           <div className="flex items-center gap-2">
              <Car size={15} className="text-primary-500"/>
-             <span className="text-slate-800 text-sm font-bold">
+             <span className="text-slate-800 dark:text-slate-100 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
@@ -106,10 +107,10 @@ export default function Maintenance() {
         <AnimatePresence>
           {showDevices && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              className="mt-1 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="w-full px-4 py-3 text-left text-sm"
+                  className="w-full px-4 py-3 text-start text-sm"
                   style={{ color: String(d.id) === deviceId ? '#17324d' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
                   {d.name}
                 </button>
@@ -156,7 +157,8 @@ export default function Maintenance() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-slate-800 font-bold text-sm">{svc[isAr ? 'ar' : 'fr']}</p>
-                    <button onClick={() => handleDelete(log.id)} className="p-1">
+                    <button onClick={() => handleDelete(log.id)} className="p-1"
+                      aria-label={isAr ? 'حذف السجل' : 'Supprimer'}>
                       <Trash2 size={14} style={{ color: 'rgba(255,59,48,0.6)' }}/>
                     </button>
                   </div>

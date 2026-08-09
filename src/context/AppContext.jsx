@@ -129,7 +129,10 @@ export function AppProvider({ children }) {
       cancelled = true
       closeWebSocket()
     }
-  }, []) // eslint-disable-line
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // ^ intentional: session hydration must run exactly once on mount;
+  //   adding deps would re-run the effect on every auth state change
+  }, [])
 
   // Refresh devices every 30 s, clients every 60 s
   useEffect(() => {
@@ -137,7 +140,10 @@ export function AppProvider({ children }) {
     const devId     = setInterval(loadDevices, 30000)
     const clientsId = adminAuth ? setInterval(loadClients, 60000) : null
     return () => { clearInterval(devId); if (clientsId) clearInterval(clientsId) }
-  }, [clientAuth, adminAuth]) // eslint-disable-line
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // ^ intentional: interval must restart only when auth changes, not on every
+  //   loadDevices/loadClients reference update (stable functions)
+  }, [clientAuth, adminAuth])
 
   async function loadDevices() {
     try {

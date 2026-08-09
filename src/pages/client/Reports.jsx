@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  BarChart2, Clock, Navigation, Gauge, Download, ChevronDown,
-  Calendar, FileText, Car
+  BarChart2, Clock, Navigation, Gauge, ChevronDown, FileText, Car
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useApp } from '../../context/AppContext'
@@ -21,16 +20,16 @@ const RANGES = [
 function StatCard({ icon: Icon, label, value, unit, color }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="p-4 rounded-xl flex flex-col gap-2 bg-white border border-slate-200 shadow-sm">
+      className="p-4 rounded-xl flex flex-col gap-2 bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700 shadow-sm">
       <div className="w-10 h-10 rounded-xl flex items-center justify-center"
         style={{ background: color + '1a' }}>
         <Icon size={18} style={{ color }}/>
       </div>
       <div>
-        <p className="text-slate-900 font-extrabold text-xl leading-none">
-          {value ?? '—'}<span className="text-xs font-normal ml-1 text-slate-400">{unit}</span>
+        <p className="text-slate-900 dark:text-slate-100 font-extrabold text-xl leading-none">
+          {value ?? '—'}<span className="text-xs font-normal ml-1 text-slate-400 dark:text-slate-500">{unit}</span>
         </p>
-        <p className="text-xs mt-1 text-slate-500">{label}</p>
+        <p className="text-xs mt-1 text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </motion.div>
   )
@@ -80,7 +79,7 @@ export default function Reports() {
   }, { expired: 0, expiringSoon: 0 })
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
@@ -104,10 +103,10 @@ export default function Reports() {
 
         {/* Device picker */}
         <button onClick={() => setShowDevices(s => !s)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl mb-3 border border-slate-200 bg-white shadow-sm">
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl mb-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-sm">
           <div className="flex items-center gap-2">
              <Car size={15} className="text-primary-500"/>
-             <span className="text-slate-800 text-sm font-bold">
+             <span className="text-slate-800 dark:text-slate-100 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
@@ -116,10 +115,10 @@ export default function Reports() {
         <AnimatePresence>
           {showDevices && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-               className="overflow-hidden rounded-xl mb-3 border border-slate-200 bg-white shadow-sm">
+               className="overflow-hidden rounded-xl mb-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                   className="w-full px-4 py-3 text-left flex items-center gap-2 text-sm transition-all"
+                   className="w-full px-4 py-3 text-start flex items-center gap-2 text-sm transition-all"
                    style={{ color: String(d.id) === deviceId ? '#17324d' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: String(d.id) === deviceId ? '#e4b56b' : '#cbd5e1' }}/>
                   {d.name}
@@ -161,8 +160,8 @@ export default function Reports() {
 
           {/* Speed chart */}
           {chartData.length > 0 && (
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-              <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
+            <div className="p-4 rounded-xl bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700 shadow-sm">
+              <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500 dark:text-slate-400">
                 {isAr ? 'منحنى السرعة' : 'Courbe de vitesse'}
               </p>
               <ResponsiveContainer width="100%" height={130}>
@@ -185,8 +184,8 @@ export default function Reports() {
 
           {/* Trips table */}
           {trips.length > 0 && (
-            <div className="rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm">
-              <div className="px-4 py-3 flex items-center gap-2 border-b border-slate-100">
+            <div className="rounded-xl overflow-hidden bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700 shadow-sm">
+              <div className="px-4 py-3 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700/50">
                 <FileText size={14} className="text-primary-500"/>
                 <p className="text-xs font-bold tracking-wide uppercase text-slate-500">
                   {isAr ? 'سجل الرحلات' : 'Historique trajets'}
@@ -203,7 +202,7 @@ export default function Reports() {
                     <p className="text-slate-700 text-xs font-semibold">{trip.start_time || trip.start}</p>
                     <p className="text-[10px] text-slate-400">{trip.end_time || trip.end}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-end">
                     <span className="text-xs font-bold text-[#16866d]">{trip.distance_km?.toFixed(1) || '—'} km</span>
                     <p className="text-[10px] text-slate-400">{trip.max_speed || '—'} km/h</p>
                   </div>

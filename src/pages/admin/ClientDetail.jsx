@@ -202,7 +202,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
     setRouteLoading(true); setRouteError(''); setRouteData(null); setSelectedTrip(null)
     try {
       const { from, to } = getRangeDates(rangePreset, customFrom, customTo)
-      const data = await api.reports.trips(live.id, from, to)
+      const data = await api.reports.get(live.id, from, to)
       setRouteData(data)
       if (data.trips && data.trips.length > 0) setSelectedTrip(data.trips[0])
     } catch (e) {

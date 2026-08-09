@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Car, Loader2 } from 'lucide-react'
+import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Car } from 'lucide-react'
 import { MapContainer, Circle as LeafletCircle, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
@@ -43,6 +43,8 @@ export default function Geofences() {
   const [alertExit, setAlertExit]   = useState(true)
   const [saving, setSaving]         = useState(false)
   const [showDevices, setShowDevices] = useState(false)
+  const [listErr, setListErr] = useState('')
+  const showListErr = (msg) => { setListErr(msg); setTimeout(() => setListErr(''), 5000) }
   const isAr = lang === 'ar'
 
   const selectedDevice = devices.find(d => String(d.id) === String(deviceId))
@@ -59,9 +61,9 @@ export default function Geofences() {
       const all  = Array.isArray(data) ? data : data.geofences || []
       // filter client-side to show only zones for the selected device
       setGeofences(deviceId ? all.filter(g => !g.device_id || String(g.device_id) === String(deviceId)) : all)
-    } catch (e) { console.error(e) }
+    } catch (e) { showListErr(isAr ? 'تعذّر تحميل المناطق. تحقق من اتصالك.' : 'Impossible de charger les zones.') }
     finally { setLoading(false) }
-  }, [deviceId])
+  }, [deviceId, isAr])
 
   useEffect(() => { load() }, [load])
 
@@ -84,13 +86,14 @@ export default function Geofences() {
   const cardStyle = { background:'#ffffff', border:'1px solid #e2e8f0', boxShadow:'0 4px 16px rgba(23,50,77,.04)' }
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'المناطق الجغرافية' : 'Géofences'}</h1>
         <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowMap(true)}
+          aria-label={isAr ? 'إضافة منطقة جديدة' : 'Ajouter une zone'}
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background:'#17324d' }}>
           <Plus size={20} color="white"/>
@@ -107,15 +110,15 @@ export default function Geofences() {
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
-          <ChevronDown size={15} style={{ color:'rgba(255,255,255,0.4)', transform: showDevices ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}/>
+          <ChevronDown size={15} className="text-slate-400" style={{ transform: showDevices ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}/>
         </button>
         <AnimatePresence>
           {showDevices && (
             <motion.div initial={{ height:0,opacity:0 }} animate={{ height:'auto',opacity:1 }} exit={{ height:0,opacity:0 }}
-              className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              className="mt-1 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="w-full px-4 py-3 text-left text-sm"
+                  className="w-full px-4 py-3 text-start text-sm"
                   style={{ color: String(d.id)===deviceId ? '#17324d' : '#64748b', borderBottom:'1px solid #f1f5f9' }}>
                   {d.name}
                 </button>
@@ -127,6 +130,12 @@ export default function Geofences() {
 
       {/* List */}
       <div className="px-4 space-y-2.5">
+        {listErr && (
+          <div className="mx-1 mb-3 p-3.5 rounded-xl text-sm text-center"
+            style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)', color: '#ff6b60' }}>
+            {listErr}
+          </div>
+        )}
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
@@ -165,7 +174,8 @@ export default function Geofences() {
                   </span>
                 </div>
               </div>
-              <button onClick={() => handleDelete(geo.id)} className="p-2">
+              <button onClick={() => handleDelete(geo.id)} className="p-2"
+                aria-label={isAr ? 'حذف المنطقة' : 'Supprimer la zone'}>
                 <Trash2 size={15} style={{ color:'rgba(255,59,48,0.6)' }}/>
               </button>
             </div>
@@ -180,7 +190,8 @@ export default function Geofences() {
               style={{ background:'#0d1b33' }}>
             <div className="flex items-center justify-between px-5 pt-12 pb-3">
               <h2 className="text-white font-bold text-base">{isAr ? 'رسم منطقة جديدة' : 'Nouvelle zone'}</h2>
-              <button onClick={() => { setShowMap(false); setCenter(null) }}>
+              <button onClick={() => { setShowMap(false); setCenter(null) }}
+                aria-label={isAr ? 'إغلاق' : 'Fermer'}>
                 <X size={22} style={{ color:'rgba(255,255,255,0.5)' }}/>
               </button>
             </div>

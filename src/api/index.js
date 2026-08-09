@@ -101,8 +101,8 @@ export const api = {
       }),
     getScores: (deviceId, days = 30) =>
       apiFetch(`/driver-behavior/scores?deviceId=${deviceId}&days=${days}`),
-    getSummary: (deviceId) =>
-      apiFetch(`/driver-behavior/summary?deviceId=${deviceId}`),
+    getSummary: (deviceId, days = 30) =>
+      apiFetch(`/driver-behavior/summary?deviceId=${deviceId}&days=${days}`),
   },
   sharing: {
     create: (deviceId, expireHours = 24) => apiFetch('/sharing', { method: 'POST', body: JSON.stringify({ deviceId, expireHours }) }),

@@ -53,9 +53,9 @@ export default function ResetPassword() {
   // No token in URL
   if (!token) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f5f7f8] px-7" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f5f7f8] dark:bg-[#0b1524] px-7" dir={isAr ? 'rtl' : 'ltr'}>
         <AlertTriangle size={48} className="text-amber-400 mb-4" />
-        <p className="text-sm text-slate-600 mb-4">{t(lang, 'resetTokenInvalid')}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">{t(lang, 'resetTokenInvalid')}</p>
         <Link to="/client/forgot-password" className="text-xs font-bold text-primary-500">
           {t(lang, 'forgotPassword')}
         </Link>
@@ -64,12 +64,13 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f7f8]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen flex flex-col bg-[#f5f7f8] dark:bg-[#0b1524]" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Top bar */}
       <div className="flex justify-between items-center px-5 pt-12 pb-4">
         <button
           onClick={() => setLang(isAr ? 'fr' : 'ar')}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-primary-500 shadow-sm"
+          aria-label={isAr ? 'Switch to French' : 'التبديل إلى العربية'}
+          className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] px-3 py-1.5 text-xs font-bold text-primary-500 shadow-sm"
         >
           {isAr ? 'FR' : 'AR'}
         </button>
@@ -84,7 +85,7 @@ export default function ResetPassword() {
           transition={{ type: 'spring', stiffness: 180, damping: 18 }}
           className="mb-10 flex flex-col items-center"
         >
-          <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
+          <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] shadow-md">
             <img src="/athar-gps-mark.svg" alt="ATHAR GPS" width="52" height="52" draggable={false} />
           </div>
           <h1 className="text-3xl font-extrabold tracking-widest text-primary-500">ATHAR GPS</h1>
@@ -97,7 +98,7 @@ export default function ResetPassword() {
           transition={{ delay: 0.15, type: 'spring', stiffness: 120 }}
           className="w-full max-w-sm"
         >
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-primary-500/5">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] p-6 shadow-lg shadow-primary-500/5">
             <AnimatePresence mode="wait">
               {success ? (
                 <motion.div
@@ -107,10 +108,10 @@ export default function ResetPassword() {
                   className="text-center py-4"
                 >
                   <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
-                  <p className="text-sm text-slate-600 leading-7">
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-7">
                     {t(lang, 'resetPasswordSuccess')}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-2">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
                     {isAr ? 'سيتم توجيهك تلقائياً...' : 'Redirection automatique...'}
                   </p>
                   <Link to="/client/login"
@@ -124,7 +125,7 @@ export default function ResetPassword() {
                   <h2 className="text-base font-black text-primary-500 mb-1">
                     {t(lang, 'resetPasswordTitle')}
                   </h2>
-                  <p className="text-[11px] text-slate-400 mb-5 leading-5">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-5 leading-5">
                     {t(lang, 'resetPasswordBody')}
                   </p>
 
@@ -146,16 +147,20 @@ export default function ResetPassword() {
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {/* New password */}
                     <div>
-                      <label className="mb-2 block text-xs font-bold tracking-wide text-slate-500">
+                      <label className="mb-2 block text-xs font-bold tracking-wide text-slate-500 dark:text-slate-400">
                         {t(lang, 'password')}
                       </label>
                       <div className="relative">
                         <input
                           type={showPass ? 'text' : 'password'} value={password}
                           onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-800 outline-none transition-all focus:border-accent"
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0b1524] px-4 py-3.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition-all focus:border-accent"
                         />
-                        <button type="button" onClick={() => setShowPass(p => !p)}
+                        <button type="button"
+                          onClick={() => setShowPass(p => !p)}
+                          aria-label={showPass
+                            ? (isAr ? 'إخفاء كلمة المرور' : 'Masquer le mot de passe')
+                            : (isAr ? 'إظهار كلمة المرور' : 'Afficher le mot de passe')}
                           className="absolute top-1/2 -translate-y-1/2 transition-colors"
                           style={{ [isAr ? 'left' : 'right']: '1rem', color: '#94a3b8' }}>
                           {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -165,16 +170,20 @@ export default function ResetPassword() {
 
                     {/* Confirm password */}
                     <div>
-                      <label className="mb-2 block text-xs font-bold tracking-wide text-slate-500">
+                      <label className="mb-2 block text-xs font-bold tracking-wide text-slate-500 dark:text-slate-400">
                         {t(lang, 'confirmPassword')}
                       </label>
                       <div className="relative">
                         <input
                           type={showConf ? 'text' : 'password'} value={confirm}
                           onChange={e => setConfirm(e.target.value)} placeholder="••••••••" required
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-800 outline-none transition-all focus:border-accent"
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0b1524] px-4 py-3.5 text-sm text-slate-800 dark:text-slate-100 outline-none transition-all focus:border-accent"
                         />
-                        <button type="button" onClick={() => setShowConf(p => !p)}
+                        <button type="button"
+                          onClick={() => setShowConf(p => !p)}
+                          aria-label={showConf
+                            ? (isAr ? 'إخفاء تأكيد كلمة المرور' : 'Masquer la confirmation')
+                            : (isAr ? 'إظهار تأكيد كلمة المرور' : 'Afficher la confirmation')}
                           className="absolute top-1/2 -translate-y-1/2 transition-colors"
                           style={{ [isAr ? 'left' : 'right']: '1rem', color: '#94a3b8' }}>
                           {showConf ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -206,7 +215,7 @@ export default function ResetPassword() {
       </div>
 
       <div className="pb-10 text-center">
-        <p className="text-xs text-slate-400">© {new Date().getFullYear()} ATHAR GPS · Fleet intelligence</p>
+        <p className="text-xs text-slate-400 dark:text-slate-600">© {new Date().getFullYear()} ATHAR GPS · Fleet intelligence</p>
       </div>
     </div>
   )

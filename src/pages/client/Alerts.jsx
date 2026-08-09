@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Gauge, MapPin, BatteryLow, Zap, Power, Activity, Wifi, WifiOff,
@@ -60,7 +60,7 @@ export default function Alerts() {
   const unread = useMemo(() => alertsList?.filter(a => !a.read).length || 0, [alertsList])
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
@@ -75,8 +75,9 @@ export default function Alerts() {
         {unread > 0 && (
           <motion.button whileTap={{ scale: 0.94 }}
             onClick={() => markAllAlertsRead && markAllAlertsRead()}
+            aria-label={isAr ? 'تعيين كل التنبيهات كمقروءة' : 'Tout marquer comme lu'}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-             style={{ background: '#e8f5f0', color: '#16866d', border: '1px solid #bfe4d7' }}>
+            style={{ background: '#e8f5f0', color: '#16866d', border: '1px solid #bfe4d7' }}>
             <CheckCheck size={13}/>
             {isAr ? 'قراءة الكل' : 'Tout lire'}
           </motion.button>
@@ -90,11 +91,12 @@ export default function Alerts() {
           return (
             <motion.button key={f.key} whileTap={{ scale: 0.94 }}
               onClick={() => setFilter(f.key)}
-              className="flex-shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
-              style={active
-                 ? { background: '#17324d', color: 'white' }
-                 : { background: 'white', color: '#64748b', border: '1px solid #e2e8f0' }
-              }>
+              aria-pressed={active}
+              className={`flex-shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-all ${
+                active
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-white dark:bg-[#112240] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+              }`}>
               {f[lang === 'ar' ? 'ar' : 'fr']}
             </motion.button>
           )
@@ -105,10 +107,10 @@ export default function Alerts() {
       <div className="px-4 space-y-2">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white border border-slate-200">
-              <Bell size={26} className="text-slate-300"/>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700">
+              <Bell size={26} className="text-slate-300 dark:text-slate-600"/>
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {isAr ? 'لا توجد تنبيهات' : 'Aucune alerte'}
             </p>
           </div>
@@ -121,31 +123,30 @@ export default function Alerts() {
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.035, 0.2) }}
                 onClick={() => markAlertRead && markAlertRead(alert.id)}
-                className="flex items-start gap-3 p-4 rounded-2xl cursor-pointer"
-                 style={{
-                   background: alert.read ? '#ffffff' : '#fffaf0',
-                   border: '1px solid ' + (alert.read ? '#e2e8f0' : '#ead8b4'),
-                 }}>
+                className={`flex items-start gap-3 p-4 rounded-2xl cursor-pointer border ${
+                  alert.read
+                    ? 'bg-white dark:bg-[#112240] border-slate-200 dark:border-slate-700'
+                    : 'bg-[#fffaf0] dark:bg-[#1e2217] border-[#ead8b4] dark:border-[#4a3f1f]'
+                }`}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: cfg.color + '1a' }}>
                   <Icon size={19} style={{ color: cfg.color }}/>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold leading-tight"
-                       style={{ color: alert.read ? '#475569' : '#17324d' }}>
+                    <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-100">
                       {alert.device_name || alert.deviceName || '—'}
                     </p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {!alert.read && (
                         <div className="w-2 h-2 rounded-full" style={{ background: cfg.color }}/>
                       )}
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
                         {timeAgoShort(alert.created_at || alert.ts)}
                       </span>
                     </div>
                   </div>
-                     <p className="text-xs mt-0.5 text-slate-500">
+                  <p className="text-xs mt-0.5 text-slate-500 dark:text-slate-400">
                     {alert.message || alert.type}
                   </p>
                 </div>

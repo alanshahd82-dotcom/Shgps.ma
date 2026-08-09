@@ -98,10 +98,10 @@ export default function ClientWelcome() {
 
   if (stage === 'offer') {
     return (
-      <main className="min-h-screen bg-[#f5f7f8] px-5 py-7 text-primary-500" dir={isAr ? 'rtl' : 'ltr'}>
+      <main className="min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] px-5 py-7 text-primary-500" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-sm flex-col justify-center">
           <div className="mb-8 flex items-center justify-between">
-            <button type="button" onClick={() => setLang(isAr ? 'fr' : 'ar')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold shadow-sm">
+            <button type="button" onClick={() => setLang(isAr ? 'fr' : 'ar')} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] px-3 py-2 text-xs font-bold shadow-sm">
               {copy.language}
             </button>
             <img src="/athar-gps-mark.svg" alt="" className="h-10 w-10 rounded-xl" />
@@ -155,10 +155,10 @@ export default function ClientWelcome() {
   const NextIcon = isAr ? ChevronLeft : ChevronRight
 
   return (
-    <main className="min-h-screen bg-[#f5f7f8] px-5 py-7 text-primary-500" dir={isAr ? 'rtl' : 'ltr'}>
+    <main className="min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] px-5 py-7 text-primary-500" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-sm flex-col">
         <header dir="ltr" className="flex items-center justify-between">
-          <button type="button" onClick={() => setLang(isAr ? 'fr' : 'ar')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold shadow-sm">
+          <button type="button" onClick={() => setLang(isAr ? 'fr' : 'ar')} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#112240] px-3 py-2 text-xs font-bold shadow-sm">
             {copy.language}
           </button>
           <button type="button" onClick={() => { markOnboardingSeen(); setStage('offer') }} className="text-xs font-bold text-slate-500">

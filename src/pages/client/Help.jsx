@@ -16,8 +16,8 @@ const FAQ_AR = [
 
 const FAQ_FR = [
   ['Comment voir mon véhicule ?', 'Ouvrez la carte en direct ou choisissez un véhicule dans Mes appareils.'],
-  ['Pourquoi le véhicule est hors ligne ?', 'Vérifiez la SIM et l’alimentation, puis contactez le support si le problème continue.'],
-  ['Comment renouveler ?', 'Ouvrez les détails du véhicule, choisissez le renouvellement puis contactez l’administrateur.'],
+  ['Pourquoi le véhicule est hors ligne ?', 'Vérifiez la SIM et l\u2019alimentation, puis contactez le support si le problème continue.'],
+  ['Comment renouveler ?', 'Ouvrez les détails du véhicule, choisissez le renouvellement puis contactez l\u2019administrateur.'],
   ['Puis-je partager la position ?', 'Dans les détails du véhicule, ouvrez Partager et créez un lien temporaire.'],
   ['Puis-je couper le moteur ?', 'Oui si votre appareil le permet. Utilisez cette commande uniquement dans un lieu sûr.'],
 ]
@@ -29,14 +29,15 @@ export default function Help() {
   const [open, setOpen] = useState(0)
 
   useEffect(() => {
+    // falls back to DEFAULT_SUPPORT if endpoint unavailable — intentional silent catch
     api.settings.support().then(setSupport).catch(() => {})
   }, [])
 
   const faq = isAr ? FAQ_AR : FAQ_FR
-  const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أحتاج مساعدة في ATHAR GPS' : 'Bonjour, j’ai besoin d’aide avec ATHAR GPS')}`
+  const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أحتاج مساعدة في ATHAR GPS' : 'Bonjour, j\u2019ai besoin d\u2019aide avec ATHAR GPS')}`
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28 px-5" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28 px-5" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
       <header className="pt-5 pb-5">
         <div className="flex items-center gap-3">
@@ -45,8 +46,8 @@ export default function Help() {
             <CircleHelp size={23} color="#00D97E" />
           </div>
           <div>
-            <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'مركز المساعدة' : 'Centre d’aide'}</h1>
-            <p className="text-xs mt-1 text-slate-500">
+            <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'مركز المساعدة' : 'Centre d\u2019aide'}</h1>
+            <p className="text-xs mt-1 text-slate-500 dark:text-slate-400">
               {isAr ? 'إجابات سريعة وطرق التواصل مع فريق الدعم' : 'Réponses rapides et contacts du support'}
             </p>
           </div>
@@ -54,44 +55,45 @@ export default function Help() {
       </header>
 
       <section className="grid grid-cols-3 gap-2.5 mb-6">
-        <a href={`tel:${support.phone}`} className="p-3 rounded-2xl text-center"
-           style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+        <a href={`tel:${support.phone}`}
+           className="p-3 rounded-2xl text-center bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700">
           <Phone size={19} className="mx-auto mb-2" color="#00D97E" />
-           <span className="block text-[11px] text-slate-800 font-semibold">{isAr ? 'اتصال' : 'Appeler'}</span>
+          <span className="block text-[11px] text-slate-800 dark:text-slate-200 font-semibold">{isAr ? 'اتصال' : 'Appeler'}</span>
         </a>
-        <a href={`mailto:${support.email}`} className="p-3 rounded-2xl text-center"
-           style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+        <a href={`mailto:${support.email}`}
+           className="p-3 rounded-2xl text-center bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700">
           <Mail size={19} className="mx-auto mb-2" color="#3B82F6" />
-           <span className="block text-[11px] text-slate-800 font-semibold">{isAr ? 'إيميل' : 'Email'}</span>
+          <span className="block text-[11px] text-slate-800 dark:text-slate-200 font-semibold">{isAr ? 'إيميل' : 'Email'}</span>
         </a>
-        <a href={whatsapp} target="_blank" rel="noreferrer" className="p-3 rounded-2xl text-center"
-           style={{ background: '#fff', border: '1px solid #e2e8f0' }}>
+        <a href={whatsapp} target="_blank" rel="noreferrer"
+           className="p-3 rounded-2xl text-center bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700">
           <MessageCircle size={19} className="mx-auto mb-2" color="#25D366" />
-           <span className="block text-[11px] text-slate-800 font-semibold">WhatsApp</span>
+          <span className="block text-[11px] text-slate-800 dark:text-slate-200 font-semibold">WhatsApp</span>
         </a>
       </section>
 
-       <div className="p-4 rounded-xl mb-6 bg-white border border-slate-200 shadow-sm">
-         <p className="text-xs font-semibold text-slate-800 mb-1">{isAr ? 'ساعات الدعم' : 'Horaires du support'}</p>
-         <p className="text-xs text-slate-500">{support.hours}</p>
-         <p className="text-[10px] mt-2 break-all text-slate-400">
+      <div className="p-4 rounded-xl mb-6 bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700 shadow-sm">
+        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mb-1">{isAr ? 'ساعات الدعم' : 'Horaires du support'}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{support.hours}</p>
+        <p className="text-[10px] mt-2 break-all text-slate-400 dark:text-slate-500">
           {support.phone} · {support.email}
         </p>
       </div>
 
       <section>
-         <h2 className="text-primary-500 font-extrabold text-sm mb-3">{isAr ? 'الأسئلة الشائعة' : 'Questions fréquentes'}</h2>
+        <h2 className="text-primary-500 font-extrabold text-sm mb-3">{isAr ? 'الأسئلة الشائعة' : 'Questions fréquentes'}</h2>
         <div className="space-y-2">
           {faq.map(([question, answer], index) => (
-             <div key={question} className="rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm">
+            <div key={question} className="rounded-xl overflow-hidden bg-white dark:bg-[#112240] border border-slate-200 dark:border-slate-700 shadow-sm">
               <button onClick={() => setOpen(open === index ? -1 : index)}
-                className="w-full flex items-center justify-between gap-3 p-4 text-left">
-                 <span className="text-slate-800 text-xs font-semibold">{question}</span>
-                <ChevronDown size={15} color="rgba(255,255,255,0.45)"
+                aria-expanded={open === index}
+                className="w-full flex items-center justify-between gap-3 p-4 text-start">
+                <span className="text-slate-800 dark:text-slate-200 text-xs font-semibold">{question}</span>
+                <ChevronDown size={15} className="text-slate-400 dark:text-slate-500 flex-shrink-0"
                   style={{ transform: open === index ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
               </button>
               {open === index && (
-                 <p className="px-4 pb-4 text-xs leading-6 text-slate-500">{answer}</p>
+                <p className="px-4 pb-4 text-xs leading-6 text-slate-500 dark:text-slate-400">{answer}</p>
               )}
             </div>
           ))}

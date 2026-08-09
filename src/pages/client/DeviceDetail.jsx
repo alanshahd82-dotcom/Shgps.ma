@@ -176,19 +176,20 @@ export default function DeviceDetail() {
   const cardStyle = { background:'#ffffff', border:'1px solid #e2e8f0', boxShadow:'0 4px 16px rgba(23,50,77,.04)' }
 
   if (loading && !device) return (
-      <div className="client-app min-h-screen flex items-center justify-center bg-[#f5f7f8]">
+      <div className="client-app min-h-screen flex items-center justify-center bg-[#f5f7f8] dark:bg-[#0b1524]">
        <div className="w-9 h-9 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
     </div>
   )
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#f5f7f8] dark:bg-[#0b1524] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center gap-3">
-         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200 bg-white"
-           >
+         <button onClick={() => navigate(-1)}
+           aria-label={isAr ? 'العودة' : 'Retour'}
+           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200 bg-white">
            <ChevronLeft size={20} className="text-primary-500" style={{ transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </button>
         <div className="flex-1 min-w-0">
@@ -288,7 +289,7 @@ export default function DeviceDetail() {
                         <Pencil size={11}/>{isAr ? 'تعديل' : 'Modifier'}
                       </button>
                     : <div className="flex items-center gap-2">
-                        <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-slate-600"><CloseX size={14}/></button>
+                        <button onClick={() => setEditing(false)} aria-label={isAr ? 'إلغاء التعديل' : 'Annuler la modification'} className="text-slate-400 hover:text-slate-600"><CloseX size={14}/></button>
                         <button onClick={saveEdit} disabled={saving}
                           className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:opacity-70 disabled:opacity-50">
                           {saving ? <Loader2 size={11} className="animate-spin"/> : <Check size={11}/>}
