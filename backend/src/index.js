@@ -20,7 +20,6 @@ import { subUsersRouter }       from './routes/subUsers.js'
 import { subAdminsRouter }      from './routes/subAdmins.js'
 import { settingsRouter }       from './routes/settings.js'
 import { config }        from './config.js'
-import { getAllPositions } from './services/traccar.js'
 import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
@@ -338,16 +337,6 @@ app.use('/api/driver-behavior', driverBehaviorRouter)
 app.use('/api/sub-users',       subUsersRouter)
 app.use('/api/sub-admins',      subAdminsRouter)
 app.use('/api/settings',        settingsRouter)
-
-// ── Temporary debug: raw Traccar position attributes (admin only) ──
-app.get('/api/debug/positions', async (req, res) => {
-  try {
-    const positions = await getAllPositions()
-    res.json(positions.map(p => ({ deviceId: p.deviceId, attributes: p.attributes })))
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
 
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'disconnected'

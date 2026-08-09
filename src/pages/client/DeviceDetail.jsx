@@ -216,11 +216,11 @@ export default function DeviceDetail() {
       {device && (
         <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
           {[
-             { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : '—', color:'#38d39f' },
-             { Icon:Navigation, label:isAr?'المسافة اليوم':'Distance aujourd’hui', val: distanceToday != null ? Number(distanceToday).toFixed(1)+' km' : '—', color:'#d9ad62' },
-             { Icon:Wifi, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff' },
-             { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? device.battery+'%' : '—', color: device.battery < 30 ? '#e46b68' : '#38d39f' },
-          ].map(({ Icon, label, val, color },i) => (
+             { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : '—', color:'#38d39f', always: true },
+             { Icon:Navigation, label:isAr?'المسافة اليوم':'Distance aujourd\'hui', val: distanceToday != null ? Number(distanceToday).toFixed(1)+' km' : '—', color:'#d9ad62', always: true },
+             { Icon:Wifi, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : null, color:'#6fc8ff', always: false },
+             { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? device.battery+'%' : null, color: device.battery < 30 ? '#e46b68' : '#38d39f', always: false },
+          ].filter(m => m.always || m.val != null).map(({ Icon, label, val, color },i) => (
             <div key={i} className="flex min-w-0 flex-col items-center rounded-2xl p-3.5"
               style={cardStyle}>
               <Icon size={16} style={{ color }} className="mb-1.5"/>
