@@ -11,6 +11,7 @@ import { alertsRouter }      from './routes/alerts.js'
 import { mapRouter }         from './routes/map.js'
 import { geofencesRouter }   from './routes/geofences.js'
 import { reportsRouter }     from './routes/reports.js'
+import { statsRouter }       from './routes/stats.js'
 import { adminRouter }       from './routes/admin.js'
 import { maintenanceRouter } from './routes/maintenance.js'
 import { sharingRouter }     from './routes/sharing.js'
@@ -330,6 +331,7 @@ app.use('/api/alerts',      alertsRouter)
 app.use('/api/map',         mapRouter)
 app.use('/api/geofences',   geofencesRouter)
 app.use('/api/reports',     reportsRouter)
+app.use('/api/stats',        statsRouter)
 app.use('/api/admin',       adminRouter)
 app.use('/api/maintenance', maintenanceRouter)
 app.use('/api/sharing',     sharingRouter)
