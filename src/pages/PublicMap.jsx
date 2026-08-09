@@ -101,7 +101,7 @@ export default function PublicMap() {
         <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800/80 border-b border-slate-700/50 text-xs text-slate-400 gap-3">
           <div className="flex items-center gap-1.5">
             <Navigation size={12} className="text-accent" />
-            <span>{pos.speed.toFixed(0)} km/h</span>
+            <span>{Number(pos.speed ?? 0).toFixed(0)} km/h</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock size={12} />
@@ -122,7 +122,7 @@ export default function PublicMap() {
             <Marker position={center}>
               <Popup>
                 <div className="text-sm font-semibold">{data.deviceName}</div>
-                <div className="text-xs text-gray-500">{pos.speed.toFixed(0)} km/h</div>
+                <div className="text-xs text-gray-500">{Number(pos.speed ?? 0).toFixed(0)} km/h</div>
               </Popup>
             </Marker>
           </MapContainer>

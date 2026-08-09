@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Gauge, Clock, AlertTriangle, TrendingUp, TrendingDown, ChevronDown, Car } from 'lucide-react'
+import { AlertTriangle, ChevronDown, Car, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
@@ -71,17 +71,10 @@ export default function DriverBehavior() {
 
   useEffect(() => { load() }, [load])
 
-  const score = data?.summary?.latest?.score ?? 0
-  const events = data?.scores || []
-  const tips = data?.summary?.tips || []
-
-  const EVENT_LABELS = {
-    speeding:    { ar: 'تجاوز السرعة',  fr: 'Excès vitesse',  color: '#FF3B30' },
-    harsh_brake: { ar: 'كبح مفاجئ',    fr: 'Freinage brusque', color: '#FF9500' },
-    harsh_accel: { ar: 'تسارع مفاجئ',  fr: 'Accél. brusque',  color: '#F59E0B' },
-    idle:        { ar: 'تشغيل خمول',   fr: 'Ralenti excessif', color: '#6b7280' },
-    cornering:   { ar: 'منعطف حاد',    fr: 'Virage brusque',  color: '#a855f7' },
-  }
+  const hasData = data?.summary?.latest !== null && data?.summary?.latest !== undefined
+  const score   = data?.summary?.latest?.score ?? 0
+  const events  = data?.scores || []
+  const tips    = data?.summary?.tips || []
 
   return (
     <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
@@ -138,11 +131,28 @@ export default function DriverBehavior() {
         </div>
       ) : error ? (
         <div className="mx-5 p-4 rounded-2xl text-sm text-center" style={{ background: 'rgba(255,59,48,0.1)', color: '#ff6b60' }}>{error}</div>
+      ) : !hasData ? (
+        /* ── Empty state: no scores recorded in this period ── */
+        <div className="mx-5 mt-4 p-8 rounded-2xl flex flex-col items-center gap-4 bg-white border border-slate-200 shadow-sm">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
+            <BarChart2 size={30} className="text-slate-400"/>
+          </div>
+          <div className="text-center">
+            <p className="font-bold text-slate-700 text-sm mb-1">
+              {isAr ? 'لا توجد بيانات بعد' : 'Aucune donnée disponible'}
+            </p>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              {isAr
+                ? 'ستظهر بيانات السلوك بعد أول رحلة مسجّلة في هذه الفترة'
+                : 'Les données apparaîtront après le premier trajet enregistré dans cette période'}
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="px-5 space-y-5">
           {/* Score ring */}
-             <div className="p-6 rounded-xl flex flex-col items-center bg-white border border-slate-200 shadow-sm">
-             <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
+          <div className="p-6 rounded-xl flex flex-col items-center bg-white border border-slate-200 shadow-sm">
+            <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
               {isAr ? 'نقاط السلامة' : 'Score de sécurité'}
             </p>
             <ScoreRing score={score}/>
@@ -150,17 +160,18 @@ export default function DriverBehavior() {
 
           {/* Event chart */}
           {events.length > 0 && (
-             <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-               <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
+            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold tracking-wide uppercase mb-4 text-slate-500">
                 {isAr ? 'الأحداث' : 'Événements'}
               </p>
               <ResponsiveContainer width="100%" height={120}>
                 <BarChart data={events} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-                  <XAxis dataKey="recorded_date" tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}/>
+                  <XAxis dataKey="recorded_date" tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}
+                    tickFormatter={v => v ? new Date(v).toLocaleDateString(isAr ? 'ar-MA' : 'fr-MA', { day: '2-digit', month: '2-digit' }) : v}/>
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 9 }} axisLine={false} tickLine={false}/>
                   <Tooltip contentStyle={{ background: '#17324d', border: '1px solid #31516e', borderRadius: 10, color: 'white', fontSize: 11 }}/>
-                  <Bar dataKey="speeding_events" fill="#16866d" radius={[4,4,0,0]}/>
+                  <Bar dataKey="speeding_events" name={isAr ? 'تجاوز السرعة' : 'Excès vitesse'} fill="#16866d" radius={[4,4,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -173,7 +184,7 @@ export default function DriverBehavior() {
                 <div key={i} className="flex items-start gap-3 p-3.5 rounded-2xl"
                   style={{ background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.18)' }}>
                   <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" style={{ color: '#FF9500' }}/>
-                   <p className="text-xs leading-relaxed text-slate-700">{tip}</p>
+                  <p className="text-xs leading-relaxed text-slate-700">{tip}</p>
                 </div>
               ))}
             </div>

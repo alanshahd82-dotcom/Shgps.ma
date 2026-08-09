@@ -72,10 +72,10 @@ driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
   }
 })
 
-// GET /api/driver-behavior/summary?deviceId=X — latest score + 7-day trend
+// GET /api/driver-behavior/summary?deviceId=X&days=30 — latest score + trend within period
 driverBehaviorRouter.get('/summary', requireAuth, async (req, res) => {
   try {
-    const { deviceId } = req.query
+    const { deviceId, days = 30 } = req.query
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
     const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
@@ -85,17 +85,19 @@ driverBehaviorRouter.get('/summary', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    const safeDays = Math.max(1, Math.min(365, parseInt(days) || 30))
     const { rows } = await db.query(
       `SELECT score, speeding_events, idle_min, trip_count, recorded_date
        FROM driver_behavior_scores
        WHERE device_id=$1
+         AND recorded_date >= CURRENT_DATE - INTERVAL '${safeDays} days'
        ORDER BY recorded_date DESC
-       LIMIT 30`,
+       LIMIT 60`,
       [deviceId]
     )
 
     const latest = rows[0] || null
-    const trend  = rows.slice(0, 7).reverse() // last 7 days ascending
+    const trend  = rows.slice(0, 7).reverse() // last 7 records ascending for sparkline
 
     res.json({ latest, trend })
   } catch (err) {
