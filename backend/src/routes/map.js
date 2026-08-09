@@ -129,6 +129,10 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
           speed: position?.speed ?? 0,
           status: position ? 'online' : 'offline',
           lastUpdate: position?.fixTime ?? null,
+          engineOn: position?.attributes?.ignition ?? false,
+          battery: position?.attributes?.battery ?? position?.attributes?.batteryLevel ?? position?.attributes?.voltage ?? position?.attributes?.power ?? null,
+          signal: position?.attributes?.rssi ?? position?.attributes?.gsm ?? position?.attributes?.signal ?? position?.attributes?.signalStrength ?? null,
+          fuel: position?.attributes?.fuel ?? position?.attributes?.fuelLevel ?? null,
           subscriptionStatus: subscription.subscriptionStatus,
           trackingEnabled: subscription.trackingEnabled,
         }
