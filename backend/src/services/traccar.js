@@ -30,15 +30,50 @@ export const createUser = (name, email, pw) =>
 export const deleteUser  = (id) => call(`/api/users/${id}`,  { method:'DELETE' })
 export const linkDevice   = (userId, deviceId) => call('/api/permissions', { method:'POST',   body: JSON.stringify({ userId, deviceId }) })
 export const unlinkDevice = (userId, deviceId) => call('/api/permissions', { method:'DELETE', body: JSON.stringify({ userId, deviceId }) })
-export const getHistory = (deviceId, from, to) => {
+const HISTORY_CHUNK_MS = 24 * 60 * 60 * 1000
+
+async function getHistoryChunk(deviceId, from, to) {
   const p = new URLSearchParams({
-    deviceId,
-    from: from || new Date(Date.now()-86400000).toISOString(),
-    to:   to   || new Date().toISOString(),
+    deviceId: String(deviceId),
+    from,
+    to,
   })
   // Traccar's standard history endpoint is /api/positions.
   // /api/reports/route is not a Traccar endpoint and returns 404/502.
-  return call(`/api/positions?${p}`)
+  const positions = await call(`/api/positions?${p}`)
+  return Array.isArray(positions) ? positions : []
+}
+
+export async function getHistory(deviceId, from, to) {
+  const start = new Date(from || Date.now() - HISTORY_CHUNK_MS)
+  const end = new Date(to || Date.now())
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) {
+    return []
+  }
+
+  // Traccar normally accepts a large range, but installations and proxies can
+  // cap the number of returned positions. Fetching daily windows keeps the
+  // response bounded while retaining every point in longer replay ranges.
+  const chunks = []
+  let cursor = start.getTime()
+  while (cursor < end.getTime()) {
+    const next = Math.min(cursor + HISTORY_CHUNK_MS, end.getTime())
+    chunks.push(getHistoryChunk(deviceId, new Date(cursor).toISOString(), new Date(next).toISOString()))
+    cursor = next
+  }
+
+  const responses = await Promise.all(chunks)
+  const unique = new Map()
+  for (const positions of responses) {
+    for (const position of positions) {
+      const key = position.id
+        ?? `${position.fixTime || ''}|${position.latitude || ''}|${position.longitude || ''}`
+      unique.set(String(key), position)
+    }
+  }
+
+  return [...unique.values()].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
 }
 
 // ─── المرحلة 1: إصلاح إرسال الأمر (إضافة attributes) ──────────

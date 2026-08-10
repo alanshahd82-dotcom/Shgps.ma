@@ -56,6 +56,12 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
     }
 
     const positions = await traccar.getHistory(device.traccar_id, fromDate, toDate)
+    console.info('[stats/positions]', {
+      deviceId: deviceIdNumber,
+      from: fromDate,
+      to: toDate,
+      returned: Array.isArray(positions) ? positions.length : 0,
+    })
     const replayPositions = (Array.isArray(positions) ? positions : [])
       .filter((position) => {
         const fixTime = new Date(position?.fixTime)
