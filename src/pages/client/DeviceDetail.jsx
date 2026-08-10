@@ -19,7 +19,7 @@ import { getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
-import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
+import MapLayers from '../../components/MapLayers'
 import { bucketMax, downsample, simplifyPath } from '../../utils/simplify'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
@@ -543,7 +543,7 @@ export default function DeviceDetail() {
               {trackingEnabled && validPosition(latitude, longitude) && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
                   <MapContainer center={[latitude, longitude]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
-                    <GeoapifyTileLayer />
+                    <MapLayers />
                     <Marker position={[latitude, longitude]}
                       icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:'+stColor+';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })}/>
                   </MapContainer>
@@ -812,7 +812,7 @@ export default function DeviceDetail() {
                   <div className="relative overflow-hidden rounded-2xl" style={{ height:200 }}>
                     {positions.length > 0 ? (
                       <MapContainer center={positions[0]} zoom={12} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
-                        <GeoapifyTileLayer />
+                        <MapLayers />
                         <Polyline positions={positions} color="#16866d" weight={3} opacity={0.8}/>
                         <FitRoute positions={positions}/>
                       </MapContainer>

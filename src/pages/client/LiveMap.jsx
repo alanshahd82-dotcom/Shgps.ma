@@ -11,6 +11,7 @@ import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon, timeAgo, getDeviceStatusKey } from '../../components/ui'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
+import { downsample, simplifyPath } from '../../utils/simplify'
 
 // ── Map icons ──────────────────────────────────────────────────────────────────
 const userLocIcon = L.divIcon({
@@ -128,6 +129,7 @@ export default function LiveMap() {
   const [todayRoute, setTodayRoute] = useState([])
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState('')
+  const routeRequestRef = useRef(0)
   const isAr = lang === 'ar'
   useEffect(() => {
     localStorage.setItem('athargps_auto_follow', String(autoFollow))
@@ -205,13 +207,14 @@ export default function LiveMap() {
 
   async function showTodayRoute(device) {
     if (routeLoading) return
+    const requestId = ++routeRequestRef.current
     const from = new Date()
     from.setHours(0, 0, 0, 0)
     setRouteLoading(true)
     setRouteError('')
     try {
       const points = await api.stats.getPositions(device.id, from.toISOString(), new Date().toISOString(), 1500)
-      const route = points
+      const rawRoute = (Array.isArray(points) ? points : [])
         .map(point => [toCoord(point?.latitude ?? point?.lat), toCoord(point?.longitude ?? point?.lng)])
         .filter(([lat, lng]) =>
           Number.isFinite(lat) && Number.isFinite(lng)
@@ -219,6 +222,8 @@ export default function LiveMap() {
           && lng >= -180 && lng <= 180
           && !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
         )
+      const route = downsample(simplifyPath(rawRoute, 0.00005), 600)
+      if (requestId !== routeRequestRef.current) return
       if (route.length < 2) {
         setRouteError(isAr ? 'لا توجد نقاط كافية لمسار اليوم.' : 'Pas assez de points pour le trajet du jour.')
         setTodayRoute([])
@@ -226,9 +231,10 @@ export default function LiveMap() {
         setTodayRoute(route)
       }
     } catch {
+      if (requestId !== routeRequestRef.current) return
       setRouteError(isAr ? 'تعذّر تحميل مسار اليوم.' : 'Impossible de charger le trajet du jour.')
     } finally {
-      setRouteLoading(false)
+      if (requestId === routeRequestRef.current) setRouteLoading(false)
     }
   }
 
