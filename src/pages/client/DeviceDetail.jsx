@@ -75,8 +75,11 @@ function cleanRoute(points) {
     const previous = cleaned.at(-1)
     if (previous) {
       const elapsedHours = (new Date(point.fixTime) - new Date(previous.fixTime)) / 3600000
-      const speedKmh = elapsedHours > 0 ? haversineKm(previous, point) / elapsedHours : Infinity
-      if (speedKmh > MAX_POSITION_SPEED_KMH) continue
+      // Traccar can return several valid fixes with the same timestamp.
+      // Preserve those samples so the replay still has a visible route;
+      // only reject impossible movement when time has actually advanced.
+      const speedKmh = elapsedHours > 0 ? haversineKm(previous, point) / elapsedHours : 0
+      if (elapsedHours > 0 && speedKmh > MAX_POSITION_SPEED_KMH) continue
     }
     cleaned.push(point)
   }
