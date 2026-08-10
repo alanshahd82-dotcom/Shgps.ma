@@ -7,6 +7,53 @@ function loadFromStorage(key) {
   try { return JSON.parse(localStorage.getItem(key)) } catch { return null }
 }
 
+function positionTimestamp(position) {
+  const value = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
+  const timestamp = value ? new Date(value).getTime() : NaN
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function validLivePosition(position) {
+  const latitude = Number(position?.latitude ?? position?.lat)
+  const longitude = Number(position?.longitude ?? position?.lng)
+  return Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 && latitude <= 90 &&
+    longitude >= -180 && longitude <= 180 &&
+    !(Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01)
+}
+
+function sameDevice(first, second) {
+  return first != null && second != null && String(first) === String(second)
+}
+
+function mergeDeviceSnapshots(previous, next) {
+  const previousById = new Map(previous.map(device => [String(device.id), device]))
+  return next.map(incoming => {
+    const current = previousById.get(String(incoming.id))
+    if (!current) return incoming
+
+    const incomingHasPosition = validLivePosition(incoming)
+    const incomingTime = positionTimestamp(incoming)
+    const currentTime = positionTimestamp(current)
+    const incomingIsNewer = incomingHasPosition &&
+      (currentTime === null || incomingTime === null || incomingTime >= currentTime)
+
+    if (incomingIsNewer) return { ...current, ...incoming }
+
+    return {
+      ...current,
+      ...incoming,
+      lat: current.lat ?? current.last_lat,
+      lng: current.lng ?? current.last_lng,
+      speed: current.speed,
+      course: current.course,
+      fixTime: current.fixTime,
+      lastUpdate: current.lastUpdate,
+    }
+  })
+}
+
 export function AppProvider({ children }) {
   const [lang, setLang]                     = useState('ar')
   const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
@@ -44,21 +91,29 @@ export function AppProvider({ children }) {
     setDevices(prev => {
       const updated = [...prev]
       for (const pos of pending.values()) {
-        const idx = updated.findIndex(d => d.traccarId === pos.deviceId || d.traccar_id === pos.deviceId)
-        if (idx !== -1 && updated[idx].trackingEnabled !== false) {
+        const idx = updated.findIndex(d =>
+          sameDevice(d.traccarId ?? d.traccar_id, pos.deviceId ?? pos.id)
+        )
+        if (idx !== -1 && updated[idx].trackingEnabled !== false && validLivePosition(pos)) {
+          const current = updated[idx]
+          const incomingTime = positionTimestamp(pos)
+          const currentTime = positionTimestamp(current)
+          if (incomingTime !== null && currentTime !== null && incomingTime < currentTime) continue
+          const latitude = Number(pos.latitude ?? pos.lat)
+          const longitude = Number(pos.longitude ?? pos.lng)
           updated[idx] = {
-            ...updated[idx],
-            lat:        pos.latitude,
-            lng:        pos.longitude,
+            ...current,
+            lat:        latitude,
+            lng:        longitude,
             speed:      pos.speed ?? 0,
-            lastUpdate: pos.fixTime,
-            fixTime:    pos.fixTime,
-            course:     pos.course ?? pos.attributes?.course ?? updated[idx].course,
+            lastUpdate: pos.fixTime ?? current.lastUpdate,
+            fixTime:    pos.fixTime ?? current.fixTime,
+            course:     pos.course ?? pos.attributes?.course ?? current.course,
             status:     'online',
-            engineOn:   pos.attributes?.ignition   ?? updated[idx].engineOn,
-            battery:    pos.attributes?.battery    ?? updated[idx].battery,
-            signal:     pos.attributes?.rssi       ?? updated[idx].signal,
-            fuel:       pos.attributes?.fuel       ?? updated[idx].fuel,
+            engineOn:   pos.attributes?.ignition   ?? current.engineOn,
+            battery:    pos.attributes?.battery    ?? current.battery,
+            signal:     pos.attributes?.rssi       ?? current.signal,
+            fuel:       pos.attributes?.fuel       ?? current.fuel,
           }
         }
       }
@@ -69,7 +124,15 @@ export function AppProvider({ children }) {
   function queuePositionUpdates(positions) {
     for (const pos of positions) {
       const deviceKey = pos.deviceId ?? pos.id
-      if (deviceKey != null) positionPendingRef.current.set(String(deviceKey), pos)
+      if (deviceKey != null && validLivePosition(pos)) {
+        const key = String(deviceKey)
+        const previous = positionPendingRef.current.get(key)
+        const previousTime = positionTimestamp(previous)
+        const nextTime = positionTimestamp(pos)
+        if (!previous || previousTime === null || nextTime === null || nextTime >= previousTime) {
+          positionPendingRef.current.set(key, pos)
+        }
+      }
     }
     if (positionFlushTimerRef.current) return
     flushPositionUpdates()
@@ -191,7 +254,8 @@ export function AppProvider({ children }) {
 
   async function loadDevices() {
     try {
-      setDevices(await api.devices.list())
+      const nextDevices = await api.devices.list()
+      setDevices(prev => mergeDeviceSnapshots(prev, Array.isArray(nextDevices) ? nextDevices : []))
       setNetworkError(false)
     } catch {
       setNetworkError(true)
@@ -332,7 +396,9 @@ export function AppProvider({ children }) {
       if (wsConnected || document.hidden) return
       try {
         const nextDevices = await api.map.positions()
-        if (Array.isArray(nextDevices) && !wsConnected) setDevices(nextDevices)
+        if (Array.isArray(nextDevices) && !wsConnected) {
+          setDevices(prev => mergeDeviceSnapshots(prev, nextDevices))
+        }
       } catch {}
     }
     poll()

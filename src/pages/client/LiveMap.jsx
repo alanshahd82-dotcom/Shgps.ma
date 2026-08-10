@@ -183,7 +183,17 @@ export default function LiveMap() {
     }, () => {})
   }
 
-  const toCoord = v => (v == null || v === '') ? null : Number(v)
+  const toCoord = v => {
+    if (v == null || v === '') return null
+    const number = Number(v)
+    return Number.isFinite(number) ? number : null
+  }
+
+  const hasValidMapPoint = (lat, lng) =>
+    lat !== null && lng !== null &&
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180 &&
+    !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
 
   const filtered = useMemo(() => {
     const trackable = devices.filter(d => d.trackingEnabled !== false)
@@ -201,10 +211,7 @@ export default function LiveMap() {
         lat: toCoord(d.lat) ?? toCoord(d.last_lat),
         lng: toCoord(d.lng) ?? toCoord(d.last_lng),
       }))
-      .filter(d =>
-        Number.isFinite(d.lat) && Number.isFinite(d.lng) &&
-        d.lat >= -90 && d.lat <= 90 && d.lng >= -180 && d.lng <= 180
-      ),
+      .filter(d => hasValidMapPoint(d.lat, d.lng)),
   [filtered])
 
   const sel = selected ? devices.find(d => d.id === selected) : null

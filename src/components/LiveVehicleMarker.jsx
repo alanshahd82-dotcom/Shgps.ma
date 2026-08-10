@@ -15,10 +15,15 @@ const STATUS_COLORS = {
 }
 
 function toPoint(device) {
-  const lat = Number(device?.lat ?? device?.last_lat)
-  const lng = Number(device?.lng ?? device?.last_lng)
+  const primaryLat = Number(device?.lat)
+  const fallbackLat = Number(device?.last_lat)
+  const primaryLng = Number(device?.lng)
+  const fallbackLng = Number(device?.last_lng)
+  const lat = Number.isFinite(primaryLat) ? primaryLat : fallbackLat
+  const lng = Number.isFinite(primaryLng) ? primaryLng : fallbackLng
   return Number.isFinite(lat) && Number.isFinite(lng) &&
-    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 &&
+    !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
     ? [lat, lng]
     : null
 }
