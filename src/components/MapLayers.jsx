@@ -2,21 +2,20 @@ import React, { useEffect, useRef, useState } from 'react'
 import { TileLayer } from 'react-leaflet'
 import GeoapifyTileLayer from './GeoapifyTileLayer'
 
+const PROXY_SAT_URL = '/api/map/sat-tiles/{z}/{x}/{y}.png'
 const SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-const LABELS_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-const TILE_ERROR_LIMIT = 10
-const TILE_ERROR_WINDOW_MS = 5000
+const TILE_ERROR_LIMIT = 5
+const TILE_ERROR_WINDOW_MS = 4000
 
-function OpenStreetMapLayer({ onTileError, onTileLoad, labels = false }) {
+function OpenStreetMapLayer({ onTileError, onTileLoad }) {
   return (
     <TileLayer
-      url={labels ? LABELS_URL : OSM_URL}
+      url={OSM_URL}
       subdomains="abc"
       maxZoom={19}
-      opacity={labels ? 0.28 : 1}
       eventHandlers={{ tileerror: onTileError, tileload: onTileLoad }}
-      attribution={'© OpenStreetMap contributors'}
+      attribution="© OpenStreetMap contributors"
     />
   )
 }
@@ -29,8 +28,8 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
   const satelliteReadyRef = useRef(false)
 
   const sources = satellite
-    ? ['esri', 'geoapify-hybrid', 'osm']
-    : ['osm', 'geoapify']
+    ? ['proxy-sat', 'esri', 'geoapify-hybrid', 'osm']
+    : ['geoapify', 'osm']
 
   useEffect(() => {
     sourceIndexRef.current = 0
@@ -56,16 +55,15 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
 
   function handleTileError() {
     const now = Date.now()
-    const recentErrors = errorTimesRef.current.filter((time) => now - time < TILE_ERROR_WINDOW_MS)
-    recentErrors.push(now)
-    errorTimesRef.current = recentErrors
-
-    if (recentErrors.length > TILE_ERROR_LIMIT && sourceIndexRef.current < sources.length - 1) {
-      const nextIndex = sourceIndexRef.current + 1
-      sourceIndexRef.current = nextIndex
+    const recent = errorTimesRef.current.filter(t => now - t < TILE_ERROR_WINDOW_MS)
+    recent.push(now)
+    errorTimesRef.current = recent
+    if (recent.length > TILE_ERROR_LIMIT && sourceIndexRef.current < sources.length - 1) {
+      const next = sourceIndexRef.current + 1
+      sourceIndexRef.current = next
       errorTimesRef.current = []
       satelliteReadyRef.current = false
-      setSourceIndex(nextIndex)
+      setSourceIndex(next)
     }
   }
 
@@ -75,49 +73,32 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
       <span className="athar-map-spinner" />
     </div>
   )
+
+  if (source === 'proxy-sat') {
+    return (
+      <>
+        {loadingSurface}
+        <TileLayer key={source} url={PROXY_SAT_URL} maxZoom={19}
+          eventHandlers={{ tileerror: handleTileError, tileload: handleTileLoad }}
+          attribution="© Esri — via Athar GPS proxy" />
+      </>
+    )
+  }
   if (source === 'esri') {
     return (
       <>
         {loadingSurface}
-        <TileLayer
-          key={source}
-          url={SATELLITE_URL}
-          maxZoom={19}
+        <TileLayer key={source} url={SATELLITE_URL} maxZoom={19}
           eventHandlers={{ tileerror: handleTileError, tileload: handleTileLoad }}
-          attribution={'© Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'}
-        />
+          attribution="© Esri" />
       </>
     )
   }
   if (source === 'geoapify-hybrid') {
-    return (
-      <>
-        {loadingSurface}
-        <GeoapifyTileLayer
-          key={source}
-          style="hybrid"
-          onTileError={handleTileError}
-          onTileLoad={handleTileLoad}
-        />
-      </>
-    )
+    return (<>{loadingSurface}<GeoapifyTileLayer key={source} style="hybrid" onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
   }
   if (source === 'geoapify') {
-    return (
-      <>
-        {loadingSurface}
-        <GeoapifyTileLayer
-          key={source}
-          onTileError={handleTileError}
-          onTileLoad={handleTileLoad}
-        />
-      </>
-    )
+    return (<>{loadingSurface}<GeoapifyTileLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
   }
-  return (
-    <>
-      {loadingSurface}
-      <OpenStreetMapLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} />
-    </>
-  )
+  return (<>{loadingSurface}<OpenStreetMapLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
 }

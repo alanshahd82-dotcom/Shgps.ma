@@ -117,7 +117,7 @@ function getLiveBearing(device) {
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
-import ResilientTiles from '../../components/ResilientTiles'
+import MapLayers from '../../components/MapLayers'
 
 export default function LiveMap() {
   const { devices, lang, wsConnected } = useApp()
@@ -283,7 +283,7 @@ export default function LiveMap() {
         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
-         <ResilientTiles />
+         <MapLayers />
         {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
         {positioned.map(d => (
           <LiveVehicleMarker

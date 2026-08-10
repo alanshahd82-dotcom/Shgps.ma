@@ -142,3 +142,18 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
     })
     
+// ── Satellite tiles proxy (Esri) ────────────────────────────────────────────
+mapRouter.get('/sat-tiles/:z/:x/:y.png', async (req, res) => {
+  try {
+    const { z, x, y } = req.params
+    const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`
+    const up = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (!up.ok) return res.status(502).end()
+    const buf = Buffer.from(await up.arrayBuffer())
+    res.set('Content-Type', up.headers.get('content-type') || 'image/png')
+    res.set('Cache-Control', 'public, max-age=604800')
+    res.send(buf)
+  } catch {
+    res.status(502).end()
+  }
+})
