@@ -563,7 +563,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     if (route.length > 1 && !loading && !error) {
       setProgress(0)
       setTraveledProgress(0)
-      setPlaying(true)
+      setPlaying(false)
     }
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
   }, [error, loading, route])

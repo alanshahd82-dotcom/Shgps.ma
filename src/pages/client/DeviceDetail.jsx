@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect, useMemo } from 'react'
+import React, { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
@@ -131,9 +131,11 @@ export default function DeviceDetail() {
   const [tripsError, setTripsError] = useState('')
   const [replayTrip, setReplayTrip] = useState(null)
   const [rangePreset, setRangePreset] = useState('today')
+  const [selectedDay, setSelectedDay] = useState(() => localDateValue(new Date()))
+  const [dayRequest, setDayRequest] = useState(null)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
-  const [tripRetry, setTripRetry] = useState(0)
+  const dayRequestRef = useRef(0)
   const [cmdMsg, setCmdMsg] = useState('')
   const [shareErr, setShareErr] = useState('')
   const [imeiCopied, setImeiCopied] = useState(false)
@@ -187,6 +189,32 @@ export default function DeviceDetail() {
     : false
   const rangeReady = rangePreset !== 'custom' || Boolean(rangeBounds && !customRangeTooLong)
 
+  const availableDays = useMemo(() => {
+    const days = []
+    const today = new Date()
+    if (rangePreset === 'custom') {
+      if (!rangeBounds || customRangeTooLong) return days
+      const cursor = new Date(rangeBounds.from)
+      cursor.setHours(0, 0, 0, 0)
+      const end = new Date(rangeBounds.to)
+      end.setHours(0, 0, 0, 0)
+      while (cursor <= end && days.length < 31) {
+        days.push(localDateValue(cursor))
+        cursor.setDate(cursor.getDate() + 1)
+      }
+      return days.reverse()
+    }
+
+    const count = rangePreset === 'week' ? 7 : rangePreset === 'fifteen' ? 15 : 1
+    for (let index = 0; index < count; index += 1) {
+      const date = new Date(today)
+      date.setHours(0, 0, 0, 0)
+      date.setDate(date.getDate() - index)
+      days.push(localDateValue(date))
+    }
+    return days
+  }, [customFrom, customRangeTooLong, customTo, rangeBounds, rangePreset])
+
   const st = getDeviceStatusKey(device || {})
   const stColor = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }[st] || '#6b7280'
   const stLabel = { moving: isAr?'يتحرك':'En mouvement', idle:isAr?'خمول':'Ralenti', stopped:isAr?'متوقف':'Arrêté', offline:isAr?'غير متصل':'Hors ligne' }[st] || st
@@ -222,36 +250,76 @@ export default function DeviceDetail() {
   }, [id])
 
   useEffect(() => {
-    if (tab !== 'route' || !trackingEnabled || !rangeReady) return
-    const bounds = getRangeBounds()
-    if (!bounds) return
-    let cancelled = false
-    async function loadTrips() {
-      setTripsLoading(true); setTripsError(''); setTrips([])
-      setRoutePoints([]); setRouteLoaded(false); setRouteError('')
-      try {
-        const data = await api.reports.get(id, bounds.from.toISOString(), bounds.to.toISOString())
-        if (!cancelled) setTrips(Array.isArray(data.trips) ? data.trips : [])
-      } catch (e) {
-        if (!cancelled) {
-          setTripsError(e?.code === 'DEVICE_NOT_LINKED'
-            ? (isAr ? 'هذا الجهاز غير مرتبط بخدمة التتبع.' : 'Cet appareil n’est pas lié au service de suivi.')
-            : (isAr ? 'تعذّر تحميل الرحلات. تحقق من اتصالك وأعد المحاولة.' : 'Impossible de charger les trajets. Vérifiez votre connexion.'))
-        }
-      }
-      finally { if (!cancelled) setTripsLoading(false) }
+    dayRequestRef.current += 1
+    setTrips([])
+    setTripsError('')
+    setRoutePoints([])
+    setRouteLoaded(false)
+    setRouteError('')
+    setDayRequest(null)
+  }, [id, rangePreset, customFrom, customTo, rangeReady])
+
+  useEffect(() => {
+    if (!availableDays.length || !availableDays.includes(selectedDay)) {
+      setSelectedDay(availableDays[0] || '')
     }
-    loadTrips()
-    return () => { cancelled = true }
-  }, [tab, id, trackingEnabled, rangePreset, customFrom, customTo, rangeReady, isAr, tripRetry])
+  }, [availableDays, selectedDay])
+
+  async function loadSelectedDay() {
+    if (tab !== 'route' || !trackingEnabled || !selectedDay || tripsLoading) return
+    const requestId = ++dayRequestRef.current
+    const from = new Date(`${selectedDay}T00:00:00`)
+    const to = new Date(from)
+    to.setDate(to.getDate() + 1)
+    const requestTo = to > new Date() ? new Date() : to
+    setTripsLoading(true)
+    setTripsError('')
+    setTrips([])
+    setRoutePoints([])
+    setRouteLoaded(false)
+    setRouteError('')
+    try {
+      const data = await api.reports.get(id, from.toISOString(), requestTo.toISOString())
+      if (requestId === dayRequestRef.current) {
+        setTrips(Array.isArray(data.trips) ? data.trips : [])
+        setDayRequest(selectedDay)
+      }
+    } catch (e) {
+      if (requestId === dayRequestRef.current) {
+        setTripsError(e?.code === 'DEVICE_NOT_LINKED'
+          ? (isAr ? 'هذا الجهاز غير مرتبط بخدمة التتبع.' : 'Cet appareil n’est pas lié au service de suivi.')
+          : (isAr ? 'تعذّر تحميل رحلات هذا اليوم. تحقق من اتصالك وأعد المحاولة.' : 'Impossible de charger les trajets de ce jour. Vérifiez votre connexion.'))
+      }
+    } finally {
+      if (requestId === dayRequestRef.current) setTripsLoading(false)
+    }
+  }
+
+  function chooseDay(day) {
+    dayRequestRef.current += 1
+    setSelectedDay(day)
+    setDayRequest(null)
+    setTrips([])
+    setTripsError('')
+    setRoutePoints([])
+    setRouteLoaded(false)
+    setRouteError('')
+  }
 
   async function loadRoute(from = rangeBounds?.from, to = rangeBounds?.to) {
+    if (!from || !to) {
+      const selectedFrom = selectedDay ? new Date(`${selectedDay}T00:00:00`) : null
+      from = selectedFrom
+      to = selectedFrom ? new Date(selectedFrom.getTime() + 24 * 60 * 60 * 1000) : null
+    }
     if (!from || !to || routeLoading) return null
+    const requestId = dayRequestRef.current
     setRouteLoading(true)
     setRouteError('')
     try {
-      const data = await api.stats.getPositions(id, from.toISOString(), to.toISOString(), 500)
+      const data = await api.stats.getPositions(id, from.toISOString(), to.toISOString(), 350)
       const cleaned = cleanRoute(data)
+      if (requestId !== dayRequestRef.current) return null
       if (cleaned.length < 2) {
         setRoutePoints([])
         setRouteLoaded(true)
@@ -262,6 +330,7 @@ export default function DeviceDetail() {
       setRouteLoaded(true)
       return cleaned
     } catch {
+      if (requestId !== dayRequestRef.current) return null
       setRouteLoaded(false)
       setRouteError(isAr ? 'تعذّر تحميل المسار. حاول مرة أخرى.' : 'Impossible de charger le trajet. Réessayez.')
       return null
@@ -276,7 +345,7 @@ export default function DeviceDetail() {
     if (!startTime || !endTime || replayLoading) return
     setReplayLoading(String(index))
     try {
-      const points = await api.stats.getPositions(id, startTime, endTime, 1500)
+      const points = await api.stats.getPositions(id, startTime, endTime, 900)
       const route = cleanRoute(points)
       if (route.length > 1) setReplayTrip({ ...trip, startTime, endTime, route })
     } finally {
@@ -639,21 +708,106 @@ export default function DeviceDetail() {
                 <div className="flex justify-center py-12">
                   <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
                 </div>
-              ) : tripsError ? (
+              ) : (
+                <>
+                  {dayRequest && availableDays.length > 1 && (
+                    <div className="rounded-2xl p-3" style={cardStyle}>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          {isAr ? 'اليوم المحمّل' : 'Jour chargé'}
+                        </p>
+                        <button
+                          onClick={() => chooseDay(selectedDay)}
+                          className="text-[10px] font-bold text-[#38d39f]"
+                        >
+                          {isAr ? 'تغيير اليوم' : 'Changer de jour'}
+                        </button>
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                        {availableDays.map((day) => {
+                          const date = new Date(`${day}T00:00:00`)
+                          return (
+                            <button
+                              key={day}
+                              onClick={() => chooseDay(day)}
+                              className="min-w-[82px] rounded-xl px-2.5 py-2 text-start transition"
+                              style={day === selectedDay
+                                ? { background: 'rgba(56,211,159,.16)', border: '1px solid rgba(56,211,159,.55)' }
+                                : { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}
+                            >
+                              <p className="text-[9px] font-bold text-slate-400">
+                                {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { weekday: 'short' })}
+                              </p>
+                              <p className="mt-1 text-xs font-black text-white">
+                                {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { day: 'numeric', month: 'short' })}
+                              </p>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {!dayRequest ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl p-4 text-center" style={cardStyle}>
+                    <RouteIcon size={28} className="mx-auto mb-2 text-[#38d39f]" />
+                    <p className="text-sm font-bold text-white">
+                      {rangePreset === 'today'
+                        ? (isAr ? 'اختر تحميل بيانات اليوم عند الحاجة' : 'Chargez les données du jour à la demande')
+                        : (isAr ? 'اختر يوماً واحداً لتحميل بياناته' : 'Choisissez un seul jour à charger')}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {isAr ? 'لن يتم تحميل الفترة كاملة أو نقاط الخريطة قبل اختيارك.' : 'La période complète et les points de la carte ne seront pas chargés avant votre choix.'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {availableDays.map((day) => {
+                      const date = new Date(`${day}T00:00:00`)
+                      const isSelected = day === selectedDay
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => chooseDay(day)}
+                          className="rounded-2xl p-3 text-start transition"
+                          style={isSelected
+                            ? { background: 'rgba(56,211,159,.16)', border: '1px solid rgba(56,211,159,.55)' }
+                            : { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}
+                        >
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { weekday: 'short' })}
+                          </p>
+                          <p className="mt-1 text-sm font-black text-white">
+                            {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <button
+                    onClick={loadSelectedDay}
+                    disabled={!selectedDay}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-[#07111f] disabled:opacity-50"
+                    style={{ background: '#38d39f' }}
+                  >
+                    <RouteIcon size={14} />
+                    {isAr ? 'تحميل هذا اليوم فقط' : 'Charger uniquement ce jour'}
+                  </button>
+                </div>
+                  ) : tripsError ? (
                 <div className="flex flex-col items-center p-6 rounded-2xl text-center" style={cardStyle}>
                   <p className="text-xs font-semibold text-red-500 mb-3">{tripsError}</p>
                   <button
-                    onClick={() => setTripRetry(value => value + 1)}
+                    onClick={loadSelectedDay}
                     className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background:'#17324d' }}>
                     {isAr?'إعادة المحاولة':'Réessayer'}
                   </button>
                 </div>
-              ) : trips.length === 0 ? (
+                  ) : trips.length === 0 ? (
                 <div className="flex flex-col items-center py-14" style={cardStyle}>
                   <RouteIcon size={32} className="mb-3 text-slate-300"/>
                   <p className="text-sm font-semibold text-slate-500">{t(lang, 'noTripsInRange')}</p>
                 </div>
-              ) : (
+                  ) : (
                 <>
                   <div className="relative overflow-hidden rounded-2xl" style={{ height:200 }}>
                     {positions.length > 0 ? (
@@ -670,7 +824,7 @@ export default function DeviceDetail() {
                           <>
                             <Map size={24} className="text-slate-500" />
                             <button
-                              onClick={() => loadRoute()}
+                               onClick={() => loadRoute()}
                               className="rounded-xl bg-[#38d39f] px-5 py-2.5 text-xs font-extrabold text-[#07111f] transition hover:brightness-110"
                             >
                               {t(lang, 'showRoute')}
@@ -681,18 +835,18 @@ export default function DeviceDetail() {
                       </div>
                     )}
                   </div>
-                  {routeLoaded && rangeBounds && routePoints.length > 1 && (
+                   {routeLoaded && routePoints.length > 1 && (
                     <button
                       onClick={() => setReplayTrip({
-                        startTime: rangeBounds.from.toISOString(),
-                        endTime: rangeBounds.to.toISOString(),
+                         startTime: routePoints[0].fixTime,
+                         endTime: routePoints.at(-1).fixTime,
                         route: routePoints,
                       })}
                       className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-[#07111f] shadow-lg shadow-[#1DBF73]/10 transition hover:brightness-110"
                       style={{ background: '#1DBF73' }}
                     >
                       <Play size={14} fill="currentColor" />
-                      {t(lang, 'replayFullRange')}
+                         {isAr ? 'إعادة عرض اليوم المحدد' : 'Rejouer le jour sélectionné'}
                     </button>
                   )}
                   {routeLoaded && (
@@ -760,6 +914,8 @@ export default function DeviceDetail() {
                       </div>
                     ))}
                   </div>
+                </>
+                  )}
                 </>
               )}
             </motion.div>
