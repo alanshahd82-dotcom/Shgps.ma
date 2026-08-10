@@ -128,7 +128,7 @@ async function runMigrations() {
     await db.query(`
       UPDATE devices
       SET type = 'bike'
-      WHERE type IS NULL OR BTRIM(type) = '' OR type NOT IN ('car', 'bike')
+      WHERE type IS NULL OR BTRIM(type) = '' OR type NOT IN ('car', 'bike', 'truck')
     `)
     await db.query(`
       ALTER TABLE devices

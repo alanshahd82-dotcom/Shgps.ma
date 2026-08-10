@@ -387,8 +387,8 @@ import {
       const { name, driver, plate, type } = req.body
       if (name === undefined && driver === undefined && plate === undefined && type === undefined)
         return res.status(400).json({ error: 'Nothing to update' })
-      if (type !== undefined && !['car', 'bike'].includes(type))
-        return res.status(400).json({ error: 'Type must be car or bike' })
+      if (type !== undefined && !['car', 'bike', 'truck'].includes(type))
+        return res.status(400).json({ error: 'Type must be car, bike, or truck' })
       try {
         const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
         if (!devRows[0]) return res.status(404).json({ error: 'Device not found' })

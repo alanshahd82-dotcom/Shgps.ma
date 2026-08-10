@@ -378,7 +378,12 @@ export default function DeviceDetail() {
   }
 
   function openEdit() {
-    setEditForm({ name: device?.name || '', driver: device?.driver || '', plate: device?.plate || '', type: device?.type === 'car' ? 'car' : 'bike' })
+    setEditForm({
+      name: device?.name || '',
+      driver: device?.driver || '',
+      plate: device?.plate || '',
+      type: ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike',
+    })
     setEditing(true)
     setSaveMsg('')
   }

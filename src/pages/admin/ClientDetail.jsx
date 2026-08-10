@@ -311,7 +311,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                 {editingType ? (
                   <div className="flex items-center gap-2">
                       <VehicleTypeControl
-                        value={live.type === 'car' ? 'car' : 'bike'}
+                        value={['car', 'bike', 'truck'].includes(live.type) ? live.type : 'bike'}
                         onChange={saveType}
                         lang={lang}
                         className="min-w-[190px]"
@@ -331,7 +331,15 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                   { icon: Gauge, label: isAr ? 'السرعة' : 'Vitesse', val: live.status === 'online' ? `${live.speed || 0} km/h` : '—' },
                   { icon: Battery, label: isAr ? 'البطارية' : 'Batterie', val: `${live.battery ?? '—'}%` },
                   { icon: MapPin, label: 'IMEI', val: live.imei, mono: true },
-                  { icon: Car, label: isAr ? 'النوع' : 'Type', val: live.type === 'car' ? (isAr ? 'سيارة' : 'Voiture') : (isAr ? 'دراجة نارية' : 'Moto') },
+                  {
+                    icon: live.type === 'truck' ? Truck : live.type === 'car' ? Car : Bike,
+                    label: isAr ? 'النوع' : 'Type',
+                    val: live.type === 'truck'
+                      ? (isAr ? 'شاحنة' : 'Camion')
+                      : live.type === 'car'
+                        ? (isAr ? 'سيارة' : 'Voiture')
+                        : (isAr ? 'دراجة نارية' : 'Moto'),
+                  },
                   { icon: Clock, label: isAr ? 'آخر تحديث' : 'Dernier update', val: live.lastUpdate ? new Date(live.lastUpdate).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA') : '—' },
                   { icon: Navigation, label: isAr ? 'اللوحة' : 'Plaque', val: live.plate || '—' },
                 ].map((row, i) => (

@@ -29,9 +29,10 @@ export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', clas
   const options = [
     { value: 'car', ar: 'سيارة', fr: 'Voiture' },
     { value: 'bike', ar: 'دراجة نارية', fr: 'Moto' },
+    { value: 'truck', ar: 'شاحنة', fr: 'Camion' },
   ]
   return (
-    <div className={`grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 ${className}`} role="group" aria-label={lang === 'ar' ? 'نوع المركبة' : 'Type de véhicule'}>
+    <div className={`grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 ${className}`} role="group" aria-label={lang === 'ar' ? 'نوع المركبة' : 'Type de véhicule'}>
       {options.map(option => (
         <button
           key={option.value}

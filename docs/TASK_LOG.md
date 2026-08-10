@@ -96,6 +96,13 @@ This file records the completed replay-related work and the current import audit
 - Backend JavaScript syntax checks pass.
 - `git diff --check` passes.
 
+## Vehicle types 2/2: truck markers
+
+- Added the supplied blue Mercedes Actros truck marker at `src/assets/truck-marker.png` with full transparency, preserved orientation, and an optimized size of 59.9 KB.
+- Extended the shared vehicle selector and vehicle icon support with `شاحنة` / `Camion`.
+- Enabled `truck` in device creation and update validation, preserved existing `bike` defaults, and kept the existing marker consumers and replay engine unchanged.
+- Calibrated the truck marker with an offset of `-135°`: bearing 0° → nose up, 90° → right, and 180° → down.
+
 ## Fix black map and frozen replay
 
 - Removed manual `map.remove()` from the replay lifecycle helper; `MapContainer` owns Leaflet cleanup, and manual removal broke the map during React Strict Mode remounts.

@@ -183,8 +183,8 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
 clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) => {
   const { name, imei, type, plate, subscriptionPlanId } = req.body
   if (!name||!imei) return res.status(400).json({ error:'Name and IMEI required' })
-  if (type !== undefined && !['car', 'bike'].includes(type)) {
-    return res.status(400).json({ error: 'Type must be car or bike' })
+  if (type !== undefined && !['car', 'bike', 'truck'].includes(type)) {
+    return res.status(400).json({ error: 'Type must be car, bike, or truck' })
   }
   const plan = getSubscriptionPlan(subscriptionPlanId)
   if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
