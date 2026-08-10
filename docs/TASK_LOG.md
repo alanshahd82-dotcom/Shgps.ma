@@ -81,6 +81,12 @@ This file records the completed replay-related work and the current import audit
 - Changed replay map following to be user-controlled: dragging or zooming pauses auto-follow, while the visible recenter button restores it.
 - Added mobile-safe Leaflet zoom controls, touch gestures, and a compact responsive replay sheet so the route remains visible and pannable during playback.
 
+## Follow-mode false-positive fix
+
+- Disabled replay follow-mode from map-container `pointerdown`, `touchstart`, and `wheel` input events instead of Leaflet `movestart`/`zoomstart` events.
+- Leaflet movement events are emitted by both user gestures and programmatic `setView`/`panTo` calls, so they could disable following before playback started. Programmatic camera moves now leave follow-mode enabled, while drag, pinch, and wheel input still pause it.
+- The existing re-center button continues to restore follow-mode and the calibrated car marker rotation remains unchanged.
+
 ## Realistic live map
 
 - Added a bilingual map-style toggle to both live map surfaces. Normal mode keeps Geoapify; satellite mode uses Esri World Imagery with a low-opacity OpenStreetMap label overlay. The choice is persisted locally.

@@ -205,9 +205,22 @@ function Viewport({ route, current, followCurrent, onManualMove }) {
   }, [map, route.length])
 
   useEffect(() => {
+    const container = map.getContainer()
     const disableFollow = () => onManualMove()
-    map.on('dragstart zoomstart', disableFollow)
-    return () => map.off('dragstart zoomstart', disableFollow)
+    const eventOptions = { passive: true }
+
+    // Leaflet's map movement events are also emitted by setView/panTo/flyTo.
+    // Listen to input events on the container instead so only real user
+    // gestures pause follow mode.
+    container.addEventListener('pointerdown', disableFollow, eventOptions)
+    container.addEventListener('touchstart', disableFollow, eventOptions)
+    container.addEventListener('wheel', disableFollow, eventOptions)
+
+    return () => {
+      container.removeEventListener('pointerdown', disableFollow, eventOptions)
+      container.removeEventListener('touchstart', disableFollow, eventOptions)
+      container.removeEventListener('wheel', disableFollow, eventOptions)
+    }
   }, [map, onManualMove])
 
   useEffect(() => {
