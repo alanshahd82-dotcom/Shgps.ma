@@ -15,10 +15,11 @@ const STATUS_COLORS = {
 }
 
 function toPoint(device) {
-  const primaryLat = Number(device?.lat)
-  const fallbackLat = Number(device?.last_lat)
-  const primaryLng = Number(device?.lng)
-  const fallbackLng = Number(device?.last_lng)
+  const parseCoordinate = value => value == null || value === '' ? null : Number(value)
+  const primaryLat = parseCoordinate(device?.lat)
+  const fallbackLat = parseCoordinate(device?.last_lat)
+  const primaryLng = parseCoordinate(device?.lng)
+  const fallbackLng = parseCoordinate(device?.last_lng)
   const lat = Number.isFinite(primaryLat) ? primaryLat : fallbackLat
   const lng = Number.isFinite(primaryLng) ? primaryLng : fallbackLng
   return Number.isFinite(lat) && Number.isFinite(lng) &&

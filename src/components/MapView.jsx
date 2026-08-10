@@ -84,6 +84,12 @@ function hasValidCoords(device) {
   )
 }
 
+function parseCoordinate(value) {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
 // ── Simple marker clustering ──────────────────────────────────────────────────
 // Groups markers that fall within CLUSTER_PX pixels of each other at given zoom.
 function clusterDevices(devs, zoom) {
@@ -170,10 +176,10 @@ export default function MapView({
 
   // Normalise coordinates to numbers before any check
   const normalised = allCandidates.map(d => {
-    const primaryLat = Number(d.lat)
-    const fallbackLat = Number(d.last_lat)
-    const primaryLng = Number(d.lng)
-    const fallbackLng = Number(d.last_lng)
+    const primaryLat = parseCoordinate(d.lat)
+    const fallbackLat = parseCoordinate(d.last_lat)
+    const primaryLng = parseCoordinate(d.lng)
+    const fallbackLng = parseCoordinate(d.last_lng)
     return {
       ...d,
       lat: Number.isFinite(primaryLat) ? primaryLat : fallbackLat,
