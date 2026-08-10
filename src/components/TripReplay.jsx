@@ -221,6 +221,7 @@ function speedColor(speed) {
 
 function Viewport({ route, current, followCurrent, onManualMove, showAnalysis }) {
   const map = useMap()
+  const lastFollowAtRef = useRef(0)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -267,7 +268,15 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis })
       const offset = L.point(mapRect.width / 2, targetY).subtract(currentPoint)
 
       if (Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
-        map.panBy(offset, { animate: true, duration: 0.22 })
+        // The playback clock can update at 60fps. Animating a new Leaflet pan
+        // on every frame queues overlapping transitions and eventually freezes
+        // the replay. Keep the vehicle comfortably in view with an immediate,
+        // throttled pan instead.
+        const now = performance.now()
+        if (Math.hypot(offset.x, offset.y) >= 24 && now - lastFollowAtRef.current >= 120) {
+          lastFollowAtRef.current = now
+          map.panBy(offset, { animate: false })
+        }
       }
     }
   }, [current?.latitude, current?.longitude, followCurrent, map, showAnalysis])

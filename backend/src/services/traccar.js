@@ -109,13 +109,19 @@ export async function getHistory(deviceId, from, to) {
     cursor = next
   }
 
-  const responses = await Promise.all(chunks)
   const unique = new Map()
-  for (const positions of responses) {
-    for (const position of positions) {
-      const key = position.id
-        ?? `${position.fixTime || ''}|${position.latitude || ''}|${position.longitude || ''}`
-      unique.set(String(key), position)
+  // Keep a small number of history requests in flight. Large report ranges
+  // can otherwise open one Traccar request per day at once and stall the
+  // browser when the device screen is already doing other work.
+  const HISTORY_CONCURRENCY = 3
+  for (let index = 0; index < chunks.length; index += HISTORY_CONCURRENCY) {
+    const responses = await Promise.all(chunks.slice(index, index + HISTORY_CONCURRENCY))
+    for (const positions of responses) {
+      for (const position of positions) {
+        const key = position.id
+          ?? `${position.fixTime || ''}|${position.latitude || ''}|${position.longitude || ''}`
+        unique.set(String(key), position)
+      }
     }
   }
 

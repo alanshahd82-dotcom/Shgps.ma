@@ -468,11 +468,6 @@ import {
       const ownerId = req.user.parent_client_id || req.user.id
       if (!req.user.is_admin && dev.user_id !== ownerId) return res.status(403).json({ error:'Access denied' })
       const subscription = getSubscriptionSnapshot(dev)
-      let history = []
-      if (subscription.trackingEnabled) {
-        try { history = await traccar.getHistory(dev.traccar_id) } catch {}
-      }
-
       // Load geofence state from local DB
       let localGeo = null
       try {
@@ -488,7 +483,6 @@ import {
         ...(subscription.trackingEnabled ? {} : {
           last_lat: null, last_lng: null, last_speed: null, last_update: null,
         }),
-        history,
         subscriptionPlanId: subscription.subscriptionPlanId,
         subscriptionStartDate: subscription.subscriptionStartDate,
         subscriptionEndDate: subscription.subscriptionEndDate,

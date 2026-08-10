@@ -187,14 +187,33 @@ export default function DeviceDetail() {
   const stLabel = { moving: isAr?'يتحرك':'En mouvement', idle:isAr?'خمول':'Ralenti', stopped:isAr?'متوقف':'Arrêté', offline:isAr?'غير متصل':'Hors ligne' }[st] || st
 
   useEffect(() => {
-    async function fetch() {
+    let cancelled = false
+    let requestInFlight = false
+    async function fetchDevice() {
+      if (cancelled || requestInFlight || document.hidden) return
+      requestInFlight = true
       setLoading(true)
-      try { setDevice(await api.devices.get(id)) } catch (e) { console.error(e) }
-      finally { setLoading(false) }
+      try {
+        const nextDevice = await api.devices.get(id)
+        if (!cancelled) setDevice(nextDevice)
+      } catch (e) {
+        if (!cancelled) console.error(e)
+      } finally {
+        requestInFlight = false
+        if (!cancelled) setLoading(false)
+      }
     }
-    fetch()
-    const iv = setInterval(fetch, 10000)
-    return () => clearInterval(iv)
+    fetchDevice()
+    const iv = setInterval(fetchDevice, 30000)
+    const handleVisibility = () => {
+      if (!document.hidden) fetchDevice()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      cancelled = true
+      clearInterval(iv)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [id])
 
   useEffect(() => {
@@ -275,12 +294,15 @@ export default function DeviceDetail() {
     })
   }
 
-  const routePoints = cleanRoute(trips.flatMap(trip => Array.isArray(trip.route) ? trip.route : []))
+  const routePoints = useMemo(
+    () => cleanRoute(trips.flatMap(trip => Array.isArray(trip.route) ? trip.route : [])),
+    [trips],
+  )
   const positions = useMemo(() => downsample(simplifyPath(routePoints
     .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
     .filter(([lat, lng]) => validPosition(lat, lng)), 0.00005), 600), [routePoints])
-  const speedData = bucketMax(routePoints
-    .map((point, index) => {
+  const speedData = useMemo(() => bucketMax(
+    routePoints.map((point, index) => {
       const date = new Date(point.fixTime || point.timestamp || point.time)
       return {
         index,
@@ -288,8 +310,9 @@ export default function DeviceDetail() {
         time: date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }),
         speed: Math.max(0, Math.round(Number(point.speed) || 0)),
       }
-    })
-  , 300)
+    }),
+    300,
+  ), [isAr, routePoints])
   const speedMax = speedData.reduce((max, point) => Math.max(max, point.speed), 0)
   const speedDomainMax = Math.max(10, Math.ceil((speedMax + 5) / 5) * 5)
   const speedTicks = speedData.length > 1
