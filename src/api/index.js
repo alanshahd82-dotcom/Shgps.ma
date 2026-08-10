@@ -75,10 +75,11 @@ export const api = {
     positions: () => apiFetch('/map/positions'),
   },
   stats: {
-    getPositions: (deviceId, from, to) => {
+    getPositions: (deviceId, from, to, maxPoints) => {
       const params = new URLSearchParams({ deviceId: String(deviceId) })
       if (from) params.set('from', from)
       if (to) params.set('to', to)
+      if (maxPoints != null) params.set('maxPoints', String(maxPoints))
       return apiFetch(`/stats/positions?${params}`)
     },
   },

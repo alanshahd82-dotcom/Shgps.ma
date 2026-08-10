@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp } from 'lucide-react'
-import { MapContainer, Marker, useMap } from 'react-leaflet'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon } from 'lucide-react'
+import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
 import MapStyleToggle from '../../components/MapStyleToggle'
@@ -10,6 +10,8 @@ import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon, timeAgo, getDeviceStatusKey } from '../../components/ui'
+import { api } from '../../api/index.js'
+import { t } from '../../i18n/translations'
 
 // ── Map icons ──────────────────────────────────────────────────────────────────
 const userLocIcon = L.divIcon({
@@ -108,6 +110,9 @@ export default function LiveMap() {
   const [satelliteMode, setSatelliteMode] = useState(() => localStorage.getItem('athargps_map_style') === 'satellite')
   const [autoFollow, setAutoFollow] = useState(() => localStorage.getItem('athargps_auto_follow') !== 'false')
   const [clock, setClock] = useState(() => Date.now())
+  const [todayRoute, setTodayRoute] = useState([])
+  const [routeLoading, setRouteLoading] = useState(false)
+  const [routeError, setRouteError] = useState('')
   const isAr = lang === 'ar'
 
   useEffect(() => {
@@ -176,6 +181,35 @@ export default function LiveMap() {
 
   const sel = selected ? devices.find(d => d.id === selected) : null
 
+  useEffect(() => {
+    setTodayRoute([])
+    setRouteError('')
+  }, [selected])
+
+  async function showTodayRoute(device) {
+    if (routeLoading) return
+    const from = new Date()
+    from.setHours(0, 0, 0, 0)
+    setRouteLoading(true)
+    setRouteError('')
+    try {
+      const points = await api.stats.getPositions(device.id, from.toISOString(), new Date().toISOString(), 1500)
+      const route = points
+        .map(point => [toCoord(point?.latitude ?? point?.lat), toCoord(point?.longitude ?? point?.lng)])
+        .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng))
+      if (route.length < 2) {
+        setRouteError(isAr ? 'لا توجد نقاط كافية لمسار اليوم.' : 'Pas assez de points pour le trajet du jour.')
+        setTodayRoute([])
+      } else {
+        setTodayRoute(route)
+      }
+    } catch {
+      setRouteError(isAr ? 'تعذّر تحميل مسار اليوم.' : 'Impossible de charger le trajet du jour.')
+    } finally {
+      setRouteLoading(false)
+    }
+  }
+
   // Status summary counts
   const counts = useMemo(() => {
     const all = devices.filter(d => d.trackingEnabled !== false)
@@ -228,6 +262,18 @@ export default function LiveMap() {
             onClick={() => { setSelected(d.id); setPanelOpen(true) }}
           />
         ))}
+         {todayRoute.length > 1 && (
+           <Polyline
+             positions={todayRoute}
+             pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }}
+           />
+         )}
+         {todayRoute.length > 1 && (
+           <Polyline
+             positions={todayRoute}
+             pathOptions={{ color: '#1DBF73', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
+           />
+         )}
         {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
         <FlyToUser target={locateTarget} />
       </MapContainer>
@@ -262,7 +308,7 @@ export default function LiveMap() {
               background: wsConnected ? '#38d39f' : '#e46b68',
               animation: wsConnected ? 'ping 2s ease-out infinite' : 'none' }}
           />
-          {wsConnected ? 'Live' : 'Offline'}
+           {wsConnected ? t(lang, 'live') : t(lang, 'reconnecting')}
         </div>
       </div>
 
@@ -558,6 +604,19 @@ export default function LiveMap() {
                               }}
                             >
                               <button
+                                onClick={() => showTodayRoute(d)}
+                                disabled={routeLoading}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs disabled:opacity-60"
+                                style={{
+                                  background: 'rgba(217,173,98,0.14)',
+                                  border: '1px solid rgba(217,173,98,0.38)',
+                                  color: '#e7c788',
+                                }}
+                              >
+                                {routeLoading ? <Loader2 size={13} className="animate-spin" /> : <RouteIcon size={13} />}
+                                {t(lang, 'showRoute')}
+                              </button>
+                              <button
                                 onClick={() => openMaps('google', d)}
                                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs"
                                 style={{
@@ -582,6 +641,9 @@ export default function LiveMap() {
                                 Waze
                               </button>
                             </div>
+                            {routeError && (
+                              <p className="px-3 pb-1 text-center text-[10px] font-semibold text-amber-300">{routeError}</p>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>

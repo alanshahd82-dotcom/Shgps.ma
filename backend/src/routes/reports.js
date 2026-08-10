@@ -194,13 +194,6 @@ reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'
           maxSpeed:    Math.round(tripMaxSpd),
           stopMin:     Math.round(stopMs / 60000),
           points:      pts.length,
-          route:       pts.map(point => ({
-            latitude:  Number(point.latitude),
-            longitude: Number(point.longitude),
-            speed:     Math.round(speedKmh(point.speed)),
-            fixTime:   point.fixTime,
-            address:   point.address || null,
-          })),
         }
       })
 

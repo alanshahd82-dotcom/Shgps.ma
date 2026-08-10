@@ -409,6 +409,10 @@ wss.on('connection', (ws, req) => {
     console.log('[WS] Frontend client disconnected — total: ' + frontendClients.size)
   })
 
+  ws.on('message', data => {
+    if (data.toString() === 'ping' && ws.readyState === WebSocket.OPEN) ws.send('pong')
+  })
+
   ws.on('error', (err) => console.error('[WS] Frontend client error:', err.message))
 })
 

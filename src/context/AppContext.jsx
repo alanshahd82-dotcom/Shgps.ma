@@ -24,6 +24,12 @@ export function AppProvider({ children }) {
   const [pushEnabled,    setPushEnabled]    = useState(() => localStorage.getItem('athargps_push') === 'true')
   const wsRef      = useRef(null)
   const wsRetryRef = useRef(0) // exponential backoff counter
+  const wsHeartbeatRef = useRef(null)
+  const wsWatchdogRef = useRef(null)
+  const wsPingSentAtRef = useRef(0)
+  const wsReconnectRef = useRef(null)
+  const wsLastActivityRef = useRef(0)
+  const wsPollingRef = useRef(null)
   const devicesRef = useRef([]) // mirror of devices — readable inside stale WS closures
   const positionPendingRef = useRef(new Map())
   const positionFlushTimerRef = useRef(null)
@@ -211,6 +217,7 @@ export function AppProvider({ children }) {
   function openWebSocket() {
     const token = localStorage.getItem('athargps_token')
     if (!token) return
+    if (wsRef.current && [WebSocket.OPEN, WebSocket.CONNECTING].includes(wsRef.current.readyState)) return
 
     const wsBase = import.meta.env.VITE_WS_URL || (() => {
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -220,13 +227,29 @@ export function AppProvider({ children }) {
 
     const ws = new WebSocket(url)
     wsRef.current = ws
+    wsLastActivityRef.current = Date.now()
 
     ws.onopen = () => {
       setWsConnected(true)
       wsRetryRef.current = 0 // reset backoff on success
+      stopFallbackPolling()
+      wsLastActivityRef.current = Date.now()
+      if (wsHeartbeatRef.current) window.clearInterval(wsHeartbeatRef.current)
+      if (wsWatchdogRef.current) window.clearInterval(wsWatchdogRef.current)
+      wsHeartbeatRef.current = window.setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          wsPingSentAtRef.current = Date.now()
+          ws.send('ping')
+        }
+      }, 20000)
+      wsWatchdogRef.current = window.setInterval(() => {
+        if (wsPingSentAtRef.current && Date.now() - wsPingSentAtRef.current > 10000) ws.close()
+      }, 5000)
     }
 
     ws.onmessage = (event) => {
+      wsLastActivityRef.current = Date.now()
+      wsPingSentAtRef.current = 0
       try {
         const data = JSON.parse(event.data)
 
@@ -277,16 +300,49 @@ export function AppProvider({ children }) {
     }
 
     ws.onclose = () => {
+      if (wsRef.current === ws) wsRef.current = null
       setWsConnected(false)
-      // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
+      if (wsHeartbeatRef.current) {
+        window.clearInterval(wsHeartbeatRef.current)
+        wsHeartbeatRef.current = null
+      }
+      if (wsWatchdogRef.current) {
+        window.clearInterval(wsWatchdogRef.current)
+        wsWatchdogRef.current = null
+      }
+      startFallbackPolling()
+      // Exponential backoff: 1s, 2s, 4s, 8s, max 15s.
       if (localStorage.getItem('athargps_token')) {
-        const delay = Math.min(1000 * Math.pow(2, wsRetryRef.current), 30000)
+        const delay = Math.min(1000 * Math.pow(2, wsRetryRef.current), 15000)
         wsRetryRef.current += 1
-        setTimeout(openWebSocket, delay)
+        if (wsReconnectRef.current) window.clearTimeout(wsReconnectRef.current)
+        wsReconnectRef.current = window.setTimeout(() => {
+          wsReconnectRef.current = null
+          openWebSocket()
+        }, delay)
       }
     }
 
     ws.onerror = () => ws.close()
+  }
+
+  function startFallbackPolling() {
+    if (wsPollingRef.current || !localStorage.getItem('athargps_token')) return
+    const poll = async () => {
+      if (wsConnected || document.hidden) return
+      try {
+        const nextDevices = await api.map.positions()
+        if (Array.isArray(nextDevices) && !wsConnected) setDevices(nextDevices)
+      } catch {}
+    }
+    poll()
+    wsPollingRef.current = window.setInterval(poll, 15000)
+  }
+
+  function stopFallbackPolling() {
+    if (!wsPollingRef.current) return
+    window.clearInterval(wsPollingRef.current)
+    wsPollingRef.current = null
   }
 
   function closeWebSocket() {
@@ -295,6 +351,19 @@ export function AppProvider({ children }) {
       wsRef.current.close()
       wsRef.current = null
     }
+    if (wsHeartbeatRef.current) {
+      window.clearInterval(wsHeartbeatRef.current)
+      wsHeartbeatRef.current = null
+    }
+    if (wsWatchdogRef.current) {
+      window.clearInterval(wsWatchdogRef.current)
+      wsWatchdogRef.current = null
+    }
+    if (wsReconnectRef.current) {
+      window.clearTimeout(wsReconnectRef.current)
+      wsReconnectRef.current = null
+    }
+    stopFallbackPolling()
     if (positionFlushTimerRef.current) {
       window.clearTimeout(positionFlushTimerRef.current)
       positionFlushTimerRef.current = null
@@ -302,6 +371,7 @@ export function AppProvider({ children }) {
     positionPendingRef.current = new Map()
     setWsConnected(false)
     wsRetryRef.current = 0
+    wsPingSentAtRef.current = 0
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────

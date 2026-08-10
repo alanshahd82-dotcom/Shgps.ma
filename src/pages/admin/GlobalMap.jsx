@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
+import { Polyline } from 'react-leaflet'
 import { CalendarRange, Loader2, Play, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
@@ -16,6 +17,9 @@ export default function GlobalMap() {
   const [replayPositions, setReplayPositions] = useState([])
   const [replayLoading, setReplayLoading] = useState(false)
   const [replayError, setReplayError] = useState('')
+  const [todayRoute, setTodayRoute] = useState([])
+  const [routeLoadingDeviceId, setRouteLoadingDeviceId] = useState(null)
+  const [routeError, setRouteError] = useState('')
   const defaultStart = useMemo(() => { const date = new Date(); date.setHours(0, 0, 0, 0); return date.toISOString().slice(0, 16) }, [])
   const defaultEnd = useMemo(() => new Date().toISOString().slice(0, 16), [])
   const [replayFrom, setReplayFrom] = useState(defaultStart)
@@ -35,6 +39,34 @@ export default function GlobalMap() {
   const changeAutoFollow = value => {
     setAutoFollow(value)
     localStorage.setItem('athargps_auto_follow', String(value))
+  }
+
+  async function showTodayRoute(device) {
+    if (routeLoadingDeviceId) return
+    const from = new Date()
+    from.setHours(0, 0, 0, 0)
+    setRouteLoadingDeviceId(device.id)
+    setRouteError('')
+    try {
+      const points = await api.stats.getPositions(device.id, from.toISOString(), new Date().toISOString(), 1500)
+      const route = points
+        .map(point => [Number(point?.latitude ?? point?.lat), Number(point?.longitude ?? point?.lng)])
+        .filter(([lat, lng]) =>
+          Number.isFinite(lat) && Number.isFinite(lng)
+          && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+        )
+      if (route.length < 2) {
+        setTodayRoute([])
+        setRouteError(lang === 'ar' ? 'لا توجد نقاط كافية لمسار اليوم.' : 'Pas assez de points pour le trajet du jour.')
+      } else {
+        setTodayRoute(route)
+      }
+    } catch {
+      setTodayRoute([])
+      setRouteError(lang === 'ar' ? 'تعذّر تحميل مسار اليوم.' : 'Impossible de charger le trajet du jour.')
+    } finally {
+      setRouteLoadingDeviceId(null)
+    }
   }
 
   return (
@@ -65,12 +97,13 @@ export default function GlobalMap() {
               <label className="mb-1 block text-[10px] text-slate-500">{t(lang, 'to')}</label>
               <input type="datetime-local" value={replayTo} onChange={event => setReplayTo(event.target.value)} className="mb-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-[11px] text-primary-500" />
               {replayError && <p className="mb-2 text-[10px] font-semibold text-red-500">{replayError}</p>}
+              {routeError && <p className="mb-2 text-[10px] font-semibold text-amber-600">{routeError}</p>}
               <button onClick={async () => {
                 const device = devices.find(item => String(item.id) === String(selectedDeviceId))
                 if (!device) return
                 setReplayLoading(true); setReplayError('')
                 try {
-                  const points = await api.stats.getPositions(device.id, new Date(replayFrom).toISOString(), new Date(replayTo).toISOString())
+                   const points = await api.stats.getPositions(device.id, new Date(replayFrom).toISOString(), new Date(replayTo).toISOString(), 1500)
                   if (!Array.isArray(points) || points.length < 2) throw new Error('empty')
                   setReplayPositions(points); setReplayDevice(device)
                 } catch {
@@ -78,7 +111,7 @@ export default function GlobalMap() {
                 } finally { setReplayLoading(false) }
               }} disabled={replayLoading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-60">
                 {replayLoading ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
-                {t(lang, 'replay')}
+                 {t(lang, 'replay')}
               </button>
             </div>
           )}
@@ -133,9 +166,9 @@ export default function GlobalMap() {
         {/* Map */}
         <div className="flex-1 relative">
           {/* Live badge */}
-          <div className="absolute top-4 right-4 z-20 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm">
-            <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-            <span className="text-xs font-bold text-primary-500">{wsConnected ? t(lang, 'live') : t(lang, 'notConnected')}</span>
+           <div className={`absolute top-4 right-4 z-20 rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm ${wsConnected ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+             <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-pulse'}`} />
+             <span className={`text-xs font-bold ${wsConnected ? 'text-emerald-700' : 'text-amber-700'}`}>{wsConnected ? t(lang, 'live') : t(lang, 'reconnecting')}</span>
           </div>
           <MapStyleToggle
             lang={lang}
@@ -146,14 +179,26 @@ export default function GlobalMap() {
             style={{ top: 16, left: 16 }}
           />
 
-          <MapView
+             <MapView
             showAllDevices={!selectedDeviceId}
             deviceId={selectedDeviceId}
             height="100%"
             zoom={selectedDeviceId ? 14 : 6}
             satelliteMode={satelliteMode}
             autoFollow={autoFollow}
-            onDeviceClick={device => setSelectedDeviceId(device.id)}
+            onDeviceClick={device => {
+              setSelectedDeviceId(device.id)
+              setTodayRoute([])
+              setRouteError('')
+            }}
+            onRouteRequest={showTodayRoute}
+            routeLoadingDeviceId={routeLoadingDeviceId}
+            children={todayRoute.length > 1 ? (
+              <>
+                <Polyline positions={todayRoute} pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }} />
+                <Polyline positions={todayRoute} pathOptions={{ color: '#1DBF73', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
+              </>
+            ) : null}
           />
         </div>
       </div>

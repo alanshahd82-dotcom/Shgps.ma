@@ -72,6 +72,21 @@ This file records the completed replay-related work and the current import audit
 - The build output contains no `is not defined` warnings or build errors.
 - `git diff --check` passes.
 
+## On-demand loading and live connection resilience
+
+- Device selection on the client and admin live maps only pans/selects and opens the device card; it does not request historical positions.
+- Added explicit bilingual “show today's route” actions that fetch a bounded route only after the user asks for it.
+- Trips tab now loads a lightweight trip list first; the map and speed chart remain empty until the user loads the selected range route.
+- Added `maxPoints` stride sampling to `GET /api/stats/positions`, preserving the first and last fix and capping returned routes.
+- Removed route payloads from trip-list responses; individual trip replay loads its route on demand.
+- Added WebSocket ping/pong health checks, bounded exponential reconnect backoff, and 15-second `/api/map/positions` polling while disconnected.
+
+## Verification
+
+- Production frontend build passes successfully.
+- Backend JavaScript syntax checks pass.
+- `git diff --check` passes.
+
 ## Performance rescue
 
 - Restored a lightweight car marker export at `160×107` and `33.82 KB` (previously `1536×1024` and approximately `2.4 MB`).

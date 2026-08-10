@@ -117,6 +117,11 @@ export default function DeviceDetail() {
   const [device, setDevice] = useState(devices.find(d => String(d.id) === String(id)) || null)
   const [loading, setLoading] = useState(!device)
   const [trips, setTrips] = useState([])
+  const [routePoints, setRoutePoints] = useState([])
+  const [routeLoading, setRouteLoading] = useState(false)
+  const [routeLoaded, setRouteLoaded] = useState(false)
+  const [routeError, setRouteError] = useState('')
+  const [replayLoading, setReplayLoading] = useState('')
   const [tripsLoading, setTripsLoading] = useState(false)
   const [shareLink, setShareLink] = useState('')
   const [copied, setCopied] = useState(false)
@@ -223,6 +228,7 @@ export default function DeviceDetail() {
     let cancelled = false
     async function loadTrips() {
       setTripsLoading(true); setTripsError(''); setTrips([])
+      setRoutePoints([]); setRouteLoaded(false); setRouteError('')
       try {
         const data = await api.reports.get(id, bounds.from.toISOString(), bounds.to.toISOString())
         if (!cancelled) setTrips(Array.isArray(data.trips) ? data.trips : [])
@@ -238,6 +244,45 @@ export default function DeviceDetail() {
     loadTrips()
     return () => { cancelled = true }
   }, [tab, id, trackingEnabled, rangePreset, customFrom, customTo, rangeReady, isAr, tripRetry])
+
+  async function loadRoute(from = rangeBounds?.from, to = rangeBounds?.to) {
+    if (!from || !to || routeLoading) return null
+    setRouteLoading(true)
+    setRouteError('')
+    try {
+      const data = await api.stats.getPositions(id, from.toISOString(), to.toISOString(), 500)
+      const cleaned = cleanRoute(data)
+      if (cleaned.length < 2) {
+        setRoutePoints([])
+        setRouteLoaded(true)
+        setRouteError(isAr ? 'لا توجد نقاط كافية لرسم المسار.' : 'Pas assez de points pour afficher le trajet.')
+        return null
+      }
+      setRoutePoints(cleaned)
+      setRouteLoaded(true)
+      return cleaned
+    } catch {
+      setRouteLoaded(false)
+      setRouteError(isAr ? 'تعذّر تحميل المسار. حاول مرة أخرى.' : 'Impossible de charger le trajet. Réessayez.')
+      return null
+    } finally {
+      setRouteLoading(false)
+    }
+  }
+
+  async function replaySingleTrip(trip, index) {
+    const startTime = getTripStart(trip)
+    const endTime = getTripEnd(trip)
+    if (!startTime || !endTime || replayLoading) return
+    setReplayLoading(String(index))
+    try {
+      const points = await api.stats.getPositions(id, startTime, endTime, 1500)
+      const route = cleanRoute(points)
+      if (route.length > 1) setReplayTrip({ ...trip, startTime, endTime, route })
+    } finally {
+      setReplayLoading('')
+    }
+  }
 
   async function sendCommand(type) {
     setSending(true)
@@ -294,10 +339,6 @@ export default function DeviceDetail() {
     })
   }
 
-  const routePoints = useMemo(
-    () => cleanRoute(trips.flatMap(trip => Array.isArray(trip.route) ? trip.route : [])),
-    [trips],
-  )
   const positions = useMemo(() => downsample(simplifyPath(routePoints
     .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
     .filter(([lat, lng]) => validPosition(lat, lng)), 0.00005), 600), [routePoints])
@@ -614,16 +655,33 @@ export default function DeviceDetail() {
                 </div>
               ) : (
                 <>
-                  {positions.length > 0 && (
-                    <div className="rounded-2xl overflow-hidden" style={{ height:200 }}>
+                  <div className="relative overflow-hidden rounded-2xl" style={{ height:200 }}>
+                    {positions.length > 0 ? (
                       <MapContainer center={positions[0]} zoom={12} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
                         <GeoapifyTileLayer />
                         <Polyline positions={positions} color="#16866d" weight={3} opacity={0.8}/>
                         <FitRoute positions={positions}/>
                       </MapContainer>
-                    </div>
-                  )}
-                  {rangeBounds && routePoints.length > 1 && (
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-[#0b1929] text-center">
+                        {routeLoading ? (
+                          <Loader2 size={22} className="animate-spin text-[#38d39f]" />
+                        ) : (
+                          <>
+                            <Map size={24} className="text-slate-500" />
+                            <button
+                              onClick={() => loadRoute()}
+                              className="rounded-xl bg-[#38d39f] px-5 py-2.5 text-xs font-extrabold text-[#07111f] transition hover:brightness-110"
+                            >
+                              {t(lang, 'showRoute')}
+                            </button>
+                          </>
+                        )}
+                        {routeError && <p className="px-4 text-[10px] font-semibold text-amber-300">{routeError}</p>}
+                      </div>
+                    )}
+                  </div>
+                  {routeLoaded && rangeBounds && routePoints.length > 1 && (
                     <button
                       onClick={() => setReplayTrip({
                         startTime: rangeBounds.from.toISOString(),
@@ -637,14 +695,15 @@ export default function DeviceDetail() {
                       {t(lang, 'replayFullRange')}
                     </button>
                   )}
-                  <div className="p-4 rounded-2xl" style={cardStyle}>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="text-xs font-bold tracking-wide uppercase text-slate-500">
-                        {isAr ? 'منحنى السرعة' : 'Vitesse'}
-                      </p>
-                      {speedData.length > 1 && <span className="text-[10px] text-slate-500">{speedData.length} {isAr ? 'نقطة' : 'points'}</span>}
-                    </div>
-                    {speedData.length > 1 ? (
+                  {routeLoaded && (
+                    <div className="p-4 rounded-2xl" style={cardStyle}>
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <p className="text-xs font-bold tracking-wide uppercase text-slate-500">
+                          {isAr ? 'منحنى السرعة' : 'Vitesse'}
+                        </p>
+                        {speedData.length > 1 && <span className="text-[10px] text-slate-500">{speedData.length} {isAr ? 'نقطة' : 'points'}</span>}
+                      </div>
+                      {speedData.length > 1 ? (
                       <ResponsiveContainer width="100%" height={132}>
                         <AreaChart data={speedData} margin={{ top: 4, right: 22, left: 0, bottom: 2 }}>
                           <defs>
@@ -665,13 +724,14 @@ export default function DeviceDetail() {
                           <Area type="monotone" dataKey="speed" stroke="#1DBF73" strokeWidth={2.5} fill="url(#device-speed-fill)" dot={false} activeDot={{ r: 4, fill: '#1DBF73', stroke: '#07111f', strokeWidth: 2 }} />
                         </AreaChart>
                       </ResponsiveContainer>
-                    ) : (
-                      <div className="flex h-[132px] flex-col items-center justify-center gap-2 text-center">
-                        <Activity size={22} className="text-slate-500" />
-                        <p className="text-xs text-slate-500">{isAr ? 'لا توجد بيانات سرعة' : 'Aucune donnée de vitesse'}</p>
-                      </div>
-                    )}
-                  </div>
+                      ) : (
+                        <div className="flex h-[132px] flex-col items-center justify-center gap-2 text-center">
+                          <Activity size={22} className="text-slate-500" />
+                          <p className="text-xs text-slate-500">{isAr ? 'لا توجد بيانات سرعة' : 'Aucune donnée de vitesse'}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {displayTrips.map(({ trip, index, isStop }) => (
                       <div key={`${getTripStart(trip) || index}-${index}`} className="flex items-center gap-3 rounded-2xl p-3" style={cardStyle}>
@@ -689,11 +749,12 @@ export default function DeviceDetail() {
                           <span className="shrink-0 rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-[10px] font-bold text-amber-300">{t(lang, 'stopLabel')}</span>
                         ) : (
                           <button
-                            onClick={() => setReplayTrip({ ...trip, startTime: getTripStart(trip), endTime: getTripEnd(trip), route: trip.route || [] })}
+                      onClick={() => replaySingleTrip(trip, index)}
+                      disabled={replayLoading === String(index)}
                             className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-[#07111f]"
                             style={{ background:'#38d39f' }}
                           >
-                            <Play size={12} fill="currentColor" />{t(lang, 'replay')}
+                            {replayLoading === String(index) ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} fill="currentColor" />}{t(lang, 'replay')}
                           </button>
                         )}
                       </div>

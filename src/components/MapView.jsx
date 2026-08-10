@@ -153,6 +153,8 @@ export default function MapView({
   satelliteMode = false,
   autoFollow = false,
   onDeviceClick = null,
+  onRouteRequest = null,
+  routeLoadingDeviceId = null,
   children = null,
 }) {
   const { devices, lang } = useApp()
@@ -283,6 +285,33 @@ export default function MapView({
                 <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
                   {lang === 'ar' ? `بطارية ${device.battery}% · إشارة ${device.signal}/4` : `Batt. ${device.battery}% · Signal ${device.signal}/4`}
                 </div>
+              )}
+              {onRouteRequest && (
+                <button
+                  type="button"
+                  onClick={event => {
+                    event.stopPropagation()
+                    onRouteRequest(device)
+                  }}
+                  disabled={routeLoadingDeviceId === device.id}
+                  style={{
+                    width: '100%',
+                    marginTop: 8,
+                    padding: '7px 9px',
+                    border: '1px solid rgba(15,32,68,.16)',
+                    borderRadius: 9,
+                    background: '#0F2044',
+                    color: 'white',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: routeLoadingDeviceId === device.id ? 'wait' : 'pointer',
+                    opacity: routeLoadingDeviceId === device.id ? 0.65 : 1,
+                  }}
+                >
+                  {routeLoadingDeviceId === device.id
+                    ? (lang === 'ar' ? 'جاري التحميل…' : 'Chargement…')
+                    : (lang === 'ar' ? 'عرض مسار اليوم' : 'Voir trajet du jour')}
+                </button>
               )}
             </div>
           </Popup>

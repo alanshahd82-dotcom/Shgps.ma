@@ -7,6 +7,19 @@ export const statsRouter = Router()
 
 const DEFAULT_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000
 
+function samplePositions(points, maxPoints) {
+  if (points.length <= maxPoints) return points
+  const sampled = []
+  const seen = new Set()
+  for (let index = 0; index < maxPoints; index += 1) {
+    const sourceIndex = Math.round(index * (points.length - 1) / (maxPoints - 1))
+    if (seen.has(sourceIndex)) continue
+    seen.add(sourceIndex)
+    sampled.push(points[sourceIndex])
+  }
+  return sampled
+}
+
 function getHistoryDate(value, fallback) {
   if (value === undefined) return fallback.toISOString()
   if (Array.isArray(value)) return null
@@ -17,7 +30,7 @@ function getHistoryDate(value, fallback) {
 
 // GET /api/stats/positions?deviceId=X&from=ISO_DATE&to=ISO_DATE
 statsRouter.get('/positions', requireAuth, async (req, res) => {
-  const { deviceId, from, to } = req.query
+  const { deviceId, from, to, maxPoints: maxPointsQuery } = req.query
 
   if (!deviceId || Array.isArray(deviceId)) {
     return res.status(400).json({ error: 'deviceId required' })
@@ -39,6 +52,15 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
   if (new Date(fromDate) > new Date(toDate)) {
     return res.status(400).json({ error: 'from must be before to' })
   }
+  if (Array.isArray(maxPointsQuery)) {
+    return res.status(400).json({ error: 'maxPoints must be a positive integer' })
+  }
+  const maxPoints = maxPointsQuery === undefined
+    ? 1500
+    : Number(maxPointsQuery)
+  if (!Number.isInteger(maxPoints) || maxPoints < 2 || maxPoints > 5000) {
+    return res.status(400).json({ error: 'maxPoints must be an integer between 2 and 5000' })
+  }
 
   try {
     const { rows } = await db.query(
@@ -56,11 +78,14 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
       return res.status(502).json({ error: 'Device is not linked to the tracking service' })
     }
 
-    const positions = traccar.cleanPositions(await traccar.getHistory(device.traccar_id, fromDate, toDate))
+    const cleanedPositions = traccar.cleanPositions(await traccar.getHistory(device.traccar_id, fromDate, toDate))
+    const positions = samplePositions(cleanedPositions, maxPoints)
     console.info('[stats/positions]', {
       deviceId: deviceIdNumber,
       from: fromDate,
       to: toDate,
+      maxPoints,
+      cleaned: cleanedPositions.length,
       returned: positions.length,
     })
     const replayPositions = positions.map((position) => ({
