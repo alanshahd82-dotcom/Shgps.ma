@@ -5,11 +5,12 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
+import MapStyleToggle from '../../components/MapStyleToggle'
 import TripReplay from '../../components/TripReplay'
 import { api } from '../../api/index.js'
 
 export default function GlobalMap() {
-  const { devices, clientList, lang } = useApp()
+  const { devices, clientList, lang, wsConnected } = useApp()
   const [selectedDeviceId, setSelectedDeviceId] = useState(null)
   const [replayDevice, setReplayDevice] = useState(null)
   const [replayPositions, setReplayPositions] = useState([])
@@ -19,10 +20,22 @@ export default function GlobalMap() {
   const defaultEnd = useMemo(() => new Date().toISOString().slice(0, 16), [])
   const [replayFrom, setReplayFrom] = useState(defaultStart)
   const [replayTo, setReplayTo] = useState(defaultEnd)
+  const [satelliteMode, setSatelliteMode] = useState(() => localStorage.getItem('athargps_map_style') === 'satellite')
+  const [autoFollow, setAutoFollow] = useState(() => localStorage.getItem('athargps_auto_follow') !== 'false')
   const online = devices.filter(d => d.status === 'online')
   const offline = devices.filter(d => d.status !== 'online')
 
   const getClient = (clientId) => clientList.find(c => c.id === clientId)
+
+  const changeSatelliteMode = value => {
+    setSatelliteMode(value)
+    localStorage.setItem('athargps_map_style', value ? 'satellite' : 'map')
+  }
+
+  const changeAutoFollow = value => {
+    setAutoFollow(value)
+    localStorage.setItem('athargps_auto_follow', String(value))
+  }
 
   return (
     <AdminLayout>
@@ -121,15 +134,26 @@ export default function GlobalMap() {
         <div className="flex-1 relative">
           {/* Live badge */}
           <div className="absolute top-4 right-4 z-20 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-xs font-bold text-primary-500">{t(lang, 'liveTracking')}</span>
+            <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+            <span className="text-xs font-bold text-primary-500">{wsConnected ? t(lang, 'live') : t(lang, 'notConnected')}</span>
           </div>
+          <MapStyleToggle
+            lang={lang}
+            satellite={satelliteMode}
+            onSatelliteChange={changeSatelliteMode}
+            autoFollow={autoFollow}
+            onAutoFollowChange={changeAutoFollow}
+            style={{ top: 16, left: 16 }}
+          />
 
           <MapView
             showAllDevices={!selectedDeviceId}
             deviceId={selectedDeviceId}
             height="100%"
             zoom={selectedDeviceId ? 14 : 6}
+            satelliteMode={satelliteMode}
+            autoFollow={autoFollow}
+            onDeviceClick={device => setSelectedDeviceId(device.id)}
           />
         </div>
       </div>

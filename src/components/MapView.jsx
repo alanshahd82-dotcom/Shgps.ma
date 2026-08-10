@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { MapContainer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import GeoapifyTileLayer from './GeoapifyTileLayer'
+import MapLayers from './MapLayers'
+import LiveVehicleMarker from './LiveVehicleMarker'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
@@ -52,15 +53,18 @@ function createDeviceIcon(type, isSelected = false) {
   return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
 }
 
-function FlyToDevice({ lat, lng }) {
+function FlyToDevice({ lat, lng, deviceKey }) {
   const map = useMap()
+  const previousDeviceKey = useRef(null)
   useEffect(() => {
     const _lat = parseFloat(lat)
     const _lng = parseFloat(lng)
+    if (previousDeviceKey.current === deviceKey) return
     if (_lat !== undefined && _lng !== undefined && !isNaN(_lat) && !isNaN(_lng)) {
+      previousDeviceKey.current = deviceKey
       map.flyTo([_lat, _lng], 15, { duration: 1.2 })
     }
-  }, [lat, lng])
+  }, [deviceKey, lat, lng, map])
   return null
 }
 
@@ -146,6 +150,9 @@ export default function MapView({
   geofenceRadius = 500,
   onMapClick = null,
   zoom = 13,
+  satelliteMode = false,
+  autoFollow = false,
+  onDeviceClick = null,
   children = null,
 }) {
   const { devices, lang } = useApp()
@@ -214,9 +221,9 @@ export default function MapView({
       zoomControl={false}
       onClick={onMapClick}
     >
-      <GeoapifyTileLayer />
+      <MapLayers satellite={satelliteMode} />
 
-      {primaryHasCoords && <FlyToDevice lat={primaryDevice.lat} lng={primaryDevice.lng} />}
+      {primaryHasCoords && <FlyToDevice deviceKey={deviceId} lat={primaryDevice.lat} lng={primaryDevice.lng} />}
 
       {/* Extra layers injected by parent (user location, routing, etc.) */}
       {children}
@@ -230,49 +237,55 @@ export default function MapView({
         />
       )}
 
-      {/* Device markers — clustered when showing many devices at low zoom */}
+      {/* Keep the existing low-zoom grouping, while individual vehicles use the live marker. */}
       {(showAllDevices && displayDevices.length > 3
         ? clusterDevices(displayDevices, zoom)
         : displayDevices.map(d => ({ ...d, _clustered: false, _count: 1 }))
-      ).map(device => (
+      ).map(device => device._clustered ? (
         <Marker
           key={device.id}
           position={[device.lat, device.lng]}
-          icon={device._clustered
-            ? createClusterIcon(device._count, device._onlineCount)
-            : createDeviceIcon(device.type, device.id === deviceId)}
+          icon={createClusterIcon(device._count, device._onlineCount)}
         >
           <Popup>
-            {device._clustered ? (
-              <div style={{ fontFamily: 'Cairo, Inter, sans-serif', padding: '4px' }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#0F2044', marginBottom: 4 }}>
-                  {device._count} {lang === 'ar' ? 'أجهزة' : 'appareils'}
-                </div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>
-                  {device._onlineCount} {lang === 'ar' ? 'متصل' : 'en ligne'}
-                </div>
+            <div style={{ fontFamily: 'Cairo, Inter, sans-serif', padding: '4px' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#0F2044', marginBottom: 4 }}>
+                {device._count} {lang === 'ar' ? 'أجهزة' : 'appareils'}
               </div>
-            ) : (
-              <div style={{ minWidth: 160, fontFamily: 'Cairo, Inter, sans-serif', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#0F2044' }}>{device.name}</div>
-                <div style={{ fontSize: 11, color: '#64748B', marginBottom: 3 }}>{device.plate}</div>
-                <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
-                  <span style={{ color: device.status === 'online' ? '#00D97E' : '#94A3B8', fontWeight: 600 }}>
-                    ● {device.status === 'online' ? t(lang, 'online') : t(lang, 'offline')}
-                  </span>
-                  {device.status === 'online' && (
-                    <span style={{ color: '#0F2044', fontWeight: 600 }}>{device.speed} {t(lang, 'kmh')}</span>
-                  )}
-                </div>
-                {device.status === 'online' && (
-                  <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
-                    {lang === 'ar' ? `بطارية ${device.battery}% · إشارة ${device.signal}/4` : `Batt. ${device.battery}% · Signal ${device.signal}/4`}
-                  </div>
-                )}
+              <div style={{ fontSize: 11, color: '#64748b' }}>
+                {device._onlineCount} {lang === 'ar' ? 'متصل' : 'en ligne'}
               </div>
-            )}
+            </div>
           </Popup>
         </Marker>
+      ) : (
+        <LiveVehicleMarker
+          key={device.id}
+          device={device}
+          isSelected={device.id === deviceId}
+          autoFollow={autoFollow && device.id === deviceId}
+          onClick={() => onDeviceClick?.(device)}
+        >
+          <Popup>
+            <div style={{ minWidth: 160, fontFamily: 'Cairo, Inter, sans-serif', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#0F2044' }}>{device.name}</div>
+              <div style={{ fontSize: 11, color: '#64748B', marginBottom: 3 }}>{device.plate}</div>
+              <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
+                <span style={{ color: device.status === 'online' ? '#00D97E' : '#94A3B8', fontWeight: 600 }}>
+                  ● {device.status === 'online' ? t(lang, 'online') : t(lang, 'offline')}
+                </span>
+                {device.status === 'online' && (
+                  <span style={{ color: '#0F2044', fontWeight: 600 }}>{device.speed} {t(lang, 'kmh')}</span>
+                )}
+              </div>
+              {device.status === 'online' && (
+                <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
+                  {lang === 'ar' ? `بطارية ${device.battery}% · إشارة ${device.signal}/4` : `Batt. ${device.battery}% · Signal ${device.signal}/4`}
+                </div>
+              )}
+            </div>
+          </Popup>
+        </LiveVehicleMarker>
       ))}
     </MapContainer>
   )

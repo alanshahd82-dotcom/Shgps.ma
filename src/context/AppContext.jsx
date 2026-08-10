@@ -25,9 +25,53 @@ export function AppProvider({ children }) {
   const wsRef      = useRef(null)
   const wsRetryRef = useRef(0) // exponential backoff counter
   const devicesRef = useRef([]) // mirror of devices — readable inside stale WS closures
+  const positionPendingRef = useRef(new Map())
+  const positionFlushTimerRef = useRef(null)
 
   // Keep devicesRef current so WS closures can look up device names without stale state
   useEffect(() => { devicesRef.current = devices }, [devices])
+
+  function flushPositionUpdates() {
+    const pending = positionPendingRef.current
+    if (!pending.size) return
+    positionPendingRef.current = new Map()
+    setDevices(prev => {
+      const updated = [...prev]
+      for (const pos of pending.values()) {
+        const idx = updated.findIndex(d => d.traccarId === pos.deviceId || d.traccar_id === pos.deviceId)
+        if (idx !== -1 && updated[idx].trackingEnabled !== false) {
+          updated[idx] = {
+            ...updated[idx],
+            lat:        pos.latitude,
+            lng:        pos.longitude,
+            speed:      pos.speed ?? 0,
+            lastUpdate: pos.fixTime,
+            fixTime:    pos.fixTime,
+            course:     pos.course ?? pos.attributes?.course ?? updated[idx].course,
+            status:     'online',
+            engineOn:   pos.attributes?.ignition   ?? updated[idx].engineOn,
+            battery:    pos.attributes?.battery    ?? updated[idx].battery,
+            signal:     pos.attributes?.rssi       ?? updated[idx].signal,
+            fuel:       pos.attributes?.fuel       ?? updated[idx].fuel,
+          }
+        }
+      }
+      return updated
+    })
+  }
+
+  function queuePositionUpdates(positions) {
+    for (const pos of positions) {
+      const deviceKey = pos.deviceId ?? pos.id
+      if (deviceKey != null) positionPendingRef.current.set(String(deviceKey), pos)
+    }
+    if (positionFlushTimerRef.current) return
+    flushPositionUpdates()
+    positionFlushTimerRef.current = window.setTimeout(() => {
+      positionFlushTimerRef.current = null
+      flushPositionUpdates()
+    }, 500)
+  }
 
   // ── Dark mode ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -187,27 +231,7 @@ export function AppProvider({ children }) {
         const data = JSON.parse(event.data)
 
         if (data.positions && data.positions.length > 0) {
-          setDevices(prev => {
-            const updated = [...prev]
-            for (const pos of data.positions) {
-              const idx = updated.findIndex(d => d.traccarId === pos.deviceId || d.traccar_id === pos.deviceId)
-              if (idx !== -1 && updated[idx].trackingEnabled !== false) {
-                updated[idx] = {
-                  ...updated[idx],
-                  lat:        pos.latitude,
-                  lng:        pos.longitude,
-                  speed:      pos.speed ?? 0,
-                  lastUpdate: pos.fixTime,
-                  status:     'online',
-                  engineOn:   pos.attributes?.ignition   ?? updated[idx].engineOn,
-                  battery:    pos.attributes?.battery    ?? updated[idx].battery,
-                  signal:     pos.attributes?.rssi       ?? updated[idx].signal,
-                  fuel:       pos.attributes?.fuel       ?? updated[idx].fuel,
-                }
-              }
-            }
-            return updated
-          })
+          queuePositionUpdates(data.positions)
         }
 
         if (data.devices && data.devices.length > 0) {
@@ -271,6 +295,11 @@ export function AppProvider({ children }) {
       wsRef.current.close()
       wsRef.current = null
     }
+    if (positionFlushTimerRef.current) {
+      window.clearTimeout(positionFlushTimerRef.current)
+      positionFlushTimerRef.current = null
+    }
+    positionPendingRef.current = new Map()
     setWsConnected(false)
     wsRetryRef.current = 0
   }

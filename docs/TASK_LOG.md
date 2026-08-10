@@ -64,3 +64,17 @@ This file records the completed replay-related work and the current import audit
 - `npm run build` passes successfully.
 - The build output contains no `is not defined` warnings or build errors.
 - `git diff --check` passes.
+
+## Realistic live map
+
+- Added a bilingual map-style toggle to both live map surfaces. Normal mode keeps Geoapify; satellite mode uses Esri World Imagery with a low-opacity OpenStreetMap label overlay. The choice is persisted locally.
+- Added one persistent vehicle marker per device using the existing client car artwork, CSS multiply blending, drop shadow, bearing rotation, and requestAnimationFrame interpolation over approximately 800 ms.
+- Added a short fading trail for the selected vehicle, automatic map following, live/offline freshness state, a once-per-second last-update readout, speed, and bearing details.
+- Added Arabic and French labels for map, satellite, automatic follow, live, offline, update age, and bearing.
+- Batched incoming WebSocket positions per device and flushed them at most twice per second. Existing reconnect, backend, database, and Traccar behavior were left unchanged.
+- Preserved low-zoom device clustering in the admin global map; individual devices use the smooth live marker.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.

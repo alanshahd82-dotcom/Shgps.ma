@@ -105,6 +105,53 @@
   background: #07111f !important;
 }
 
+.athar-live-marker-icon {
+  background: transparent;
+  border: 0;
+}
+
+.athar-live-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.athar-live-marker img {
+  position: relative;
+  z-index: 2;
+  width: 48px;
+  height: 34px;
+  object-fit: contain;
+  transform-origin: center;
+  mix-blend-mode: multiply;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.5));
+  transition: filter .2s ease;
+}
+
+.athar-live-marker-ring {
+  position: absolute;
+  inset: 7px;
+  z-index: 1;
+  border: 2px solid var(--athar-live-color, #1DBF73);
+  border-radius: 999px;
+  opacity: .72;
+  box-shadow: 0 0 0 3px rgba(29,191,115,.17);
+}
+
+.athar-live-marker-pulse {
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: rgba(29,191,115,.14);
+  animation: athar-live-pulse 2s ease-out infinite;
+}
+
+@keyframes athar-live-pulse {
+  0% { transform: scale(.75); opacity: .8; }
+  70%, 100% { transform: scale(1.45); opacity: 0; }
+}
+
 /* Zoom controls */
 .leaflet-control-zoom {
   border: none !important;

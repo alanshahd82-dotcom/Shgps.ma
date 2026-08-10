@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp } from 'lucide-react'
 import { MapContainer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
+import MapLayers from '../../components/MapLayers'
+import MapStyleToggle from '../../components/MapStyleToggle'
+import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
@@ -78,6 +80,23 @@ const ST_LABEL = {
   offline: { ar: 'غير متصل', fr: 'Hors ligne'    },
 }
 
+function formatLiveAge(iso, lang, now) {
+  if (!iso) return lang === 'ar' ? 'غير متاح' : 'Indisponible'
+  const seconds = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000))
+  if (seconds < 60) return lang === 'ar' ? `${seconds} ث` : `${seconds} s`
+  const minutes = Math.floor(seconds / 60)
+  return lang === 'ar' ? `${minutes} د` : `${minutes} min`
+}
+
+function getFixTime(device) {
+  return device?.fixTime || device?.lastUpdate || device?.last_update
+}
+
+function getLiveBearing(device) {
+  const course = Number(device?.course ?? device?.attributes?.course)
+  return Number.isFinite(course) ? Math.round(course) : null
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function LiveMap() {
   const { devices, lang, wsConnected } = useApp()
@@ -86,7 +105,23 @@ export default function LiveMap() {
   const [panelOpen,    setPanelOpen]    = useState(false)
   const [userPos,      setUserPos]      = useState(null)
   const [locateTarget, setLocateTarget] = useState(null)
+  const [satelliteMode, setSatelliteMode] = useState(() => localStorage.getItem('athargps_map_style') === 'satellite')
+  const [autoFollow, setAutoFollow] = useState(() => localStorage.getItem('athargps_auto_follow') !== 'false')
+  const [clock, setClock] = useState(() => Date.now())
   const isAr = lang === 'ar'
+
+  useEffect(() => {
+    localStorage.setItem('athargps_map_style', satelliteMode ? 'satellite' : 'map')
+  }, [satelliteMode])
+
+  useEffect(() => {
+    localStorage.setItem('athargps_auto_follow', String(autoFollow))
+  }, [autoFollow])
+
+  useEffect(() => {
+    const id = window.setInterval(() => setClock(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
 
   // Continuous position watch (updates blue dot only)
   useEffect(() => {
@@ -181,14 +216,15 @@ export default function LiveMap() {
         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
-        <GeoapifyTileLayer />
+        <MapLayers satellite={satelliteMode} />
         {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
         {positioned.map(d => (
-          <Marker
+          <LiveVehicleMarker
             key={d.id}
-            position={[d.lat, d.lng]}
-            icon={makeVehicleIcon(d, selected === d.id)}
-            eventHandlers={{ click: () => { setSelected(d.id); setPanelOpen(true) } }}
+            device={d}
+            isSelected={selected === d.id}
+            autoFollow={autoFollow && selected === d.id}
+            onClick={() => { setSelected(d.id); setPanelOpen(true) }}
           />
         ))}
         {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
@@ -196,6 +232,15 @@ export default function LiveMap() {
       </MapContainer>
 
       <ClientHeader overlay />
+
+      <MapStyleToggle
+        lang={lang}
+        satellite={satelliteMode}
+        onSatelliteChange={setSatelliteMode}
+        autoFollow={autoFollow}
+        onAutoFollowChange={setAutoFollow}
+        style={{ top: 116, left: 14 }}
+      />
 
       {/* ── Live indicator ── */}
       <div className="absolute z-20" style={{ top: 72, left: 14 }}>
@@ -429,6 +474,23 @@ export default function LiveMap() {
                                   {timeAgo(d.lastUpdate || d.last_update, lang)}
                                 </span>
                               )}
+                              {isSelected && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold"
+                                  style={{ color: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? '#38d39f' : '#9ca3af' }}
+                                >
+                                  <span
+                                    className="rounded-full"
+                                    style={{
+                                      width: 6,
+                                      height: 6,
+                                      background: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? '#38d39f' : '#9ca3af',
+                                      animation: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? 'ping 2s ease-out infinite' : 'none',
+                                    }}
+                                  />
+                                  {getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? t(lang, 'live') : t(lang, 'notConnected')}
+                                </span>
+                              )}
                               {!hasPos && (
                                 <span className="text-[10px]" style={{ color: 'rgba(239,68,68,0.6)' }}>
                                   {isAr ? 'لا يوجد موقع GPS' : 'Pas de position GPS'}
@@ -463,6 +525,16 @@ export default function LiveMap() {
                           </div>
 
                         </div>
+                        {isSelected && hasPos && (
+                          <div
+                            className="mt-2 flex items-center gap-3 border-t pt-2 text-[10px]"
+                            style={{ borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.48)' }}
+                          >
+                            <span>{t(lang, 'lastUpdate')}: {t(lang, 'before')} {formatLiveAge(getFixTime(d), lang, clock)}</span>
+                            <span>{t(lang, 'speed')}: {Math.round(Number(d.speed) || 0)} {t(lang, 'kmh')}</span>
+                            {getLiveBearing(d) !== null && <span>{t(lang, 'bearing')}: {getLiveBearing(d)}°</span>}
+                          </div>
+                        )}
                       </button>
 
                       {/* ── Nav buttons (expanded) ── */}
