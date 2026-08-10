@@ -79,8 +79,15 @@ function hasValidCoords(device) {
     device.lat >= -90 &&
     device.lat <= 90 &&
     device.lng >= -180 &&
-    device.lng <= 180
+    device.lng <= 180 &&
+    !(Math.abs(device.lat) < 0.01 && Math.abs(device.lng) < 0.01)
   )
+}
+
+function parseCoordinate(value) {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
 }
 
 // ── Simple marker clustering ──────────────────────────────────────────────────
@@ -168,17 +175,23 @@ export default function MapView({
         : devices
 
   // Normalise coordinates to numbers before any check
-  const normalised = allCandidates.map(d => ({
-    ...d,
-    lat: parseFloat(d.lat),
-    lng: parseFloat(d.lng),
-  }))
+  const normalised = allCandidates.map(d => {
+    const primaryLat = parseCoordinate(d.lat)
+    const fallbackLat = parseCoordinate(d.last_lat)
+    const primaryLng = parseCoordinate(d.lng)
+    const fallbackLng = parseCoordinate(d.last_lng)
+    return {
+      ...d,
+      lat: Number.isFinite(primaryLat) ? primaryLat : fallbackLat,
+      lng: Number.isFinite(primaryLng) ? primaryLng : fallbackLng,
+    }
+  })
 
   // Only place markers for devices that have a real GPS fix
   const displayDevices = normalised.filter(d => d.trackingEnabled !== false && hasValidCoords(d))
 
   const primaryDevice = deviceId
-    ? normalised.find(d => d.id === deviceId)
+    ? normalised.find(d => String(d.id) === String(deviceId))
     : null
   const primaryHasCoords = primaryDevice?.trackingEnabled !== false && hasValidCoords(primaryDevice)
 

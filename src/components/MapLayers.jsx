@@ -30,7 +30,7 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
 
   const sources = satellite
     ? ['esri', 'geoapify-hybrid', 'osm']
-    : ['geoapify', 'osm']
+    : ['osm', 'geoapify']
 
   useEffect(() => {
     sourceIndexRef.current = 0
