@@ -25,43 +25,90 @@ function speedKmh(speed) {
   return Math.max(0, Number(speed || 0) * 1.852)
 }
 
-// Group positions into trips separated by stops > GAP_MS milliseconds
-const GAP_MS = 5 * 60 * 1000 // 5-minute gap = new trip
+// A trip is a continuous group of fixes that contains movement. A tracker
+// usually keeps sending zero-speed fixes while parked, so splitting only on
+// missing fixes would incorrectly turn a whole day of parking into one trip.
+const GAP_MS = 5 * 60 * 1000
+const MOVING_SPEED_KMH = 2
+const MAX_REPORT_RANGE_MS = 31 * 24 * 60 * 60 * 1000
 
 function buildTrips(positions) {
   if (!positions || positions.length === 0) return []
   const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
-  const trips  = []
-  let current  = [sorted[0]]
+  const movingIndexes = sorted
+    .map((point, index) => speedKmh(point.speed) >= MOVING_SPEED_KMH ? index : -1)
+    .filter(index => index !== -1)
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1]
-    const cur  = sorted[i]
-    const gap  = new Date(cur.fixTime) - new Date(prev.fixTime)
-    if (gap > GAP_MS) {
-      if (current.length > 1) trips.push(current)
-      current = [cur]
-    } else {
-      current.push(cur)
-    }
+  if (movingIndexes.length === 0) return []
+
+  const trips = []
+  let groupStart = movingIndexes[0]
+  let previousMovingIndex = movingIndexes[0]
+
+  function addTrip(firstMovingIndex, lastMovingIndex) {
+    // Include one boundary fix on either side so the replay starts and ends
+    // at the actual GPS fixes instead of cutting the route at the first
+    // non-zero speed sample.
+    const start = Math.max(0, firstMovingIndex - 1)
+    const end = Math.min(sorted.length - 1, lastMovingIndex + 1)
+    const trip = sorted.slice(start, end + 1)
+    if (trip.length > 1) trips.push(trip)
   }
-  if (current.length > 1) trips.push(current)
+
+  for (let index = 1; index < movingIndexes.length; index += 1) {
+    const movingIndex = movingIndexes[index]
+    const gap = new Date(sorted[movingIndex].fixTime) - new Date(sorted[previousMovingIndex].fixTime)
+    if (gap > GAP_MS) {
+      addTrip(groupStart, previousMovingIndex)
+      groupStart = movingIndex
+    }
+    previousMovingIndex = movingIndex
+  }
+
+  addTrip(groupStart, previousMovingIndex)
   return trips
+}
+
+function parseReportDate(value, fallback) {
+  if (value === undefined) return fallback
+  if (Array.isArray(value) || typeof value !== 'string' || !value.trim()) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 // GET /api/reports/trips?deviceId=X&from=ISO&to=ISO
 // Keep the original /api/reports route as a backwards-compatible alias.
 reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'), async (req, res) => {
   const { deviceId, from, to } = req.query
-  if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
+  if (!deviceId || Array.isArray(deviceId)) return res.status(400).json({ error: 'deviceId required' })
+  if (!Number.isInteger(Number(deviceId)) || Number(deviceId) < 1) {
+    return res.status(400).json({ error: 'deviceId must be a positive integer' })
+  }
+
+  const now = new Date()
+  const defaultFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const fromDate = parseReportDate(from, defaultFrom)
+  const toDate = parseReportDate(to, now)
+  if (!fromDate || !toDate) return res.status(400).json({ error: 'from and to must be valid dates' })
+  if (fromDate >= toDate) return res.status(400).json({ error: 'from must be before to' })
+  if (toDate.getTime() - fromDate.getTime() > MAX_REPORT_RANGE_MS) {
+    return res.status(400).json({ error: 'The report range cannot exceed 31 days' })
+  }
 
   try {
     // Check device ownership
     const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
     const dev = rows[0]
     if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id)
+    const ownerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && dev.user_id !== ownerId)
       return res.status(403).json({ error: 'Access denied' })
+    if (!dev.traccar_id) {
+      return res.status(502).json({
+        code: 'DEVICE_NOT_LINKED',
+        error: 'Device is not linked to the tracking service',
+      })
+    }
     if (!getSubscriptionSnapshot(dev).trackingEnabled) {
       return res.json({
         totalDistanceKm: 0,
@@ -79,8 +126,8 @@ reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'
     try {
       const positions = traccar.cleanPositions(await traccar.getHistory(
         dev.traccar_id,
-        from || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        to   || new Date().toISOString()
+        fromDate.toISOString(),
+        toDate.toISOString()
       ))
       if (!positions || positions.length === 0) {
         return res.json({
@@ -164,7 +211,7 @@ reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'
         avgSpeed:          Math.round(avgSpeed),
         maxSpeed:          Math.round(maxSpeed),
         trips,
-        speedSeries: speedSeries.slice(0, 200), // limit points for chart
+        speedSeries: speedSeries.slice(-200), // keep the most recent points for the chart
       })
     } catch (e) {
       console.error('[reports] Traccar history error:', e.message)

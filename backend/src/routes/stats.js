@@ -48,7 +48,8 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
     const device = rows[0]
 
     if (!device) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && device.user_id !== req.user.id) {
+    const ownerId = req.user.parent_client_id || req.user.id
+    if (!req.user.is_admin && device.user_id !== ownerId) {
       return res.status(403).json({ error: 'Access denied' })
     }
     if (!device.traccar_id) {

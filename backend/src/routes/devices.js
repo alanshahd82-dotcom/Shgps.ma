@@ -36,7 +36,8 @@ import {
         const { rows } = await db.query('SELECT id, traccar_id, name, user_id FROM devices WHERE imei=$1', [imei])
         if (rows[0]) {
           // Reject if the device belongs to a different user (and requester is not admin)
-          if (!req.user.is_admin && rows[0].user_id !== req.user.id) {
+          const ownerId = req.user.parent_client_id || req.user.id
+          if (!req.user.is_admin && rows[0].user_id !== ownerId) {
             return res.status(403).json({ error: 'Access denied' })
           }
           let traccarDevice = null
@@ -464,7 +465,8 @@ import {
       const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
       const dev = rows[0]
       if (!dev) return res.status(404).json({ error:'Device not found' })
-      if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error:'Access denied' })
+      const ownerId = req.user.parent_client_id || req.user.id
+      if (!req.user.is_admin && dev.user_id !== ownerId) return res.status(403).json({ error:'Access denied' })
       const subscription = getSubscriptionSnapshot(dev)
       let history = []
       if (subscription.trackingEnabled) {

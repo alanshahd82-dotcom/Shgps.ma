@@ -128,6 +128,7 @@ export default function DeviceDetail() {
   const [rangePreset, setRangePreset] = useState('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [tripRetry, setTripRetry] = useState(0)
   const [cmdMsg, setCmdMsg] = useState('')
   const [shareErr, setShareErr] = useState('')
   const [imeiCopied, setImeiCopied] = useState(false)
@@ -202,16 +203,22 @@ export default function DeviceDetail() {
     if (!bounds) return
     let cancelled = false
     async function loadTrips() {
-      setTripsLoading(true); setTripsError('')
+      setTripsLoading(true); setTripsError(''); setTrips([])
       try {
         const data = await api.reports.get(id, bounds.from.toISOString(), bounds.to.toISOString())
         if (!cancelled) setTrips(Array.isArray(data.trips) ? data.trips : [])
-      } catch (e) { setTripsError(isAr ? 'تعذّر تحميل الرحلات. تحقق من اتصالك وأعد المحاولة.' : 'Impossible de charger les trajets. Vérifiez votre connexion.') }
+      } catch (e) {
+        if (!cancelled) {
+          setTripsError(e?.code === 'DEVICE_NOT_LINKED'
+            ? (isAr ? 'هذا الجهاز غير مرتبط بخدمة التتبع.' : 'Cet appareil n’est pas lié au service de suivi.')
+            : (isAr ? 'تعذّر تحميل الرحلات. تحقق من اتصالك وأعد المحاولة.' : 'Impossible de charger les trajets. Vérifiez votre connexion.'))
+        }
+      }
       finally { if (!cancelled) setTripsLoading(false) }
     }
     loadTrips()
     return () => { cancelled = true }
-  }, [tab, id, trackingEnabled, rangePreset, customFrom, customTo, rangeReady, isAr])
+  }, [tab, id, trackingEnabled, rangePreset, customFrom, customTo, rangeReady, isAr, tripRetry])
 
   async function sendCommand(type) {
     setSending(true)
@@ -572,7 +579,7 @@ export default function DeviceDetail() {
                 <div className="flex flex-col items-center p-6 rounded-2xl text-center" style={cardStyle}>
                   <p className="text-xs font-semibold text-red-500 mb-3">{tripsError}</p>
                   <button
-                    onClick={() => { setTrips([]); setTripsError(''); setTab('info'); setTimeout(()=>setTab('route'),80) }}
+                    onClick={() => setTripRetry(value => value + 1)}
                     className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background:'#17324d' }}>
                     {isAr?'إعادة المحاولة':'Réessayer'}
                   </button>
@@ -650,8 +657,9 @@ export default function DeviceDetail() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-bold text-white">{formatTripDateTime(getTripStart(trip))}</p>
-                          <p className="mt-1 truncate text-[10px] text-slate-400" dir="ltr">
-                            {getTripDistance(trip).toFixed(1)} km · {Math.round(getTripMaxSpeed(trip))} km/h · {getTripPointCount(trip)} {isAr ? 'نقطة' : 'points'}
+                           <p className="mt-1 truncate text-[10px] text-slate-400" dir="ltr">
+                             {getTripEnd(trip) ? `${isAr ? 'حتى' : 'jusqu’à'} ${formatTripDateTime(getTripEnd(trip))} · ` : ''}
+                             {getTripDistance(trip).toFixed(1)} km · {Math.round(getTripMaxSpeed(trip))} km/h · {getTripPointCount(trip)} {isAr ? 'نقطة' : 'points'}
                           </p>
                         </div>
                         {isStop ? (
