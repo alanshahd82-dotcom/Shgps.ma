@@ -31,6 +31,7 @@ This file records the completed replay-related work and the current import audit
 
 - `npm run build` passes successfully.
 - `git diff --check` passes.
+
 - Product UI remains unchanged because no existing screen consumes the new `ath-*` foundation yet.
 
 ## Client engine cut-off permissions
@@ -235,3 +236,9 @@ This file records the completed replay-related work and the current import audit
 
 - `npm run build` passes successfully.
 - `git diff --check` passes.
+
+## Client home page restyle
+
+- Restyled `src/pages/client/Home.jsx` to match the Athar GPS reference with a live fleet card, real status donut and speed, animated status counts, subscription progress, shortcuts, and recent device cards.
+- Kept all existing `useApp()` bindings, routes, device detail handlers, subscription calculations, Arabic/French labels, and the shared vehicle icon helper intact.
+- Verification: `npm run build` passes and `git diff --check` passes.
