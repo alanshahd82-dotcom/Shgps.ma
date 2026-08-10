@@ -12,8 +12,11 @@ export default function SplashScreen() {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col items-center justify-center"
-      style={{ background: 'linear-gradient(150deg, #0b1627 0%, #101d32 60%, #16283d 100%)' }}
+      className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
+      style={{
+        background: 'var(--ath-bg)',
+        backgroundImage: 'radial-gradient(circle at 50% 42%, rgba(224,179,111,.18), transparent 38%), linear-gradient(180deg, var(--ath-bg), var(--ath-bg2))',
+      }}
     >
       {/* Logo area */}
       <motion.div
@@ -26,42 +29,53 @@ export default function SplashScreen() {
         <img
           src="/athar-gps-mark.svg"
           alt="ATHAR GPS"
-          style={{ borderRadius: 20, width: 100, height: 100 }}
+          style={{
+            borderRadius: 28,
+            width: 104,
+            height: 104,
+            border: '1px solid rgba(224,179,111,.8)',
+            boxShadow: '0 0 0 5px rgba(224,179,111,.08), 0 0 38px rgba(224,179,111,.24), 0 14px 36px rgba(0,0,0,.45)',
+          }}
         />
 
         <motion.h1
-          className="mt-4 text-4xl font-extrabold text-white tracking-tight"
+          className="mt-5 text-4xl font-extrabold text-white tracking-tight"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          ATHAR GPS
+          ATHAR <span style={{ color: 'var(--ath-gold)' }}>GPS</span>
         </motion.h1>
 
         <motion.p
-          className="mt-2 text-white/60 text-sm font-medium tracking-widest uppercase"
+          className="mt-2 text-sm font-medium uppercase tracking-[0.22em]"
+          style={{ color: 'var(--ath-green2)' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
         >
-          GPS Tracking Pro
+          FLEET INTELLIGENCE PLATFORM
         </motion.p>
       </motion.div>
 
       {/* Loading bar */}
       <motion.div
-        className="absolute bottom-16 left-1/2 -translate-x-1/2 w-24 h-0.5 bg-white/10 rounded-full overflow-hidden"
+         className="absolute bottom-16 left-1/2 -translate-x-1/2 h-0.5 w-32 overflow-hidden rounded-full bg-white/10"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
       >
         <motion.div
-           className="h-full bg-[#e4b56b] rounded-full"
+           className="h-full rounded-full"
+           style={{ background: 'linear-gradient(90deg, #C8843C, #E0B36F, #FFF0C9)' }}
           initial={{ width: '0%' }}
           animate={{ width: '100%' }}
           transition={{ duration: 1.8, delay: 0.5, ease: 'easeInOut' }}
         />
       </motion.div>
+      <p className="absolute bottom-8 text-[11px] tracking-wide text-white/30">
+        ATHAR GPS · Fleet Intelligence 2026 ©
+      </p>
     </div>
   )
 }

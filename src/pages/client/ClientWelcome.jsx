@@ -85,13 +85,37 @@ export default function ClientWelcome() {
 
   if (stage === 'splash') {
     return (
-      <main className="fixed inset-0 flex flex-col items-center justify-center bg-primary-500 text-white" dir={isAr ? 'rtl' : 'ltr'}>
-        <img src="/athar-gps-mark.svg" alt="ATHAR GPS" className="h-24 w-24 rounded-[26px] shadow-2xl" />
-        <h1 className="mt-5 text-3xl font-extrabold tracking-[0.14em]">ATHAR GPS</h1>
-        <p className="mt-2 text-sm text-white/65">{isAr ? 'تتبّع مركباتك بثقة' : 'Suivez vos véhicules en confiance'}</p>
-        <div className="mt-12 h-1 w-24 overflow-hidden rounded-full bg-white/15">
-          <div className="h-full w-1/2 animate-pulse rounded-full bg-accent" />
+      <main
+        className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden text-white"
+        style={{
+          background: 'var(--ath-bg)',
+          backgroundImage: 'radial-gradient(circle at 50% 42%, rgba(224,179,111,.18), transparent 38%), linear-gradient(180deg, var(--ath-bg), var(--ath-bg2))',
+        }}
+        dir={isAr ? 'rtl' : 'ltr'}
+      >
+        <div className="relative z-10 flex flex-col items-center">
+          <img
+            src="/athar-gps-mark.svg"
+            alt="ATHAR GPS"
+            className="h-[104px] w-[104px] rounded-[28px]"
+            style={{
+              border: '1px solid rgba(224,179,111,.8)',
+              boxShadow: '0 0 0 5px rgba(224,179,111,.08), 0 0 38px rgba(224,179,111,.24), 0 14px 36px rgba(0,0,0,.45)',
+            }}
+          />
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight" dir="ltr">
+            ATHAR <span style={{ color: 'var(--ath-gold)' }}>GPS</span>
+          </h1>
+          <p className="mt-2 text-sm font-medium uppercase tracking-[0.22em]" style={{ color: 'var(--ath-green2)' }} dir="ltr">
+            FLEET INTELLIGENCE PLATFORM
+          </p>
+          <div className="mt-10 h-0.5 w-32 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full w-full animate-pulse rounded-full" style={{ background: 'linear-gradient(90deg, #C8843C, #E0B36F, #FFF0C9)' }} />
+          </div>
         </div>
+        <p className="absolute bottom-8 text-[11px] tracking-wide text-white/30" dir="ltr">
+          ATHAR GPS · Fleet Intelligence 2026 ©
+        </p>
       </main>
     )
   }

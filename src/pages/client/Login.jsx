@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Mail, MessageCircle } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, MessageCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -48,12 +48,16 @@ export default function Login() {
   const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أريد طلب حساب ATHAR GPS' : 'Bonjour, je souhaite demander un compte ATHAR GPS')}`
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f7f8] overflow-x-hidden" dir={isAr ? 'rtl' : 'ltr'}>
+    <div
+      className="min-h-screen flex flex-col overflow-x-hidden text-slate-800"
+      style={{ background: 'linear-gradient(135deg, #F3F5F9 0%, #E9EDF4 100%)' }}
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
       {/* Top bar */}
       <div className="flex justify-between items-center px-4 pt-12 pb-4">
         <button
           onClick={() => setLang(isAr ? 'fr' : 'ar')}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-primary-500 shadow-sm transition-colors"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-primary-500 shadow-sm transition-colors hover:border-[#00D97E]/60"
         >
           {isAr ? 'FR' : 'AR'}
         </button>
@@ -70,10 +74,15 @@ export default function Login() {
           transition={{ type: 'spring', stiffness: 180, damping: 18 }}
           className="mb-10 flex flex-col items-center"
         >
-          <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
+          <div
+            className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-[var(--ath-rs)] bg-white"
+            style={{ border: '1px solid rgba(224,179,111,.55)', boxShadow: '0 0 0 5px rgba(224,179,111,.06), 0 14px 30px rgba(15,32,68,.12)' }}
+          >
             <img src="/athar-gps-mark.svg" alt="ATHAR GPS" width="52" height="52" draggable={false}/>
           </div>
-          <h1 className="text-2xl font-extrabold tracking-wider text-primary-500">ATHAR GPS</h1>
+          <h1 className="text-2xl font-extrabold tracking-wider text-primary-500" dir="ltr">
+            ATHAR <span style={{ color: 'var(--ath-teal)' }}>GPS</span>
+          </h1>
           <p className="mt-1.5 text-xs tracking-normal text-slate-500">{t(lang, 'tagline')}</p>
         </motion.div>
 
@@ -85,7 +94,7 @@ export default function Login() {
           className="w-full max-w-sm"
         >
           <div
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-primary-500/5"
+            className="rounded-[var(--ath-rs)] border border-white/80 bg-white p-5 shadow-xl shadow-primary-500/10"
           >
             <h2 className="mb-5 text-center text-sm font-extrabold tracking-wide text-primary-500">
               {t(lang, 'clientLogin')}
@@ -112,15 +121,18 @@ export default function Login() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               {/* Email */}
-              <div>
+                <div>
                   <label className="mb-2 block text-xs font-bold text-slate-500">
                   {t(lang, 'email')}
                 </label>
-                <input
-                  type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder={t(lang, 'emailPlaceholder')} required dir="ltr"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-800 outline-none transition-all focus:border-accent"
-                />
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400" size={17} style={{ insetInlineStart: '1rem' }} />
+                  <input
+                    type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder={t(lang, 'emailPlaceholder')} required dir="ltr"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pe-4 ps-11 text-sm text-slate-800 outline-none transition-all focus:border-[#00D97E] focus:ring-2 focus:ring-[#00D97E]/20"
+                  />
+                </div>
               </div>
 
               {/* Password */}
@@ -129,10 +141,11 @@ export default function Login() {
                   {t(lang, 'password')}
                 </label>
                 <div className="relative">
+                  <Lock className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400" size={17} style={{ insetInlineStart: '1rem' }} />
                   <input
                     type={showPass ? 'text' : 'password'} value={password}
                     onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-800 outline-none transition-all focus:border-accent"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pe-11 ps-11 text-sm text-slate-800 outline-none transition-all focus:border-[#00D97E] focus:ring-2 focus:ring-[#00D97E]/20"
                   />
                   <button
                     type="button" onClick={() => setShowPass(p => !p)}
@@ -147,13 +160,15 @@ export default function Login() {
               {/* Submit */}
               <motion.button
                 type="submit" disabled={loading} whileTap={{ scale: 0.97 }}
-                className="w-full py-4 rounded-xl font-bold text-white text-sm tracking-widest mt-2 transition-all disabled:opacity-50"
-                style={{
-                  background: loading ? '#94a3b8' : '#17324d',
-                }}
+                 className="ath-btn-p mt-2 py-4 text-sm tracking-widest transition-all hover:brightness-110 hover:shadow-lg hover:shadow-primary-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                 style={{ background: loading ? '#94a3b8' : undefined }}
               >
                 {loading ? '...' : t(lang, 'loginBtn')}
               </motion.button>
+
+              <p className="text-center text-[11px] font-semibold text-slate-400">
+                🔐 اتصال مشفّر · بياناتك محمية
+              </p>
 
               {/* Forgot password */}
               <div className="mt-3 text-center">
@@ -186,7 +201,7 @@ export default function Login() {
 
       <div className="pb-10 px-4 text-center">
         <p className="text-[11px] text-slate-400 break-words leading-5">
-          © {new Date().getFullYear()} ATHAR GPS · Fleet intelligence
+          ATHAR GPS · Fleet Intelligence 2026 ©
         </p>
       </div>
     </div>

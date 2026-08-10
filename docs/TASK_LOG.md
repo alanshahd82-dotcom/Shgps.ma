@@ -12,6 +12,14 @@ This file records the completed replay-related work and the current import audit
 - Current task — Redesign replay screen: map-first layout, real rotating car, clean sheets
 - Current task — Security 0/10: client engine cut-off permissions
 - Current task — Design 1/10: additive tokens + base classes (invisible foundation)
+- Current task — Design 2/10: splash + login + header restyle
+
+## Design 2/10 — splash, login, and header restyle
+
+- Restyled the initial HTML splash and React onboarding splash with the ATHAR GPS dark surface, gold logo glow, green product tagline, animated gold loader, and fixed 2026 footer.
+- Restyled client and admin login surfaces with the light gradient, white rounded cards, icon-led inputs, green focus rings, dark gradient primary actions, and preserved password toggles.
+- Restyled the client header with a sticky gradient surface, bilingual greeting, branded logo treatment, and an unread notification dot while preserving the existing alerts handler.
+- Presentation-only changes: authentication calls, validation, routing, state, WebSocket behavior, backend, and unrelated pages were not changed.
 
 ## Additive design foundation
 

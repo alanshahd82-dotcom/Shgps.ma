@@ -31,10 +31,11 @@ export default function AdminLogin() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex items-center justify-center overflow-hidden p-4"
       style={{
-        background: 'linear-gradient(135deg, #0a1628 0%, #0F2044 45%, #0d2a50 100%)',
+        background: 'linear-gradient(135deg, #F3F5F9 0%, #E9EDF4 100%)',
       }}
+      dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -54,39 +55,37 @@ export default function AdminLogin() {
       >
         {/* Card */}
         <div
-          className="rounded-3xl overflow-hidden shadow-2xl"
+          className="overflow-hidden rounded-[var(--ath-rs)] border border-white/80 bg-white shadow-xl shadow-primary-500/10"
           style={{
-            background: 'rgba(255,255,255,0.05)',
             backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.1)',
           }}
         >
           {/* Top accent bar */}
           <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #00D97E, #0F2044, #00D97E)' }} />
 
           {/* Header */}
-          <div className="px-8 pt-8 pb-6 text-center">
+            <div className="px-8 pb-6 pt-8 text-center">
             {/* Shield icon */}
             <motion.div
               initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.15, type: 'spring', damping: 14, stiffness: 200 }}
-              className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center"
+              className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[var(--ath-r)]"
               style={{
-                background: 'linear-gradient(135deg, rgba(0,217,126,0.2) 0%, rgba(0,217,126,0.05) 100%)',
-                border: '1px solid rgba(0,217,126,0.3)',
-                boxShadow: '0 0 30px rgba(0,217,126,0.15)',
+                background: 'rgba(0,217,126,.10)',
+                border: '1px solid rgba(0,217,126,.25)',
+                boxShadow: '0 0 30px rgba(0,217,126,.12)',
               }}
             >
-              <Shield size={30} className="text-accent" style={{ color: '#00D97E' }} />
+              <Shield size={30} style={{ color: '#00B366' }} />
             </motion.div>
 
             {/* Logo */}
             <div className="flex justify-center mb-2">
-              <Logo size="md" white />
+              <Logo size="md" />
             </div>
 
-            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            <p className="mt-1 text-sm text-slate-500">
               {lang === 'ar' ? 'لوحة تحكم المسؤول' : 'Panneau d\'administration'}
             </p>
           </div>
@@ -97,10 +96,10 @@ export default function AdminLogin() {
             <div className="relative">
               <Mail
                 size={16}
-                className="absolute top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400"
                 style={{
                   insetInlineStart: '1rem',
-                  color: 'rgba(255,255,255,0.35)',
+                  color: '#94a3b8',
                 }}
               />
               <input
@@ -109,22 +108,19 @@ export default function AdminLogin() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full rounded-2xl text-sm outline-none transition-all duration-200"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#00D97E] focus:ring-2 focus:ring-[#00D97E]/20"
                 style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'white',
                   paddingBlock: '0.875rem',
                   paddingInlineStart: '2.75rem',
                   paddingInlineEnd: '1rem',
                 }}
                 placeholder={t(lang, 'email') || 'البريد الإلكتروني'}
                 onFocus={e => {
-                  e.target.style.borderColor = 'rgba(0,217,126,0.5)'
-                  e.target.style.boxShadow = '0 0 0 3px rgba(0,217,126,0.1)'
+                   e.target.style.borderColor = 'rgba(0,217,126,.65)'
+                   e.target.style.boxShadow = '0 0 0 3px rgba(0,217,126,.12)'
                 }}
                 onBlur={e => {
-                  e.target.style.borderColor = 'rgba(255,255,255,0.12)'
+                   e.target.style.borderColor = '#e2e8f0'
                   e.target.style.boxShadow = 'none'
                 }}
               />
@@ -134,10 +130,10 @@ export default function AdminLogin() {
             <div className="relative">
               <Lock
                 size={16}
-                className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+                className="pointer-events-none absolute top-1/2 -translate-y-1/2"
                 style={{
                   insetInlineStart: '1rem',
-                  color: 'rgba(255,255,255,0.35)',
+                  color: '#94a3b8',
                 }}
               />
               <input
@@ -146,22 +142,19 @@ export default function AdminLogin() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full rounded-2xl text-sm outline-none transition-all duration-200"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#00D97E] focus:ring-2 focus:ring-[#00D97E]/20"
                 style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'white',
                   paddingBlock: '0.875rem',
                   paddingInlineStart: '2.75rem',
                   paddingInlineEnd: '2.75rem',
                 }}
                 placeholder={t(lang, 'password') || 'كلمة المرور'}
                 onFocus={e => {
-                  e.target.style.borderColor = 'rgba(0,217,126,0.5)'
-                  e.target.style.boxShadow = '0 0 0 3px rgba(0,217,126,0.1)'
+                   e.target.style.borderColor = 'rgba(0,217,126,.65)'
+                   e.target.style.boxShadow = '0 0 0 3px rgba(0,217,126,.12)'
                 }}
                 onBlur={e => {
-                  e.target.style.borderColor = 'rgba(255,255,255,0.12)'
+                   e.target.style.borderColor = '#e2e8f0'
                   e.target.style.boxShadow = 'none'
                 }}
               />
@@ -171,10 +164,10 @@ export default function AdminLogin() {
                 className="absolute top-1/2 -translate-y-1/2 transition-colors"
                 style={{
                   insetInlineEnd: '1rem',
-                  color: 'rgba(255,255,255,0.35)',
+                  color: '#94a3b8',
                 }}
-                onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.35)'}
+                 onMouseEnter={e => e.currentTarget.style.color = '#475569'}
+                 onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
               >
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -201,15 +194,11 @@ export default function AdminLogin() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-2xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+               className="ath-btn-p flex w-full items-center justify-center gap-2 rounded-xl text-sm transition-all duration-200 hover:brightness-110 hover:shadow-lg hover:shadow-primary-500/15 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
               style={{
-                background: loading ? 'rgba(0,217,126,0.6)' : '#00D97E',
-                color: '#0F2044',
+                 background: loading ? '#94a3b8' : undefined,
                 paddingBlock: '0.875rem',
-                boxShadow: loading ? 'none' : '0 4px 20px rgba(0,217,126,0.3)',
               }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#00c471' }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#00D97E' }}
             >
               {loading ? (
                 <>
@@ -224,7 +213,7 @@ export default function AdminLogin() {
             {/* Divider note */}
             <p
               className="text-center text-xs pt-1"
-              style={{ color: 'rgba(255,255,255,0.25)' }}
+              style={{ color: '#94a3b8' }}
             >
               {lang === 'ar'
                 ? 'هذه اللوحة مخصصة للمسؤولين فقط'
@@ -234,7 +223,7 @@ export default function AdminLogin() {
         </div>
 
         {/* Version badge */}
-        <p className="text-center mt-4 text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
+         <p className="mt-4 text-center text-xs text-slate-400">
           ATHAR GPS · Admin Panel
         </p>
       </motion.div>

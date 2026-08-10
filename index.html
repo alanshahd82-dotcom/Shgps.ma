@@ -63,7 +63,7 @@
         position: fixed;
         inset: 0;
         z-index: 9999;
-        background: linear-gradient(170deg, #071629 0%, #0F2044 55%, #0d2850 100%);
+        background: var(--ath-bg, #0A1120);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -82,6 +82,18 @@
            linear-gradient(rgba(228,181,107,0.04) 1px, transparent 1px),
            linear-gradient(90deg, rgba(228,181,107,0.04) 1px, transparent 1px);
         background-size: 40px 40px;
+      }
+      #splash::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: min(620px, 120vw);
+        height: min(620px, 120vw);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        background: radial-gradient(circle, rgba(224,179,111,.18) 0%, rgba(224,179,111,.07) 28%, transparent 68%);
+        filter: blur(6px);
       }
 
       /* دوائر الرادار */
@@ -134,11 +146,13 @@
 
       /* الأيقونة */
       .splash-icon {
-        width: 90px;
-        height: 90px;
-        border-radius: 24px;
+        width: 104px;
+        height: 104px;
+        border-radius: 28px;
         overflow: hidden;
-        box-shadow: 0 0 0 1px rgba(0,217,126,0.3), 0 0 32px rgba(0,217,126,0.2), 0 8px 32px rgba(0,0,0,0.5);
+        border: 1px solid rgba(224,179,111,.8);
+        background: #101B2E;
+        box-shadow: 0 0 0 5px rgba(224,179,111,.08), 0 0 38px rgba(224,179,111,.24), 0 14px 36px rgba(0,0,0,.45);
         animation: icon-appear 0.6s ease-out 0.2s both;
       }
       .splash-icon img { width: 100%; height: 100%; object-fit: cover; }
@@ -169,7 +183,7 @@
       .splash-name .sub {
         font-size: 11px;
         font-weight: 600;
-        color: rgba(0,217,126,0.5);
+        color: #3EE6A0;
         letter-spacing: 0.22em;
         text-transform: uppercase;
         margin-top: 6px;
@@ -183,8 +197,8 @@
 
       /* شريط التحميل */
       .splash-loader {
-        width: 120px;
-        height: 3px;
+        width: 132px;
+        height: 2px;
         background: rgba(255,255,255,0.08);
         border-radius: 99px;
         overflow: hidden;
@@ -193,7 +207,7 @@
       }
       .splash-loader-bar {
         height: 100%;
-         background: linear-gradient(90deg, #e4b56b, #c8843c);
+        background: linear-gradient(90deg, #C8843C, #E0B36F, #FFF0C9);
         border-radius: 99px;
         animation: loading 1.8s ease-in-out 0.7s both;
       }
@@ -241,7 +255,7 @@
         </div>
       </div>
 
-      <div class="splash-footer">© 2025 ATHAR GPS · Fleet intelligence</div>
+      <div class="splash-footer">ATHAR GPS · Fleet Intelligence 2026 ©</div>
     </div>
 
     <!-- ── التطبيق ── -->
