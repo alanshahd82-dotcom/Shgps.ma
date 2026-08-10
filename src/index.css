@@ -188,6 +188,87 @@
   border-radius: 8px 0 0 0 !important;
   backdrop-filter: blur(8px);
 }
+
+.athar-replay-map {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.athar-replay-follow {
+  position: absolute;
+  top: 126px;
+  right: 14px;
+  z-index: 1001;
+  display: flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(56,211,159,.36);
+  border-radius: 14px;
+  color: #8ceac5;
+  background: rgba(6,12,26,.92);
+  box-shadow: 0 6px 24px rgba(0,0,0,.38);
+  backdrop-filter: blur(18px);
+  transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s ease;
+}
+
+.athar-replay-follow:hover {
+  background: rgba(29,191,115,.2);
+  color: #fff;
+}
+
+.athar-replay-follow:active {
+  transform: scale(.94);
+}
+
+.athar-replay-follow.is-active {
+  color: #07111f;
+  background: #1dbf73;
+  border-color: #1dbf73;
+}
+
+.athar-replay-sheet {
+  transition: max-height .28s ease;
+}
+
+@media (max-width: 640px) {
+  .athar-replay-sheet {
+    max-height: min(48dvh, 390px) !important;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .athar-replay-sheet.is-expanded {
+    max-height: min(78dvh, 650px) !important;
+  }
+
+  .athar-replay-sheet > button:first-child {
+    padding-top: 8px;
+    padding-bottom: 6px;
+  }
+
+  .athar-replay-sheet .replay-range {
+    height: 28px;
+  }
+
+  .athar-replay-follow {
+    top: 126px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+
+  .athar-replay-map .leaflet-control-zoom {
+    margin-top: 180px !important;
+    margin-right: 14px !important;
+  }
+
+  .athar-replay-map .leaflet-control-zoom a {
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+  }
+}
 .leaflet-control-attribution a {
   color: rgba(56,211,159,0.7) !important;
 }

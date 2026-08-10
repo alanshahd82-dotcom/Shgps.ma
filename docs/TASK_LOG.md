@@ -76,6 +76,11 @@ This file records the completed replay-related work and the current import audit
 - `npm run build` passes.
 - `git diff --check` passes.
 
+## Mobile replay map controls
+
+- Changed replay map following to be user-controlled: dragging or zooming pauses auto-follow, while the visible recenter button restores it.
+- Added mobile-safe Leaflet zoom controls, touch gestures, and a compact responsive replay sheet so the route remains visible and pannable during playback.
+
 ## Realistic live map
 
 - Added a bilingual map-style toggle to both live map surfaces. Normal mode keeps Geoapify; satellite mode uses Esri World Imagery with a low-opacity OpenStreetMap label overlay. The choice is persisted locally.

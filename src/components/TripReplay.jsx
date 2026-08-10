@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
   Activity, AlertTriangle, BarChart3, ChevronDown, ChevronRight, Clock3,
@@ -190,7 +190,7 @@ function speedColor(speed) {
   return '#EF4444'
 }
 
-function Viewport({ route, current }) {
+function Viewport({ route, current, followCurrent, onManualMove }) {
   const map = useMap()
 
   useEffect(() => {
@@ -205,8 +205,16 @@ function Viewport({ route, current }) {
   }, [map, route.length])
 
   useEffect(() => {
-    if (current) map.panTo([current.latitude, current.longitude], { animate: true, duration: 0.22 })
-  }, [current?.latitude, current?.longitude, map])
+    const disableFollow = () => onManualMove()
+    map.on('dragstart zoomstart', disableFollow)
+    return () => map.off('dragstart zoomstart', disableFollow)
+  }, [map, onManualMove])
+
+  useEffect(() => {
+    if (current && followCurrent) {
+      map.panTo([current.latitude, current.longitude], { animate: true, duration: 0.22 })
+    }
+  }, [current?.latitude, current?.longitude, followCurrent, map])
 
   return null
 }
@@ -304,6 +312,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const [multiplier, setMultiplier] = useState(2)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const [showStops, setShowStops] = useState(true)
+  const [followCurrent, setFollowCurrent] = useState(true)
   const [satelliteMode, setSatelliteMode] = useState(() => {
     const storedStyle = localStorage.getItem(MAP_STYLE_STORAGE_KEY)
     return storedStyle ? storedStyle === 'satellite' : true
@@ -488,9 +497,10 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   return (
     <div className="fixed inset-0 z-[1000] bg-[#07111f] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 h-full w-full">
-          <MapContainer center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
           <MapLayers satellite={satelliteMode} />
-          <Viewport route={route} current={current} />
+          <ZoomControl position="topright" />
+          <Viewport route={route} current={current} followCurrent={followCurrent} onManualMove={() => setFollowCurrent(false)} />
           {route.length > 1 && <>
             <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
             <Polyline positions={routePositions} pathOptions={{ color: '#1DBF73', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
@@ -515,6 +525,16 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
         onSatelliteChange={setSatelliteMode}
         style={{ top: 72, left: isAr ? 'auto' : 14, right: isAr ? 14 : 'auto' }}
       />
+      <button
+        type="button"
+        onClick={() => setFollowCurrent(true)}
+        aria-pressed={followCurrent}
+        aria-label={label('إعادة توسيط السيارة', 'Recentrer le véhicule')}
+        title={label('إعادة توسيط السيارة', 'Recentrer le véhicule')}
+        className={`athar-replay-follow ${followCurrent ? 'is-active' : ''}`}
+      >
+        <Target size={17} />
+      </button>
 
       <header className={`absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.90)' }}>
         <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
@@ -525,7 +545,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
         <span className="hidden shrink-0 rounded-lg bg-[#35d39a]/10 px-2 py-1 text-[9px] font-bold tracking-[.12em] text-[#8ceac5] sm:inline">ATHAR GPS</span>
       </header>
 
-      <section className={`pointer-events-auto absolute inset-x-0 bottom-0 z-[1001] flex max-h-[min(82vh,680px)] flex-col rounded-t-3xl shadow-[0_-16px_50px_rgba(0,0,0,.3)] ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.95)' }}>
+      <section className={`athar-replay-sheet pointer-events-auto absolute inset-x-0 bottom-0 z-[1001] flex max-h-[min(82vh,680px)] flex-col rounded-t-3xl shadow-[0_-16px_50px_rgba(0,0,0,.3)] ${showAnalysis ? 'is-expanded' : ''} ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.95)' }}>
         <button onClick={() => setShowAnalysis((value) => !value)} aria-expanded={showAnalysis} className="flex w-full shrink-0 items-center justify-center py-2.5">
           <span className="h-1 w-12 rounded-full bg-white/25 transition hover:bg-white/45" />
         </button>
