@@ -65,6 +65,17 @@ This file records the completed replay-related work and the current import audit
 - The build output contains no `is not defined` warnings or build errors.
 - `git diff --check` passes.
 
+## Car heading calibration and satellite replay map
+
+- Calibrated the provided blue Mercedes asset with `CAR_ASSET_HEADING_OFFSET = -135°` in replay and live vehicle markers. The acceptance mapping is now bearing 0° → nose up, 90° → right, and 180° → down.
+- Added a replay map-style toggle sharing `athargps_map_style` with the live map, defaulting to Esri World Imagery satellite tiles when no style has been selected.
+- Added white route casing, green traveled-route emphasis, fading 15-point motion trail, imagery-friendly marker outlines, and speed readout colors: green below 50 km/h, orange from 50–80 km/h, and red above 80 km/h.
+
+## Verification
+
+- `npm run build` passes.
+- `git diff --check` passes.
+
 ## Realistic live map
 
 - Added a bilingual map-style toggle to both live map surfaces. Normal mode keeps Geoapify; satellite mode uses Esri World Imagery with a low-opacity OpenStreetMap label overlay. The choice is persisted locally.

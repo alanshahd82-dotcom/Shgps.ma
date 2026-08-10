@@ -9,15 +9,19 @@ import {
 import { useApp } from '../context/AppContext'
 import { api } from '../api/index.js'
 import { t } from '../i18n/translations'
-import GeoapifyTileLayer from './GeoapifyTileLayer'
+import MapLayers from './MapLayers'
+import MapStyleToggle from './MapStyleToggle'
 import carUrl from '../assets/car-marker.png'
 
+const CAR_ASSET_HEADING_OFFSET = -135
 const STOP_SPEED = 2
 const SPEED_LIMIT = 80
 const MIN_STOP_MS = 2 * 60 * 1000
 const ACCELERATION_LIMIT = 2.5
 const BRAKING_LIMIT = -3
 const MAX_EVENT_INTERVAL_MS = 30 * 1000
+const TRAIL_POINT_LIMIT = 15
+const MAP_STYLE_STORAGE_KEY = 'athargps_map_style'
 
 function validPoint(point) {
   const latitude = Number(point?.latitude ?? point?.lat)
@@ -131,18 +135,18 @@ function progressForTime(points, time) {
 function labelIcon(label, background, size = 26) {
   return L.divIcon({
     className: 'athar-replay-marker',
-    html: `<span style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:${background};border:2px solid rgba(255,255,255,.95);box-shadow:0 5px 16px rgba(0,0,0,.42);color:white;font:800 ${size < 24 ? 10 : 11}px Arial,sans-serif">${label}</span>`,
+    html: `<span style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:${background};border:1.5px solid rgba(255,255,255,.98);box-shadow:0 5px 16px rgba(0,0,0,.42);color:white;font:800 ${size < 24 ? 10 : 11}px Arial,sans-serif">${label}</span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   })
 }
 
-function carIcon() {
+function carIcon(initialBearing = 0) {
   const width = 54
   const height = 38
   return L.divIcon({
     className: 'athar-replay-car',
-    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform-origin:center;transition:transform .3s cubic-bezier(.22,.61,.36,1)"><img src="${carUrl}" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;mix-blend-mode:multiply;filter:drop-shadow(0 5px 10px rgba(0,0,0,.45));pointer-events:none;user-select:none" /></span>`,
+    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform-origin:center;transform:rotate(${initialBearing + CAR_ASSET_HEADING_OFFSET}deg);transition:transform .3s linear"><img src="${carUrl}" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;mix-blend-mode:multiply;filter:drop-shadow(0 5px 10px rgba(0,0,0,.45));pointer-events:none;user-select:none" /></span>`,
     iconSize: [width, height],
     iconAnchor: [width / 2, height / 2],
   })
@@ -162,7 +166,7 @@ function interpolateBearing(first, second, ratio) {
 function CarMarker({ current, degrees, fast }) {
   const markerRef = useRef(null)
   const rotationRef = useRef(degrees)
-  const icon = useMemo(() => carIcon(), [])
+  const icon = useMemo(() => carIcon(degrees), [])
 
   useEffect(() => {
     const element = markerRef.current?.getElement()
@@ -170,7 +174,7 @@ function CarMarker({ current, degrees, fast }) {
     if (body) {
       const nextRotation = rotationRef.current + shortestTurn(rotationRef.current, degrees)
       rotationRef.current = nextRotation
-      body.style.transform = `rotate(${nextRotation}deg)`
+      body.style.transform = `rotate(${nextRotation + CAR_ASSET_HEADING_OFFSET}deg)`
       body.style.filter = fast
         ? 'drop-shadow(0 6px 5px rgba(0,0,0,.48))'
         : 'drop-shadow(0 5px 4px rgba(0,0,0,.42))'
@@ -178,6 +182,12 @@ function CarMarker({ current, degrees, fast }) {
   }, [degrees, fast])
 
   return <Marker ref={markerRef} position={[current.latitude, current.longitude]} icon={icon} />
+}
+
+function speedColor(speed) {
+  if (speed < 50) return '#1DBF73'
+  if (speed <= SPEED_LIMIT) return '#F59E0B'
+  return '#EF4444'
 }
 
 function Viewport({ route, current }) {
@@ -294,6 +304,10 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const [multiplier, setMultiplier] = useState(2)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const [showStops, setShowStops] = useState(true)
+  const [satelliteMode, setSatelliteMode] = useState(() => {
+    const storedStyle = localStorage.getItem(MAP_STYLE_STORAGE_KEY)
+    return storedStyle ? storedStyle === 'satellite' : true
+  })
   const rafRef = useRef(null)
   const virtualTimeRef = useRef(null)
   const lastFrameRef = useRef(null)
@@ -365,6 +379,25 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const currentBearing = current?.bearing ?? (current && route.length > 1
     ? bearing(route[Math.min(currentIndex, route.length - 2)], route[Math.min(route.length - 1, currentIndex + 1)])
     : 0)
+  const routePositions = useMemo(() => route.map((point) => [point.latitude, point.longitude]), [route])
+  const traveledPositions = useMemo(() => {
+    if (!current) return []
+    const positions = route.slice(0, currentIndex + 1).map((point) => [point.latitude, point.longitude])
+    const currentPosition = [current.latitude, current.longitude]
+    const lastPosition = positions.at(-1)
+    if (!lastPosition || lastPosition[0] !== currentPosition[0] || lastPosition[1] !== currentPosition[1]) {
+      positions.push(currentPosition)
+    }
+    return positions
+  }, [current, currentIndex, route])
+  const motionTrail = useMemo(() => {
+    if (traveledPositions.length < 2) return []
+    const visibleTrail = traveledPositions.slice(-TRAIL_POINT_LIMIT)
+    return visibleTrail.slice(0, -1).map((point, index) => ({
+      positions: [point, visibleTrail[index + 1]],
+      opacity: 0.1 + ((index + 1) / Math.max(1, visibleTrail.length - 1)) * 0.62,
+    }))
+  }, [traveledPositions])
   const efficiencyScore = Math.max(0, Math.min(100, Math.round(
     100 - stops.length * 1.5 - events.filter((event) => event.type === 'acceleration').length * 4
       - events.filter((event) => event.type === 'braking').length * 5
@@ -423,6 +456,10 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose, route.length])
 
+  useEffect(() => {
+    localStorage.setItem(MAP_STYLE_STORAGE_KEY, satelliteMode ? 'satellite' : 'map')
+  }, [satelliteMode])
+
   function jumpTo(value) {
     setPlaying(false)
     virtualTimeRef.current = null
@@ -452,12 +489,14 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     <div className="fixed inset-0 z-[1000] bg-[#07111f] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 h-full w-full">
           <MapContainer center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-          <GeoapifyTileLayer />
+          <MapLayers satellite={satelliteMode} />
           <Viewport route={route} current={current} />
           {route.length > 1 && <>
-            <Polyline positions={route.map((point) => [point.latitude, point.longitude])} pathOptions={{ color: '#06111e', weight: 10, opacity: .8 }} />
-            <Polyline positions={route.map((point) => [point.latitude, point.longitude])} pathOptions={{ color: '#35d39a', weight: 5, opacity: .95 }} />
+            <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
+            <Polyline positions={routePositions} pathOptions={{ color: '#1DBF73', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
+            {traveledPositions.length > 1 && <Polyline positions={traveledPositions} pathOptions={{ color: '#66F2B5', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />}
           </>}
+          {motionTrail.map((segment, index) => <Polyline key={`trail-${index}`} positions={segment.positions} pathOptions={{ color: '#B6F8D9', weight: 3, opacity: segment.opacity, lineCap: 'round', lineJoin: 'round' }} />)}
           {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
           {route.length > 0 && <Marker position={[route[0].latitude, route[0].longitude]} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
           {route.length > 1 && <Marker position={[route.at(-1).latitude, route.at(-1).longitude]} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
@@ -469,6 +508,13 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
           {current && <CarMarker current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} />}
         </MapContainer>
       </div>
+
+      <MapStyleToggle
+        lang={lang}
+        satellite={satelliteMode}
+        onSatelliteChange={setSatelliteMode}
+        style={{ top: 72, left: isAr ? 'auto' : 14, right: isAr ? 14 : 'auto' }}
+      />
 
       <header className={`absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.90)' }}>
         <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
@@ -501,7 +547,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
               </div>
               <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-white/45">
                 <span className="truncate">{label('النقطة', 'Point')} {currentIndex + 1} {label('من', 'sur')} {route.length} · {Math.round((progress / Math.max(1, route.length - 1)) * 100)}%</span>
-                <span className={`shrink-0 font-semibold ${current?.speed > SPEED_LIMIT ? 'text-[#ffaaa6]' : 'text-white/45'}`}>{current?.speed > SPEED_LIMIT ? label('سرعة عالية', 'Vitesse élevée') : label('ضمن الحد', 'Dans la limite')}</span>
+                <span className="shrink-0 font-semibold" style={{ color: speedColor(currentSpeed) }}>{current?.speed > SPEED_LIMIT ? label('سرعة عالية', 'Vitesse élevée') : label('ضمن الحد', 'Dans la limite')}</span>
               </div>
             </div>
 
@@ -523,8 +569,8 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
                 [RouteIcon, totalDistance.toFixed(1), 'km', label('المسافة', 'Distance')],
                 [Gauge, Math.round(maxSpeed), 'km/h', label('السرعة القصوى', 'Vitesse max')],
                 [Clock3, formatDuration(durationMs, lang), '', label('المدة', 'Durée')],
-                [Navigation, currentSpeed, 'km/h', label('السرعة الحالية', 'Vitesse actuelle')],
-              ].map(([Icon, value, unit, text]) => <div key={text} className="min-w-0 rounded-xl bg-white/[.06] px-1.5 py-2 text-center"><Icon size={13} className="mx-auto text-[#35d39a]" /><p className="mt-1 truncate text-[11px] font-black text-white">{value}<small className="ms-0.5 text-[8px] font-normal text-white/45">{unit}</small></p><p className="truncate text-[8px] text-white/40">{text}</p></div>)}
+                [Navigation, currentSpeed, 'km/h', label('السرعة الحالية', 'Vitesse actuelle'), speedColor(currentSpeed)],
+              ].map(([Icon, value, unit, text, accent]) => <div key={text} className="min-w-0 rounded-xl bg-white/[.06] px-1.5 py-2 text-center"><Icon size={13} className="mx-auto" style={{ color: accent || '#35d39a' }} /><p className="mt-1 truncate text-[11px] font-black" style={{ color: accent || '#fff' }}>{value}<small className="ms-0.5 text-[8px] font-normal text-white/45">{unit}</small></p><p className="truncate text-[8px] text-white/40">{text}</p></div>)}
             </div>
 
             <div className="flex shrink-0 items-center gap-2 border-t border-white/10 px-4 py-2 text-[10px] text-white/45">

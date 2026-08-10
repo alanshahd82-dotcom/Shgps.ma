@@ -126,7 +126,7 @@
   transform-origin: center;
   mix-blend-mode: multiply;
   filter: drop-shadow(0 3px 5px rgba(0,0,0,.5));
-  transition: filter .2s ease;
+  transition: transform .3s linear, filter .2s ease;
 }
 
 .athar-live-marker-ring {

@@ -4,6 +4,7 @@ import L from 'leaflet'
 import carMarkerImage from '../assets/car-marker.png'
 import { getDeviceStatusKey } from './ui'
 
+const CAR_ASSET_HEADING_OFFSET = -135
 const ANIMATION_MS = 800
 const TRAIL_LIMIT = 20
 const STATUS_COLORS = {
@@ -43,14 +44,14 @@ function getBearing(device, from, to) {
   return Number.isFinite(course) ? course : calculateBearing(from, to)
 }
 
-function createLiveVehicleIcon(isSelected) {
+function createLiveVehicleIcon(isSelected, initialBearing = 0) {
   const size = isSelected ? 62 : 56
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
       <div class="athar-live-marker" style="width:${size}px;height:${size}px">
         <span class="athar-live-marker-pulse"></span>
-        <img data-live-car src="${carMarkerImage}" alt="" />
+        <img data-live-car src="${carMarkerImage}" alt="" style="transform:rotate(${initialBearing + CAR_ASSET_HEADING_OFFSET}deg)" />
         <span class="athar-live-marker-ring"></span>
       </div>
     `,
@@ -62,7 +63,7 @@ function createLiveVehicleIcon(isSelected) {
 function updateMarkerRotation(marker, bearing) {
   const image = marker?.getElement()?.querySelector('[data-live-car]')
   if (!image) return
-  image.style.transform = `rotate(${bearing}deg)`
+  image.style.transform = `rotate(${bearing + CAR_ASSET_HEADING_OFFSET}deg)`
 }
 
 export default function LiveVehicleMarker({
@@ -79,8 +80,9 @@ export default function LiveVehicleMarker({
   const frameRef = useRef(null)
   const trailRef = useRef(firstPositionRef.current ? [firstPositionRef.current] : [])
   const [trail, setTrail] = useState(trailRef.current)
-  const icon = useMemo(() => createLiveVehicleIcon(isSelected), [isSelected])
   const point = toPoint(device)
+  const initialBearingRef = useRef(getBearing(device, firstPositionRef.current, point))
+  const icon = useMemo(() => createLiveVehicleIcon(isSelected, initialBearingRef.current), [isSelected])
   const status = getDeviceStatusKey(device)
   const color = STATUS_COLORS[status] || STATUS_COLORS.offline
 
