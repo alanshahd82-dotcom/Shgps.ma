@@ -24,6 +24,8 @@ const MAX_EVENT_INTERVAL_MS = 30 * 1000
 const TRAIL_POINT_LIMIT = 15
 const MAP_STYLE_STORAGE_KEY = 'athargps_map_style'
 const MAX_POSITION_SPEED_KMH = 220
+const PLAYBACK_RENDER_INTERVAL_MS = 50
+const MIN_REPLAY_STEP_MS = 120
 
 function validPoint(point) {
   const latitude = Number(point?.latitude ?? point?.lat)
@@ -73,12 +75,23 @@ function cleanRoute(points) {
     const previous = cleaned.at(-1)
     if (previous) {
       const elapsedHours = (new Date(point.fixTime) - new Date(previous.fixTime)) / 3600000
-      const speedKmh = elapsedHours > 0 ? haversine(previous, point) / elapsedHours : Infinity
-      if (speedKmh > MAX_POSITION_SPEED_KMH) continue
+      const speedKmh = elapsedHours > 0 ? haversine(previous, point) / elapsedHours : 0
+      // Traccar can return several valid fixes with the same timestamp.
+      // They still describe movement and must not collapse the replay to one
+      // visible point. Only reject impossible movement when time advances.
+      if (elapsedHours > 0 && speedKmh > MAX_POSITION_SPEED_KMH) continue
     }
     cleaned.push(point)
   }
-  return cleaned
+  // Playback needs a strictly increasing clock. Traccar may emit valid
+  // samples with equal timestamps, which otherwise makes progressForTime()
+  // jump over the whole segment instead of moving the vehicle.
+  let replayTime = 0
+  return cleaned.map((point, index) => {
+    const actualTime = new Date(point.fixTime).getTime()
+    replayTime = index === 0 ? actualTime : Math.max(actualTime, replayTime + MIN_REPLAY_STEP_MS)
+    return { ...point, replayTime }
+  })
 }
 
 function bearing(a, b) {
@@ -131,30 +144,31 @@ function timeForProgress(points, value) {
   const index = Math.min(points.length - 1, Math.max(0, Math.floor(value)))
   const nextIndex = Math.min(points.length - 1, index + 1)
   const ratio = Math.min(1, Math.max(0, value - index))
-  const start = new Date(points[index].fixTime).getTime()
-  const end = new Date(points[nextIndex].fixTime).getTime()
+  const start = points[index].replayTime ?? new Date(points[index].fixTime).getTime()
+  const end = points[nextIndex].replayTime ?? new Date(points[nextIndex].fixTime).getTime()
   return start + (end - start) * ratio
 }
 
 function progressForTime(points, time) {
   if (!points.length) return 0
-  if (time <= new Date(points[0].fixTime).getTime()) return 0
+  const pointTime = (point) => point.replayTime ?? new Date(point.fixTime).getTime()
+  if (time <= pointTime(points[0])) return 0
   const lastIndex = points.length - 1
-  if (time >= new Date(points[lastIndex].fixTime).getTime()) return lastIndex
+  if (time >= pointTime(points[lastIndex])) return lastIndex
 
   let low = 0
   let high = lastIndex
   while (low <= high) {
     const middle = Math.floor((low + high) / 2)
-    const middleTime = new Date(points[middle].fixTime).getTime()
+    const middleTime = pointTime(points[middle])
     if (middleTime === time) return middle
     if (middleTime < time) low = middle + 1
     else high = middle - 1
   }
 
   const index = Math.max(0, high)
-  const start = new Date(points[index].fixTime).getTime()
-  const end = new Date(points[index + 1].fixTime).getTime()
+  const start = pointTime(points[index])
+  const end = pointTime(points[index + 1])
   const ratio = end > start ? (time - start) / (end - start) : 0
   return index + Math.min(1, Math.max(0, ratio))
 }
@@ -405,6 +419,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const virtualTimeRef = useRef(null)
   const lastFrameRef = useRef(null)
   const lastTrailUpdateRef = useRef(0)
+  const lastRenderRef = useRef(0)
   const [traveledProgress, setTraveledProgress] = useState(0)
   const handleMapLoad = useCallback(() => setMapReady(true), [])
   const handleSatelliteTimeout = useCallback(() => {
@@ -537,7 +552,13 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       lastFrameRef.current = frameTime
       virtualTimeRef.current += delta * multiplier
       const nextProgress = progressForTime(route, virtualTimeRef.current)
-       setProgress(nextProgress)
+      // Keep the clock smooth without asking React/Leaflet to reconcile the
+      // entire replay surface on every display frame.
+      if (nextProgress >= route.length - 1
+        || frameTime - lastRenderRef.current >= PLAYBACK_RENDER_INTERVAL_MS) {
+        lastRenderRef.current = frameTime
+        setProgress(nextProgress)
+      }
        if (nextProgress >= route.length - 1 || frameTime - lastTrailUpdateRef.current >= 500) {
          lastTrailUpdateRef.current = frameTime
          setTraveledProgress(nextProgress)
@@ -550,12 +571,14 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       }
       rafRef.current = requestAnimationFrame(step)
     }
+    lastRenderRef.current = 0
     rafRef.current = requestAnimationFrame(step)
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
       lastFrameRef.current = null
       lastTrailUpdateRef.current = 0
+      lastRenderRef.current = 0
     }
   }, [multiplier, playing, route])
 
@@ -563,7 +586,9 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     if (route.length > 1 && !loading && !error) {
       setProgress(0)
       setTraveledProgress(0)
-      setPlaying(false)
+      // A replay should be moving as soon as its route is ready. The pause
+      // control remains available, while keeping the first render useful.
+      setPlaying(true)
     }
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
   }, [error, loading, route])
@@ -573,6 +598,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     rafRef.current = null
     virtualTimeRef.current = null
     lastFrameRef.current = null
+    lastRenderRef.current = 0
   }, [])
 
   useEffect(() => {

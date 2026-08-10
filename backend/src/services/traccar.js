@@ -41,8 +41,11 @@ export function cleanPositions(list) {
       const elapsedHours = (new Date(position.fixTime) - new Date(previous.fixTime)) / 3600000
       const speedKmh = elapsedHours > 0
         ? haversineKm(previous, position) / elapsedHours
-        : Infinity
-      if (speedKmh > MAX_POSITION_SPEED_KMH) continue
+        : 0
+      // Equal-timestamp fixes are valid Traccar samples. Do not discard them
+      // as impossible-speed points; only apply the speed guard when time has
+      // actually advanced.
+      if (elapsedHours > 0 && speedKmh > MAX_POSITION_SPEED_KMH) continue
     }
     cleaned.push(position)
   }
