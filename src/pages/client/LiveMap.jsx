@@ -75,8 +75,15 @@ function FitTodayRoute({ route }) {
   const map = useMap()
   useEffect(() => {
     if (route.length < 2) return
-    const bounds = L.latLngBounds(route)
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
+    try {
+      const bounds = L.latLngBounds(route)
+      if (bounds.isValid()) {
+        map.invalidateSize({ pan: false })
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
+      }
+    } catch {
+      // Keep the current map view if a malformed upstream route slips through.
+    }
   }, [map, route])
   return null
 }
@@ -206,7 +213,12 @@ export default function LiveMap() {
       const points = await api.stats.getPositions(device.id, from.toISOString(), new Date().toISOString(), 1500)
       const route = points
         .map(point => [toCoord(point?.latitude ?? point?.lat), toCoord(point?.longitude ?? point?.lng)])
-        .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng))
+        .filter(([lat, lng]) =>
+          Number.isFinite(lat) && Number.isFinite(lng)
+          && lat >= -90 && lat <= 90
+          && lng >= -180 && lng <= 180
+          && !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
+        )
       if (route.length < 2) {
         setRouteError(isAr ? 'لا توجد نقاط كافية لمسار اليوم.' : 'Pas assez de points pour le trajet du jour.')
         setTodayRoute([])
@@ -617,7 +629,10 @@ export default function LiveMap() {
                               }}
                             >
                               <button
-                                onClick={() => showTodayRoute(d)}
+                                 onClick={(event) => {
+                                   event.stopPropagation()
+                                   showTodayRoute(d)
+                                 }}
                                 disabled={routeLoading}
                                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs disabled:opacity-60"
                                 style={{

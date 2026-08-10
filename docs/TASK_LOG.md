@@ -72,6 +72,16 @@ This file records the completed replay-related work and the current import audit
 - The build output contains no `is not defined` warnings or build errors.
 - `git diff --check` passes.
 
+## Fix route button clearing the live map
+
+- Stopped the route button click from bubbling into the device card button, which was clearing the selected device and immediately resetting the loaded route.
+- Added coordinate range and null-island filtering before fitting the live route bounds.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.
+
 ## On-demand loading and live connection resilience
 
 - Device selection on the client and admin live maps only pans/selects and opens the device card; it does not request historical positions.
