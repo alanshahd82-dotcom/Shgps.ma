@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon } from 'lucide-react'
 import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
@@ -131,6 +131,17 @@ export default function LiveMap() {
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState('')
   const isAr = lang === 'ar'
+  const [mapNotice, setMapNotice] = useState('')
+
+  const handleSatelliteTimeout = useCallback(() => {
+    setSatelliteMode((currentValue) => {
+      if (!currentValue) return currentValue
+      setMapNotice(isAr
+        ? 'تعذر تحميل القمر الصناعي — تم التبديل للخريطة'
+        : 'Impossible de charger le satellite — basculement vers la carte')
+      return false
+    })
+  }, [isAr])
 
   useEffect(() => {
     localStorage.setItem('athargps_map_style', satelliteMode ? 'satellite' : 'map')
@@ -275,7 +286,7 @@ export default function LiveMap() {
         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
-        <MapLayers satellite={satelliteMode} />
+         <MapLayers satellite={satelliteMode} onSatelliteTimeout={handleSatelliteTimeout} />
         {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
         {positioned.map(d => (
           <LiveVehicleMarker
@@ -302,6 +313,15 @@ export default function LiveMap() {
         {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
         <FlyToUser target={locateTarget} />
       </MapContainer>
+
+       {mapNotice && (
+         <div
+           role="status"
+           className="absolute left-1/2 top-[116px] z-[21] -translate-x-1/2 rounded-xl border border-[#d9ad62]/35 bg-[#0b1220]/95 px-3 py-2 text-center text-[11px] font-bold text-[#f1d18d] shadow-xl"
+         >
+           {mapNotice}
+         </div>
+       )}
 
       <ClientHeader overlay />
 

@@ -294,7 +294,6 @@ function MapLifecycle({ onLoad }) {
     if (map._loaded) onLoad()
     return () => {
       map.off('load', handleLoad)
-      map.remove()
     }
   }, [map, onLoad])
 

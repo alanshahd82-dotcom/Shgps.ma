@@ -82,6 +82,16 @@ This file records the completed replay-related work and the current import audit
 - `npm run build` passes successfully.
 - `git diff --check` passes.
 
+## Fix black map and frozen replay
+
+- Removed manual `map.remove()` from the replay lifecycle helper; `MapContainer` owns Leaflet cleanup, and manual removal broke the map during React Strict Mode remounts.
+- Added the same 3-second satellite fallback to the live map so a blocked satellite provider cannot leave that surface black.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.
+
 ## On-demand loading and live connection resilience
 
 - Device selection on the client and admin live maps only pans/selects and opens the device card; it does not request historical positions.
