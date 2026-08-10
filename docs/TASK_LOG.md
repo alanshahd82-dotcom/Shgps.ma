@@ -8,6 +8,7 @@ This file records the completed replay-related work and the current import audit
 - `eb9e5d6` — Add bilingual trip replay with stop and speed analysis (`TripReplay` component plus client and admin integration)
 - `639fedb` — Fix trip replay startup and timeline playback
 - Current task — Fix missing `lucide-react` imports and add living project documentation
+- Current task — Professional replay UI overhaul: contrast, marker, layout, chart
 
 ## Import audit result
 
@@ -20,3 +21,9 @@ This file records the completed replay-related work and the current import audit
 
 - `npm run build` passes.
 - The production bundle emits no `is not defined` warnings.
+
+## Professional replay UI overhaul
+
+- Rebuilt `src/components/TripReplay.jsx` with solid dark overlay surfaces, compact route metadata, a rotating SVG car marker, stable map sizing/follow behavior, a non-overlapping bottom control stack, and green brand speed controls.
+- Rebuilt the client trip speed visualization in `src/pages/client/DeviceDetail.jsx` as a real dark `AreaChart` from route positions, with a clean bilingual empty state.
+- Backend, API, database, Traccar, and unrelated screen styling were not changed.

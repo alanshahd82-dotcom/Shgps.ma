@@ -8,7 +8,7 @@ import {
   Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
   Pencil, Check, X as CloseX
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -171,10 +171,21 @@ export default function DeviceDetail() {
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  const positions = trips
+  const routePoints = trips.flatMap(trip => Array.isArray(trip.route) ? trip.route : [])
+  const positions = routePoints
     .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
     .filter(([lat, lng]) => validPosition(lat, lng))
-  const speedData = trips.slice(-40).map((p, i) => ({ i, speed: Math.round(p.speed || 0) }))
+  const speedData = routePoints
+    .map((point, index) => {
+      const date = new Date(point.fixTime || point.timestamp || point.time)
+      return {
+        index,
+        time: Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        speed: Math.max(0, Math.round(Number(point.speed) || 0)),
+      }
+    })
+    .filter(point => point.time)
+    .slice(-80)
   const cardStyle = { background:'#0e2035', border:'1px solid rgba(255,255,255,.10)', boxShadow:'0 16px 38px rgba(0,0,0,.20)' }
   const distanceToday = device?.distanceToday ?? device?.distance_today ?? device?.distance_km ?? device?.distance
   const signalStrength = device?.signalStrength ?? device?.signal_strength ?? device?.signal ?? device?.rssi
@@ -385,22 +396,41 @@ export default function DeviceDetail() {
                       </MapContainer>
                     </div>
                   )}
-                  {speedData.length > 0 && (
-                    <div className="p-4 rounded-2xl" style={cardStyle}>
-                      <p className="text-xs font-bold tracking-wide uppercase mb-3 text-slate-500">
+                  <div className="p-4 rounded-2xl" style={cardStyle}>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-xs font-bold tracking-wide uppercase text-slate-500">
                         {isAr ? 'منحنى السرعة' : 'Vitesse'}
                       </p>
-                      <ResponsiveContainer width="100%" height={100}>
-                        <LineChart data={speedData} margin={{ top:0,right:0,left:-20,bottom:0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-                          <XAxis dataKey="i" hide/>
-                          <YAxis tick={{ fill:'#94a3b8',fontSize:9 }} axisLine={false} tickLine={false}/>
-                          <Tooltip contentStyle={{ background:'#17324d', border:'1px solid #31516e', borderRadius:10, color:'white', fontSize:11 }}/>
-                          <Line type="monotone" dataKey="speed" stroke="#16866d" strokeWidth={2} dot={false}/>
-                        </LineChart>
-                      </ResponsiveContainer>
+                      {speedData.length > 1 && <span className="text-[10px] text-slate-500">{speedData.length} {isAr ? 'نقطة' : 'points'}</span>}
                     </div>
-                  )}
+                    {speedData.length > 1 ? (
+                      <ResponsiveContainer width="100%" height={132}>
+                        <AreaChart data={speedData} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="device-speed-fill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#1DBF73" stopOpacity={0.42} />
+                              <stop offset="100%" stopColor="#1DBF73" stopOpacity={0.03} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid vertical={false} stroke="rgba(255,255,255,.08)" strokeDasharray="3 4" />
+                          <XAxis dataKey="time" tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} minTickGap={24} />
+                          <YAxis unit=" km/h" tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} width={42} />
+                          <Tooltip
+                            labelFormatter={value => value}
+                            formatter={value => [`${value} km/h`, isAr ? 'السرعة' : 'Vitesse']}
+                            contentStyle={{ background: '#0a1220', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, color: '#edf4f2', fontSize: 11 }}
+                            labelStyle={{ color: '#8da2b5', marginBottom: 4 }}
+                          />
+                          <Area type="monotone" dataKey="speed" stroke="#1DBF73" strokeWidth={2.5} fill="url(#device-speed-fill)" dot={false} activeDot={{ r: 4, fill: '#1DBF73', stroke: '#07111f', strokeWidth: 2 }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-[132px] flex-col items-center justify-center gap-2 text-center">
+                        <Activity size={22} className="text-slate-500" />
+                        <p className="text-xs text-slate-500">{isAr ? 'لا توجد بيانات سرعة' : 'Aucune donnée de vitesse'}</p>
+                      </div>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {trips.map((trip, index) => (
                       <div key={`${trip.startTime || trip.start_time || index}-${index}`} className="flex items-center gap-3 rounded-2xl p-3" style={cardStyle}>

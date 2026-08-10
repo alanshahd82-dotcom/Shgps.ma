@@ -367,7 +367,7 @@ img {
   height: 6px;
   appearance: none;
   border-radius: 999px;
-  background: linear-gradient(90deg, #38d39f, #d9ad62);
+  background: linear-gradient(90deg, #1DBF73, #10B981);
   cursor: pointer;
 }
 .replay-range::-webkit-slider-thumb {
@@ -376,16 +376,16 @@ img {
   appearance: none;
   border: 3px solid #07111f;
   border-radius: 50%;
-  background: #38d39f;
-  box-shadow: 0 0 0 2px rgba(56,211,159,.35);
+   background: #1DBF73;
+   box-shadow: 0 0 0 2px rgba(29,191,115,.35);
 }
 .replay-range::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border: 3px solid #07111f;
   border-radius: 50%;
-  background: #38d39f;
-  box-shadow: 0 0 0 2px rgba(56,211,159,.35);
+   background: #1DBF73;
+   box-shadow: 0 0 0 2px rgba(29,191,115,.35);
 }
 
 /* ATHAR GPS product surface */
