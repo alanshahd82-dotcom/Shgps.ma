@@ -233,12 +233,16 @@ function speedColor(speed) {
   return '#EF4444'
 }
 
-function Viewport({ route, current, followCurrent, onManualMove, showAnalysis }) {
+function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, mapReady }) {
   const map = useMap()
   const lastFollowAtRef = useRef(0)
 
   useEffect(() => {
+    if (!mapReady || !map._loaded) return undefined
     const timer = window.setTimeout(() => {
+      const mapContainer = map.getContainer()
+      const mapRect = mapContainer.getBoundingClientRect()
+      if (!map._loaded || mapRect.width <= 0 || mapRect.height <= 0) return
       map.invalidateSize()
       if (route.length) {
         const bounds = L.latLngBounds(route.map((point) => [point.latitude, point.longitude]))
@@ -246,7 +250,7 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis })
       }
     }, 100)
     return () => window.clearTimeout(timer)
-  }, [map, route])
+  }, [map, mapReady, route])
 
   useEffect(() => {
     const container = map.getContainer()
@@ -268,10 +272,11 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis })
   }, [map, onManualMove])
 
   useEffect(() => {
-    if (current && followCurrent) {
+    if (mapReady && map._loaded && current && followCurrent) {
       if (map.getZoom() < 15) map.setZoom(15, { animate: false })
       const mapContainer = map.getContainer()
       const mapRect = mapContainer.getBoundingClientRect()
+      if (mapRect.width <= 0 || mapRect.height <= 0) return
       const sheet = document.querySelector('.athar-replay-sheet')
       const header = document.querySelector('.athar-replay-header')
       const sheetTop = sheet?.getBoundingClientRect().top ?? mapRect.bottom
@@ -294,7 +299,7 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis })
         }
       }
     }
-  }, [current?.latitude, current?.longitude, followCurrent, map, showAnalysis])
+  }, [current?.latitude, current?.longitude, followCurrent, map, mapReady, showAnalysis])
 
   return null
 }
@@ -587,7 +592,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   }, [multiplier, playing, route])
 
   useEffect(() => {
-    if (route.length > 1 && !loading && !error) {
+    if (route.length > 1 && !loading && !error && mapReady) {
       setProgress(0)
       setTraveledProgress(0)
       // A replay should be moving as soon as its route is ready. The pause
@@ -595,7 +600,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       setPlaying(true)
     }
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
-  }, [error, loading, route])
+  }, [error, loading, mapReady, route])
 
   useEffect(() => () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -735,7 +740,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
           />
           <ZoomControl position="topright" />
            <MapLifecycle onLoad={handleMapLoad} />
-          <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} onManualMove={() => setFollowCurrent(false)} />
+          <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} mapReady={mapReady} onManualMove={() => setFollowCurrent(false)} />
           {route.length > 1 && <>
             <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
             <Polyline positions={routePositions} pathOptions={{ color: '#1DBF73', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
