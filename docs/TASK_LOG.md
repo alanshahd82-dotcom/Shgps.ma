@@ -87,6 +87,14 @@ This file records the completed replay-related work and the current import audit
 - Leaflet movement events are emitted by both user gestures and programmatic `setView`/`panTo` calls, so they could disable following before playback started. Programmatic camera moves now leave follow-mode enabled, while drag, pinch, and wheel input still pause it.
 - The existing re-center button continues to restore follow-mode and the calibrated car marker rotation remains unchanged.
 
+## Final replay polish
+
+- Scaled replay car rotation transitions with the selected playback speed and removed the transition at 4x/8x to prevent a doubled or ghosted car marker.
+- Kept speed-chart time endpoints visible with a right margin and `preserveStartEnd`; Y-axis ticks now show values only with one `km/h` axis label.
+- Made `تصدير الرحلة` / `Exporter le trajet` open a bilingual printable report with device, range, distance, duration, max/average speed, stops, behavior counts, and efficiency score before calling print.
+- Made the device coordinates row copyable with a visible Arabic/French confirmation toast.
+- Follow-mode now keeps the car in the visible map area between the top bar and expanded/collapsed sheet while preserving map interaction above the sheet.
+
 ## Realistic live map
 
 - Added a bilingual map-style toggle to both live map surfaces. Normal mode keeps Geoapify; satellite mode uses Esri World Imagery with a low-opacity OpenStreetMap label overlay. The choice is persisted locally.

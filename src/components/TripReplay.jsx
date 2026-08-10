@@ -163,7 +163,7 @@ function interpolateBearing(first, second, ratio) {
   return first + shortestTurn(first, second) * ratio
 }
 
-function CarMarker({ current, degrees, fast }) {
+function CarMarker({ current, degrees, fast, playbackSpeed }) {
   const markerRef = useRef(null)
   const rotationRef = useRef(degrees)
   const icon = useMemo(() => carIcon(degrees), [])
@@ -175,11 +175,13 @@ function CarMarker({ current, degrees, fast }) {
       const nextRotation = rotationRef.current + shortestTurn(rotationRef.current, degrees)
       rotationRef.current = nextRotation
       body.style.transform = `rotate(${nextRotation + CAR_ASSET_HEADING_OFFSET}deg)`
+      const transitionMs = playbackSpeed >= 4 ? 0 : Math.min(300, 300 / Math.max(1, playbackSpeed))
+      body.style.transition = transitionMs ? `transform ${transitionMs}ms linear` : 'none'
       body.style.filter = fast
         ? 'drop-shadow(0 6px 5px rgba(0,0,0,.48))'
         : 'drop-shadow(0 5px 4px rgba(0,0,0,.42))'
     }
-  }, [degrees, fast])
+  }, [degrees, fast, playbackSpeed])
 
   return <Marker ref={markerRef} position={[current.latitude, current.longitude]} icon={icon} />
 }
@@ -190,7 +192,7 @@ function speedColor(speed) {
   return '#EF4444'
 }
 
-function Viewport({ route, current, followCurrent, onManualMove }) {
+function Viewport({ route, current, followCurrent, onManualMove, showAnalysis }) {
   const map = useMap()
 
   useEffect(() => {
@@ -225,9 +227,23 @@ function Viewport({ route, current, followCurrent, onManualMove }) {
 
   useEffect(() => {
     if (current && followCurrent) {
-      map.panTo([current.latitude, current.longitude], { animate: true, duration: 0.22 })
+      const mapContainer = map.getContainer()
+      const mapRect = mapContainer.getBoundingClientRect()
+      const sheet = document.querySelector('.athar-replay-sheet')
+      const header = document.querySelector('.athar-replay-header')
+      const sheetTop = sheet?.getBoundingClientRect().top ?? mapRect.bottom
+      const headerBottom = header?.getBoundingClientRect().bottom ?? mapRect.top + 68
+      const visibleTop = Math.max(mapRect.top, headerBottom + 12) - mapRect.top
+      const visibleBottom = Math.min(mapRect.bottom, sheetTop - 12) - mapRect.top
+      const targetY = Math.max(visibleTop, Math.min(visibleBottom, (visibleTop + visibleBottom) / 2))
+      const currentPoint = map.latLngToContainerPoint([current.latitude, current.longitude])
+      const offset = L.point(mapRect.width / 2, targetY).subtract(currentPoint)
+
+      if (Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
+        map.panBy(offset, { animate: true, duration: 0.22 })
+      }
     }
-  }, [current?.latitude, current?.longitude, followCurrent, map])
+  }, [current?.latitude, current?.longitude, followCurrent, map, showAnalysis])
 
   return null
 }
@@ -326,6 +342,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const [showAnalysis, setShowAnalysis] = useState(false)
   const [showStops, setShowStops] = useState(true)
   const [followCurrent, setFollowCurrent] = useState(true)
+  const [exportError, setExportError] = useState('')
   const [satelliteMode, setSatelliteMode] = useState(() => {
     const storedStyle = localStorage.getItem(MAP_STYLE_STORAGE_KEY)
     return storedStyle ? storedStyle === 'satellite' : true
@@ -427,6 +444,9 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       - Math.min(30, speedingMs / 60000),
   )))
   const scoreColor = efficiencyScore >= 80 ? '#35d39a' : efficiencyScore >= 60 ? '#f5b54a' : '#ff625d'
+  const averageSpeed = route.length
+    ? route.reduce((sum, point) => sum + Math.max(0, Number(point.speed) || 0), 0) / route.length
+    : 0
 
   useEffect(() => {
     if (!route.length || route.length < 2 || !playing) {
@@ -503,6 +523,75 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     jumpTo(0)
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;')
+  }
+
+  function exportReport() {
+    setExportError('')
+    const reportWindow = window.open('', '_blank')
+    if (!reportWindow) {
+      setExportError(label('تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.', 'Impossible d’ouvrir le rapport. Autorisez les fenêtres pop-up puis réessayez.'))
+      return
+    }
+
+    const reportTitle = label('تقرير الرحلة', 'Rapport du trajet')
+    const range = route.length
+      ? `${formatTime(route[0].fixTime, lang, false)} — ${formatTime(route.at(-1).fixTime, lang, false)}`
+      : '—'
+    const behaviorCounts = ['stop', 'acceleration', 'braking', 'turn', 'speeding'].map((type) => {
+      const meta = eventMeta(type, lang)
+      return `<li><span>${escapeHtml(meta.label)}</span><strong>${events.filter((event) => event.type === type).length}</strong></li>`
+    }).join('')
+    const stopRows = stops.length
+      ? stops.map((stop) => `<tr><td>${escapeHtml(formatTime(route[stop.index]?.fixTime, lang, false))}</td><td>${escapeHtml(formatDuration(stop.duration, lang))}</td></tr>`).join('')
+      : `<tr><td colspan="2">${escapeHtml(label('لا توجد توقفات مسجلة', 'Aucun arrêt enregistré'))}</td></tr>`
+
+    reportWindow.document.write(`<!doctype html>
+      <html lang="${isAr ? 'ar' : 'fr'}" dir="${isAr ? 'rtl' : 'ltr'}">
+        <head>
+          <meta charset="utf-8" />
+          <title>${escapeHtml(reportTitle)}</title>
+          <style>
+            :root { color-scheme: light; font-family: Arial, sans-serif; }
+            body { margin: 0; padding: 32px; color: #102945; background: #f4f8f7; }
+            main { max-width: 820px; margin: 0 auto; background: #fff; border: 1px solid #dce9e4; border-radius: 20px; padding: 32px; }
+            header { display: flex; justify-content: space-between; gap: 20px; align-items: start; border-bottom: 3px solid #1DBF73; padding-bottom: 18px; }
+            h1 { margin: 0 0 7px; color: #0F2044; font-size: 25px; } h2 { margin: 26px 0 12px; color: #0F2044; font-size: 16px; }
+            p { margin: 5px 0; color: #587080; font-size: 12px; } .brand { color: #16866d; font-weight: 800; letter-spacing: .12em; font-size: 11px; }
+            .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 22px; }
+            .stat { padding: 13px; border-radius: 12px; background: #edf8f3; } .stat small { display: block; color: #587080; font-size: 10px; margin-bottom: 6px; } .stat strong { font-size: 17px; color: #0F2044; }
+            ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; } li { display: flex; justify-content: space-between; padding: 10px 12px; border-radius: 10px; background: #f1f6f5; font-size: 12px; } li strong { color: #16866d; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { text-align: start; padding: 10px; border-bottom: 1px solid #e5efeb; } th { color: #587080; }
+            @media print { body { padding: 0; background: #fff; } main { border: 0; padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <main>
+            <header><div><h1>${escapeHtml(reportTitle)}</h1><p>${escapeHtml(deviceName || t(lang, 'device'))}</p><p>${escapeHtml(range)}</p></div><span class="brand">ATHAR GPS</span></header>
+            <div class="stats">
+              <div class="stat"><small>${escapeHtml(label('المسافة', 'Distance'))}</small><strong>${totalDistance.toFixed(1)} km</strong></div>
+              <div class="stat"><small>${escapeHtml(label('المدة', 'Durée'))}</small><strong>${escapeHtml(formatDuration(durationMs, lang))}</strong></div>
+              <div class="stat"><small>${escapeHtml(label('السرعة القصوى', 'Vitesse max'))}</small><strong>${Math.round(maxSpeed)} km/h</strong></div>
+              <div class="stat"><small>${escapeHtml(label('متوسط السرعة', 'Vitesse moyenne'))}</small><strong>${Math.round(averageSpeed)} km/h</strong></div>
+              <div class="stat"><small>${escapeHtml(label('التوقفات', 'Arrêts'))}</small><strong>${stops.length}</strong></div>
+              <div class="stat"><small>${escapeHtml(label('الكفاءة', 'Efficacité'))}</small><strong>${efficiencyScore}/100</strong></div>
+            </div>
+            <h2>${escapeHtml(label('تحليل السلوك', 'Analyse du comportement'))}</h2><ul>${behaviorCounts}</ul>
+            <h2>${escapeHtml(label('التوقفات', 'Arrêts'))}</h2><table><thead><tr><th>${escapeHtml(label('الوقت', 'Heure'))}</th><th>${escapeHtml(label('المدة', 'Durée'))}</th></tr></thead><tbody>${stopRows}</tbody></table>
+          </main>
+        </body>
+      </html>`)
+    reportWindow.document.close()
+    reportWindow.focus()
+    reportWindow.setTimeout(() => reportWindow.print(), 250)
+  }
+
   const routeBounds = route.length ? route : [{ latitude: 33.5731, longitude: -7.5898 }]
   const surfaceClass = 'border border-white/[.10] bg-[rgba(7,17,31,.94)] backdrop-blur-xl'
   const label = (ar, fr) => (isAr ? ar : fr)
@@ -513,7 +602,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
           <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
           <MapLayers satellite={satelliteMode} />
           <ZoomControl position="topright" />
-          <Viewport route={route} current={current} followCurrent={followCurrent} onManualMove={() => setFollowCurrent(false)} />
+          <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} onManualMove={() => setFollowCurrent(false)} />
           {route.length > 1 && <>
             <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
             <Polyline positions={routePositions} pathOptions={{ color: '#1DBF73', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
@@ -528,7 +617,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
             const meta = eventMeta(event.type, lang)
             return <Marker key={`${event.type}-${event.index}-${index}`} position={[event.latitude, event.longitude]} icon={labelIcon(meta.icon, meta.color, 22)} />
           })}
-          {current && <CarMarker current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} />}
+          {current && <CarMarker current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} playbackSpeed={multiplier} />}
         </MapContainer>
       </div>
 
@@ -549,7 +638,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
         <Target size={17} />
       </button>
 
-      <header className={`absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.90)' }}>
+      <header className={`athar-replay-header absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.90)' }}>
         <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-extrabold text-white">{deviceName || t(lang, 'device')}</p>
@@ -608,14 +697,15 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
 
             <div className="flex shrink-0 items-center gap-2 border-t border-white/10 px-4 py-2 text-[10px] text-white/45">
               <MapPin size={13} className="shrink-0 text-[#35d39a]" />
-              <span className="truncate">{current?.address || `${current?.latitude?.toFixed(5) || '—'}, ${current?.longitude?.toFixed(5) || '—'}`}</span>
+               <span className="min-w-0 flex-1 truncate">{current?.address || `${current?.latitude?.toFixed(5) || '—'}, ${current?.longitude?.toFixed(5) || '—'}`}</span>
             </div>
 
             {showAnalysis && <div className="min-h-0 flex-1 overflow-y-auto border-t border-white/10 px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-white/80"><BarChart3 size={15} className="text-[#35d39a]" />{label('تحليل السائق', 'Analyse conducteur')}<span className="rounded-full bg-[#35d39a]/15 px-2 py-0.5 text-[10px] text-[#8ceac5]">{events.length}</span></div>
-                <button className="flex items-center gap-1.5 rounded-xl bg-white/[.06] px-3 py-2 text-[10px] font-bold text-white/60 transition hover:bg-white/[.12]"><Download size={13} />{label('تصدير الرحلة', 'Exporter le trajet')}</button>
+                 <button onClick={exportReport} className="flex items-center gap-1.5 rounded-xl bg-white/[.06] px-3 py-2 text-[10px] font-bold text-white/60 transition hover:bg-white/[.12]"><Download size={13} />{label('تصدير الرحلة', 'Exporter le trajet')}</button>
               </div>
+               {exportError && <p role="alert" className="mt-2 rounded-xl border border-[#ff625d]/30 bg-[#ff625d]/10 px-3 py-2 text-[10px] text-[#ffaaa6]">{exportError}</p>}
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
                 {[
                   [Target, stops.length, label('توقفات', 'Arrêts'), '#f5b54a'],

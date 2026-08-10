@@ -87,6 +87,8 @@ export default function DeviceDetail() {
   const [cmdMsg, setCmdMsg] = useState('')
   const [shareErr, setShareErr] = useState('')
   const [imeiCopied, setImeiCopied] = useState(false)
+  const [coordinatesCopied, setCoordinatesCopied] = useState(false)
+  const [coordinatesToast, setCoordinatesToast] = useState(false)
   const [editing,   setEditing]   = useState(false)
   const [editForm,  setEditForm]  = useState({ name: '', driver: '', plate: '' })
   const [saving,    setSaving]    = useState(false)
@@ -206,6 +208,20 @@ export default function DeviceDetail() {
   function copyLink() {
     navigator.clipboard.writeText(shareLink).catch(() => {})
     setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+
+  function copyCoordinates() {
+    if (!validPosition(latitude, longitude)) return
+    const coordinates = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+    navigator.clipboard.writeText(coordinates).then(() => {
+      setCoordinatesCopied(true)
+      setCoordinatesToast(true)
+      setTimeout(() => setCoordinatesCopied(false), 2000)
+      setTimeout(() => setCoordinatesToast(false), 2200)
+    }).catch(() => {
+      setCoordinatesCopied(false)
+      setCoordinatesToast(false)
+    })
   }
 
   const routePoints = trips
@@ -359,6 +375,11 @@ export default function DeviceDetail() {
                   {saveMsg}
                 </div>
               )}
+               {coordinatesToast && (
+                 <div role="status" className="fixed bottom-24 left-1/2 z-[1100] -translate-x-1/2 rounded-xl bg-[#102945] px-4 py-2 text-xs font-bold text-[#8ceac5] shadow-xl">
+                   {isAr ? 'تم النسخ' : 'Coordonnées copiées'}
+                 </div>
+               )}
               <div className="rounded-2xl overflow-hidden" style={cardStyle}>
                 {/* Edit header */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
@@ -402,15 +423,30 @@ export default function DeviceDetail() {
                     { label: isAr?'الجهاز':'Appareil', val: device.name },
                     { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
                     { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
-                    { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—' },
+                     { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—', copyCoordinates: validPosition(latitude, longitude) },
                     { label: isAr?'IMEI':'IMEI', val: device.imei ? (device.imei.slice(0,6)+'✦✦✦✦✦✦'+device.imei.slice(-4)) : '—', copy: device.imei },
                     { label: isAr?'آخر تحديث':'Dernier signal', val: lastUpdate ? timeAgo(lastUpdate, lang) : (isAr?'لا توجد بيانات':'Aucune donnée') },
                   ].map((row,i,arr) => (
-                    <div key={i} className="flex items-center justify-between px-4 py-3"
+                     <div key={i} onClick={row.copyCoordinates ? copyCoordinates : undefined} onKeyDown={event => {
+                       if (row.copyCoordinates && (event.key === 'Enter' || event.key === ' ')) {
+                         event.preventDefault()
+                         copyCoordinates()
+                       }
+                     }} role={row.copyCoordinates ? 'button' : undefined} tabIndex={row.copyCoordinates ? 0 : undefined} className={`flex items-center justify-between px-4 py-3 ${row.copyCoordinates ? 'cursor-pointer' : ''}`}
                        style={{ borderBottom: i<arr.length-1 ? '1px solid #f1f5f9' : 'none' }}>
                        <span className="text-xs text-slate-500">{row.label}</span>
                        <div className="flex items-center gap-2">
                          <span className="text-xs font-semibold text-slate-800 text-right max-w-40 truncate">{row.val}</span>
+                          {row.copyCoordinates && (
+                            <button
+                              onClick={copyCoordinates}
+                              aria-label={isAr ? 'نسخ الإحداثيات' : 'Copier les coordonnées'}
+                              title={isAr ? 'نسخ الإحداثيات' : 'Copier les coordonnées'}
+                              className="flex-shrink-0 rounded-lg p-1 text-slate-400 transition-colors"
+                            >
+                              {coordinatesCopied ? <CheckCheck size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                            </button>
+                          )}
                          {row.copy && (
                            <button
                              onClick={() => { navigator.clipboard.writeText(row.copy).catch(()=>{}); setImeiCopied(true); setTimeout(()=>setImeiCopied(false),2000) }}
@@ -540,7 +576,7 @@ export default function DeviceDetail() {
                     </div>
                     {speedData.length > 1 ? (
                       <ResponsiveContainer width="100%" height={132}>
-                        <AreaChart data={speedData} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+                        <AreaChart data={speedData} margin={{ top: 4, right: 22, left: 0, bottom: 2 }}>
                           <defs>
                             <linearGradient id="device-speed-fill" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor="#1DBF73" stopOpacity={0.42} />
@@ -548,8 +584,8 @@ export default function DeviceDetail() {
                             </linearGradient>
                           </defs>
                           <CartesianGrid vertical={false} stroke="rgba(255,255,255,.08)" strokeDasharray="3 4" />
-                          <XAxis dataKey="xIndex" ticks={speedTicks} tickFormatter={value => speedData[value]?.time || ''} tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} interval={0} minTickGap={24} />
-                          <YAxis domain={[0, speedDomainMax]} tickFormatter={value => `${value} km/h`} tick={{ fill: '#8da2b5', fontSize: 9, whiteSpace: 'nowrap' }} axisLine={false} tickLine={false} width={54} />
+                          <XAxis dataKey="xIndex" ticks={speedTicks} tickFormatter={value => speedData[value]?.time || ''} tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+                          <YAxis domain={[0, speedDomainMax]} tickFormatter={value => `${value}`} label={{ value: 'km/h', angle: -90, position: 'insideLeft', offset: 8, fill: '#8da2b5', fontSize: 9 }} tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} width={30} />
                           <Tooltip
                             labelFormatter={value => value}
                             formatter={value => [`${value} km/h`, isAr ? 'السرعة' : 'Vitesse']}
