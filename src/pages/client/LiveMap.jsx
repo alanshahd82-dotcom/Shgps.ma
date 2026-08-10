@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon } from 'lucide-react'
 import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
-import MapStyleToggle from '../../components/MapStyleToggle'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
@@ -124,29 +123,12 @@ export default function LiveMap() {
   const [panelOpen,    setPanelOpen]    = useState(false)
   const [userPos,      setUserPos]      = useState(null)
   const [locateTarget, setLocateTarget] = useState(null)
-  const [satelliteMode, setSatelliteMode] = useState(() => localStorage.getItem('athargps_map_style') === 'satellite')
   const [autoFollow, setAutoFollow] = useState(() => localStorage.getItem('athargps_auto_follow') !== 'false')
   const [clock, setClock] = useState(() => Date.now())
   const [todayRoute, setTodayRoute] = useState([])
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState('')
   const isAr = lang === 'ar'
-  const [mapNotice, setMapNotice] = useState('')
-
-  const handleSatelliteTimeout = useCallback(() => {
-    setSatelliteMode((currentValue) => {
-      if (!currentValue) return currentValue
-      setMapNotice(isAr
-        ? 'تعذر تحميل القمر الصناعي — تم التبديل للخريطة'
-        : 'Impossible de charger le satellite — basculement vers la carte')
-      return false
-    })
-  }, [isAr])
-
-  useEffect(() => {
-    localStorage.setItem('athargps_map_style', satelliteMode ? 'satellite' : 'map')
-  }, [satelliteMode])
-
   useEffect(() => {
     localStorage.setItem('athargps_auto_follow', String(autoFollow))
   }, [autoFollow])
@@ -293,7 +275,7 @@ export default function LiveMap() {
         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
-         <MapLayers satellite={satelliteMode} onSatelliteTimeout={handleSatelliteTimeout} />
+         <MapLayers />
         {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
         {positioned.map(d => (
           <LiveVehicleMarker
@@ -321,25 +303,28 @@ export default function LiveMap() {
         <FlyToUser target={locateTarget} />
       </MapContainer>
 
-       {mapNotice && (
-         <div
-           role="status"
-           className="absolute left-1/2 top-[116px] z-[21] -translate-x-1/2 rounded-xl border border-[#d9ad62]/35 bg-[#0b1220]/95 px-3 py-2 text-center text-[11px] font-bold text-[#f1d18d] shadow-xl"
-         >
-           {mapNotice}
-         </div>
-       )}
-
       <ClientHeader overlay />
 
-      <MapStyleToggle
-        lang={lang}
-        satellite={satelliteMode}
-        onSatelliteChange={setSatelliteMode}
-        autoFollow={autoFollow}
-        onAutoFollowChange={setAutoFollow}
-        style={{ top: 116, left: 14 }}
-      />
+      <button
+        type="button"
+        onClick={() => setAutoFollow(value => !value)}
+        aria-pressed={autoFollow}
+        aria-label={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
+        title={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
+        className="absolute z-[500] flex items-center gap-1.5 rounded-2xl p-2.5 text-[11px] font-bold"
+        style={{
+          top: 116,
+          left: 14,
+          background: 'rgba(6,12,26,0.92)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(18px)',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+          color: autoFollow ? '#7ff3bf' : 'rgba(255,255,255,0.62)',
+        }}
+      >
+        <LocateFixed size={14} />
+        <span>{t(lang, 'autoFollow')}</span>
+      </button>
 
       {/* ── Live indicator ── */}
       <div className="absolute z-20" style={{ top: 72, left: 14 }}>

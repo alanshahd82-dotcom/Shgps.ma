@@ -1029,6 +1029,7 @@ export default function DeviceDetail() {
           startTime={replayTrip.startTime}
           endTime={replayTrip.endTime}
           positions={replayTrip.route || []}
+           allowSatellite={false}
           onClose={() => setReplayTrip(null)}
           />
         </Suspense>

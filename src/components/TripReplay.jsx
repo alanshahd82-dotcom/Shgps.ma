@@ -396,7 +396,7 @@ function eventMessage(event, lang) {
   return meta.label
 }
 
-export default function TripReplay({ deviceId, deviceName, startTime, endTime, positions: suppliedPositions = [], onClose }) {
+export default function TripReplay({ deviceId, deviceName, startTime, endTime, positions: suppliedPositions = [], onClose, allowSatellite = true }) {
   const { lang } = useApp()
   const isAr = lang === 'ar'
   const [route, setRoute] = useState(() => cleanRoute(suppliedPositions))
@@ -431,6 +431,10 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       return false
     })
   }, [isAr])
+
+  useEffect(() => {
+    localStorage.setItem(MAP_STYLE_STORAGE_KEY, satelliteMode ? 'satellite' : 'map')
+  }, [satelliteMode])
 
   useEffect(() => {
     let cancelled = false
@@ -613,10 +617,6 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose, route.length])
 
-  useEffect(() => {
-    localStorage.setItem(MAP_STYLE_STORAGE_KEY, satelliteMode ? 'satellite' : 'map')
-  }, [satelliteMode])
-
   function jumpTo(value) {
     setPlaying(false)
     virtualTimeRef.current = null
@@ -729,7 +729,10 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     <div className="fixed inset-0 z-[1000] bg-[#0B1220] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 h-full w-full">
           <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} minZoom={3} maxZoom={19} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas>
-          <MapLayers satellite={satelliteMode} onSatelliteTimeout={handleSatelliteTimeout} />
+          <MapLayers
+            satellite={allowSatellite && satelliteMode}
+            onSatelliteTimeout={allowSatellite ? handleSatelliteTimeout : undefined}
+          />
           <ZoomControl position="topright" />
            <MapLifecycle onLoad={handleMapLoad} />
           <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} onManualMove={() => setFollowCurrent(false)} />
@@ -761,12 +764,15 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
         </div>
       )}
 
-      <MapStyleToggle
-        lang={lang}
-        satellite={satelliteMode}
-        onSatelliteChange={setSatelliteMode}
-        style={{ top: 72, left: isAr ? 'auto' : 14, right: isAr ? 14 : 'auto' }}
-      />
+      {allowSatellite && (
+        <MapStyleToggle
+          lang={lang}
+          satellite={satelliteMode}
+          onSatelliteChange={setSatelliteMode}
+          style={{ top: 72, left: isAr ? 'auto' : 14, right: isAr ? 14 : 'auto' }}
+        />
+      )}
+
       <button
         type="button"
         onClick={() => setFollowCurrent(true)}
