@@ -13,6 +13,7 @@ import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
+import { VehicleIcon, VehicleTypeControl } from '../../components/ui'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -23,7 +24,7 @@ function timeAgo(iso, lang) {
 }
 
 function AddDeviceModal({ open, onClose, onAdd, clientList, lang, clientsError, onRefreshClients }) {
-  const [form, setForm] = useState({ name: '', imei: '', type: 'car', plate: '', clientId: '', subscriptionPlanId: '3_months' })
+  const [form, setForm] = useState({ name: '', imei: '', type: 'bike', plate: '', clientId: '', subscriptionPlanId: '3_months' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -35,7 +36,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang, clientsError, 
     setLoading(true); setError('')
     try {
       await onAdd({ ...form, clientId: form.clientId || null })
-      setForm({ name: '', imei: '', type: 'car', plate: '', clientId: '', subscriptionPlanId: '3_months' })
+      setForm({ name: '', imei: '', type: 'bike', plate: '', clientId: '', subscriptionPlanId: '3_months' })
       onClose()
     } catch (err) {
       setError(err.message || (lang === 'ar' ? 'حدث خطأ' : 'Une erreur est survenue'))
@@ -90,12 +91,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientList, lang, clientsError, 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'النوع' : 'Type'}</label>
-                  <select className="input-field text-sm" value={form.type}
-                    onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                    <option value="car">{lang === 'ar' ? 'سيارة' : 'Voiture'}</option>
-                    <option value="bike">{lang === 'ar' ? 'دراجة' : 'Moto'}</option>
-                    <option value="truck">{lang === 'ar' ? 'شاحنة' : 'Camion'}</option>
-                  </select>
+                   <VehicleTypeControl value={form.type} onChange={type => setForm(p => ({ ...p, type }))} lang={lang} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
@@ -365,7 +361,7 @@ export default function AllDevices() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${isOnline ? 'bg-primary-50' : 'bg-gray-100'}`}>
-                            {device.type === 'car' ? '🚗' : device.type === 'bike' ? '🏍️' : '🚚'}
+                            <VehicleIcon type={device.type} iconSize={16} />
                           </div>
                           <div>
                             <p className="font-semibold text-sm text-primary-500">{device.name}</p>
@@ -431,7 +427,7 @@ export default function AllDevices() {
                 <motion.div key={device.id} className="p-4 flex items-center gap-3"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}>
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${isOnline ? 'bg-primary-50' : 'bg-gray-100'}`}>
-                    {device.type === 'car' ? '🚗' : device.type === 'bike' ? '🏍️' : '🚚'}
+                    <VehicleIcon type={device.type} iconSize={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-primary-500 text-sm truncate">{device.name}</p>

@@ -6,6 +6,7 @@ import GeoapifyTileLayer from '../components/GeoapifyTileLayer'
 import 'leaflet/dist/leaflet.css'
 import { Navigation, Car, Clock, AlertTriangle } from 'lucide-react'
 import { api } from '../api/index.js'
+import { markerFor } from '../utils/vehicleAssets'
 
 // Fix default Leaflet icon
 delete L.Icon.Default.prototype._getIconUrl
@@ -75,7 +76,7 @@ export default function PublicShare() {
       {/* Header */}
       <div className="px-4 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(160deg,#0F2044 0%,#162d5e 100%)' }}>
         <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
-          <Car size={18} className="text-accent" />
+          <img src={markerFor(data.type).url} alt="" className="h-9 w-9 object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-base leading-tight truncate">{data.deviceName}</p>
@@ -111,7 +112,12 @@ export default function PublicShare() {
         {pos ? (
           <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas>
             <GeoapifyTileLayer />
-            <Marker position={center}>
+            <Marker position={center} icon={L.divIcon({
+              className: 'athar-public-vehicle',
+              html: `<img src="${markerFor(data.type).url}" alt="" style="width:58px;height:40px;object-fit:contain;transform:rotate(${markerFor(data.type).offset}deg);filter:drop-shadow(0 4px 6px rgba(0,0,0,.45))" />`,
+              iconSize: [58, 40],
+              iconAnchor: [29, 20],
+            })}>
               <Popup>
                 <div className="text-sm font-semibold">{data.deviceName}</div>
                 <div className="text-xs text-gray-500">{parseFloat(pos.speed).toFixed(0)} km/h</div>
@@ -121,7 +127,7 @@ export default function PublicShare() {
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center space-y-2">
-              <Car size={40} className="text-slate-600 mx-auto" />
+              <img src={markerFor(data.type).url} alt="" className="h-16 w-24 object-contain opacity-30 mx-auto" />
               <p className="text-slate-400 text-sm">لا يوجد موقع حالي / Position indisponible</p>
             </div>
           </div>

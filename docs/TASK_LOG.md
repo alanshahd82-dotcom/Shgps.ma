@@ -82,6 +82,20 @@ This file records the completed replay-related work and the current import audit
 - `npm run build` passes successfully.
 - `git diff --check` passes.
 
+## Vehicle types and bike marker
+
+- Added bilingual car/motorcycle vehicle-type infrastructure with motorcycle as the default for new devices.
+- Added the supplied red sport motorcycle marker with full transparency, preserved orientation, and a final optimized size of 31.23 KB.
+- Wired the vehicle asset registry into live maps, trip replay, public sharing, client/admin device lists, and vehicle editing.
+- Calibrated both vehicle assets with an offset of `-135°`: bearing 0° → nose up, 90° → right, 180° → down.
+- Added safe startup migration to set missing, blank, or unsupported device types to `bike`; create/update APIs now validate and persist only `car` or `bike`.
+
+## Verification
+
+- `npm run build` passes successfully.
+- Backend JavaScript syntax checks pass.
+- `git diff --check` passes.
+
 ## Fix black map and frozen replay
 
 - Removed manual `map.remove()` from the replay lifecycle helper; `MapContainer` owns Leaflet cleanup, and manual removal broke the map during React Strict Mode remounts.

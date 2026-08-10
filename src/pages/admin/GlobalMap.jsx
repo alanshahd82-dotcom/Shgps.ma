@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Polyline } from 'react-leaflet'
 import { CalendarRange, Loader2, Play, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
+import { VehicleIcon } from '../../components/ui'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
@@ -136,7 +137,7 @@ export default function GlobalMap() {
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
                     isSelected ? 'bg-white/15' : isOnline ? 'bg-primary-50' : 'bg-gray-100'
                   }`}>
-                    {device.type === 'car' ? '🚗' : device.type === 'bike' ? '🏍️' : '🚚'}
+                    <VehicleIcon type={device.type} iconSize={17} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-primary-500'}`}>
@@ -204,7 +205,7 @@ export default function GlobalMap() {
       </div>
       {replayDevice && (
         <Suspense fallback={<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#0B1220]"><div className="h-9 w-9 animate-spin rounded-full border-2 border-[#35d39a] border-t-transparent" /></div>}>
-          <TripReplay deviceId={replayDevice.id} deviceName={replayDevice.name} startTime={replayFrom} endTime={replayTo} positions={replayPositions} onClose={() => { setReplayDevice(null); setReplayPositions([]) }} />
+          <TripReplay deviceId={replayDevice.id} deviceName={replayDevice.name} deviceType={replayDevice.type} startTime={replayFrom} endTime={replayTo} positions={replayPositions} onClose={() => { setReplayDevice(null); setReplayPositions([]) }} />
         </Suspense>
       )}
     </AdminLayout>

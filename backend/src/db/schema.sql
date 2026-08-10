@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS devices (
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   imei VARCHAR(20) UNIQUE NOT NULL,
-  type VARCHAR(50) DEFAULT 'car',
+  type VARCHAR(50) DEFAULT 'bike',
   plate VARCHAR(50),
   subscription_plan_id VARCHAR(32),
   subscription_start_date DATE,

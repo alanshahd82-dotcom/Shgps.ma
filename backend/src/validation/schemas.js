@@ -20,12 +20,15 @@ export const schemas = {
   addDevice: z.object({
     imei: z.string().regex(/^\d{15}$/, 'IMEI must be exactly 15 digits'),
     name: z.string().min(1, 'Device name is required').max(255),
+    type: z.enum(['car', 'bike']).optional(),
+    plate: z.string().max(50).optional(),
   }),
 
   // PUT/PATCH /api/devices/:id (update device)
   updateDevice: z.object({
     name:  z.string().min(1).max(255).optional(),
     plate: z.string().max(50).optional(),
+    type:  z.enum(['car', 'bike']).optional(),
   }).partial(),
 
   // POST /api/sub-users (create sub-user)

@@ -9,6 +9,7 @@ import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import AdminLayout from './AdminLayout'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
+import { VehicleTypeControl } from '../../components/ui'
 
 // ── Device Type Cards ─────────────────────────────────────────────────────
 const DEVICE_TYPES = [
@@ -90,7 +91,7 @@ export default function DeviceSetup() {
   const [imeiValid, setImeiValid]     = useState(null)
   const [name, setName]               = useState('')
   const [plate, setPlate]             = useState('')
-  const [vehicleType, setVehicleType] = useState('car')
+  const [vehicleType, setVehicleType] = useState('bike')
   const [apnIndex, setApnIndex]       = useState(0)
   const [customApn, setCustomApn]     = useState({ apn: '', user: '', pass: '' })
   const [simPhone, setSimPhone]       = useState('')
@@ -283,13 +284,7 @@ export default function DeviceSetup() {
                   {/* Vehicle type */}
                   <div>
                     <label className="text-xs font-bold text-slate-500 block mb-1.5">{isAr ? 'النوع' : 'Type'}</label>
-                    <select value={vehicleType} onChange={e => setVehicleType(e.target.value)}
-                      className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-primary-300">
-                      <option value="car">{isAr ? 'سيارة' : 'Voiture'}</option>
-                      <option value="truck">{isAr ? 'شاحنة' : 'Camion'}</option>
-                      <option value="motorcycle">{isAr ? 'دراجة نارية' : 'Moto'}</option>
-                      <option value="bus">{isAr ? 'حافلة' : 'Bus'}</option>
-                    </select>
+                    <VehicleTypeControl value={vehicleType} onChange={setVehicleType} lang={lang} />
                   </div>
                 </div>
               </div>

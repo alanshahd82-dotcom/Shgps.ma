@@ -74,7 +74,7 @@ async function runMigrations() {
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         imei VARCHAR(20) UNIQUE NOT NULL,
-        type VARCHAR(50) DEFAULT 'car',
+        type VARCHAR(50) DEFAULT 'bike',
         plate VARCHAR(50),
         subscription_plan_id VARCHAR(32),
         subscription_start_date DATE,
@@ -123,6 +123,12 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS subscription_start_date DATE,
         ADD COLUMN IF NOT EXISTS subscription_end_date DATE,
         ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'active'
+    `)
+    await db.query(`ALTER TABLE devices ALTER COLUMN type SET DEFAULT 'bike'`)
+    await db.query(`
+      UPDATE devices
+      SET type = 'bike'
+      WHERE type IS NULL OR BTRIM(type) = '' OR type NOT IN ('car', 'bike')
     `)
     await db.query(`
       ALTER TABLE devices

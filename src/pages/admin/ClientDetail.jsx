@@ -19,14 +19,9 @@ import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
+import { VehicleIcon, VehicleTypeControl } from '../../components/ui'
 
 /* ─── helpers ──────────────────────────────────────────────────────────────── */
-function vehicleEmoji(type) {
-  if (type === 'bike')  return '🏍️'
-  if (type === 'truck') return '🚚'
-  return '🚗'
-}
-
 function getRangeDates(preset, customFrom, customTo) {
   const now = new Date()
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
@@ -103,7 +98,7 @@ function RouteMapDisplay({ trip, mapKey }) {
 
 /* ─── Add Device Modal ──────────────────────────────────────────────────────── */
 function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
-  const [form, setForm]     = useState({ name: '', imei: '', type: 'car', plate: '', clientId, subscriptionPlanId: '3_months' })
+  const [form, setForm]     = useState({ name: '', imei: '', type: 'bike', plate: '', clientId, subscriptionPlanId: '3_months' })
   const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -111,7 +106,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
     e.preventDefault(); setLoading(true); setError('')
     try {
       await onAdd(form)
-      setForm({ name: '', imei: '', type: 'car', plate: '', clientId, subscriptionPlanId: '3_months' })
+      setForm({ name: '', imei: '', type: 'bike', plate: '', clientId, subscriptionPlanId: '3_months' })
       onClose()
     } catch (err) {
       setError(err.message || (lang === 'ar' ? 'تعذر إضافة الجهاز' : "Impossible d'ajouter l'appareil"))
@@ -144,11 +139,7 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'نوع المركبة' : 'Type de véhicule'}</label>
-                  <select className="input-field text-sm" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                    <option value="car">{lang === 'ar' ? '🚗 سيارة' : '🚗 Voiture'}</option>
-                    <option value="bike">{lang === 'ar' ? '🏍️ دراجة' : '🏍️ Moto'}</option>
-                    <option value="truck">{lang === 'ar' ? '🚚 شاحنة' : '🚚 Camion'}</option>
-                  </select>
+                  <VehicleTypeControl value={form.type} onChange={type => setForm(p => ({ ...p, type }))} lang={lang} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
@@ -176,6 +167,8 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
   const { toggleEngine, devices } = useApp()
   const isAr = lang === 'ar'
   const [tab, setTab]             = useState('info')   // 'info' | 'sub' | 'route'
+  const [editingType, setEditingType] = useState(false)
+  const [typeSaving, setTypeSaving] = useState(false)
   const [engineLoading, setEngineLoading] = useState(false)
   const [showRenew, setShowRenew] = useState(false)
 
@@ -190,6 +183,17 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
 
   // live device from context
   const live = devices.find(d => d.id === device.id) || device
+
+  const saveType = async (type) => {
+    setTypeSaving(true)
+    try {
+      await api.devices.updateInfo(live.id, { type })
+      setEditingType(false)
+      await onDeviceUpdated?.()
+    } finally {
+      setTypeSaving(false)
+    }
+  }
 
   const handleEngine = async () => {
     setEngineLoading(true)
@@ -241,7 +245,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
         {/* Header */}
         <div className="flex-shrink-0 bg-primary-500 px-5 py-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl">{vehicleEmoji(live.type)}</div>
+            <VehicleIcon type={live.type} iconSize={18} />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-white text-base leading-tight truncate">{live.name}</p>
               <p className="text-white/70 text-xs font-mono">{live.imei}</p>
@@ -302,12 +306,32 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
           {/* ── Info tab ───────────────────────────────────── */}
           {tab === 'info' && (
             <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between rounded-2xl border border-primary-100 bg-primary-50/50 px-3 py-2.5">
+                <span className="text-xs font-bold text-primary-500">{isAr ? 'نوع المركبة' : 'Type de véhicule'}</span>
+                {editingType ? (
+                  <div className="flex items-center gap-2">
+                      <VehicleTypeControl
+                        value={live.type === 'car' ? 'car' : 'bike'}
+                        onChange={saveType}
+                        lang={lang}
+                        className="min-w-[190px]"
+                      />
+                    <button type="button" onClick={() => setEditingType(false)} className="text-xs text-slate-400" disabled={typeSaving}>
+                      {isAr ? 'إلغاء' : 'Annuler'}
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setEditingType(true)} className="text-xs font-bold text-primary-500 underline">
+                    {isAr ? 'تعديل' : 'Modifier'}
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { icon: Gauge, label: isAr ? 'السرعة' : 'Vitesse', val: live.status === 'online' ? `${live.speed || 0} km/h` : '—' },
                   { icon: Battery, label: isAr ? 'البطارية' : 'Batterie', val: `${live.battery ?? '—'}%` },
                   { icon: MapPin, label: 'IMEI', val: live.imei, mono: true },
-                  { icon: Car, label: isAr ? 'النوع' : 'Type', val: live.type === 'car' ? (isAr ? 'سيارة' : 'Voiture') : live.type === 'bike' ? (isAr ? 'دراجة' : 'Moto') : (isAr ? 'شاحنة' : 'Camion') },
+                  { icon: Car, label: isAr ? 'النوع' : 'Type', val: live.type === 'car' ? (isAr ? 'سيارة' : 'Voiture') : (isAr ? 'دراجة نارية' : 'Moto') },
                   { icon: Clock, label: isAr ? 'آخر تحديث' : 'Dernier update', val: live.lastUpdate ? new Date(live.lastUpdate).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA') : '—' },
                   { icon: Navigation, label: isAr ? 'اللوحة' : 'Plaque', val: live.plate || '—' },
                 ].map((row, i) => (
@@ -625,7 +649,7 @@ export default function ClientDetail() {
                   onClick={() => setSelectedDev(device)}
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${device.status === 'online' ? 'bg-primary-50' : 'bg-gray-100'}`}>
-                    {vehicleEmoji(device.type)}
+                    <VehicleIcon type={device.type} iconSize={17} />
                   </div>
                   <div className="flex-1 min-w-0 text-right">
                     <p className="font-semibold text-primary-500 text-sm">{device.name}</p>

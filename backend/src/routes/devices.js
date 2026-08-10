@@ -246,7 +246,7 @@ import {
         const { rows } = await db.query(
           `INSERT INTO devices (name,imei,type,plate,user_id,traccar_id)
            VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-          [name, imei, type || 'car', plate || null, clientId || null, traccarId]
+           [name, imei, type || 'bike', plate || null, clientId || null, traccarId]
         )
         await db.query(
           `UPDATE devices
@@ -349,7 +349,7 @@ import {
             `INSERT INTO devices (
                name,imei,type,plate,user_id,traccar_id,phone,
                subscription_plan_id,subscription_start_date,subscription_end_date,subscription_status
-             ) VALUES ($1,$2,'car',null,$3,$4,$5,$6,$7,$8,'active') RETURNING *`,
+               ) VALUES ($1,$2,'bike',null,$3,$4,$5,$6,$7,$8,'active') RETURNING *`,
             [deviceName, imei, finalClientId, traccarId, phone || null,
               plan.id, subscriptionStartDate, subscriptionEndDate]
           )
@@ -362,7 +362,7 @@ import {
           await db.query('COMMIT')
           const d = rows[0]
           res.status(201).json({
-            id: d.id, name: d.name, imei: d.imei, type: 'car', phone: d.phone,
+             id: d.id, name: d.name, imei: d.imei, type: d.type, phone: d.phone,
             clientId: d.user_id, status: 'offline',
             lat: null, lng: null, speed: 0, lastUpdate: null,
             engineOn: false, battery: null, signal: null, fuel: null,
@@ -384,9 +384,11 @@ import {
 
     // PATCH /:id/info — device owner (or admin) can edit name / driver / plate
     devicesRouter.patch('/:id/info', requireAuth, async (req, res) => {
-      const { name, driver, plate } = req.body
-      if (name === undefined && driver === undefined && plate === undefined)
+      const { name, driver, plate, type } = req.body
+      if (name === undefined && driver === undefined && plate === undefined && type === undefined)
         return res.status(400).json({ error: 'Nothing to update' })
+      if (type !== undefined && !['car', 'bike'].includes(type))
+        return res.status(400).json({ error: 'Type must be car or bike' })
       try {
         const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
         if (!devRows[0]) return res.status(404).json({ error: 'Device not found' })
@@ -398,10 +400,11 @@ import {
         if (name   !== undefined) { sets.push(`name=$${i++}`);   vals.push(String(name).trim())   }
         if (driver !== undefined) { sets.push(`driver=$${i++}`); vals.push(String(driver).trim()) }
         if (plate  !== undefined) { sets.push(`plate=$${i++}`);  vals.push(String(plate).trim())  }
+        if (type   !== undefined) { sets.push(`type=$${i++}`);   vals.push(type)                 }
         sets.push(`updated_at=NOW()`)
         vals.push(req.params.id)
         const { rows } = await db.query(
-          `UPDATE devices SET ${sets.join(',')} WHERE id=$${i} RETURNING id,name,driver,plate,updated_at`,
+           `UPDATE devices SET ${sets.join(',')} WHERE id=$${i} RETURNING id,name,driver,plate,type,updated_at`,
           vals
         )
         res.json(rows[0])

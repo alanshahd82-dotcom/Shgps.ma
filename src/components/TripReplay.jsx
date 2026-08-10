@@ -11,10 +11,9 @@ import { api } from '../api/index.js'
 import { t } from '../i18n/translations'
 import MapLayers from './MapLayers'
 import MapStyleToggle from './MapStyleToggle'
-import carUrl from '../assets/car-marker.png'
+import { markerFor } from '../utils/vehicleAssets'
 import { downsample, simplifyPath } from '../utils/simplify'
 
-const CAR_ASSET_HEADING_OFFSET = -135
 const STOP_SPEED = 2
 const SPEED_LIMIT = 80
 const MIN_STOP_MS = 2 * 60 * 1000
@@ -186,12 +185,13 @@ function labelIcon(label, background, size = 26) {
   })
 }
 
-function carIcon(initialBearing = 0) {
+function vehicleIcon(type, initialBearing = 0) {
+  const marker = markerFor(type)
   const width = 54
   const height = 38
   return L.divIcon({
     className: 'athar-replay-car',
-    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform-origin:center;transform:rotate(${initialBearing + CAR_ASSET_HEADING_OFFSET}deg);transition:transform .3s linear"><img src="${carUrl}" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;mix-blend-mode:multiply;filter:drop-shadow(0 5px 10px rgba(0,0,0,.45));pointer-events:none;user-select:none" /></span>`,
+    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform-origin:center;transform:rotate(${initialBearing + marker.offset}deg);transition:transform .3s linear"><img src="${marker.url}" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;mix-blend-mode:multiply;filter:drop-shadow(0 5px 10px rgba(0,0,0,.45));pointer-events:none;user-select:none" /></span>`,
     iconSize: [width, height],
     iconAnchor: [width / 2, height / 2],
   })
@@ -208,10 +208,10 @@ function interpolateBearing(first, second, ratio) {
   return first + shortestTurn(first, second) * ratio
 }
 
-function CarMarker({ current, degrees, fast, playbackSpeed }) {
+function VehicleMarker({ type, current, degrees, fast, playbackSpeed }) {
   const markerRef = useRef(null)
   const rotationRef = useRef(degrees)
-  const icon = useMemo(() => carIcon(degrees), [])
+  const icon = useMemo(() => vehicleIcon(type, degrees), [type])
 
   useEffect(() => {
     const element = markerRef.current?.getElement()
@@ -219,14 +219,14 @@ function CarMarker({ current, degrees, fast, playbackSpeed }) {
     if (body) {
       const nextRotation = rotationRef.current + shortestTurn(rotationRef.current, degrees)
       rotationRef.current = nextRotation
-      body.style.transform = `rotate(${nextRotation + CAR_ASSET_HEADING_OFFSET}deg)`
+       body.style.transform = `rotate(${nextRotation + markerFor(type).offset}deg)`
       const transitionMs = playbackSpeed >= 4 ? 0 : Math.min(300, 300 / Math.max(1, playbackSpeed))
       body.style.transition = transitionMs ? `transform ${transitionMs}ms linear` : 'none'
       body.style.filter = fast
         ? 'drop-shadow(0 6px 5px rgba(0,0,0,.48))'
         : 'drop-shadow(0 5px 4px rgba(0,0,0,.42))'
     }
-  }, [degrees, fast, playbackSpeed])
+  }, [degrees, fast, playbackSpeed, type])
 
   return <Marker ref={markerRef} position={leafletPosition(current)} icon={icon} />
 }
@@ -455,7 +455,7 @@ function eventMessage(event, lang) {
   return meta.label
 }
 
-export default function TripReplay({ deviceId, deviceName, startTime, endTime, positions: suppliedPositions = [], onClose, allowSatellite = true }) {
+export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', startTime, endTime, positions: suppliedPositions = [], onClose, allowSatellite = true }) {
   const { lang } = useApp()
   const isAr = lang === 'ar'
   const [route, setRoute] = useState(() => cleanRoute(suppliedPositions))
@@ -813,7 +813,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
             const meta = eventMeta(event.type, lang)
             return <Marker key={`${event.type}-${event.index}-${index}`} position={leafletPosition(event)} icon={labelIcon(meta.icon, meta.color, 22)} />
           })}
-          {current && <CarMarker current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} playbackSpeed={multiplier} />}
+          {current && <VehicleMarker type={deviceType} current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} playbackSpeed={multiplier} />}
         </MapContainer>
           {!mapReady && <div className="athar-map-loading" role="status" aria-label={label('جار تحميل الخريطة', 'Chargement de la carte')}><span className="athar-map-spinner" /></div>}
       </div>

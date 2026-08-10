@@ -25,6 +25,32 @@ export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
   )
 }
 
+export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', className = '' }) {
+  const options = [
+    { value: 'car', ar: 'سيارة', fr: 'Voiture' },
+    { value: 'bike', ar: 'دراجة نارية', fr: 'Moto' },
+  ]
+  return (
+    <div className={`grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 ${className}`} role="group" aria-label={lang === 'ar' ? 'نوع المركبة' : 'Type de véhicule'}>
+      {options.map(option => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          aria-pressed={value === option.value}
+          className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
+            value === option.value
+              ? 'bg-white text-primary-500 shadow-sm'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          {lang === 'ar' ? option.ar : option.fr}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ── Device status computation ─────────────────────────────────────────────────
 export function getDeviceStatusKey(device) {
   if (!device) return 'offline'

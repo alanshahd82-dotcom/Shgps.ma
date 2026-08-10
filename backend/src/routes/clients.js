@@ -183,6 +183,9 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
 clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) => {
   const { name, imei, type, plate, subscriptionPlanId } = req.body
   if (!name||!imei) return res.status(400).json({ error:'Name and IMEI required' })
+  if (type !== undefined && !['car', 'bike'].includes(type)) {
+    return res.status(400).json({ error: 'Type must be car or bike' })
+  }
   const plan = getSubscriptionPlan(subscriptionPlanId)
   if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
   const clientId = req.params.id
@@ -216,7 +219,7 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
          name,imei,type,plate,user_id,traccar_id,
          subscription_plan_id,subscription_start_date,subscription_end_date,subscription_status
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active') RETURNING *`,
-      [name, imei, type || 'car', plate || null, clientId || null, traccarId,
+       [name, imei, type || 'bike', plate || null, clientId || null, traccarId,
         plan.id, subscriptionStartDate, subscriptionEndDate]
     )
     const d = rows[0]

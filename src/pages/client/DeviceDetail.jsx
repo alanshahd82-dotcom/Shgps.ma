@@ -15,7 +15,7 @@ import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import ConfirmModal from '../../components/ConfirmModal'
-import { getDeviceStatusKey, timeAgo } from '../../components/ui'
+import { getDeviceStatusKey, timeAgo, VehicleTypeControl } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
@@ -145,7 +145,7 @@ export default function DeviceDetail() {
   const [coordinatesCopied, setCoordinatesCopied] = useState(false)
   const [coordinatesToast, setCoordinatesToast] = useState(false)
   const [editing,   setEditing]   = useState(false)
-  const [editForm,  setEditForm]  = useState({ name: '', driver: '', plate: '' })
+  const [editForm,  setEditForm]  = useState({ name: '', driver: '', plate: '', type: 'bike' })
   const [saving,    setSaving]    = useState(false)
   const [saveMsg,   setSaveMsg]   = useState('')
   const isAr = lang === 'ar'
@@ -378,7 +378,7 @@ export default function DeviceDetail() {
   }
 
   function openEdit() {
-    setEditForm({ name: device?.name || '', driver: device?.driver || '', plate: device?.plate || '' })
+    setEditForm({ name: device?.name || '', driver: device?.driver || '', plate: device?.plate || '', type: device?.type === 'car' ? 'car' : 'bike' })
     setEditing(true)
     setSaveMsg('')
   }
@@ -611,6 +611,15 @@ export default function DeviceDetail() {
                         />
                       </div>
                     ))}
+                    <div className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="text-xs text-slate-500 w-20 flex-shrink-0">{isAr ? 'نوع المركبة' : 'Type'}</span>
+                      <VehicleTypeControl
+                        value={editForm.type}
+                        onChange={type => setEditForm(f => ({ ...f, type }))}
+                        lang={lang}
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                 ) : (
                   /* Read-only rows */
@@ -1041,6 +1050,7 @@ export default function DeviceDetail() {
           <TripReplay
           deviceId={id}
           deviceName={device?.name}
+          deviceType={device?.type}
           startTime={replayTrip.startTime}
           endTime={replayTrip.endTime}
           positions={replayTrip.route || []}
