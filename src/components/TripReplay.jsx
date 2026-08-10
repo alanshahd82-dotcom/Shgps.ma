@@ -645,9 +645,9 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     if (route.length > 1 && !loading && !error && mapReady) {
       setProgress(0)
       setTraveledProgress(0)
-      // A replay should be moving as soon as its route is ready. The pause
-      // control remains available, while keeping the first render useful.
-      setPlaying(true)
+      // Keep the replay paused at the first point until the user explicitly
+      // presses Play. Loading the map must never start vehicle playback.
+      setPlaying(false)
     }
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
   }, [error, loading, mapReady, route])
