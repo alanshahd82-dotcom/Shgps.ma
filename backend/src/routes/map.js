@@ -160,3 +160,33 @@ mapRouter.get('/sat-tiles/:z/:x/:y.png', async (req, res) => {
     res.status(502).end()
   }
 })
+
+// Street tiles proxy: the replay screen must have a keyless map fallback.
+// Keep the provider request server-side so browser CORS and tile-policy
+// differences cannot leave the map stuck on its loading surface.
+mapRouter.get('/street-tiles/:z/:x/:y.png', async (req, res) => {
+  try {
+    const z = Number(req.params.z)
+    const x = Number(req.params.x)
+    const y = Number(req.params.y)
+    const maxTile = 2 ** z
+    if (!Number.isInteger(z) || z < 0 || z > 19
+      || !Number.isInteger(x) || !Number.isInteger(y)
+      || x < 0 || y < 0 || x >= maxTile || y >= maxTile) {
+      return res.status(400).end()
+    }
+
+    const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`
+    const upstream = await fetch(url, {
+      signal: AbortSignal.timeout(12000),
+      redirect: 'follow',
+    })
+    if (!upstream.ok) return res.status(502).end()
+
+    res.set('Content-Type', upstream.headers.get('content-type') || 'image/png')
+    res.set('Cache-Control', 'public, max-age=604800')
+    return res.send(Buffer.from(await upstream.arrayBuffer()))
+  } catch {
+    return res.status(502).end()
+  }
+})

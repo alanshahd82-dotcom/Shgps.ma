@@ -348,9 +348,21 @@ export default function DeviceDetail() {
     if (!startTime || !endTime || replayLoading) return
     setReplayLoading(String(index))
     try {
-      const points = await api.stats.getPositions(id, startTime, endTime, 900)
+      const startDate = new Date(startTime)
+      const endDate = new Date(endTime)
+      const requestEnd = Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())
+        ? endTime
+        : new Date(Math.max(endDate.getTime(), startDate.getTime() + 60 * 1000)).toISOString()
+      const points = await api.stats.getPositions(id, startTime, requestEnd, 900)
       const route = cleanRoute(points)
-      if (route.length > 1) setReplayTrip({ ...trip, startTime, endTime, route })
+      if (route.length > 1) {
+        setReplayTrip({
+          ...trip,
+          startTime: route[0].fixTime || startTime,
+          endTime: route.at(-1).fixTime || endTime,
+          route,
+        })
+      }
     } finally {
       setReplayLoading('')
     }

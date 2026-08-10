@@ -3,6 +3,7 @@ import { TileLayer } from 'react-leaflet'
 import GeoapifyTileLayer from './GeoapifyTileLayer'
 
 const PROXY_SAT_URL = '/api/map/sat-tiles/{z}/{x}/{y}.png'
+const PROXY_STREET_URL = '/api/map/street-tiles/{z}/{x}/{y}.png'
 const SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ERROR_LIMIT = 5
@@ -29,7 +30,7 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
 
   const sources = satellite
     ? ['proxy-sat', 'esri', 'geoapify-hybrid', 'osm']
-    : ['geoapify', 'osm']
+    : ['street', 'osm']
 
   useEffect(() => {
     sourceIndexRef.current = 0
@@ -64,6 +65,10 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
       errorTimesRef.current = []
       satelliteReadyRef.current = false
       setSourceIndex(next)
+    } else if (recent.length > TILE_ERROR_LIMIT) {
+      // A route and its controls are still useful without basemap imagery.
+      // Do not leave an opaque spinner covering the replay forever.
+      setTileLoaded(true)
     }
   }
 
@@ -91,6 +96,16 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
         <TileLayer key={source} url={SATELLITE_URL} maxZoom={19}
           eventHandlers={{ tileerror: handleTileError, tileload: handleTileLoad }}
           attribution="© Esri" />
+      </>
+    )
+  }
+  if (source === 'street') {
+    return (
+      <>
+        {loadingSurface}
+        <TileLayer key={source} url={PROXY_STREET_URL} maxZoom={19}
+          eventHandlers={{ tileerror: handleTileError, tileload: handleTileLoad }}
+          attribution="© Esri — World Street Map" />
       </>
     )
   }
