@@ -14,6 +14,24 @@
     --color-foreground: #edf4f2;
     --color-surface: #0e2035;
     --color-muted-foreground: #8da2b5;
+    --ath-bg: #0A1120;
+    --ath-bg2: #070D18;
+    --ath-card: #101B2E;
+    --ath-card2: #0C1626;
+    --ath-line: rgba(148,180,215,.10);
+    --ath-txt: #EDF4F2;
+    --ath-mut: #8CA3B8;
+    --ath-green: #00D97E;
+    --ath-green2: #3EE6A0;
+    --ath-teal: #1DBF73;
+    --ath-gold: #E0B36F;
+    --ath-red: #FF5A5F;
+    --ath-amber: #FFB020;
+    --ath-r: 18px;
+    --ath-rs: 24px;
+    --ath-rb: 13px;
+    --ath-disp: 'Cairo', sans-serif;
+    --ath-body: 'IBM Plex Sans Arabic', 'Cairo', sans-serif;
   }
 
   * {
@@ -576,3 +594,86 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .sps-kicker { color:#9a6a32; font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; font-weight:800; }
 .mono { font-family:'DM Mono', monospace; }
+
+/* ATHAR GPS additive design foundation */
+.ath-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.ath-card {
+  background: linear-gradient(180deg, var(--ath-card), var(--ath-card2));
+  border: 1px solid var(--ath-line);
+  border-radius: var(--ath-r);
+  padding: 16px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.25);
+}
+
+.ath-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2.5px 10px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ath-btn-solid {
+  width: 100%;
+  background: var(--ath-green);
+  color: #04120B;
+  border-radius: var(--ath-rb);
+  padding: 14px;
+  font-weight: 800;
+  font-family: var(--ath-disp);
+}
+
+.ath-btn-g {
+  background: rgba(0,217,126,.12);
+  color: var(--ath-green2);
+  border: 1px solid rgba(0,217,126,.25);
+  border-radius: var(--ath-rb);
+  padding: 13px;
+  font-weight: 700;
+  font-family: var(--ath-disp);
+}
+
+.ath-btn-p {
+  width: 100%;
+  background: linear-gradient(135deg, #12233C, #0B1830);
+  color: #fff;
+  border-radius: var(--ath-rb);
+  padding: 14px;
+  font-weight: 700;
+  font-family: var(--ath-disp);
+}
+
+@keyframes ath-fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ath-pop {
+  from { opacity: 0; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ath-pg {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes ath-ld {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ath-sk {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes ath-draw {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}

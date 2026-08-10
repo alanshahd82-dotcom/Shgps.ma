@@ -11,6 +11,19 @@ This file records the completed replay-related work and the current import audit
 - Current task — Professional replay UI overhaul: contrast, marker, layout, chart
 - Current task — Redesign replay screen: map-first layout, real rotating car, clean sheets
 - Current task — Security 0/10: client engine cut-off permissions
+- Current task — Design 1/10: additive tokens + base classes (invisible foundation)
+
+## Additive design foundation
+
+- Added the Cairo and IBM Plex Sans Arabic font weights through jsDelivr while preserving all existing font tags.
+- Added only the new `--ath-*` token namespace, reusable `ath-*` foundation classes, and `ath-*` keyframes.
+- No existing CSS variables, classes, Tailwind tokens, pages, components, context, API, backend, Leaflet, or WebSocket code was changed.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.
+- Product UI remains unchanged because no existing screen consumes the new `ath-*` foundation yet.
 
 ## Client engine cut-off permissions
 
