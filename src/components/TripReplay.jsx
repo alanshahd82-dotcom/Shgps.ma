@@ -53,6 +53,10 @@ function normalisePoint(point) {
   }
 }
 
+function leafletPosition(point) {
+  return [point.latitude, point.longitude]
+}
+
 function haversine(a, b) {
   const radius = 6371
   const lat1 = a.latitude * Math.PI / 180
@@ -224,7 +228,7 @@ function CarMarker({ current, degrees, fast, playbackSpeed }) {
     }
   }, [degrees, fast, playbackSpeed])
 
-  return <Marker ref={markerRef} position={[current.latitude, current.longitude]} icon={icon} />
+  return <Marker ref={markerRef} position={leafletPosition(current)} icon={icon} />
 }
 
 function speedColor(speed) {
@@ -245,7 +249,7 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, m
       if (!map._loaded || mapRect.width <= 0 || mapRect.height <= 0) return
       map.invalidateSize()
       if (route.length) {
-        const bounds = L.latLngBounds(route.map((point) => [point.latitude, point.longitude]))
+        const bounds = L.latLngBounds(route.map(leafletPosition))
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
       }
     }, 100)
@@ -284,7 +288,7 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, m
       const visibleTop = Math.max(mapRect.top, headerBottom + 12) - mapRect.top
       const visibleBottom = Math.min(mapRect.bottom, sheetTop - 12) - mapRect.top
       const targetY = Math.max(visibleTop, Math.min(visibleBottom, (visibleTop + visibleBottom) / 2))
-      const currentPoint = map.latLngToContainerPoint([current.latitude, current.longitude])
+       const currentPoint = map.latLngToContainerPoint(leafletPosition(current))
       const offset = L.point(mapRect.width / 2, targetY).subtract(currentPoint)
 
       if (Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
@@ -319,6 +323,48 @@ function MapLifecycle({ onLoad }) {
       map.off('load', handleLoad)
     }
   }, [map, onLoad])
+
+  return null
+}
+
+function MapResizeSync({ mapReady, showAnalysis, routeLength }) {
+  const map = useMap()
+
+  useEffect(() => {
+    let resizeFrame = null
+    let resizeTimer = null
+    const resize = () => {
+      const container = map.getContainer()
+      const rect = container.getBoundingClientRect()
+      if (!map._loaded || rect.width <= 0 || rect.height <= 0) return
+      map.invalidateSize({ pan: false, animate: false })
+    }
+    const scheduleResize = () => {
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
+      if (resizeTimer !== null) window.clearTimeout(resizeTimer)
+      resize()
+      resizeFrame = requestAnimationFrame(resize)
+      resizeTimer = window.setTimeout(resize, 320)
+    }
+    const sheet = document.querySelector('.athar-replay-sheet')
+    const handleTransitionEnd = (event) => {
+      if (event.propertyName === 'max-height') scheduleResize()
+    }
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleResize)
+
+    sheet?.addEventListener('transitionend', handleTransitionEnd)
+    observer?.observe(sheet)
+    window.addEventListener('resize', scheduleResize)
+    scheduleResize()
+
+    return () => {
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
+      if (resizeTimer !== null) window.clearTimeout(resizeTimer)
+      sheet?.removeEventListener('transitionend', handleTransitionEnd)
+      observer?.disconnect()
+      window.removeEventListener('resize', scheduleResize)
+    }
+  }, [map, mapReady, routeLength, showAnalysis])
 
   return null
 }
@@ -494,7 +540,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const stops = useMemo(() => events.filter((event) => event.type === 'stop'), [events])
   const speedingSegments = useMemo(() => route.slice(1).flatMap((point, index) => (
     point.speed > SPEED_LIMIT || route[index].speed > SPEED_LIMIT
-      ? [[[route[index].latitude, route[index].longitude], [point.latitude, point.longitude]]]
+      ? [[leafletPosition(route[index]), leafletPosition(point)]]
       : []
   )), [route]).slice(0, 600)
   const totalDistance = useMemo(() => route.slice(1).reduce((sum, point, index) => sum + haversine(route[index], point), 0), [route])
@@ -513,13 +559,13 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     ? bearing(route[Math.min(currentIndex, route.length - 2)], route[Math.min(route.length - 1, currentIndex + 1)])
     : 0)
   const routePositions = useMemo(() => {
-    const points = route.map((point) => [point.latitude, point.longitude])
+    const points = route.map(leafletPosition)
     return downsample(simplifyPath(points, 0.00005), 1200)
   }, [route])
   const traveledPositions = useMemo(() => {
     if (!route.length) return []
     const traveledIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
-    const positions = route.slice(0, traveledIndex + 1).map((point) => [point.latitude, point.longitude])
+    const positions = route.slice(0, traveledIndex + 1).map(leafletPosition)
     const progressIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
     const next = route[Math.min(route.length - 1, progressIndex + 1)]
     const start = route[progressIndex]
@@ -733,6 +779,9 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const routeBounds = route.length ? route : [{ latitude: 33.5731, longitude: -7.5898 }]
   const surfaceClass = 'border border-white/[.10] bg-[rgba(7,17,31,.94)] backdrop-blur-xl'
   const label = (ar, fr) => (isAr ? ar : fr)
+  const progressPercent = route.length > 1
+    ? Math.min(100, Math.max(0, (progress / (route.length - 1)) * 100))
+    : 0
 
   return (
     <div className="fixed inset-0 z-[1000] bg-[#0B1220] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
@@ -744,6 +793,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
           />
           <ZoomControl position="topright" />
            <MapLifecycle onLoad={handleMapLoad} />
+           <MapResizeSync mapReady={mapReady} showAnalysis={showAnalysis} routeLength={route.length} />
           <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} mapReady={mapReady} onManualMove={() => setFollowCurrent(false)} />
           {route.length > 1 && <>
             <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
@@ -752,12 +802,12 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
           </>}
           {motionTrail.map((segment, index) => <Polyline key={`trail-${index}`} positions={segment.positions} pathOptions={{ color: '#B6F8D9', weight: 3, opacity: segment.opacity, lineCap: 'round', lineJoin: 'round' }} />)}
           {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
-          {route.length > 0 && <Marker position={[route[0].latitude, route[0].longitude]} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
-          {route.length > 1 && <Marker position={[route.at(-1).latitude, route.at(-1).longitude]} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
-          {showAnalysis && stops.map((stop, index) => <Marker key={`stop-${index}`} position={[stop.latitude, stop.longitude]} icon={labelIcon('P', '#e59518', 24)} />)}
+          {route.length > 0 && <Marker position={leafletPosition(route[0])} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
+          {route.length > 1 && <Marker position={leafletPosition(route.at(-1))} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
+          {showAnalysis && stops.map((stop, index) => <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#e59518', 24)} />)}
           {showAnalysis && events.filter((event) => event.type !== 'stop' && event.type !== 'speeding').map((event, index) => {
             const meta = eventMeta(event.type, lang)
-            return <Marker key={`${event.type}-${event.index}-${index}`} position={[event.latitude, event.longitude]} icon={labelIcon(meta.icon, meta.color, 22)} />
+            return <Marker key={`${event.type}-${event.index}-${index}`} position={leafletPosition(event)} icon={labelIcon(meta.icon, meta.color, 22)} />
           })}
           {current && <CarMarker current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} playbackSpeed={multiplier} />}
         </MapContainer>
@@ -819,11 +869,11 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
               </div>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-x-0 top-[9px] h-1 rounded-full bg-white/10" />
-                <div className="pointer-events-none absolute inset-x-0 top-[9px] h-1 rounded-full bg-[#35d39a]" style={{ width: `${route.length > 1 ? (progress / (route.length - 1)) * 100 : 0}%` }} />
-                <input aria-label={label('مؤشر الرحلة', 'Progression du trajet')} type="range" min="0" max={Math.max(0, route.length - 1)} step="0.01" value={progress} onChange={(event) => jumpTo(event.target.value)} className="replay-range relative z-20 w-full" />
+                 <div className="pointer-events-none absolute top-[9px] h-1 rounded-full bg-[#35d39a]" style={{ width: `${progressPercent}%`, [isAr ? 'right' : 'left']: 0 }} />
+                 <input aria-label={label('مؤشر الرحلة', 'Progression du trajet')} type="range" min="0" max={Math.max(0, route.length - 1)} step="0.01" value={progress} onChange={(event) => jumpTo(event.target.value)} className="replay-range relative z-20 w-full" style={{ direction: isAr ? 'rtl' : 'ltr' }} />
               </div>
               <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-white/45">
-                <span className="truncate">{label('النقطة', 'Point')} {currentIndex + 1} {label('من', 'sur')} {route.length} · {Math.round((progress / Math.max(1, route.length - 1)) * 100)}%</span>
+                 <span className="truncate">{label('النقطة', 'Point')} {currentIndex + 1} {label('من', 'sur')} {route.length} · {Math.round(progressPercent)}%</span>
                 <span className="shrink-0 font-semibold" style={{ color: speedColor(currentSpeed) }}>{current?.speed > SPEED_LIMIT ? label('سرعة عالية', 'Vitesse élevée') : label('ضمن الحد', 'Dans la limite')}</span>
               </div>
             </div>

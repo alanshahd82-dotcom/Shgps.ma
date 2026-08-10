@@ -225,6 +225,9 @@
 }
 
 .athar-replay-map {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   touch-action: pan-x pan-y pinch-zoom;
 }
 
@@ -530,8 +533,16 @@ img {
   height: 6px;
   appearance: none;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1DBF73, #10B981);
+  background: transparent;
   cursor: pointer;
+}
+.replay-range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: transparent;
+}
+.replay-range::-moz-range-track {
+  height: 6px;
+  background: transparent;
 }
 .replay-range::-webkit-slider-thumb {
   width: 18px;
