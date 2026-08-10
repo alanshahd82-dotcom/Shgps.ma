@@ -100,6 +100,19 @@ This file records the completed replay-related work and the current import audit
 
 - `npm run build` passes successfully.
 - `git diff --check` passes.
+
+## Tile fallback chain + bounds + loading skeleton
+
+- Added automatic tile fallback for both map modes: Esri satellite → Geoapify hybrid → OpenStreetMap, and Geoapify normal → OpenStreetMap after more than 10 tile errors within 5 seconds.
+- Kept the dark `#0B1220` loading surface and spinner behind every basemap so slow or blocked tiles never expose a black void.
+- Added map zoom bounds of 3–19, route `fitBounds` with 40px padding, and replay follow zoom protection at a minimum of 15.
+- Added the 3-second replay satellite timeout with Arabic/French fallback notification and persisted map-style behavior.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `node --check backend/src/routes/map.js` passes.
+- `git diff --check` passes.
 - `src/assets/car-marker.png` is below 100 KB.
 
 ## Car heading calibration and satellite replay map

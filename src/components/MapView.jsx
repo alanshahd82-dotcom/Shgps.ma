@@ -221,6 +221,8 @@ export default function MapView({
       zoom={zoom}
       style={{ height, width: '100%' }}
       zoomControl={false}
+      minZoom={3}
+      maxZoom={19}
       preferCanvas
       onClick={onMapClick}
     >

@@ -71,6 +71,16 @@ function FlyTo({ lat, lng, zoom = 15 }) {
   return null
 }
 
+function FitTodayRoute({ route }) {
+  const map = useMap()
+  useEffect(() => {
+    if (route.length < 2) return
+    const bounds = L.latLngBounds(route)
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
+  }, [map, route])
+  return null
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 const PANEL_PEEK = 132
 const PANEL_OPEN = 480
@@ -248,6 +258,8 @@ export default function LiveMap() {
         preferCanvas
         center={[31.7917, -7.0926]}
         zoom={6}
+        minZoom={3}
+        maxZoom={19}
         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
@@ -268,6 +280,7 @@ export default function LiveMap() {
              pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }}
            />
          )}
+         <FitTodayRoute route={todayRoute} />
          {todayRoute.length > 1 && (
            <Polyline
              positions={todayRoute}

@@ -227,12 +227,12 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis })
     const timer = window.setTimeout(() => {
       map.invalidateSize()
       if (route.length) {
-        const point = current || route[0]
-        map.setView([point.latitude, point.longitude], 16, { animate: false })
+        const bounds = L.latLngBounds(route.map((point) => [point.latitude, point.longitude]))
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
       }
     }, 100)
     return () => window.clearTimeout(timer)
-  }, [map, route.length])
+  }, [map, route])
 
   useEffect(() => {
     const container = map.getContainer()
@@ -255,6 +255,7 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis })
 
   useEffect(() => {
     if (current && followCurrent) {
+      if (map.getZoom() < 15) map.setZoom(15, { animate: false })
       const mapContainer = map.getContainer()
       const mapRect = mapContainer.getBoundingClientRect()
       const sheet = document.querySelector('.athar-replay-sheet')
@@ -400,12 +401,22 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     return storedStyle ? storedStyle === 'satellite' : true
   })
   const [mapReady, setMapReady] = useState(false)
+  const [mapNotice, setMapNotice] = useState('')
   const rafRef = useRef(null)
   const virtualTimeRef = useRef(null)
   const lastFrameRef = useRef(null)
   const lastTrailUpdateRef = useRef(0)
   const [traveledProgress, setTraveledProgress] = useState(0)
   const handleMapLoad = useCallback(() => setMapReady(true), [])
+  const handleSatelliteTimeout = useCallback(() => {
+    setSatelliteMode((currentValue) => {
+      if (!currentValue) return currentValue
+      setMapNotice(isAr
+        ? 'تعذر تحميل القمر الصناعي — تم التبديل للخريطة'
+        : 'Impossible de charger le satellite — basculement vers la carte')
+      return false
+    })
+  }, [isAr])
 
   useEffect(() => {
     let cancelled = false
@@ -680,8 +691,8 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   return (
     <div className="fixed inset-0 z-[1000] bg-[#0B1220] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 h-full w-full">
-          <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas>
-          <MapLayers satellite={satelliteMode} />
+          <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} minZoom={3} maxZoom={19} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas>
+          <MapLayers satellite={satelliteMode} onSatelliteTimeout={handleSatelliteTimeout} />
           <ZoomControl position="topright" />
            <MapLifecycle onLoad={handleMapLoad} />
           <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} onManualMove={() => setFollowCurrent(false)} />
@@ -703,6 +714,15 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
         </MapContainer>
           {!mapReady && <div className="athar-map-loading" role="status" aria-label={label('جار تحميل الخريطة', 'Chargement de la carte')}><span className="athar-map-spinner" /></div>}
       </div>
+
+      {mapNotice && (
+        <div
+          role="status"
+          className="absolute left-1/2 top-[76px] z-[1002] -translate-x-1/2 rounded-xl border border-[#d9ad62]/35 bg-[#0b1220]/95 px-3 py-2 text-center text-[11px] font-bold text-[#f1d18d] shadow-xl"
+        >
+          {mapNotice}
+        </div>
+      )}
 
       <MapStyleToggle
         lang={lang}

@@ -13,9 +13,11 @@ const ALLOWED_STYLES = new Set([
   'osm-bright-smooth',
   'osm-carto',
   'osm-liberty',
+  'dark-matter',
   'klokantech-basic',
   'dark-matter-dark-grey',
   'dark-matter-dark-purple',
+  'hybrid',
 ])
 
 const TILE_LIMIT = 180
