@@ -77,11 +77,11 @@ reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'
 
     // Fetch positions from Traccar
     try {
-      const positions = await traccar.getHistory(
+      const positions = traccar.cleanPositions(await traccar.getHistory(
         dev.traccar_id,
         from || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         to   || new Date().toISOString()
-      )
+      ))
       if (!positions || positions.length === 0) {
         return res.json({
           totalDistanceKm: 0,
@@ -226,7 +226,7 @@ reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
       const batch = deviceRows.slice(b, b + BATCH)
       await Promise.allSettled(batch.map(async (dev) => {
         try {
-          const positions = await traccar.getHistory(dev.traccar_id, from, to)
+          const positions = traccar.cleanPositions(await traccar.getHistory(dev.traccar_id, from, to))
           if (!positions || positions.length < 2) return
           const sorted = [...positions].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
           for (let i = 1; i < sorted.length; i++) {

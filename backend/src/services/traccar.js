@@ -2,6 +2,52 @@ import { config } from '../config.js'
 
 const base = () => config.traccar.url
 const auth = () => 'Basic ' + Buffer.from(`${config.traccar.email}:${config.traccar.password}`).toString('base64')
+const MAX_POSITION_SPEED_KMH = 220
+
+function haversineKm(a, b) {
+  const radius = 6371
+  const lat1 = Number(a.latitude) * Math.PI / 180
+  const lat2 = Number(b.latitude) * Math.PI / 180
+  const dLat = (Number(b.latitude) - Number(a.latitude)) * Math.PI / 180
+  const dLng = (Number(b.longitude) - Number(a.longitude)) * Math.PI / 180
+  const sinLat = Math.sin(dLat / 2)
+  const sinLng = Math.sin(dLng / 2)
+  const value = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng
+  return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)))
+}
+
+export function cleanPositions(list) {
+  const candidates = (Array.isArray(list) ? list : [])
+    .filter((position) => {
+      const latitude = Number(position?.latitude)
+      const longitude = Number(position?.longitude)
+      const fixTime = new Date(position?.fixTime)
+      return position?.fixTime
+        && !Number.isNaN(fixTime.getTime())
+        && Number.isFinite(latitude)
+        && Number.isFinite(longitude)
+        && latitude >= -90
+        && latitude <= 90
+        && longitude >= -180
+        && longitude <= 180
+        && !(Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01)
+    })
+    .sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+
+  const cleaned = []
+  for (const position of candidates) {
+    const previous = cleaned.at(-1)
+    if (previous) {
+      const elapsedHours = (new Date(position.fixTime) - new Date(previous.fixTime)) / 3600000
+      const speedKmh = elapsedHours > 0
+        ? haversineKm(previous, position) / elapsedHours
+        : Infinity
+      if (speedKmh > MAX_POSITION_SPEED_KMH) continue
+    }
+    cleaned.push(position)
+  }
+  return cleaned
+}
 
 async function call(path, opts = {}) {
   const res = await fetch(`${base()}${path}`, {

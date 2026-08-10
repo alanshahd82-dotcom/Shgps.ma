@@ -22,12 +22,20 @@ const BRAKING_LIMIT = -3
 const MAX_EVENT_INTERVAL_MS = 30 * 1000
 const TRAIL_POINT_LIMIT = 15
 const MAP_STYLE_STORAGE_KEY = 'athargps_map_style'
+const MAX_POSITION_SPEED_KMH = 220
 
 function validPoint(point) {
   const latitude = Number(point?.latitude ?? point?.lat)
   const longitude = Number(point?.longitude ?? point?.lng)
   const time = new Date(point?.fixTime ?? point?.timestamp ?? point?.time)
-  return Number.isFinite(latitude) && Number.isFinite(longitude) && !Number.isNaN(time.getTime())
+  return Number.isFinite(latitude)
+    && Number.isFinite(longitude)
+    && latitude >= -90
+    && latitude <= 90
+    && longitude >= -180
+    && longitude <= 180
+    && !(Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01)
+    && !Number.isNaN(time.getTime())
 }
 
 function normalisePoint(point) {
@@ -52,6 +60,24 @@ function haversine(a, b) {
   const sinLng = Math.sin(dLng / 2)
   const value = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng
   return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)))
+}
+
+function cleanRoute(points) {
+  const candidates = (Array.isArray(points) ? points : [])
+    .filter(validPoint)
+    .map(normalisePoint)
+    .sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+  const cleaned = []
+  for (const point of candidates) {
+    const previous = cleaned.at(-1)
+    if (previous) {
+      const elapsedHours = (new Date(point.fixTime) - new Date(previous.fixTime)) / 3600000
+      const speedKmh = elapsedHours > 0 ? haversine(previous, point) / elapsedHours : Infinity
+      if (speedKmh > MAX_POSITION_SPEED_KMH) continue
+    }
+    cleaned.push(point)
+  }
+  return cleaned
 }
 
 function bearing(a, b) {
@@ -333,7 +359,7 @@ function eventMessage(event, lang) {
 export default function TripReplay({ deviceId, deviceName, startTime, endTime, positions: suppliedPositions = [], onClose }) {
   const { lang } = useApp()
   const isAr = lang === 'ar'
-  const [route, setRoute] = useState(() => suppliedPositions.filter(validPoint).map(normalisePoint))
+  const [route, setRoute] = useState(() => cleanRoute(suppliedPositions))
   const [loading, setLoading] = useState(route.length === 0)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState(0)
@@ -354,7 +380,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   useEffect(() => {
     let cancelled = false
     if (suppliedPositions.length) {
-      setRoute(suppliedPositions.filter(validPoint).map(normalisePoint))
+      setRoute(cleanRoute(suppliedPositions))
       setLoading(false)
       return () => { cancelled = true }
     }
@@ -363,7 +389,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     setError('')
     api.stats.getPositions(deviceId, startTime, endTime)
       .then((data) => {
-        if (!cancelled) setRoute(Array.isArray(data) ? data.filter(validPoint).map(normalisePoint) : [])
+        if (!cancelled) setRoute(cleanRoute(data))
       })
       .catch(() => {
         if (!cancelled) setError(isAr ? 'تعذّر تحميل نقاط الرحلة. حاول مرة أخرى.' : 'Impossible de charger les points du trajet.')

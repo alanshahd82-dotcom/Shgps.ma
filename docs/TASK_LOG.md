@@ -29,6 +29,13 @@ This file records the completed replay-related work and the current import audit
 - Rebuilt the client trip speed visualization in `src/pages/client/DeviceDetail.jsx` as a real dark `AreaChart` from route positions, with a clean bilingual empty state.
 - Backend, API, database, Traccar, and unrelated screen styling were not changed.
 
+## GPS outlier filtering and realistic trip statistics
+
+- Added a shared server-side `cleanPositions` pipeline that drops invalid coordinates and timestamps, sorts fixes, and removes teleport jumps over 220 km/h from the last kept point.
+- Applied cleaned positions to replay responses, trip reports, and daily distance summaries so route maps, speed charts, distances, and durations use sane data only.
+- Added the same validation and teleport filter to replay routes and the client device mini-map to protect the UI from stale cached responses.
+- Preserved the existing Arabic/French UI and Traccar/database boundaries.
+
 ## Map-first replay screen
 
 - Reworked `src/components/TripReplay.jsx` into exactly three non-overlapping layers: full-height map, compact top bar, and one bottom sheet.

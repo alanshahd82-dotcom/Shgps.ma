@@ -39,6 +39,48 @@ function validPosition(lat, lng) {
   )
 }
 
+const MAX_POSITION_SPEED_KMH = 220
+
+function haversineKm(a, b) {
+  const radius = 6371
+  const lat1 = a.latitude * Math.PI / 180
+  const lat2 = b.latitude * Math.PI / 180
+  const dLat = (b.latitude - a.latitude) * Math.PI / 180
+  const dLng = (b.longitude - a.longitude) * Math.PI / 180
+  const sinLat = Math.sin(dLat / 2)
+  const sinLng = Math.sin(dLng / 2)
+  const value = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng
+  return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)))
+}
+
+function cleanRoute(points) {
+  const candidates = (Array.isArray(points) ? points : [])
+    .map((point) => ({
+      ...point,
+      latitude: finiteCoordinate(point?.latitude ?? point?.lat),
+      longitude: finiteCoordinate(point?.longitude ?? point?.lng),
+      fixTime: point?.fixTime ?? point?.timestamp ?? point?.time,
+    }))
+    .filter((point) => {
+      const date = new Date(point.fixTime)
+      return validPosition(point.latitude, point.longitude)
+        && !(Math.abs(point.latitude) < 0.01 && Math.abs(point.longitude) < 0.01)
+        && !Number.isNaN(date.getTime())
+    })
+    .sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+  const cleaned = []
+  for (const point of candidates) {
+    const previous = cleaned.at(-1)
+    if (previous) {
+      const elapsedHours = (new Date(point.fixTime) - new Date(previous.fixTime)) / 3600000
+      const speedKmh = elapsedHours > 0 ? haversineKm(previous, point) / elapsedHours : Infinity
+      if (speedKmh > MAX_POSITION_SPEED_KMH) continue
+    }
+    cleaned.push(point)
+  }
+  return cleaned
+}
+
 function speedColor(s) {
   if (s > 120) return '#FF3B30'
   if (s > 80)  return '#FF9500'
@@ -224,12 +266,7 @@ export default function DeviceDetail() {
     })
   }
 
-  const routePoints = trips
-    .flatMap(trip => Array.isArray(trip.route) ? trip.route : [])
-    .filter(point => {
-      const date = new Date(point.fixTime || point.timestamp || point.time)
-      return !Number.isNaN(date.getTime())
-    })
+  const routePoints = cleanRoute(trips.flatMap(trip => Array.isArray(trip.route) ? trip.route : []))
   const positions = routePoints
     .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
     .filter(([lat, lng]) => validPosition(lat, lng))

@@ -55,23 +55,14 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
       return res.status(502).json({ error: 'Device is not linked to the tracking service' })
     }
 
-    const positions = await traccar.getHistory(device.traccar_id, fromDate, toDate)
+    const positions = traccar.cleanPositions(await traccar.getHistory(device.traccar_id, fromDate, toDate))
     console.info('[stats/positions]', {
       deviceId: deviceIdNumber,
       from: fromDate,
       to: toDate,
-      returned: Array.isArray(positions) ? positions.length : 0,
+      returned: positions.length,
     })
-    const replayPositions = (Array.isArray(positions) ? positions : [])
-      .filter((position) => {
-        const fixTime = new Date(position?.fixTime)
-        return position?.fixTime
-          && !Number.isNaN(fixTime.getTime())
-          && Number.isFinite(Number(position.latitude))
-          && Number.isFinite(Number(position.longitude))
-      })
-      .sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
-      .map((position) => ({
+    const replayPositions = positions.map((position) => ({
         latitude: Number(position.latitude),
         longitude: Number(position.longitude),
         speed: Number.isFinite(Number(position.speed))
