@@ -651,6 +651,16 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
 
   function exportReport() {
     setExportError('')
+    // Stop the replay before opening a second document. Some browsers pause
+    // the opener while a print dialog is being prepared; leaving RAF active
+    // here makes the map look frozen after returning from the report.
+    setPlaying(false)
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+    virtualTimeRef.current = null
+    lastFrameRef.current = null
+    lastRenderRef.current = 0
+
     const reportWindow = window.open('', '_blank')
     if (!reportWindow) {
       setExportError(label('تعذر فتح نافذة التقرير. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.', 'Impossible d’ouvrir le rapport. Autorisez les fenêtres pop-up puis réessayez.'))
@@ -678,14 +688,16 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
             :root { color-scheme: light; font-family: Arial, sans-serif; }
             body { margin: 0; padding: 32px; color: #102945; background: #f4f8f7; }
             main { max-width: 820px; margin: 0 auto; background: #fff; border: 1px solid #dce9e4; border-radius: 20px; padding: 32px; }
-            header { display: flex; justify-content: space-between; gap: 20px; align-items: start; border-bottom: 3px solid #1DBF73; padding-bottom: 18px; }
+             header { display: flex; justify-content: space-between; gap: 20px; align-items: start; border-bottom: 3px solid #1DBF73; padding-bottom: 18px; }
+             .actions { display: flex; justify-content: flex-end; margin: 20px 0 0; }
+             .print-button { border: 0; border-radius: 10px; padding: 10px 16px; background: #16866d; color: #fff; font-weight: 700; cursor: pointer; }
             h1 { margin: 0 0 7px; color: #0F2044; font-size: 25px; } h2 { margin: 26px 0 12px; color: #0F2044; font-size: 16px; }
             p { margin: 5px 0; color: #587080; font-size: 12px; } .brand { color: #16866d; font-weight: 800; letter-spacing: .12em; font-size: 11px; }
             .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 22px; }
             .stat { padding: 13px; border-radius: 12px; background: #edf8f3; } .stat small { display: block; color: #587080; font-size: 10px; margin-bottom: 6px; } .stat strong { font-size: 17px; color: #0F2044; }
             ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; } li { display: flex; justify-content: space-between; padding: 10px 12px; border-radius: 10px; background: #f1f6f5; font-size: 12px; } li strong { color: #16866d; }
             table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { text-align: start; padding: 10px; border-bottom: 1px solid #e5efeb; } th { color: #587080; }
-            @media print { body { padding: 0; background: #fff; } main { border: 0; padding: 0; } }
+             @media print { body { padding: 0; background: #fff; } main { border: 0; padding: 0; } .actions { display: none; } }
           </style>
         </head>
         <body>
@@ -701,12 +713,12 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
             </div>
             <h2>${escapeHtml(label('تحليل السلوك', 'Analyse du comportement'))}</h2><ul>${behaviorCounts}</ul>
             <h2>${escapeHtml(label('التوقفات', 'Arrêts'))}</h2><table><thead><tr><th>${escapeHtml(label('الوقت', 'Heure'))}</th><th>${escapeHtml(label('المدة', 'Durée'))}</th></tr></thead><tbody>${stopRows}</tbody></table>
+             <div class="actions"><button class="print-button" type="button" onclick="window.print()">${escapeHtml(label('طباعة التقرير', 'Imprimer le rapport'))}</button></div>
           </main>
         </body>
       </html>`)
     reportWindow.document.close()
     reportWindow.focus()
-    reportWindow.setTimeout(() => reportWindow.print(), 250)
   }
 
   const routeBounds = route.length ? route : [{ latitude: 33.5731, longitude: -7.5898 }]
