@@ -81,6 +81,9 @@ export default function DeviceDetail() {
   const [showRenew, setShowRenew] = useState(false)
   const [tripsError, setTripsError] = useState('')
   const [replayTrip, setReplayTrip] = useState(null)
+  const [rangePreset, setRangePreset] = useState('today')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [cmdMsg, setCmdMsg] = useState('')
   const [shareErr, setShareErr] = useState('')
   const [imeiCopied, setImeiCopied] = useState(false)
@@ -100,6 +103,38 @@ export default function DeviceDetail() {
     ? TABS
     : TABS.filter(tabItem => tabItem.key !== 'commands')
 
+  function getRangeBounds() {
+    const now = new Date()
+    if (rangePreset === 'custom') {
+      if (!customFrom || !customTo) return null
+      const from = new Date(`${customFrom}T00:00:00`)
+      const selectedTo = new Date(`${customTo}T00:00:00`)
+      if (Number.isNaN(from.getTime()) || Number.isNaN(selectedTo.getTime())) return null
+      const to = new Date(selectedTo)
+      to.setHours(23, 59, 59, 999)
+      return { from, to }
+    }
+
+    const days = rangePreset === 'week' ? 7 : rangePreset === 'fifteen' ? 15 : 1
+    const from = new Date(now)
+    from.setHours(0, 0, 0, 0)
+    from.setDate(from.getDate() - (days - 1))
+    return { from, to: now }
+  }
+
+  function localDateValue(date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const rangeBounds = getRangeBounds()
+  const customRangeTooLong = rangePreset === 'custom' && rangeBounds
+    ? rangeBounds.to.getTime() - rangeBounds.from.getTime() > 15 * 24 * 60 * 60 * 1000
+    : false
+  const rangeReady = rangePreset !== 'custom' || Boolean(rangeBounds && !customRangeTooLong)
+
   const st = getDeviceStatusKey(device || {})
   const stColor = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }[st] || '#6b7280'
   const stLabel = { moving: isAr?'يتحرك':'En mouvement', idle:isAr?'خمول':'Ralenti', stopped:isAr?'متوقف':'Arrêté', offline:isAr?'غير متصل':'Hors ligne' }[st] || st
@@ -116,19 +151,21 @@ export default function DeviceDetail() {
   }, [id])
 
   useEffect(() => {
-    if (tab !== 'route' || !trackingEnabled) return
+    if (tab !== 'route' || !trackingEnabled || !rangeReady) return
+    const bounds = getRangeBounds()
+    if (!bounds) return
+    let cancelled = false
     async function loadTrips() {
       setTripsLoading(true); setTripsError('')
       try {
-        const now  = new Date()
-        const from = new Date(now); from.setHours(0, 0, 0, 0)
-        const data = await api.reports.get(id, from.toISOString(), now.toISOString())
-        setTrips(data.trips || [])
+        const data = await api.reports.get(id, bounds.from.toISOString(), bounds.to.toISOString())
+        if (!cancelled) setTrips(Array.isArray(data.trips) ? data.trips : [])
       } catch (e) { setTripsError(isAr ? 'تعذّر تحميل الرحلات. تحقق من اتصالك وأعد المحاولة.' : 'Impossible de charger les trajets. Vérifiez votre connexion.') }
-      finally { setTripsLoading(false) }
+      finally { if (!cancelled) setTripsLoading(false) }
     }
     loadTrips()
-  }, [tab, id, trackingEnabled])
+    return () => { cancelled = true }
+  }, [tab, id, trackingEnabled, rangePreset, customFrom, customTo, rangeReady, isAr])
 
   async function sendCommand(type) {
     setSending(true)
@@ -171,7 +208,12 @@ export default function DeviceDetail() {
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  const routePoints = trips.flatMap(trip => Array.isArray(trip.route) ? trip.route : [])
+  const routePoints = trips
+    .flatMap(trip => Array.isArray(trip.route) ? trip.route : [])
+    .filter(point => {
+      const date = new Date(point.fixTime || point.timestamp || point.time)
+      return !Number.isNaN(date.getTime())
+    })
   const positions = routePoints
     .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
     .filter(([lat, lng]) => validPosition(lat, lng))
@@ -180,12 +222,35 @@ export default function DeviceDetail() {
       const date = new Date(point.fixTime || point.timestamp || point.time)
       return {
         index,
-        time: Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        xIndex: index,
+        time: date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }),
         speed: Math.max(0, Math.round(Number(point.speed) || 0)),
       }
     })
-    .filter(point => point.time)
-    .slice(-80)
+  const speedMax = speedData.reduce((max, point) => Math.max(max, point.speed), 0)
+  const speedDomainMax = Math.max(10, Math.ceil((speedMax + 5) / 5) * 5)
+  const speedTicks = speedData.length > 1
+    ? Array.from({ length: Math.min(5, speedData.length) }, (_, index) => {
+      const position = Math.round(index * (speedData.length - 1) / Math.max(1, Math.min(5, speedData.length) - 1))
+      return speedData[position].index
+    })
+    : []
+  const formatTripDateTime = (value) => {
+    if (!value) return isAr ? 'لا توجد بيانات' : 'Aucune donnée'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return isAr ? 'لا توجد بيانات' : 'Aucune donnée'
+    return `${date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-MA', { day: 'numeric', month: 'short', year: 'numeric' })} · ${date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+  }
+  const getTripStart = trip => trip.startTime || trip.start_time || trip.start
+  const getTripEnd = trip => trip.endTime || trip.end_time || trip.end
+  const getTripDistance = trip => Number(trip.distanceKm ?? trip.distance_km ?? trip.distance ?? 0)
+  const getTripMaxSpeed = trip => Number(trip.maxSpeed ?? trip.max_speed ?? 0)
+  const getTripPointCount = trip => Number(trip.points ?? trip.pointCount ?? trip.route?.length ?? 0)
+  const displayTrips = trips.map((trip, index) => ({
+    trip,
+    index,
+    isStop: getTripDistance(trip) < 0.05 && getTripMaxSpeed(trip) < 1,
+  }))
   const cardStyle = { background:'#0e2035', border:'1px solid rgba(255,255,255,.10)', boxShadow:'0 16px 38px rgba(0,0,0,.20)' }
   const distanceToday = device?.distanceToday ?? device?.distance_today ?? device?.distance_km ?? device?.distance
   const signalStrength = device?.signalStrength ?? device?.signal_strength ?? device?.signal ?? device?.rssi
@@ -229,8 +294,8 @@ export default function DeviceDetail() {
       {device && (
         <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
           {[
-             { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : '—', color:'#38d39f', always: true },
-             { Icon:Navigation, label:isAr?'المسافة اليوم':'Distance aujourd\'hui', val: distanceToday != null ? Number(distanceToday).toFixed(1)+' km' : '—', color:'#d9ad62', always: true },
+              { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : t(lang, 'noData'), color:'#38d39f', always: true },
+              { Icon:Navigation, label:isAr?'المسافة اليوم':'Distance aujourd\'hui', val: distanceToday != null ? Number(distanceToday).toFixed(1)+' km' : t(lang, 'noData'), color:'#d9ad62', always: true },
              { Icon:Wifi, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : null, color:'#6fc8ff', always: false },
              { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? device.battery+'%' : null, color: device.battery < 30 ? '#e46b68' : '#38d39f', always: false },
           ].filter(m => m.always || m.val != null).map(({ Icon, label, val, color },i) => (
@@ -365,8 +430,64 @@ export default function DeviceDetail() {
           {/* ROUTE */}
           {tab === 'route' && (
             <motion.div key="route" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
+              <div className="rounded-2xl p-3" style={cardStyle}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    ['today', t(lang, 'today')],
+                    ['week', t(lang, 'last7Days')],
+                    ['fifteen', t(lang, 'last15Days')],
+                    ['custom', t(lang, 'customRange')],
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setRangePreset(key)}
+                      className="rounded-xl px-3 py-2 text-[11px] font-bold transition"
+                      style={rangePreset === key
+                        ? { background: '#1DBF73', color: '#07111f' }
+                        : { background: 'rgba(255,255,255,.07)', color: '#a9bac7', border: '1px solid rgba(255,255,255,.09)' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {rangePreset === 'custom' && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <label className="min-w-0 text-[10px] font-semibold text-slate-400">
+                      {t(lang, 'from')}
+                      <input
+                        type="date"
+                        value={customFrom}
+                        max={customTo || localDateValue(new Date())}
+                        onChange={event => setCustomFrom(event.target.value)}
+                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
+                      />
+                    </label>
+                    <label className="min-w-0 text-[10px] font-semibold text-slate-400">
+                      {t(lang, 'to')}
+                      <input
+                        type="date"
+                        value={customTo}
+                        min={customFrom}
+                        max={localDateValue(new Date())}
+                        onChange={event => setCustomTo(event.target.value)}
+                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
+                      />
+                    </label>
+                  </div>
+                )}
+                {rangePreset === 'custom' && (!rangeBounds || customRangeTooLong) && (
+                  <p className="mt-2 text-[11px] font-semibold text-amber-300">
+                    {customRangeTooLong ? t(lang, 'rangeTooLong') : t(lang, 'selectCustomRange')}
+                  </p>
+                )}
+              </div>
               {!trackingEnabled ? (
                 <SubscriptionBanner device={device} lang={lang} onRenew={() => setShowRenew(true)} />
+              ) : !rangeReady ? (
+                <div className="flex flex-col items-center rounded-2xl p-8 text-center" style={cardStyle}>
+                  <RouteIcon size={28} className="mb-3 text-slate-500"/>
+                  <p className="text-xs font-semibold text-slate-400">{t(lang, 'selectCustomRange')}</p>
+                </div>
               ) : tripsLoading ? (
                 <div className="flex justify-center py-12">
                   <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
@@ -383,7 +504,7 @@ export default function DeviceDetail() {
               ) : trips.length === 0 ? (
                 <div className="flex flex-col items-center py-14" style={cardStyle}>
                   <RouteIcon size={32} className="mb-3 text-slate-300"/>
-                  <p className="text-sm font-semibold text-slate-500">{isAr?'لا توجد رحلات مسجلة اليوم':'Aucun trajet enregistré aujourd\'hui'}</p>
+                  <p className="text-sm font-semibold text-slate-500">{t(lang, 'noTripsInRange')}</p>
                 </div>
               ) : (
                 <>
@@ -395,6 +516,20 @@ export default function DeviceDetail() {
                         <FitRoute positions={positions}/>
                       </MapContainer>
                     </div>
+                  )}
+                  {rangeBounds && routePoints.length > 1 && (
+                    <button
+                      onClick={() => setReplayTrip({
+                        startTime: rangeBounds.from.toISOString(),
+                        endTime: rangeBounds.to.toISOString(),
+                        route: routePoints,
+                      })}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-[#07111f] shadow-lg shadow-[#1DBF73]/10 transition hover:brightness-110"
+                      style={{ background: '#1DBF73' }}
+                    >
+                      <Play size={14} fill="currentColor" />
+                      {t(lang, 'replayFullRange')}
+                    </button>
                   )}
                   <div className="p-4 rounded-2xl" style={cardStyle}>
                     <div className="mb-3 flex items-center justify-between gap-3">
@@ -413,8 +548,8 @@ export default function DeviceDetail() {
                             </linearGradient>
                           </defs>
                           <CartesianGrid vertical={false} stroke="rgba(255,255,255,.08)" strokeDasharray="3 4" />
-                          <XAxis dataKey="time" tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} minTickGap={24} />
-                          <YAxis unit=" km/h" tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} width={42} />
+                          <XAxis dataKey="xIndex" ticks={speedTicks} tickFormatter={value => speedData[value]?.time || ''} tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} interval={0} minTickGap={24} />
+                          <YAxis domain={[0, speedDomainMax]} tickFormatter={value => `${value} km/h`} tick={{ fill: '#8da2b5', fontSize: 9, whiteSpace: 'nowrap' }} axisLine={false} tickLine={false} width={54} />
                           <Tooltip
                             labelFormatter={value => value}
                             formatter={value => [`${value} km/h`, isAr ? 'السرعة' : 'Vitesse']}
@@ -432,18 +567,28 @@ export default function DeviceDetail() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    {trips.map((trip, index) => (
-                      <div key={`${trip.startTime || trip.start_time || index}-${index}`} className="flex items-center gap-3 rounded-2xl p-3" style={cardStyle}>
+                    {displayTrips.map(({ trip, index, isStop }) => (
+                      <div key={`${getTripStart(trip) || index}-${index}`} className="flex items-center gap-3 rounded-2xl p-3" style={cardStyle}>
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background:'rgba(56,211,159,.12)' }}>
                           <RouteIcon size={16} style={{ color:'#38d39f' }}/>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-bold text-slate-800">{trip.startTime ? new Date(trip.startTime).toLocaleString(isAr ? 'ar-MA' : 'fr-FR') : (isAr ? `الرحلة ${index + 1}` : `Trajet ${index + 1}`)}</p>
-                          <p className="mt-1 text-[10px] text-slate-500">{trip.distanceKm ?? 0} km · {trip.maxSpeed ?? 0} km/h · {trip.points ?? trip.route?.length ?? 0} {isAr ? 'نقطة' : 'points'}</p>
+                          <p className="truncate text-xs font-bold text-white">{formatTripDateTime(getTripStart(trip))}</p>
+                          <p className="mt-1 truncate text-[10px] text-slate-400" dir="ltr">
+                            {getTripDistance(trip).toFixed(1)} km · {Math.round(getTripMaxSpeed(trip))} km/h · {getTripPointCount(trip)} {isAr ? 'نقطة' : 'points'}
+                          </p>
                         </div>
-                        <button onClick={() => setReplayTrip(trip)} className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-[#07111f]" style={{ background:'#38d39f' }}>
-                          <Play size={12} fill="currentColor" />{isAr ? 'إعادة العرض' : 'Revoir'}
-                        </button>
+                        {isStop ? (
+                          <span className="shrink-0 rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-[10px] font-bold text-amber-300">{t(lang, 'stopLabel')}</span>
+                        ) : (
+                          <button
+                            onClick={() => setReplayTrip({ ...trip, startTime: getTripStart(trip), endTime: getTripEnd(trip), route: trip.route || [] })}
+                            className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-[#07111f]"
+                            style={{ background:'#38d39f' }}
+                          >
+                            <Play size={12} fill="currentColor" />{t(lang, 'replay')}
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -186,6 +186,16 @@ export const translations = {
     avgSpeed: 'متوسط السرعة',
     maxSpeed: 'أقصى سرعة',
     stopTime: 'وقت التوقف',
+    today: 'اليوم',
+    last7Days: '7 أيام',
+    last15Days: '15 يوم',
+    customRange: 'مخصص',
+    replayFullRange: 'إعادة عرض الفترة كاملة',
+    stopLabel: 'توقف',
+    noData: 'لا توجد بيانات',
+    rangeTooLong: 'الفترة تتجاوز 15 يوم',
+    selectCustomRange: 'اختر تاريخ البداية والنهاية',
+    noTripsInRange: 'لا توجد رحلات في هذه الفترة',
 
     // Admin
     adminDashboard: 'لوحة التحكم',
@@ -609,6 +619,16 @@ export const translations = {
     avgSpeed: 'Vitesse moy.',
     maxSpeed: 'Vitesse max',
     stopTime: "Temps d'arrêt",
+    today: "Aujourd'hui",
+    last7Days: '7 jours',
+    last15Days: '15 jours',
+    customRange: 'Personnalisé',
+    replayFullRange: 'Rejouer toute la période',
+    stopLabel: 'Arrêt',
+    noData: 'Aucune donnée',
+    rangeTooLong: 'La période dépasse 15 jours',
+    selectCustomRange: 'Choisissez les dates de début et de fin',
+    noTripsInRange: 'Aucun trajet sur cette période',
 
     // Admin
     adminDashboard: 'Tableau de bord',

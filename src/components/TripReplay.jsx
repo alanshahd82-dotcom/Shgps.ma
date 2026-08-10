@@ -10,6 +10,7 @@ import { useApp } from '../context/AppContext'
 import { api } from '../api/index.js'
 import { t } from '../i18n/translations'
 import GeoapifyTileLayer from './GeoapifyTileLayer'
+import carUrl from '../assets/car-marker.png'
 
 const STOP_SPEED = 2
 const SPEED_LIMIT = 80
@@ -136,19 +137,15 @@ function labelIcon(label, background, size = 26) {
   })
 }
 
-function carIcon(size) {
-  const width = Math.round(size)
-  const height = Math.round(size * 2 / 3)
+function carIcon() {
+  const width = 54
+  const height = 38
   return L.divIcon({
     className: 'athar-replay-car',
-    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform:rotate(0deg);transform-origin:center;transition:transform .3s cubic-bezier(.22,.61,.36,1);filter:drop-shadow(0 5px 4px rgba(0,0,0,.42))"><img src="/athar-replay-car.png" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;pointer-events:none;user-select:none" /></span>`,
+    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform-origin:center;transition:transform .3s cubic-bezier(.22,.61,.36,1)"><img src="${carUrl}" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;mix-blend-mode:multiply;filter:drop-shadow(0 5px 10px rgba(0,0,0,.45));pointer-events:none;user-select:none" /></span>`,
     iconSize: [width, height],
     iconAnchor: [width / 2, height / 2],
   })
-}
-
-function markerSizeForZoom(zoom) {
-  return Math.max(28, Math.min(58, Math.round(42 + (zoom - 16) * 3.5)))
 }
 
 function shortestTurn(from, to) {
@@ -163,19 +160,9 @@ function interpolateBearing(first, second, ratio) {
 }
 
 function CarMarker({ current, degrees, fast }) {
-  const map = useMap()
   const markerRef = useRef(null)
-  const [zoom, setZoom] = useState(() => map.getZoom())
   const rotationRef = useRef(degrees)
-  const size = markerSizeForZoom(zoom)
-  const icon = useMemo(() => carIcon(size), [size])
-
-  useEffect(() => {
-    const updateZoom = () => setZoom(map.getZoom())
-    updateZoom()
-    map.on('zoomend', updateZoom)
-    return () => map.off('zoomend', updateZoom)
-  }, [map])
+  const icon = useMemo(() => carIcon(), [])
 
   useEffect(() => {
     const element = markerRef.current?.getElement()
@@ -183,12 +170,12 @@ function CarMarker({ current, degrees, fast }) {
     if (body) {
       const nextRotation = rotationRef.current + shortestTurn(rotationRef.current, degrees)
       rotationRef.current = nextRotation
-      body.style.transform = `rotate(${nextRotation - 125}deg)`
+      body.style.transform = `rotate(${nextRotation}deg)`
       body.style.filter = fast
         ? 'drop-shadow(0 6px 5px rgba(0,0,0,.48))'
         : 'drop-shadow(0 5px 4px rgba(0,0,0,.42))'
     }
-  }, [degrees, fast, size])
+  }, [degrees, fast])
 
   return <Marker ref={markerRef} position={[current.latitude, current.longitude]} icon={icon} />
 }

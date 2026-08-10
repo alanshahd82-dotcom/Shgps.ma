@@ -45,3 +45,22 @@ This file records the completed replay-related work and the current import audit
 - Replaced the replay car marker artwork with the provided realistic vehicle image at `public/athar-replay-car.png`.
 - Kept the existing map, route, controls, and replay behavior unchanged while making the marker use interpolated GPS coordinates and smooth bearing transitions.
 - Marker size responds to Leaflet zoom level within safe bounds, retains its correct orientation after zoom changes, and uses a soft drop shadow.
+
+## Real car marker and trips tab audit
+
+- Added the client-provided Mercedes image at `src/assets/car-marker.png` and wired it into `TripReplay.jsx` through the Vite asset pipeline.
+- Replaced the replay marker artwork with a fixed 54×38px image marker using `mix-blend-mode:multiply`, a subtle drop shadow, centered anchoring, and smooth bearing rotation.
+- Added bilingual trip-range presets for today, 7 days, 15 days, and a custom date range.
+- Added custom-range validation with an inline 15-day limit message and refetching of the trips, route preview, and speed data whenever the range changes.
+- Added a full-range replay action that passes every loaded point in the selected date range to the replay overlay.
+- Reworked speed chart data to use every plotted GPS point, real km/h values, a bounded Y axis, non-duplicated time ticks, and a clear empty state.
+- Normalized trip start/end, distance, maximum speed, and point-count fields before rendering, and formatted trip timestamps consistently in Arabic and French.
+- Classified trips under 0.05 km with maximum speed under 1 km/h as stops and removed their replay action.
+- Replaced bare quick-stat dashes with the localized no-data state.
+- Added all new Arabic and French labels to `src/i18n/translations.js`.
+
+## Verification
+
+- `npm run build` passes successfully.
+- The build output contains no `is not defined` warnings or build errors.
+- `git diff --check` passes.
