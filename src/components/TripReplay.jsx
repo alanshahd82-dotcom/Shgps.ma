@@ -238,7 +238,7 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, m
   const lastFollowAtRef = useRef(0)
 
   useEffect(() => {
-    if (!mapReady || !map._loaded) return undefined
+    if (!map._loaded) return undefined
     const timer = window.setTimeout(() => {
       const mapContainer = map.getContainer()
       const mapRect = mapContainer.getBoundingClientRect()
@@ -311,7 +311,11 @@ function MapLifecycle({ onLoad }) {
     const handleLoad = () => onLoad()
     map.on('load', handleLoad)
     if (map._loaded) onLoad()
+    const raf = requestAnimationFrame(() => { if (map.getContainer()) map.invalidateSize(false) })
+    const forceTimer = window.setTimeout(() => { map.invalidateSize(false); if (map._loaded) onLoad() }, 300)
     return () => {
+      cancelAnimationFrame(raf)
+      window.clearTimeout(forceTimer)
       map.off('load', handleLoad)
     }
   }, [map, onLoad])
