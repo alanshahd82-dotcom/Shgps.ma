@@ -312,15 +312,19 @@ function MapLifecycle({ onLoad }) {
   const map = useMap()
 
   useEffect(() => {
-    const handleLoad = () => onLoad()
-    map.on('load', handleLoad)
-    if (map._loaded) onLoad()
-    const raf = requestAnimationFrame(() => { if (map.getContainer()) map.invalidateSize(false) })
-    const forceTimer = window.setTimeout(() => { map.invalidateSize(false); if (map._loaded) onLoad() }, 300)
+    let cancelled = false
+    const markReady = () => {
+      if (cancelled || !map.getContainer()) return
+      map.invalidateSize(false)
+      onLoad()
+    }
+    map.whenReady(markReady)
+    const raf = requestAnimationFrame(markReady)
+    const forceTimer = window.setTimeout(markReady, 300)
     return () => {
+      cancelled = true
       cancelAnimationFrame(raf)
       window.clearTimeout(forceTimer)
-      map.off('load', handleLoad)
     }
   }, [map, onLoad])
 

@@ -2,12 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import { TileLayer } from 'react-leaflet'
 import GeoapifyTileLayer from './GeoapifyTileLayer'
 
-const PROXY_SAT_URL = '/api/map/sat-tiles/{z}/{x}/{y}.png'
-const PROXY_STREET_URL = '/api/map/street-tiles/{z}/{x}/{y}.png'
 const SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ERROR_LIMIT = 5
 const TILE_ERROR_WINDOW_MS = 4000
+const TILE_LOADING_TIMEOUT_MS = 2500
 
 function OpenStreetMapLayer({ onTileError, onTileLoad }) {
   return (
@@ -29,8 +28,8 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
   const satelliteReadyRef = useRef(false)
 
   const sources = satellite
-    ? ['proxy-sat', 'esri', 'geoapify-hybrid', 'osm']
-    : ['street', 'osm']
+    ? ['esri', 'geoapify-hybrid', 'osm']
+    : ['osm']
 
   useEffect(() => {
     sourceIndexRef.current = 0
@@ -47,6 +46,17 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
     }, 3000)
     return () => window.clearTimeout(timeout)
   }, [onSatelliteTimeout, satellite])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      // A basemap is helpful, but it must never block the route, marker, or
+      // replay controls. This is especially important when a tile provider
+      // is unavailable or the app is opened offline.
+      setTileLoaded(true)
+      if (satellite && !satelliteReadyRef.current) onSatelliteTimeout?.()
+    }, TILE_LOADING_TIMEOUT_MS)
+    return () => window.clearTimeout(timeout)
+  }, [onSatelliteTimeout, satellite, sourceIndex])
 
   function handleTileLoad() {
     satelliteReadyRef.current = true
@@ -79,16 +89,6 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
     </div>
   )
 
-  if (source === 'proxy-sat') {
-    return (
-      <>
-        {loadingSurface}
-        <TileLayer key={source} url={PROXY_SAT_URL} maxZoom={19}
-          eventHandlers={{ tileerror: handleTileError, tileload: handleTileLoad }}
-          attribution="© Esri — via Athar GPS proxy" />
-      </>
-    )
-  }
   if (source === 'esri') {
     return (
       <>
@@ -96,16 +96,6 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
         <TileLayer key={source} url={SATELLITE_URL} maxZoom={19}
           eventHandlers={{ tileerror: handleTileError, tileload: handleTileLoad }}
           attribution="© Esri" />
-      </>
-    )
-  }
-  if (source === 'street') {
-    return (
-      <>
-        {loadingSurface}
-        <TileLayer key={source} url={PROXY_STREET_URL} maxZoom={19}
-          eventHandlers={{ tileerror: handleTileError, tileload: handleTileLoad }}
-          attribution="© Esri — World Street Map" />
       </>
     )
   }
