@@ -26,12 +26,14 @@ function validPoint(point) {
 }
 
 function normalisePoint(point) {
+  const pointBearing = Number(point.course ?? point.bearing ?? point.heading ?? point.direction)
   return {
     latitude: Number(point.latitude ?? point.lat),
     longitude: Number(point.longitude ?? point.lng),
     speed: Math.max(0, Number(point.speed ?? 0)),
     fixTime: point.fixTime ?? point.timestamp ?? point.time,
     address: point.address || null,
+    bearing: Number.isFinite(pointBearing) ? (pointBearing + 360) % 360 : null,
   }
 }
 
@@ -134,29 +136,59 @@ function labelIcon(label, background, size = 26) {
   })
 }
 
-function carIcon() {
+function carIcon(size) {
+  const width = Math.round(size)
+  const height = Math.round(size * 2 / 3)
   return L.divIcon({
     className: 'athar-replay-car',
-    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:46px;height:24px;border-radius:9px;background:#E11D48;border:1.5px solid rgba(255,255,255,.9);box-shadow:0 5px 14px rgba(0,0,0,.5);transform:rotate(0deg);transition:transform .3s linear"><svg width="42" height="22" viewBox="0 0 46 24" fill="none" aria-hidden="true"><path d="M8 3.5h30c1.6 0 2.9 1.2 3.1 2.8l1.2 8.8c.2 1.3-.8 2.4-2.1 2.4h-1.4v2.1c0 .8-.6 1.4-1.4 1.4h-1.1c-.8 0-1.4-.6-1.4-1.4v-2.1H11.1v2.1c0 .8-.6 1.4-1.4 1.4H8.6c-.8 0-1.4-.6-1.4-1.4v-2.1H5.8c-1.3 0-2.3-1.1-2.1-2.4l1.2-8.8C5.1 4.7 6.4 3.5 8 3.5Z" fill="#E11D48"/><path d="M12 5.3h22c1.1 0 2 .7 2.4 1.7l1.6 4.4H8l1.6-4.4c.4-1 1.3-1.7 2.4-1.7Z" fill="#16243A"/><path d="M8.7 12.8h28.6" stroke="#FF8AA6" stroke-width="1.2" stroke-linecap="round"/><circle cx="11.5" cy="16.2" r="1.45" fill="#111827"/><circle cx="34.5" cy="16.2" r="1.45" fill="#111827"/><path d="M5.8 9.4H3.5M42.5 9.4h-2.3" stroke="#FBBF24" stroke-width="1.2" stroke-linecap="round"/></svg></span>`,
-    iconSize: [46, 24],
-    iconAnchor: [23, 12],
+    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform:rotate(0deg);transform-origin:center;transition:transform .3s cubic-bezier(.22,.61,.36,1);filter:drop-shadow(0 5px 4px rgba(0,0,0,.42))"><img src="/athar-replay-car.png" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;pointer-events:none;user-select:none" /></span>`,
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height / 2],
   })
 }
 
+function markerSizeForZoom(zoom) {
+  return Math.max(28, Math.min(58, Math.round(42 + (zoom - 16) * 3.5)))
+}
+
+function shortestTurn(from, to) {
+  return ((to - from + 540) % 360) - 180
+}
+
+function interpolateBearing(first, second, ratio) {
+  if (first === null && second === null) return null
+  if (first === null) return second
+  if (second === null) return first
+  return first + shortestTurn(first, second) * ratio
+}
+
 function CarMarker({ current, degrees, fast }) {
+  const map = useMap()
   const markerRef = useRef(null)
-  const icon = useMemo(() => carIcon(), [])
+  const [zoom, setZoom] = useState(() => map.getZoom())
+  const rotationRef = useRef(degrees)
+  const size = markerSizeForZoom(zoom)
+  const icon = useMemo(() => carIcon(size), [size])
+
+  useEffect(() => {
+    const updateZoom = () => setZoom(map.getZoom())
+    updateZoom()
+    map.on('zoomend', updateZoom)
+    return () => map.off('zoomend', updateZoom)
+  }, [map])
 
   useEffect(() => {
     const element = markerRef.current?.getElement()
     const body = element?.querySelector('.athar-replay-car-body')
     if (body) {
-      body.style.transform = `rotate(${degrees}deg)`
-      body.style.boxShadow = fast
-        ? '0 0 0 7px rgba(255,83,77,.28),0 0 25px rgba(255,83,77,.55),0 10px 24px rgba(0,0,0,.5)'
-        : '0 0 0 6px rgba(255,83,77,.18),0 10px 24px rgba(0,0,0,.5)'
+      const nextRotation = rotationRef.current + shortestTurn(rotationRef.current, degrees)
+      rotationRef.current = nextRotation
+      body.style.transform = `rotate(${nextRotation - 125}deg)`
+      body.style.filter = fast
+        ? 'drop-shadow(0 6px 5px rgba(0,0,0,.48))'
+        : 'drop-shadow(0 5px 4px rgba(0,0,0,.42))'
     }
-  }, [degrees, fast])
+  }, [degrees, fast, size])
 
   return <Marker ref={markerRef} position={[current.latitude, current.longitude]} icon={icon} />
 }
@@ -320,6 +352,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       speed: start.speed + (next.speed - start.speed) * ratio,
       fixTime: new Date(new Date(start.fixTime).getTime() + (new Date(next.fixTime) - new Date(start.fixTime)) * ratio).toISOString(),
       address: ratio > 0.55 && next.address ? next.address : start.address,
+      bearing: interpolateBearing(start.bearing, next.bearing, ratio),
     }
   }, [progress, route])
 
@@ -342,9 +375,9 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     return sum + Math.max(0, new Date(point.fixTime) - new Date(route[index].fixTime))
   }, 0), [route])
   const currentSpeed = current ? Math.round(current.speed) : 0
-  const currentBearing = current && route.length > 1
+  const currentBearing = current?.bearing ?? (current && route.length > 1
     ? bearing(route[Math.min(currentIndex, route.length - 2)], route[Math.min(route.length - 1, currentIndex + 1)])
-    : 0
+    : 0)
   const efficiencyScore = Math.max(0, Math.min(100, Math.round(
     100 - stops.length * 1.5 - events.filter((event) => event.type === 'acceleration').length * 4
       - events.filter((event) => event.type === 'braking').length * 5

@@ -39,3 +39,9 @@ This file records the completed replay-related work and the current import audit
 ## Verification
 
 - `npm run build` passes successfully with no `is not defined` warnings.
+
+## Realistic GPS replay car marker
+
+- Replaced the replay car marker artwork with the provided realistic vehicle image at `public/athar-replay-car.png`.
+- Kept the existing map, route, controls, and replay behavior unchanged while making the marker use interpolated GPS coordinates and smooth bearing transitions.
+- Marker size responds to Leaflet zoom level within safe bounds, retains its correct orientation after zoom changes, and uses a soft drop shadow.
