@@ -90,7 +90,7 @@ function RouteMapDisplay({ trip, mapKey }) {
 
   return (
     <div className="rounded-2xl overflow-hidden border border-gray-100 mt-3" style={{ height: 200 }}>
-      <MapContainer key={mapKey} center={start} zoom={12} style={{ height: '100%' }} scrollWheelZoom={false} zoomControl={false}>
+      <MapContainer key={mapKey} center={start} zoom={12} style={{ height: '100%' }} scrollWheelZoom={false} zoomControl={false} preferCanvas>
         <GeoapifyTileLayer />
         <FitBounds positions={positions} />
         <Polyline positions={positions} color="#0F2044" weight={3} opacity={0.85} />

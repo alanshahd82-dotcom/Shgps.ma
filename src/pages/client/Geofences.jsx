@@ -187,7 +187,7 @@ export default function Geofences() {
 
             {/* Map */}
             <div style={{ height:280, margin:'0 16px', borderRadius:16, overflow:'hidden', border:'1px solid rgba(255,255,255,0.1)' }}>
-              <MapContainer center={[31.7917,-7.0926]} zoom={5} style={{ height:'100%',width:'100%' }} zoomControl={false}>
+              <MapContainer center={[31.7917,-7.0926]} zoom={5} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
                 <GeoapifyTileLayer />
                 <MapClickHandler onMapClick={ll => setCenter(ll)} enabled={true}/>
                 {center && (

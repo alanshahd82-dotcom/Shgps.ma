@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, Polyline, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
@@ -12,6 +12,7 @@ import { t } from '../i18n/translations'
 import MapLayers from './MapLayers'
 import MapStyleToggle from './MapStyleToggle'
 import carUrl from '../assets/car-marker.png'
+import { downsample, simplifyPath } from '../utils/simplify'
 
 const CAR_ASSET_HEADING_OFFSET = -135
 const STOP_SPEED = 2
@@ -274,6 +275,22 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis })
   return null
 }
 
+function MapLifecycle({ onLoad }) {
+  const map = useMap()
+
+  useEffect(() => {
+    const handleLoad = () => onLoad()
+    map.on('load', handleLoad)
+    if (map._loaded) onLoad()
+    return () => {
+      map.off('load', handleLoad)
+      map.remove()
+    }
+  }, [map, onLoad])
+
+  return null
+}
+
 function eventMeta(type, lang) {
   const labels = {
     stop: lang === 'ar' ? 'توقف' : 'Arrêt',
@@ -373,9 +390,13 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     const storedStyle = localStorage.getItem(MAP_STYLE_STORAGE_KEY)
     return storedStyle ? storedStyle === 'satellite' : true
   })
+  const [mapReady, setMapReady] = useState(false)
   const rafRef = useRef(null)
   const virtualTimeRef = useRef(null)
   const lastFrameRef = useRef(null)
+  const lastTrailUpdateRef = useRef(0)
+  const [traveledProgress, setTraveledProgress] = useState(0)
+  const handleMapLoad = useCallback(() => setMapReady(true), [])
 
   useEffect(() => {
     let cancelled = false
@@ -428,7 +449,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     point.speed > SPEED_LIMIT || route[index].speed > SPEED_LIMIT
       ? [[[route[index].latitude, route[index].longitude], [point.latitude, point.longitude]]]
       : []
-  )), [route])
+  )), [route]).slice(0, 600)
   const totalDistance = useMemo(() => route.slice(1).reduce((sum, point, index) => sum + haversine(route[index], point), 0), [route])
   const maxSpeed = useMemo(() => route.reduce((max, point) => Math.max(max, point.speed), 0), [route])
   const movingMs = useMemo(() => route.slice(1).reduce((sum, point, index) => {
@@ -444,17 +465,27 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const currentBearing = current?.bearing ?? (current && route.length > 1
     ? bearing(route[Math.min(currentIndex, route.length - 2)], route[Math.min(route.length - 1, currentIndex + 1)])
     : 0)
-  const routePositions = useMemo(() => route.map((point) => [point.latitude, point.longitude]), [route])
+  const routePositions = useMemo(() => {
+    const points = route.map((point) => [point.latitude, point.longitude])
+    return downsample(simplifyPath(points, 0.00005), 1200)
+  }, [route])
   const traveledPositions = useMemo(() => {
-    if (!current) return []
-    const positions = route.slice(0, currentIndex + 1).map((point) => [point.latitude, point.longitude])
-    const currentPosition = [current.latitude, current.longitude]
+    if (!route.length) return []
+    const traveledIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
+    const positions = route.slice(0, traveledIndex + 1).map((point) => [point.latitude, point.longitude])
+    const progressIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
+    const next = route[Math.min(route.length - 1, progressIndex + 1)]
+    const start = route[progressIndex]
+    const ratio = Math.min(1, Math.max(0, traveledProgress - progressIndex))
+    const currentPosition = start && next
+      ? [start.latitude + (next.latitude - start.latitude) * ratio, start.longitude + (next.longitude - start.longitude) * ratio]
+      : positions.at(-1)
     const lastPosition = positions.at(-1)
     if (!lastPosition || lastPosition[0] !== currentPosition[0] || lastPosition[1] !== currentPosition[1]) {
       positions.push(currentPosition)
     }
-    return positions
-  }, [current, currentIndex, route])
+    return downsample(simplifyPath(positions, 0.00005), 1200)
+  }, [traveledProgress, route])
   const motionTrail = useMemo(() => {
     if (traveledPositions.length < 2) return []
     const visibleTrail = traveledPositions.slice(-TRAIL_POINT_LIMIT)
@@ -463,12 +494,12 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       opacity: 0.1 + ((index + 1) / Math.max(1, visibleTrail.length - 1)) * 0.62,
     }))
   }, [traveledPositions])
-  const efficiencyScore = Math.max(0, Math.min(100, Math.round(
-    100 - stops.length * 1.5 - events.filter((event) => event.type === 'acceleration').length * 4
+  const efficiencyScore = route.length ? Math.max(5, Math.min(100, Math.round(
+    100 - events.filter((event) => event.type === 'acceleration').length * 5
       - events.filter((event) => event.type === 'braking').length * 5
       - events.filter((event) => event.type === 'turn').length * 3
-      - Math.min(30, speedingMs / 60000),
-  )))
+      - speedingMs / 60000,
+  ))) : 0
   const scoreColor = efficiencyScore >= 80 ? '#35d39a' : efficiencyScore >= 60 ? '#f5b54a' : '#ff625d'
   const averageSpeed = route.length
     ? route.reduce((sum, point) => sum + Math.max(0, Number(point.speed) || 0), 0) / route.length
@@ -487,7 +518,11 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       lastFrameRef.current = frameTime
       virtualTimeRef.current += delta * multiplier
       const nextProgress = progressForTime(route, virtualTimeRef.current)
-      setProgress(nextProgress)
+       setProgress(nextProgress)
+       if (nextProgress >= route.length - 1 || frameTime - lastTrailUpdateRef.current >= 500) {
+         lastTrailUpdateRef.current = frameTime
+         setTraveledProgress(nextProgress)
+       }
       if (nextProgress >= route.length - 1) {
         setPlaying(false)
         virtualTimeRef.current = null
@@ -501,16 +536,25 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
       lastFrameRef.current = null
+      lastTrailUpdateRef.current = 0
     }
   }, [multiplier, playing, route])
 
   useEffect(() => {
     if (route.length > 1 && !loading && !error) {
       setProgress(0)
+      setTraveledProgress(0)
       setPlaying(true)
     }
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
   }, [error, loading, route])
+
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+    virtualTimeRef.current = null
+    lastFrameRef.current = null
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -532,7 +576,9 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
     setPlaying(false)
     virtualTimeRef.current = null
     lastFrameRef.current = null
-    setProgress(Number(value))
+    const nextProgress = Number(value)
+    setProgress(nextProgress)
+    setTraveledProgress(nextProgress)
   }
 
   function jumpToEvent(event) {
@@ -623,11 +669,12 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const label = (ar, fr) => (isAr ? ar : fr)
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-[#07111f] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="fixed inset-0 z-[1000] bg-[#0B1220] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 h-full w-full">
-          <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas>
           <MapLayers satellite={satelliteMode} />
           <ZoomControl position="topright" />
+           <MapLifecycle onLoad={handleMapLoad} />
           <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} onManualMove={() => setFollowCurrent(false)} />
           {route.length > 1 && <>
             <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
@@ -645,6 +692,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
           })}
           {current && <CarMarker current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} playbackSpeed={multiplier} />}
         </MapContainer>
+          {!mapReady && <div className="athar-map-loading" role="status" aria-label={label('جار تحميل الخريطة', 'Chargement de la carte')}><span className="athar-map-spinner" /></div>}
       </div>
 
       <MapStyleToggle

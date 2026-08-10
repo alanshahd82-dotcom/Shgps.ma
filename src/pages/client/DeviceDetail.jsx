@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { lazy, Suspense, useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
@@ -20,7 +20,9 @@ import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
-import TripReplay from '../../components/TripReplay'
+import { bucketMax, downsample, simplifyPath } from '../../utils/simplify'
+
+const TripReplay = lazy(() => import('../../components/TripReplay'))
 
 function finiteCoordinate(value) {
   if (value == null || value === '') return null
@@ -267,10 +269,10 @@ export default function DeviceDetail() {
   }
 
   const routePoints = cleanRoute(trips.flatMap(trip => Array.isArray(trip.route) ? trip.route : []))
-  const positions = routePoints
+  const positions = useMemo(() => downsample(simplifyPath(routePoints
     .map(p => [finiteCoordinate(p.latitude), finiteCoordinate(p.longitude)])
-    .filter(([lat, lng]) => validPosition(lat, lng))
-  const speedData = routePoints
+    .filter(([lat, lng]) => validPosition(lat, lng)), 0.00005), 600), [routePoints])
+  const speedData = bucketMax(routePoints
     .map((point, index) => {
       const date = new Date(point.fixTime || point.timestamp || point.time)
       return {
@@ -280,6 +282,7 @@ export default function DeviceDetail() {
         speed: Math.max(0, Math.round(Number(point.speed) || 0)),
       }
     })
+  , 300)
   const speedMax = speedData.reduce((max, point) => Math.max(max, point.speed), 0)
   const speedDomainMax = Math.max(10, Math.ceil((speedMax + 5) / 5) * 5)
   const speedTicks = speedData.length > 1
@@ -399,7 +402,7 @@ export default function DeviceDetail() {
               {/* Mini map */}
               {trackingEnabled && validPosition(latitude, longitude) && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
-                  <MapContainer center={[latitude, longitude]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false}>
+                  <MapContainer center={[latitude, longitude]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
                     <GeoapifyTileLayer />
                     <Marker position={[latitude, longitude]}
                       icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:'+stColor+';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })}/>
@@ -583,7 +586,7 @@ export default function DeviceDetail() {
                 <>
                   {positions.length > 0 && (
                     <div className="rounded-2xl overflow-hidden" style={{ height:200 }}>
-                      <MapContainer center={positions[0]} zoom={12} style={{ height:'100%',width:'100%' }} zoomControl={false}>
+                      <MapContainer center={positions[0]} zoom={12} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
                         <GeoapifyTileLayer />
                         <Polyline positions={positions} color="#16866d" weight={3} opacity={0.8}/>
                         <FitRoute positions={positions}/>
@@ -771,14 +774,16 @@ export default function DeviceDetail() {
       )}
 
       {replayTrip && (
-        <TripReplay
+        <Suspense fallback={<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#0B1220]"><div className="h-9 w-9 animate-spin rounded-full border-2 border-[#35d39a] border-t-transparent" /></div>}>
+          <TripReplay
           deviceId={id}
           deviceName={device?.name}
           startTime={replayTrip.startTime}
           endTime={replayTrip.endTime}
           positions={replayTrip.route || []}
           onClose={() => setReplayTrip(null)}
-        />
+          />
+        </Suspense>
       )}
 
       <SubscriptionRenewalModal

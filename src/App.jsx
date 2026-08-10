@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { AppProvider, useApp } from './context/AppContext'
@@ -14,24 +14,24 @@ import DeviceList from './pages/client/DeviceList'
 import DeviceDetail from './pages/client/DeviceDetail'
 import Alerts from './pages/client/Alerts'
 import Settings from './pages/client/Settings'
-import Reports from './pages/client/Reports'
-import DriverBehavior from './pages/client/DriverBehavior'
+const Reports = lazy(() => import('./pages/client/Reports'))
+const DriverBehavior = lazy(() => import('./pages/client/DriverBehavior'))
 import Maintenance from './pages/client/Maintenance'
 import Geofences from './pages/client/Geofences'
 import DeviceWizard from './pages/client/DeviceWizard'
 import LiveMap from './pages/client/LiveMap'
 import Help from './pages/client/Help'
-import AdminLogin from './pages/admin/AdminLogin'
-import Dashboard from './pages/admin/Dashboard'
-import Clients from './pages/admin/Clients'
-import ClientDetail from './pages/admin/ClientDetail'
-import SubAdmins    from './pages/admin/SubAdmins'
-import AllDevices from './pages/admin/AllDevices'
-import GlobalMap from './pages/admin/GlobalMap'
-import AdminAlerts from './pages/admin/AdminAlerts'
-import DeviceSetup from './pages/admin/DeviceSetup'
-import SupportSettings from './pages/admin/SupportSettings'
-import Leads from './pages/admin/Leads'
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
+const Dashboard = lazy(() => import('./pages/admin/Dashboard'))
+const Clients = lazy(() => import('./pages/admin/Clients'))
+const ClientDetail = lazy(() => import('./pages/admin/ClientDetail'))
+const SubAdmins = lazy(() => import('./pages/admin/SubAdmins'))
+const AllDevices = lazy(() => import('./pages/admin/AllDevices'))
+const GlobalMap = lazy(() => import('./pages/admin/GlobalMap'))
+const AdminAlerts = lazy(() => import('./pages/admin/AdminAlerts'))
+const DeviceSetup = lazy(() => import('./pages/admin/DeviceSetup'))
+const SupportSettings = lazy(() => import('./pages/admin/SupportSettings'))
+const Leads = lazy(() => import('./pages/admin/Leads'))
 import NotFound from './pages/NotFound'
 import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
@@ -122,7 +122,8 @@ export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
-        <Routes>
+        <Suspense fallback={<AuthLoading />}>
+          <Routes>
           {/* ── Public ─────────────────────────────────────────────────── */}
           <Route
             path="/"
@@ -172,7 +173,8 @@ export default function App() {
 
           {/* ── Catch-all → 404 ───────────────────────────────────────── */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </AppProvider>
   )

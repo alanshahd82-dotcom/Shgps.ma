@@ -11,6 +11,7 @@ import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import { getSubscriptionSnapshot } from '../../utils/subscriptions'
+import { bucketMax } from '../../utils/simplify'
 
 const RANGES = [
   { key: 'today',   ar: 'اليوم',      fr: "Aujourd'hui" },
@@ -70,7 +71,7 @@ export default function Reports() {
 
   useEffect(() => { load() }, [deviceId, range])
 
-  const chartData = data?.speedSeries || []
+  const chartData = bucketMax(data?.speedSeries || [], 300)
   const trips = data?.trips || []
   const subscriptionSummary = devices.reduce((summary, device) => {
     const status = getSubscriptionSnapshot(device).status

@@ -72,6 +72,21 @@ This file records the completed replay-related work and the current import audit
 - The build output contains no `is not defined` warnings or build errors.
 - `git diff --check` passes.
 
+## Performance rescue
+
+- Restored a lightweight car marker export at `160×107` and `33.82 KB` (previously `1536×1024` and approximately `2.4 MB`).
+- Simplified replay casing, main, traveled, and speeding overlays to bounded point sets; mini-map routes are capped at 600 points.
+- Bucketed client and report speed charts to a maximum of 300 points and throttled the replay traveled overlay to two updates per second.
+- Enabled Leaflet Canvas rendering across map surfaces, added a `#0B1220` loading surface with a spinner, and cleaned replay animation/map resources on unmount.
+- Added manual Rollup chunks for Recharts, Leaflet/react-leaflet, and Framer Motion. The initial JavaScript chunk is `288.80 KB`; the previous monolithic build emitted approximately `1.22 MB` index chunks.
+- Lazy-loaded replay, reports, driver behavior, and admin screens while preserving Arabic/French labels and the existing backend, database, and Traccar boundaries.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.
+- `src/assets/car-marker.png` is below 100 KB.
+
 ## Car heading calibration and satellite replay map
 
 - Calibrated the provided blue Mercedes asset with `CAR_ASSET_HEADING_OFFSET = -135°` in replay and live vehicle markers. The acceptance mapping is now bearing 0° → nose up, 90° → right, and 180° → down.

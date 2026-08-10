@@ -219,6 +219,7 @@ export default function MapView({
       zoom={zoom}
       style={{ height, width: '100%' }}
       zoomControl={false}
+      preferCanvas
       onClick={onMapClick}
     >
       <MapLayers satellite={satelliteMode} />

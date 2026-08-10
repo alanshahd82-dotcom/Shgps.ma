@@ -109,7 +109,7 @@ export default function PublicShare() {
       {/* Map */}
       <div className="flex-1" style={{ minHeight: 'calc(100vh - 120px)' }}>
         {pos ? (
-          <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas>
             <GeoapifyTileLayer />
             <Marker position={center}>
               <Popup>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { lazy, Suspense, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { CalendarRange, Loader2, Play, Wifi, WifiOff } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
@@ -6,7 +6,7 @@ import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
 import MapStyleToggle from '../../components/MapStyleToggle'
-import TripReplay from '../../components/TripReplay'
+const TripReplay = lazy(() => import('../../components/TripReplay'))
 import { api } from '../../api/index.js'
 
 export default function GlobalMap() {
@@ -157,7 +157,11 @@ export default function GlobalMap() {
           />
         </div>
       </div>
-      {replayDevice && <TripReplay deviceId={replayDevice.id} deviceName={replayDevice.name} startTime={replayFrom} endTime={replayTo} positions={replayPositions} onClose={() => { setReplayDevice(null); setReplayPositions([]) }} />}
+      {replayDevice && (
+        <Suspense fallback={<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#0B1220]"><div className="h-9 w-9 animate-spin rounded-full border-2 border-[#35d39a] border-t-transparent" /></div>}>
+          <TripReplay deviceId={replayDevice.id} deviceName={replayDevice.name} startTime={replayFrom} endTime={replayTo} positions={replayPositions} onClose={() => { setReplayDevice(null); setReplayPositions([]) }} />
+        </Suspense>
+      )}
     </AdminLayout>
   )
 }
