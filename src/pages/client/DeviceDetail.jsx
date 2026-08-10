@@ -107,15 +107,10 @@ const TABS = [
   { key:'share',    Icon: Share2,      ar: 'مشاركة',     fr: 'Partager' },
 ]
 
-const COMMANDS = [
-  { type:'engine_stop',  ar:'إيقاف المحرك',    fr:'Couper moteur', color:'#FF3B30', Icon: ZapOff },
-  { type:'engine_start', ar:'تشغيل المحرك',    fr:'Démarrer moteur', color:'#00D97E', Icon: Zap   },
-]
-
 export default function DeviceDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { devices, clientAuth, lang } = useApp()
+  const { devices, lang, toggleEngine } = useApp()
   const [tab, setTab] = useState('info')
   const [device, setDevice] = useState(devices.find(d => String(d.id) === String(id)) || null)
   const [loading, setLoading] = useState(!device)
@@ -139,7 +134,7 @@ export default function DeviceDetail() {
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const dayRequestRef = useRef(0)
-  const [cmdMsg, setCmdMsg] = useState('')
+  const [cmdToast, setCmdToast] = useState(null)
   const [shareErr, setShareErr] = useState('')
   const [imeiCopied, setImeiCopied] = useState(false)
   const [coordinatesCopied, setCoordinatesCopied] = useState(false)
@@ -155,10 +150,7 @@ export default function DeviceDetail() {
   const currentSpeed = device?.speed ?? device?.last_speed
   const ignition = device?.ignition ?? device?.engineOn
   const lastUpdate = device?.lastUpdate ?? device?.last_update
-  const canControlEngine = !clientAuth?.parentClientId || ['owner', 'manager'].includes(clientAuth?.role)
-  const tabs = canControlEngine
-    ? TABS
-    : TABS.filter(tabItem => tabItem.key !== 'commands')
+  const tabs = TABS
 
   function getRangeBounds() {
     const now = new Date()
@@ -368,13 +360,27 @@ export default function DeviceDetail() {
     }
   }
 
-  async function sendCommand(type) {
+  async function sendCommand(turnOff) {
+    if (sending) return
     setSending(true)
     try {
-      await api.devices.sendCommand(id, type)
-      setCmdMsg(isAr ? 'تم إرسال الأمر بنجاح ✓' : 'Commande envoyée avec succès ✓')
-    } catch (e) { setCmdMsg(isAr ? 'تعذّر إرسال الأمر. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.') }
-    finally { setSending(false); setConfirm(null) }
+      await toggleEngine(id, turnOff)
+      setDevice(current => ({ ...current, engineOn: !turnOff, ignition: !turnOff }))
+      setCmdToast({
+        type: 'success',
+        message: t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'),
+      })
+    } catch (e) {
+      setCmdToast({
+        type: 'error',
+        message: e?.status === 403
+          ? (isAr ? 'ليس لديك صلاحية للتحكم بهذا الجهاز.' : 'Vous n’êtes pas autorisé à contrôler cet appareil.')
+          : (isAr ? 'تعذّر إرسال الأمر. حاول مرة أخرى.' : 'Erreur lors de la commande. Réessayez.'),
+      })
+    } finally {
+      setSending(false)
+      setConfirm(null)
+    }
   }
 
   function openEdit() {
@@ -955,16 +961,12 @@ export default function DeviceDetail() {
             const engineOn = !!ignition
             const cmdColor = engineOn ? '#FF3B30' : '#00D97E'
             const CmdIcon  = engineOn ? ZapOff : Zap
-            const cmdLabel = engineOn ? (isAr ? 'إيقاف المحرك' : 'Couper le moteur') : (isAr ? 'تشغيل المحرك' : 'Démarrer le moteur')
+            const cmdLabel = engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')
             const cmdDesc  = engineOn ? (isAr ? 'سيتم إيقاف محرك المركبة عن بعد' : 'Coupure moteur à distance') : (isAr ? 'سيتم تشغيل محرك المركبة عن بعد' : 'Démarrage moteur à distance')
-            const cmdType  = engineOn ? 'engine_stop' : 'engine_start'
+            const cmdType  = engineOn ? 'engineStop' : 'engineResume'
+            const turnOff  = engineOn
             return (
               <motion.div key="cmds" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
-                {cmdMsg && (
-                  <div className={`text-xs text-center px-4 py-2.5 rounded-xl font-medium ${cmdMsg.includes('✓') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                    {cmdMsg}
-                  </div>
-                )}
                 {/* Engine status indicator */}
                 <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl"
                   style={{ background: (engineOn ? '#00D97E' : '#6b7280') + '14', border: '1px solid ' + (engineOn ? '#00D97E' : '#6b7280') + '30' }}>
@@ -978,7 +980,7 @@ export default function DeviceDetail() {
                 </div>
                 {/* Single action button */}
                 <motion.button whileTap={{ scale:0.97 }}
-                  onClick={() => setConfirm({ type: cmdType, label: cmdLabel })}
+                  onClick={() => setConfirm({ label: cmdLabel, turnOff })}
                   disabled={sending}
                   className="w-full flex items-center gap-4 p-4 rounded-2xl disabled:opacity-50 transition-all"
                   style={{ background: cmdColor+'18', border:'1.5px solid '+cmdColor+'44' }}>
@@ -1042,12 +1044,26 @@ export default function DeviceDetail() {
       {/* Confirm modal */}
       {confirm && (
         <ConfirmModal
-          title={isAr ? 'تأكيد الأمر' : 'Confirmer la commande'}
-          message={(isAr ? 'هل تريد تنفيذ: ' : 'Exécuter : ') + confirm.label + ' ?'}
-          onConfirm={() => sendCommand(confirm.type)}
+          title={t(lang, confirm.turnOff ? 'engineCutConfirmTitle' : 'engineStartConfirmTitle')}
+          message={t(lang, confirm.turnOff ? 'engineCutConfirmMsg' : 'engineStartConfirmMsg')}
+          onConfirm={() => sendCommand(confirm.turnOff)}
           onCancel={() => setConfirm(null)}
+          danger={confirm.turnOff}
           lang={lang}
         />
+      )}
+
+      {cmdToast && (
+        <div
+          role="status"
+          className={`fixed bottom-24 left-1/2 z-[1100] -translate-x-1/2 rounded-xl px-4 py-3 text-center text-xs font-bold shadow-xl ${
+            cmdToast.type === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-red-600 text-white'
+          }`}
+        >
+          {cmdToast.message}
+        </div>
       )}
 
       {replayTrip && (

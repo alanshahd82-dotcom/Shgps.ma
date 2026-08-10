@@ -10,6 +10,21 @@ This file records the completed replay-related work and the current import audit
 - Current task — Fix missing `lucide-react` imports and add living project documentation
 - Current task — Professional replay UI overhaul: contrast, marker, layout, chart
 - Current task — Redesign replay screen: map-first layout, real rotating car, clean sheets
+- Current task — Security 0/10: client engine cut-off permissions
+
+## Client engine cut-off permissions
+
+- Added device ownership authorization for `GET /api/devices/:id` and `POST /api/devices/:id/command`.
+- Admins and managers retain fleet-wide access; clients can only read and control devices assigned to their own account.
+- Restricted engine commands to `engineStop` and `engineResume`, with clear unauthorized and invalid-command responses.
+- Restored the client command tab for all clients with bilingual confirmation, success/failure toasts, and an in-flight disabled state.
+- Preserved the DeviceDetail battery display and did not modify TripReplay, LiveMap, Reports, WebSocket, tiles, or MapLayers.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `node --check backend/src/routes/devices.js` passes.
+- `git diff --check` passes.
 
 ## Import audit result
 

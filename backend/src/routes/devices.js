@@ -1,6 +1,5 @@
 import { Router } from 'express'
     import { requireAuth }  from '../middleware/auth.js'
-import { requireRole }  from '../middleware/requireRole.js'
 import { logAudit }    from '../services/auditLog.js'
 import { validateBody, schemas } from '../validation/schemas.js'
     import { db }          from '../db.js'
@@ -14,6 +13,28 @@ import {
 } from '../services/subscriptions.js'
 
     export const devicesRouter = Router()
+
+    // Device-level authorization for reads and remote engine commands.
+    // Admins and managers can operate across the fleet; regular clients can
+    // only access devices assigned directly to their own account.
+    async function requireDeviceOwner(req, res, next) {
+      try {
+        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
+        const device = rows[0]
+        if (!device) return res.status(404).json({ error: 'Device not found' })
+
+        const canAccessAllDevices = req.user.is_admin || req.user.role === 'manager'
+        if (!canAccessAllDevices && device.user_id !== req.user.id) {
+          return res.status(403).json({ error: 'You are not authorized to access this device' })
+        }
+
+        req.device = device
+        next()
+      } catch (err) {
+        console.error(err)
+        res.status(500).json({ error: 'Server error' })
+      }
+    }
 
     async function clientHasUsedFreeTrial(clientId) {
       if (!clientId) return false
@@ -463,13 +484,9 @@ import {
       }
     })
 
-    devicesRouter.get('/:id', requireAuth, async (req, res) => {
+    devicesRouter.get('/:id', requireAuth, requireDeviceOwner, async (req, res) => {
     try {
-      const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-      const dev = rows[0]
-      if (!dev) return res.status(404).json({ error:'Device not found' })
-      const ownerId = req.user.parent_client_id || req.user.id
-      if (!req.user.is_admin && dev.user_id !== ownerId) return res.status(403).json({ error:'Access denied' })
+      const dev = req.device
       const subscription = getSubscriptionSnapshot(dev)
       // Load geofence state from local DB
       let localGeo = null
@@ -499,19 +516,13 @@ import {
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
     })
 
-    devicesRouter.post('/:id/command', requireAuth, requireRole('manager'), async (req, res) => {
+    devicesRouter.post('/:id/command', requireAuth, requireDeviceOwner, async (req, res) => {
     try {
-      const allowedCommands = new Set(['engine_stop', 'engine_start', 'engineStop', 'engineResume'])
+      const allowedCommands = new Set(['engineStop', 'engineResume'])
       if (!allowedCommands.has(req.body?.type)) {
-        return res.status(400).json({ error: 'Unsupported device command' })
+        return res.status(400).json({ error: 'Command type must be engineStop or engineResume' })
       }
-      if (!req.user.is_admin && req.user.parent_client_id && !['owner', 'manager'].includes(req.user.role)) {
-        return res.status(403).json({ error: 'This account cannot control the engine' })
-      }
-      const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-      const dev = rows[0]
-      if (!dev) return res.status(404).json({ error:'Device not found' })
-      if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error:'Access denied' })
+      const dev = req.device
 
       // ── تحقق من وجود traccar_id قبل إرسال الأمر ──────────────────────────
       if (!dev.traccar_id) {
