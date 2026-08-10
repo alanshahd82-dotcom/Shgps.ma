@@ -3,7 +3,7 @@ import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
   Activity, AlertTriangle, BarChart3, ChevronDown, ChevronRight, Clock3,
-  Download, Gauge, Loader2, MapPin, Navigation, Pause, Play, Route as RouteIcon,
+  Download, Gauge, MapPin, Navigation, Pause, Play, Route as RouteIcon,
   ShieldCheck, SkipBack, SkipForward, Square, Target, Timer, TrendingUp, X, Zap,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -125,21 +125,21 @@ function progressForTime(points, time) {
   return index + Math.min(1, Math.max(0, ratio))
 }
 
-function labelIcon(label, background) {
+function labelIcon(label, background, size = 26) {
   return L.divIcon({
     className: 'athar-replay-marker',
-    html: `<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${background};border:3px solid rgba(255,255,255,.95);box-shadow:0 5px 16px rgba(0,0,0,.42);color:white;font:800 12px Arial,sans-serif">${label}</span>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    html: `<span style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:${background};border:2px solid rgba(255,255,255,.95);box-shadow:0 5px 16px rgba(0,0,0,.42);color:white;font:800 ${size < 24 ? 10 : 11}px Arial,sans-serif">${label}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   })
 }
 
 function carIcon() {
   return L.divIcon({
     className: 'athar-replay-car',
-    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:16px;background:#101e35;border:2px solid #ff534d;box-shadow:0 0 0 6px rgba(255,83,77,.18),0 10px 24px rgba(0,0,0,.5);transform:rotate(0deg);transition:transform .18s linear"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.4 5.25h9.2c.58 0 1.1.36 1.3.9L20 12v6.1c0 .5-.4.9-.9.9h-.8a.9.9 0 0 1-.9-.9v-1.05H6.6V18.1a.9.9 0 0 1-.9.9h-.8c-.5 0-.9-.4-.9-.9V12l2.1-5.85c.2-.54.72-.9 1.3-.9Z" fill="#F95752"/><path d="M6.2 11h11.6l-1.1-3.1a.85.85 0 0 0-.8-.55H8.1a.85.85 0 0 0-.8.55L6.2 11Z" fill="#FFD6D3"/><circle cx="7.2" cy="14.2" r="1.25" fill="#101e35"/><circle cx="16.8" cy="14.2" r="1.25" fill="#101e35"/><path d="M10 12.4h4" stroke="#101e35" stroke-width="1.2" stroke-linecap="round"/></svg></span>`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
+    html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:46px;height:24px;border-radius:9px;background:#E11D48;border:1.5px solid rgba(255,255,255,.9);box-shadow:0 5px 14px rgba(0,0,0,.5);transform:rotate(0deg);transition:transform .3s linear"><svg width="42" height="22" viewBox="0 0 46 24" fill="none" aria-hidden="true"><path d="M8 3.5h30c1.6 0 2.9 1.2 3.1 2.8l1.2 8.8c.2 1.3-.8 2.4-2.1 2.4h-1.4v2.1c0 .8-.6 1.4-1.4 1.4h-1.1c-.8 0-1.4-.6-1.4-1.4v-2.1H11.1v2.1c0 .8-.6 1.4-1.4 1.4H8.6c-.8 0-1.4-.6-1.4-1.4v-2.1H5.8c-1.3 0-2.3-1.1-2.1-2.4l1.2-8.8C5.1 4.7 6.4 3.5 8 3.5Z" fill="#E11D48"/><path d="M12 5.3h22c1.1 0 2 .7 2.4 1.7l1.6 4.4H8l1.6-4.4c.4-1 1.3-1.7 2.4-1.7Z" fill="#16243A"/><path d="M8.7 12.8h28.6" stroke="#FF8AA6" stroke-width="1.2" stroke-linecap="round"/><circle cx="11.5" cy="16.2" r="1.45" fill="#111827"/><circle cx="34.5" cy="16.2" r="1.45" fill="#111827"/><path d="M5.8 9.4H3.5M42.5 9.4h-2.3" stroke="#FBBF24" stroke-width="1.2" stroke-linecap="round"/></svg></span>`,
+    iconSize: [46, 24],
+    iconAnchor: [23, 12],
   })
 }
 
@@ -191,7 +191,7 @@ function eventMeta(type, lang) {
     speeding: lang === 'ar' ? 'تجاوز السرعة' : 'Excès de vitesse',
   }
   const colors = { stop: '#f59e0b', acceleration: '#35d39a', braking: '#ff625d', turn: '#facc15', speeding: '#ff625d' }
-  const icons = { stop: 'P', acceleration: '↗', braking: '!', turn: '↪', speeding: '!' }
+  const icons = { stop: 'P', acceleration: '⚡', braking: '⚡', turn: '↪', speeding: '!' }
   return { label: labels[type], color: colors[type], icon: icons[type] }
 }
 
@@ -273,7 +273,7 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   const [progress, setProgress] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [multiplier, setMultiplier] = useState(2)
-  const [showAnalysis, setShowAnalysis] = useState(true)
+  const [showAnalysis, setShowAnalysis] = useState(false)
   const [showStops, setShowStops] = useState(true)
   const rafRef = useRef(null)
   const virtualTimeRef = useRef(null)
@@ -425,14 +425,13 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
   }
 
   const routeBounds = route.length ? route : [{ latitude: 33.5731, longitude: -7.5898 }]
-  const surface = 'rgba(7, 17, 31, .94)'
   const surfaceClass = 'border border-white/[.10] bg-[rgba(7,17,31,.94)] backdrop-blur-xl'
   const label = (ar, fr) => (isAr ? ar : fr)
 
   return (
     <div className="fixed inset-0 z-[1000] bg-[#07111f] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 h-full w-full">
-        <MapContainer center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl>
+          <MapContainer center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
           <GeoapifyTileLayer />
           <Viewport route={route} current={current} />
           {route.length > 1 && <>
@@ -440,64 +439,85 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
             <Polyline positions={route.map((point) => [point.latitude, point.longitude])} pathOptions={{ color: '#35d39a', weight: 5, opacity: .95 }} />
           </>}
           {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
-          {route.length > 0 && <Marker position={[route[0].latitude, route[0].longitude]} icon={labelIcon('S', '#35a878')} />}
-          {route.length > 1 && <Marker position={[route.at(-1).latitude, route.at(-1).longitude]} icon={labelIcon('E', '#d55356')} />}
-          {showAnalysis && stops.map((stop, index) => <Marker key={`stop-${index}`} position={[stop.latitude, stop.longitude]} icon={labelIcon('P', '#e59518')} />)}
+          {route.length > 0 && <Marker position={[route[0].latitude, route[0].longitude]} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
+          {route.length > 1 && <Marker position={[route.at(-1).latitude, route.at(-1).longitude]} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
+          {showAnalysis && stops.map((stop, index) => <Marker key={`stop-${index}`} position={[stop.latitude, stop.longitude]} icon={labelIcon('P', '#e59518', 24)} />)}
           {showAnalysis && events.filter((event) => event.type !== 'stop' && event.type !== 'speeding').map((event, index) => {
             const meta = eventMeta(event.type, lang)
-            return <Marker key={`${event.type}-${event.index}-${index}`} position={[event.latitude, event.longitude]} icon={labelIcon(meta.icon, meta.color)} />
+            return <Marker key={`${event.type}-${event.index}-${index}`} position={[event.latitude, event.longitude]} icon={labelIcon(meta.icon, meta.color, 22)} />
           })}
           {current && <CarMarker current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} />}
         </MapContainer>
       </div>
 
-      <div className={`absolute top-0 ${isAr ? 'right-0' : 'left-0'} z-[1001] w-full max-w-[420px] p-3 sm:p-4`}>
-        <div className={`${surfaceClass} max-h-[calc(100vh-230px)] overflow-y-auto rounded-3xl p-4 shadow-2xl`}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#35d39a]">ATHAR GPS · {label('إعادة العرض', 'REPLAY')}</p>
-              <h1 className="mt-1 truncate text-lg font-extrabold text-white">{deviceName || t(lang, 'device')}</h1>
-              <p className="mt-1 text-[10px] text-white/50">{route.length ? `${formatTime(route[0].fixTime, lang, false)} — ${formatTime(route.at(-1).fixTime, lang, false)}` : '—'}</p>
-            </div>
-            <button onClick={onClose} aria-label={t(lang, 'close')} className="rounded-xl p-2 text-white/60 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
-          </div>
-
-          {error && <div className="mt-3 rounded-2xl border border-[#ff625d]/30 bg-[#ff625d]/10 p-3 text-xs text-[#ffaaa6]">{error}</div>}
-          {route.length > 0 && (
-            <>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-2xl bg-white/[.06] p-3"><p className="text-[10px] text-white/45">{label('السرعة الحالية', 'Vitesse actuelle')}</p><p className="mt-1 text-xl font-black text-[#35d39a]">{currentSpeed}<span className="ms-1 text-[10px] font-normal text-white/50">km/h</span></p></div>
-                <div className="rounded-2xl bg-white/[.06] p-3"><p className="text-[10px] text-white/45">{label('الوقت الحالي', 'Heure actuelle')}</p><p className="mt-2 truncate text-xs font-bold text-white">{formatTime(current?.fixTime, lang)}</p></div>
-              </div>
-              <div className="mt-3 flex items-center gap-2 text-[10px] text-white/50">
-                <MapPin size={13} className="shrink-0 text-[#35d39a]" />
-                <span className="truncate">{current?.address || `${current?.latitude?.toFixed(5) || '—'}, ${current?.longitude?.toFixed(5) || '—'}`}</span>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/10 pt-3">
-                <div className="text-center"><RouteIcon size={14} className="mx-auto text-[#35d39a]" /><p className="mt-1 text-xs font-bold text-white">{totalDistance.toFixed(1)} <small className="text-[9px] text-white/45">km</small></p></div>
-                <div className="text-center"><Gauge size={14} className="mx-auto text-[#35d39a]" /><p className="mt-1 text-xs font-bold text-white">{Math.round(maxSpeed)} <small className="text-[9px] text-white/45">km/h</small></p></div>
-                <div className="text-center"><Clock3 size={14} className="mx-auto text-[#35d39a]" /><p className="mt-1 text-xs font-bold text-white">{formatDuration(durationMs, lang)}</p></div>
-              </div>
-            </>
-          )}
+      <header className={`absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.90)' }}>
+        <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-extrabold text-white">{deviceName || t(lang, 'device')}</p>
+          <p className="truncate text-[10px] text-white/50">{label('إعادة عرض الرحلة', 'Relecture du trajet')} · {route.length ? `${formatTime(route[0].fixTime, lang, false)} — ${formatTime(route.at(-1).fixTime, lang, false)}` : '—'}</p>
         </div>
-      </div>
+        <span className="hidden shrink-0 rounded-lg bg-[#35d39a]/10 px-2 py-1 text-[9px] font-bold tracking-[.12em] text-[#8ceac5] sm:inline">ATHAR GPS</span>
+      </header>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1001] px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3">
-          {route.length > 0 && (
-            <div className={`pointer-events-auto w-full rounded-3xl p-3 shadow-2xl sm:p-4 ${surfaceClass}`} style={{ background: surface }}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <button onClick={() => setShowAnalysis((value) => !value)} className="flex items-center gap-2 text-xs font-bold text-white/80">
-                  <BarChart3 size={15} className="text-[#35d39a]" />{label('تحليل السائق', 'Analyse conducteur')}
-                  <span className="rounded-full bg-[#35d39a]/15 px-2 py-0.5 text-[#8ceac5]">{events.length}</span>
-                  {showAnalysis ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                </button>
-                <button className="flex items-center gap-1.5 rounded-xl bg-white/[.06] px-3 py-2 text-[10px] font-bold text-white/60 hover:bg-white/[.12]">
-                  <Download size={13} />{label('تصدير الرحلة', 'Exporter le trajet')}
-                </button>
+      <section className={`pointer-events-auto absolute inset-x-0 bottom-0 z-[1001] flex max-h-[min(82vh,680px)] flex-col rounded-t-3xl shadow-[0_-16px_50px_rgba(0,0,0,.3)] ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.95)' }}>
+        <button onClick={() => setShowAnalysis((value) => !value)} aria-expanded={showAnalysis} className="flex w-full shrink-0 items-center justify-center py-2.5">
+          <span className="h-1 w-12 rounded-full bg-white/25 transition hover:bg-white/45" />
+        </button>
+
+        {error && <div className="mx-4 mb-3 shrink-0 rounded-2xl border border-[#ff625d]/30 bg-[#ff625d]/10 p-3 text-xs text-[#ffaaa6]">{error}</div>}
+
+        {route.length > 0 ? (
+          <>
+            <div className="shrink-0 px-4 pb-3">
+              <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-white/50">
+                <span className="truncate">{formatTime(route[0].fixTime, lang, false)}</span>
+                <span className="flex items-center gap-1 rounded-full border border-[#35d39a]/30 bg-[#35d39a]/10 px-2.5 py-1 font-bold text-[#8ceac5]"><Timer size={12} />{formatClock(timeForProgress(route, progress) - new Date(route[0].fixTime).getTime(), lang)}</span>
+                <span className="truncate text-end">{formatTime(route.at(-1).fixTime, lang, false)}</span>
               </div>
-              {showAnalysis && <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-x-0 top-[9px] h-1 rounded-full bg-white/10" />
+                <div className="pointer-events-none absolute inset-x-0 top-[9px] h-1 rounded-full bg-[#35d39a]" style={{ width: `${route.length > 1 ? (progress / (route.length - 1)) * 100 : 0}%` }} />
+                <input aria-label={label('مؤشر الرحلة', 'Progression du trajet')} type="range" min="0" max={Math.max(0, route.length - 1)} step="0.01" value={progress} onChange={(event) => jumpTo(event.target.value)} className="replay-range relative z-20 w-full" />
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-white/45">
+                <span className="truncate">{label('النقطة', 'Point')} {currentIndex + 1} {label('من', 'sur')} {route.length} · {Math.round((progress / Math.max(1, route.length - 1)) * 100)}%</span>
+                <span className={`shrink-0 font-semibold ${current?.speed > SPEED_LIMIT ? 'text-[#ffaaa6]' : 'text-white/45'}`}>{current?.speed > SPEED_LIMIT ? label('سرعة عالية', 'Vitesse élevée') : label('ضمن الحد', 'Dans la limite')}</span>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 border-t border-white/10 px-4 py-3">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                {[1, 2, 4, 8].map((value) => <button key={value} onClick={() => setMultiplier(value)} className={`rounded-lg px-2.5 py-1.5 text-[10px] font-black transition ${multiplier === value ? 'bg-[#35d39a] text-[#07111f]' : 'bg-white/[.08] text-white/60 hover:bg-white/[.14]'}`}>{value}x</button>)}
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button onClick={() => jumpByEvent(-1)} aria-label={label('الحدث السابق', 'Événement précédent')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[.08] text-white/70 transition hover:bg-white/[.14]"><SkipBack size={15} /></button>
+                <button onClick={reset} aria-label={t(lang, 'stop')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[.08] text-white/70 transition hover:bg-white/[.14]"><Square size={13} fill="currentColor" /></button>
+                <button onClick={() => { if (progress >= route.length - 1) reset(); setPlaying(true) }} aria-label={t(lang, 'play')} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#35d39a] text-[#07111f] shadow-lg shadow-[#35d39a]/20 transition hover:brightness-110">{playing ? <Pause size={17} /> : <Play size={17} fill="currentColor" />}</button>
+                <button onClick={() => setPlaying(false)} aria-label={t(lang, 'pause')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[.08] text-white/70 transition hover:bg-white/[.14]"><Pause size={15} /></button>
+                <button onClick={() => jumpByEvent(1)} aria-label={label('الحدث التالي', 'Événement suivant')} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[.08] text-white/70 transition hover:bg-white/[.14]"><SkipForward size={15} /></button>
+              </div>
+            </div>
+
+            <div className="grid shrink-0 grid-cols-4 gap-1.5 px-4 pb-3">
+              {[
+                [RouteIcon, totalDistance.toFixed(1), 'km', label('المسافة', 'Distance')],
+                [Gauge, Math.round(maxSpeed), 'km/h', label('السرعة القصوى', 'Vitesse max')],
+                [Clock3, formatDuration(durationMs, lang), '', label('المدة', 'Durée')],
+                [Navigation, currentSpeed, 'km/h', label('السرعة الحالية', 'Vitesse actuelle')],
+              ].map(([Icon, value, unit, text]) => <div key={text} className="min-w-0 rounded-xl bg-white/[.06] px-1.5 py-2 text-center"><Icon size={13} className="mx-auto text-[#35d39a]" /><p className="mt-1 truncate text-[11px] font-black text-white">{value}<small className="ms-0.5 text-[8px] font-normal text-white/45">{unit}</small></p><p className="truncate text-[8px] text-white/40">{text}</p></div>)}
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 border-t border-white/10 px-4 py-2 text-[10px] text-white/45">
+              <MapPin size={13} className="shrink-0 text-[#35d39a]" />
+              <span className="truncate">{current?.address || `${current?.latitude?.toFixed(5) || '—'}, ${current?.longitude?.toFixed(5) || '—'}`}</span>
+            </div>
+
+            {showAnalysis && <div className="min-h-0 flex-1 overflow-y-auto border-t border-white/10 px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-white/80"><BarChart3 size={15} className="text-[#35d39a]" />{label('تحليل السائق', 'Analyse conducteur')}<span className="rounded-full bg-[#35d39a]/15 px-2 py-0.5 text-[10px] text-[#8ceac5]">{events.length}</span></div>
+                <button className="flex items-center gap-1.5 rounded-xl bg-white/[.06] px-3 py-2 text-[10px] font-bold text-white/60 transition hover:bg-white/[.12]"><Download size={13} />{label('تصدير الرحلة', 'Exporter le trajet')}</button>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
                 {[
                   [Target, stops.length, label('توقفات', 'Arrêts'), '#f5b54a'],
                   [Zap, events.filter((event) => event.type === 'acceleration').length, label('تسارع', 'Accélérations'), '#35d39a'],
@@ -506,54 +526,19 @@ export default function TripReplay({ deviceId, deviceName, startTime, endTime, p
                   [TrendingUp, formatDuration(speedingMs, lang), label('سرعة عالية', 'Excès vitesse'), '#ff625d'],
                   [ShieldCheck, `${efficiencyScore}/100`, label('الكفاءة', 'Efficacité'), scoreColor],
                 ].map(([Icon, value, text, color]) => <div key={text} className="rounded-2xl bg-white/[.055] p-2.5 text-center"><Icon size={14} className="mx-auto" style={{ color }} /><p className="mt-1 text-sm font-black text-white">{value}</p><p className="truncate text-[9px] text-white/45">{text}</p></div>)}
-              </div>}
-            </div>
-          )}
-
-          {route.length > 0 && (
-            <div className={`pointer-events-auto w-full rounded-3xl p-3 shadow-2xl sm:p-4 ${surfaceClass}`} style={{ background: surface }}>
-              <div className="mb-2 flex items-center justify-between gap-3 text-[10px] text-white/50">
-                <span>{formatTime(route[0].fixTime, lang, false)}</span>
-                <span className="flex items-center gap-1 font-bold text-white/75"><Timer size={13} className="text-[#35d39a]" />{formatClock(timeForProgress(route, progress) - new Date(route[0].fixTime).getTime(), lang)}</span>
-                <span>{formatTime(route.at(-1).fixTime, lang, false)}</span>
               </div>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-x-0 top-[9px] h-1 rounded-full bg-white/10" />
-                {events.map((event, index) => <button key={`${event.type}-${event.index}-${index}`} onClick={() => jumpToEvent(event)} title={eventMessage(event, lang)} className="absolute top-[5px] z-10 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-[#07111f] transition hover:scale-150" style={{ left: `${route.length > 1 ? (event.index / (route.length - 1)) * 100 : 0}%`, background: eventMeta(event.type, lang).color }} />)}
-                <input aria-label={label('مؤشر الرحلة', 'Progression du trajet')} type="range" min="0" max={Math.max(0, route.length - 1)} step="0.01" value={progress} onChange={(event) => jumpTo(event.target.value)} className="replay-range relative z-20 w-full" />
-              </div>
-              <div className="mt-1 flex items-center justify-between text-[10px] text-white/45">
-                <span>{label('النقطة', 'Point')} {currentIndex + 1} {label('من', 'sur')} {route.length} · {Math.round((progress / Math.max(1, route.length - 1)) * 100)}%</span>
-                <span>{current?.speed > SPEED_LIMIT ? label('سرعة عالية', 'Vitesse élevée') : label('ضمن الحد', 'Dans la limite')}</span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  {[8, 4, 2, 1].map((value) => <button key={value} onClick={() => setMultiplier(value)} className={`rounded-xl px-3 py-2 text-xs font-black transition ${multiplier === value ? 'bg-[#35d39a] text-[#07111f]' : 'bg-white/[.08] text-white/60 hover:bg-white/[.14]'}`}>{value}x</button>)}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => jumpByEvent(-1)} aria-label={label('الحدث السابق', 'Événement précédent')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[.08] text-white/70 hover:bg-white/[.14]"><SkipBack size={16} /></button>
-                  <button onClick={reset} aria-label={t(lang, 'stop')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[.08] text-white/70 hover:bg-white/[.14]"><Square size={14} fill="currentColor" /></button>
-                  <button onClick={() => setPlaying(false)} aria-label={t(lang, 'pause')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[.08] text-white/70 hover:bg-white/[.14]"><Pause size={16} /></button>
-                  <button onClick={() => { if (progress >= route.length - 1) reset(); setPlaying(true) }} aria-label={t(lang, 'play')} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#35d39a] text-[#07111f] shadow-lg shadow-[#35d39a]/20 transition hover:brightness-110">{playing ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}</button>
-                  <button onClick={() => jumpByEvent(1)} aria-label={label('الحدث التالي', 'Événement suivant')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[.08] text-white/70 hover:bg-white/[.14]"><SkipForward size={16} /></button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {route.length > 0 && showAnalysis && (
-            <div className={`pointer-events-auto hidden max-h-32 w-full max-w-[420px] self-end overflow-y-auto rounded-3xl p-3 shadow-2xl sm:block ${surfaceClass}`} style={{ background: surface }}>
-              <button onClick={() => setShowStops((value) => !value)} className="flex w-full items-center justify-between text-xs font-bold text-white/75">
+              <div className="mt-3 flex items-center justify-between text-xs font-bold text-white/75">
                 <span className="flex items-center gap-2"><Activity size={14} className="text-[#35d39a]" />{label('أحداث الرحلة', 'Événements du trajet')}</span>
-                {showStops ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-              </button>
-              {showStops && <div className="mt-2 space-y-1.5">{events.length ? events.slice(0, 8).map((event, index) => <button key={`${event.type}-${event.index}-${index}`} onClick={() => jumpToEvent(event)} className="flex w-full items-center justify-between rounded-xl bg-white/[.05] px-3 py-2 text-start text-[10px] hover:bg-white/[.10]"><span className="flex items-center gap-2 text-white/65"><span className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-black text-[#07111f]" style={{ background: eventMeta(event.type, lang).color }}>{eventMeta(event.type, lang).icon}</span>{eventMessage(event, lang)}</span><span className="text-white/40">{formatTime(route[event.index]?.fixTime, lang, false)}</span></button>) : <p className="px-1 py-2 text-[10px] text-white/40">{label('لا توجد أحداث مسجلة', 'Aucun événement détecté')}</p>}</div>}
-            </div>
-          )}
-        </div>
-      </div>
+                <button onClick={() => setShowStops((value) => !value)} aria-expanded={showStops} className="rounded-lg p-1 text-white/50 hover:bg-white/10">{showStops ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</button>
+              </div>
+              {showStops && <div className="mt-2 space-y-1.5">{events.length ? events.map((event, index) => <button key={`${event.type}-${event.index}-${index}`} onClick={() => jumpToEvent(event)} className="flex w-full items-center justify-between gap-2 rounded-xl bg-white/[.05] px-3 py-2 text-start text-[10px] transition hover:bg-white/[.10]"><span className="flex min-w-0 items-center gap-2 text-white/65"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-black text-[#07111f]" style={{ background: eventMeta(event.type, lang).color }}>{eventMeta(event.type, lang).icon}</span><span className="truncate">{eventMessage(event, lang)}</span></span><span className="shrink-0 text-white/40">{formatTime(route[event.index]?.fixTime, lang, false)}</span></button>) : <p className="px-1 py-2 text-[10px] text-white/40">{label('لا توجد أحداث مسجلة', 'Aucun événement détecté')}</p>}</div>}
+            </div>}
+          </>
+        ) : (
+          <div className="flex min-h-[150px] shrink-0 items-center justify-center px-4 pb-6 text-center text-xs text-white/50">{error || (loading ? label('جار تحميل الرحلة…', 'Chargement du trajet…') : label('لا توجد نقاط لهذه الرحلة', 'Aucun point pour ce trajet'))}</div>
+        )}
+      </section>
 
-      {loading && <div className="pointer-events-none absolute inset-0 z-[1002] flex items-center justify-center"><div className={`${surfaceClass} flex items-center gap-3 rounded-2xl px-5 py-4 text-sm text-white/70 shadow-2xl`} style={{ background: surface }}><Loader2 size={18} className="animate-spin text-[#35d39a]" />{t(lang, 'loadingPositions')}</div></div>}
     </div>
   )
 }
