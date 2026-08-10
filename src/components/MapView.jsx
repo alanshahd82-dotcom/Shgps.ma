@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
+import MapLayers from './MapLayers'
 import { MapContainer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import MapLayers from './MapLayers'
 import LiveVehicleMarker from './LiveVehicleMarker'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
@@ -147,7 +147,6 @@ function createClusterIcon(count, onlineCount) {
   })
 }
 
-import MapLayers from './MapLayers'
 
 export default function MapView({
   deviceId = null,

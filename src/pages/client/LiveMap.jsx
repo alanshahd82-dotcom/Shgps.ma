@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon } from 'lucide-react'
 import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import MapLayers from '../../components/MapLayers'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
@@ -117,7 +116,6 @@ function getLiveBearing(device) {
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
-import MapLayers from '../../components/MapLayers'
 
 export default function LiveMap() {
   const { devices, lang, wsConnected } = useApp()
