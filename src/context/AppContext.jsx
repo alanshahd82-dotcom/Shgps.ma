@@ -220,6 +220,7 @@ export function AppProvider({ children }) {
       } catch (error) {
         if (cancelled) return
         closeWebSocket()
+        if (localStorage.getItem('athargps_token')) { window.setTimeout(() => { openWebSocket() }, 5000) }
         // Keep the persisted session during temporary network/server errors.
         // Only a confirmed 401 means that the token is no longer usable.
         if (error?.status === 401) {

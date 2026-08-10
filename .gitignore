@@ -1,27 +1,31 @@
 # Dependencies
 node_modules/
-backend/node_modules/
+.pnpm-store/
+.pnpm-cache/
+frontend/node_modules/
 
-# Environment
-.env
+# Build output
+dist/
+nginx/html/
+
+# Backups
+backups/
+
+# Temporary files
+*.log
+*.tmp
 .env.local
 .env.production
 
-# Logs
-*.log
-npm-debug.log*
+# IDE
+.vscode/
+.idea/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Editor
-.vscode/
-.idea/
-
-# Capacitor
-android/
-ios/
-
-# Build output — not tracked in git; generated during deployment
-dist/
+# Misc
+autodeploy.sh
+src/assets/car-marker.png.backup
+frontend/package-lock.json

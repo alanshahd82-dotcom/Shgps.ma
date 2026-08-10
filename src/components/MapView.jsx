@@ -147,6 +147,8 @@ function createClusterIcon(count, onlineCount) {
   })
 }
 
+import ResilientTiles from './ResilientTiles'
+
 export default function MapView({
   deviceId = null,
   showAllDevices = false,
@@ -239,7 +241,7 @@ export default function MapView({
       preferCanvas
       onClick={onMapClick}
     >
-      <MapLayers satellite={satelliteMode} />
+      <ResilientTiles satellite={satelliteMode} />
 
       {primaryHasCoords && <FlyToDevice deviceKey={deviceId} lat={primaryDevice.lat} lng={primaryDevice.lng} />}
 
