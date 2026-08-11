@@ -553,15 +553,6 @@ export default function DeviceDetail() {
             ) : (
               <h1 className="truncate text-lg font-extrabold text-[#edf4f2]">{device?.name || '...'}</h1>
             )}
-            <p className="text-xs font-mono text-slate-500">{device?.plate || device?.imei || (isAr ? 'معرّف غير متاح' : 'Identifier unavailable')}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-300">{editing ? editForm.driver || (isAr ? 'لا يوجد سائق' : 'Aucun conducteur') : device?.driver || (isAr ? 'لا يوجد سائق' : 'Aucun conducteur')}</span>
-              {canCallDriver() && (
-                <button onClick={callDriver} className="inline-flex items-center gap-1 rounded-lg bg-[#1DBF73]/15 px-2 py-1 text-[10px] font-bold text-[#8ceac5] transition hover:bg-[#1DBF73]/25">
-                  <Phone size={11} />{isAr ? 'اتصال مباشر' : 'Appeler'}
-                </button>
-              )}
-            </div>
         </div>
         {/* Live indicator */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-shrink-0"
@@ -629,21 +620,6 @@ export default function DeviceDetail() {
           >
             {replayLoading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} fill="currentColor" />}
             {isAr ? 'إعادة المسار' : 'Rejouer le trajet'}
-          </button>
-          <button
-            onClick={callDriver}
-            disabled={!canCallDriver()}
-            className="ath-btn-g flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Phone size={15} />{isAr ? 'الاتصال بالسائق' : 'Appeler le conducteur'}
-          </button>
-          <button
-            onClick={() => setConfirm({ label: ignition ? t(lang, 'cutEngine') : t(lang, 'startEngine'), turnOff: !!ignition })}
-            disabled={sending}
-            className={`col-span-2 flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-xs font-bold transition disabled:opacity-50 ${ignition ? 'border-[#ff625d]/35 bg-[#ff625d]/10 text-[#ffaaa6]' : 'border-[#1DBF73]/35 bg-[#1DBF73]/10 text-[#8ceac5]'}`}
-          >
-            {sending ? <Loader2 size={15} className="animate-spin" /> : (ignition ? <ZapOff size={15} /> : <Zap size={15} />)}
-            {ignition ? t(lang, 'cutEngine') : t(lang, 'startEngine')}
           </button>
         </div>
       )}
@@ -759,6 +735,7 @@ export default function DeviceDetail() {
                     { label: isAr?'الجهاز':'Appareil', val: device.name },
                     { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
                     { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
+                    { label: isAr?'هاتف السائق':'Téléphone', val: device.phone || '—', phone: device.phone },
                      { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—', copyCoordinates: validPosition(latitude, longitude) },
                     { label: isAr?'IMEI':'IMEI', val: device.imei ? (device.imei.slice(0,6)+'✦✦✦✦✦✦'+device.imei.slice(-4)) : '—', copy: device.imei },
                     { label: isAr?'آخر تحديث':'Dernier signal', val: lastUpdate ? timeAgo(lastUpdate, lang) : (isAr?'لا توجد بيانات':'Aucune donnée') },
@@ -773,6 +750,15 @@ export default function DeviceDetail() {
                        <span className="text-xs text-slate-500">{row.label}</span>
                        <div className="flex items-center gap-2">
                          <span className="text-xs font-semibold text-slate-800 text-right max-w-40 truncate">{row.val}</span>
+                          {row.phone && (
+                            <button
+                              onClick={(event) => { event.stopPropagation(); callDriver() }}
+                              aria-label={isAr ? 'الاتصال بالسائق' : 'Appeler le conducteur'}
+                              className="flex-shrink-0 rounded-lg bg-emerald-500/10 p-1.5 text-emerald-600 transition-colors hover:bg-emerald-500/20"
+                            >
+                              <Phone size={12} />
+                            </button>
+                          )}
                           {row.copyCoordinates && (
                             <button
                               onClick={copyCoordinates}
