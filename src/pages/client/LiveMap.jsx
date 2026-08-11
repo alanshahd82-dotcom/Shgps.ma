@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon } from 'lucide-react'
-import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
+import { useNavigate } from 'react-router-dom'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, Plus, Minus, BatteryMedium, Wifi } from 'lucide-react'
+import { MapContainer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
@@ -88,6 +89,25 @@ function FitTodayRoute({ route }) {
   return null
 }
 
+function LiveMapControls({ bottomOffset, onRecenter, lang }) {
+  const map = useMap()
+  const isAr = lang === 'ar'
+
+  return (
+    <div className="athar-map-controls" style={{ bottom: bottomOffset + 14 }} aria-label={isAr ? 'أدوات الخريطة' : 'Contrôles de carte'}>
+      <button type="button" onClick={() => map.zoomIn()} aria-label={isAr ? 'تكبير' : 'Zoom avant'} title={isAr ? 'تكبير' : 'Zoom avant'}>
+        <Plus size={17} />
+      </button>
+      <button type="button" onClick={() => map.zoomOut()} aria-label={isAr ? 'تصغير' : 'Zoom arrière'} title={isAr ? 'تصغير' : 'Zoom arrière'}>
+        <Minus size={17} />
+      </button>
+      <button type="button" onClick={onRecenter} aria-label={isAr ? 'إعادة التمركز' : 'Recentrer'} title={isAr ? 'إعادة التمركز' : 'Recentrer'}>
+        <LocateFixed size={17} />
+      </button>
+    </div>
+  )
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 const PANEL_PEEK = 132
 const PANEL_OPEN = 480
@@ -120,6 +140,7 @@ function getLiveBearing(device) {
 
 export default function LiveMap() {
   const { devices, lang, wsConnected } = useApp()
+  const navigate = useNavigate()
   const [search,       setSearch]       = useState('')
   const [selected,     setSelected]     = useState(null)
   const [panelOpen,    setPanelOpen]    = useState(false)
@@ -273,42 +294,85 @@ export default function LiveMap() {
     <div className="relative w-full overflow-hidden" style={{ height: '100dvh' }}>
 
       {/* ── Map ── */}
-      <MapContainer
-        preferCanvas
-        center={[31.7917, -7.0926]}
-        zoom={6}
-        minZoom={3}
-        maxZoom={19}
-        style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
-        zoomControl={false}
-      >
-         <MapLayers />
-        {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
-        {positioned.map(d => (
-          <LiveVehicleMarker
-            key={d.id}
-            device={d}
-            isSelected={selected === d.id}
-            autoFollow={autoFollow && selected === d.id}
-            onClick={() => { setSelected(d.id); setPanelOpen(true) }}
-          />
-        ))}
-         {todayRoute.length > 1 && (
-           <Polyline
-             positions={todayRoute}
-             pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }}
-           />
-         )}
-         <FitTodayRoute route={todayRoute} />
-         {todayRoute.length > 1 && (
-           <Polyline
-             positions={todayRoute}
-             pathOptions={{ color: '#1DBF73', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
-           />
-         )}
-        {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
-        <FlyToUser target={locateTarget} />
-      </MapContainer>
+      <div className="athar-live-map-shell" aria-label={isAr ? 'الخريطة المباشرة' : 'Carte en direct'}>
+        <MapContainer
+          preferCanvas
+          center={[31.7917, -7.0926]}
+          zoom={6}
+          minZoom={3}
+          maxZoom={19}
+          style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
+          zoomControl={false}
+        >
+           <MapLayers />
+          {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
+          {positioned.map(d => (
+            <LiveVehicleMarker
+              key={d.id}
+              device={{ ...d, lang }}
+              isSelected={selected === d.id}
+              autoFollow={autoFollow && selected === d.id}
+              onClick={() => { setSelected(d.id); setPanelOpen(true) }}
+            >
+              <Popup>
+                {(() => {
+                  const popupStatus = getDeviceStatusKey(d)
+                  const popupColor = ST_CLR[popupStatus] || ST_CLR.offline
+                  const popupBattery = Number(d.battery)
+                  const popupSignal = d.signal ?? d.signalStrength ?? d.signal_strength ?? d.rssi
+                  return (
+                    <div className="athar-device-popup" dir={isAr ? 'rtl' : 'ltr'}>
+                      <div className="athar-device-popup-heading">
+                        <div>
+                          <strong>{d.name}</strong>
+                          {d.plate && <span>{d.plate}</span>}
+                        </div>
+                        <span className="athar-device-popup-status" style={{ color: popupColor }}>
+                          <i style={{ background: popupColor }} />
+                          {ST_LABEL[popupStatus]?.[lang] || ST_LABEL[popupStatus]?.fr || popupStatus}
+                        </span>
+                      </div>
+                      <div className="athar-device-popup-grid">
+                        <span><Gauge size={13} />{Math.round(Number(d.speed) || 0)} {t(lang, 'kmh')}</span>
+                        <span><BatteryMedium size={13} />{Number.isFinite(popupBattery) ? `${Math.round(popupBattery)}%` : '—'}</span>
+                        <span><Wifi size={13} />{popupSignal == null ? '—' : popupSignal}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="athar-device-popup-link"
+                        onClick={event => {
+                          event.stopPropagation()
+                          navigate('/client/device/' + d.id)
+                        }}
+                      >
+                        {isAr ? 'عرض التفاصيل' : 'Voir les détails'}
+                        <span aria-hidden="true">{isAr ? '←' : '→'}</span>
+                      </button>
+                    </div>
+                  )
+                })()}
+              </Popup>
+            </LiveVehicleMarker>
+          ))}
+           {todayRoute.length > 1 && (
+             <Polyline
+               positions={todayRoute}
+               pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }}
+             />
+           )}
+           <FitTodayRoute route={todayRoute} />
+           {todayRoute.length > 1 && (
+             <Polyline
+               positions={todayRoute}
+               pathOptions={{ color: '#1DBF73', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
+             />
+           )}
+          {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
+          <FlyToUser target={locateTarget} />
+          <LiveMapControls bottomOffset={panelH} onRecenter={locateMe} lang={lang} />
+        </MapContainer>
+        <div className="athar-map-vignette" aria-hidden="true" />
+      </div>
 
       <ClientHeader overlay />
 
@@ -392,27 +456,16 @@ export default function LiveMap() {
         </div>
       </div>
 
-      {/* ── Locate button ── */}
-      <motion.button
-        onClick={locateMe}
-        whileTap={{ scale: 0.88 }}
-        aria-label={isAr ? 'تحديد موقعي' : 'Me localiser'}
-        className="absolute z-20 flex items-center justify-center"
-        style={{
-          bottom: panelH + 14,
-          right: 14,
-          width: 46,
-          height: 46,
-          borderRadius: '50%',
-          background: 'rgba(14,32,53,0.92)',
-          border: '1px solid rgba(56,211,159,0.35)',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,217,126,0.1)',
-          transition: 'bottom 0.35s cubic-bezier(0.4,0,0.2,1)',
-        }}
-      >
-        <LocateFixed size={18} style={{ color: '#38d39f' }} />
-      </motion.button>
+      {/* ── Status legend ── */}
+      <div className="athar-map-legend" style={{ bottom: panelH + 14 }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
+        {[
+          { key: 'moving', color: ST_CLR.moving, label: { ar: 'تتحرك', fr: 'En mouvement' } },
+          { key: 'idle', color: ST_CLR.idle, label: { ar: 'خاملة', fr: 'Ralentie' } },
+          { key: 'stopped', color: ST_CLR.stopped, label: { ar: 'متوقفة', fr: 'Arrêtée' } },
+        ].map(item => (
+          <span key={item.key}><i style={{ background: item.color }} />{item.label[lang] || item.label.fr}</span>
+        ))}
+      </div>
 
       {/* ── Bottom Panel ── */}
       <div

@@ -165,9 +165,70 @@
 
 .athar-live-marker {
   position: relative;
+  pointer-events: auto;
+}
+
+.athar-live-marker-visual {
+  position: absolute;
+  top: 0;
+  left: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: translateX(-50%);
+}
+
+.athar-live-marker-visual img {
+  position: relative;
+  z-index: 2;
+}
+
+.athar-live-label {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 132px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 999px;
+  background: rgba(6,12,26,.88);
+  color: #edf4f2;
+  box-shadow: 0 4px 14px rgba(0,0,0,.32);
+  backdrop-filter: blur(12px);
+  font-family: 'Cairo', sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.athar-live-label-status,
+.athar-live-label-battery {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+}
+
+.athar-live-label-status {
+  background: var(--athar-live-color, #1DBF73);
+  box-shadow: 0 0 7px var(--athar-live-color, #1DBF73);
+}
+
+.athar-live-label-battery {
+  background: var(--athar-battery-color, #94A3B8);
+}
+
+.athar-live-marker-visual .athar-live-marker-pulse {
+  position: absolute;
+  inset: 4px;
+  z-index: 0;
 }
 
 .athar-live-marker img {
@@ -190,6 +251,105 @@
   border-radius: 999px;
   opacity: .72;
   box-shadow: 0 0 0 3px rgba(29,191,115,.17);
+}
+
+.athar-live-map-shell {
+  position: absolute;
+  inset: 8px 8px 0;
+  z-index: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: var(--ath-rs);
+  background: #0B1220;
+  box-shadow: 0 18px 55px rgba(0,0,0,.35);
+}
+
+.athar-live-map-shell .leaflet-container {
+  border-radius: inherit;
+}
+
+.athar-map-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 42%, transparent 28%, rgba(4,10,22,.2) 72%, rgba(4,10,22,.64) 100%),
+    linear-gradient(180deg, rgba(3,9,21,.34), transparent 25%, transparent 67%, rgba(3,9,21,.44));
+}
+
+.athar-map-controls {
+  position: absolute;
+  right: 14px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  background: rgba(6,12,26,.88);
+  box-shadow: 0 8px 26px rgba(0,0,0,.42);
+  backdrop-filter: blur(18px);
+}
+
+.athar-map-controls button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 11px;
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.82);
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.athar-map-controls button:last-child {
+  color: #38d39f;
+}
+
+.athar-map-controls button:hover {
+  background: rgba(56,211,159,.16);
+  color: #fff;
+}
+
+.athar-map-controls button:active {
+  transform: scale(.92);
+}
+
+.athar-map-legend {
+  position: absolute;
+  left: 14px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: calc(100% - 28px);
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  background: rgba(6,12,26,.84);
+  color: rgba(255,255,255,.74);
+  box-shadow: 0 8px 24px rgba(0,0,0,.38);
+  backdrop-filter: blur(18px);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.athar-map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.athar-map-legend i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
 }
 
 .athar-live-marker-pulse {
@@ -343,6 +503,109 @@
 .leaflet-popup-content {
   color: #ffffff !important;
   margin: 12px 16px !important;
+}
+
+.athar-device-popup {
+  min-width: 210px;
+  color: #edf4f2;
+  font-family: 'Cairo', sans-serif;
+}
+
+.athar-device-popup-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+
+.athar-device-popup-heading strong,
+.athar-device-popup-heading span {
+  display: block;
+}
+
+.athar-device-popup-heading strong {
+  max-width: 140px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.athar-device-popup-heading > div > span {
+  margin-top: 2px;
+  color: rgba(255,255,255,.42);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+}
+
+.athar-device-popup-status {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.athar-device-popup-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.athar-device-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 10px 0 8px;
+  color: rgba(255,255,255,.68);
+  font-size: 9px;
+}
+
+.athar-device-popup-grid span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 5px 3px;
+  border-radius: 7px;
+  background: rgba(255,255,255,.05);
+  white-space: nowrap;
+}
+
+.athar-device-popup-grid svg {
+  color: #38d39f;
+}
+
+.athar-device-popup-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 9px;
+  border: 1px solid rgba(56,211,159,.28);
+  border-radius: 9px;
+  background: rgba(56,211,159,.10);
+  color: #75e6bd;
+  font-family: 'Cairo', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 520px) {
+  .athar-map-legend {
+    gap: 6px;
+    padding-inline: 8px;
+    font-size: 9px;
+  }
+
+  .athar-live-label {
+    font-size: 8px;
+  }
 }
 
 /* Mobile screen scroll */

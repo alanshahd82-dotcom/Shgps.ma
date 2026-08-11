@@ -131,7 +131,7 @@ export default function DeviceList() {
   return (
     <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
-      <header className="border-b border-white/10 bg-[var(--ath-bg)] px-5 pb-4 pt-5">
+      <header className="border-b border-white/10 bg-[var(--ath-bg)] px-5 pb-4 pt-7">
         <div className="mx-auto max-w-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -153,6 +153,7 @@ export default function DeviceList() {
         <div
           className="relative -mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
           style={{
+            paddingInline: '4px 14px',
             maskImage: 'linear-gradient(to right, transparent 0, black 18px, black calc(100% - 18px), transparent 100%)',
             WebkitMaskImage: 'linear-gradient(to right, transparent 0, black 18px, black calc(100% - 18px), transparent 100%)',
           }}

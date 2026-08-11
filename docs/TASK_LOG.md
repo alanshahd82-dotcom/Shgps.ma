@@ -270,3 +270,12 @@ This file records the completed replay-related work and the current import audit
 - Added WhatsApp and email renewal contact fields to the admin Support Settings screen. The client subscription page now loads those values at runtime and disables unavailable links with a friendly hint.
 - Removed the old hardcoded renewal contact module; tracking, authentication, WebSocket, and existing support settings remain unchanged.
 - Verification: `npm run build`, backend syntax checks, and `git diff --check` pass.
+
+## Design 5/10 — live map chrome restyle + chip polish
+
+- Restyled only the client live-map presentation: rounded bordered map shell with depth vignette, bilingual live status badge, status legend, and glass zoom/recenter controls.
+- Enhanced existing live vehicle markers with status-colored rings, vehicle imagery, speed/status labels, and battery-level dots while preserving position interpolation, bearing updates, and WebSocket data flow.
+- Restyled live-map popups with device name, plate, status, speed, battery, signal, and a bilingual details link to the existing device detail route.
+- Added safe inline padding to device filter chips and spacing below the device-list header so the final chip remains fully visible.
+- Preserved `MapContainer`, `MapLayers`, `useMap`, `FlyTo`, fit-bounds, live position updates, Leaflet layers, authentication, and backend behavior.
+- Verification: `npm run build` and `git diff --check` pass.

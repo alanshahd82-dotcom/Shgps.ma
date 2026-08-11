@@ -13,6 +13,13 @@ const STATUS_COLORS = {
   offline: '#94A3B8',
 }
 
+const STATUS_LABELS = {
+  moving: { ar: 'يتحرك', fr: 'En mouvement' },
+  idle: { ar: 'خامل', fr: 'Ralenti' },
+  stopped: { ar: 'متوقف', fr: 'Arrêté' },
+  offline: { ar: 'غير متصل', fr: 'Hors ligne' },
+}
+
 function toPoint(device) {
   const parseCoordinate = value => value == null || value === '' ? null : Number(value)
   const primaryLat = parseCoordinate(device?.lat)
@@ -49,20 +56,38 @@ function getBearing(device, from, to) {
   return Number.isFinite(course) ? course : calculateBearing(from, to)
 }
 
-function createLiveVehicleIcon(type, isSelected, initialBearing = 0) {
-  const marker = markerFor(type)
+function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar') {
+  const marker = markerFor(device?.type)
+  const status = getDeviceStatusKey(device)
+  const color = STATUS_COLORS[status] || STATUS_COLORS.offline
+  const statusLabel = STATUS_LABELS[status]?.[lang] || STATUS_LABELS[status]?.fr || status
+  const speed = Number(device?.speed ?? device?.last_speed ?? 0)
+  const label = status === 'moving' && speed > 0 ? `${Math.round(speed)} km/h` : statusLabel
+  const batteryValue = Number(device?.battery)
+  const batteryColor = !Number.isFinite(batteryValue)
+    ? '#94A3B8'
+    : batteryValue > 60 ? '#1DBF73' : batteryValue > 30 ? '#FF9500' : '#FF3B30'
   const size = isSelected ? 62 : 56
+  const width = isSelected ? 142 : 136
+  const height = 92
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
-      <div class="athar-live-marker" style="width:${size}px;height:${size}px">
-        <span class="athar-live-marker-pulse"></span>
-        <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
-        <span class="athar-live-marker-ring"></span>
+      <div class="athar-live-marker" style="width:${width}px;height:${height}px;--athar-live-color:${color};--athar-battery-color:${batteryColor}">
+        <span class="athar-live-marker-visual" style="width:${size}px;height:${size}px">
+          <span class="athar-live-marker-pulse"></span>
+          <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
+          <span class="athar-live-marker-ring"></span>
+        </span>
+        <span class="athar-live-label">
+          <span class="athar-live-label-status" aria-hidden="true"></span>
+          <span>${label}</span>
+          <span class="athar-live-label-battery" aria-hidden="true"></span>
+        </span>
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [width, height],
+    iconAnchor: [width / 2, size / 2],
   })
 }
 
@@ -88,9 +113,11 @@ export default function LiveVehicleMarker({
   const [trail, setTrail] = useState(trailRef.current)
   const point = toPoint(device)
   const initialBearingRef = useRef(getBearing(device, firstPositionRef.current, point))
-  const icon = useMemo(() => createLiveVehicleIcon(device?.type, isSelected, initialBearingRef.current), [device?.type, isSelected])
   const status = getDeviceStatusKey(device)
-  const color = STATUS_COLORS[status] || STATUS_COLORS.offline
+  const icon = useMemo(
+    () => createLiveVehicleIcon(device, isSelected, initialBearingRef.current, device?.lang || 'ar'),
+    [device?.type, device?.lang, isSelected, status, device?.speed, device?.last_speed, device?.battery]
+  )
 
   useEffect(() => () => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
