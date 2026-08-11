@@ -279,3 +279,10 @@ This file records the completed replay-related work and the current import audit
 - Added safe inline padding to device filter chips and spacing below the device-list header so the final chip remains fully visible.
 - Preserved `MapContainer`, `MapLayers`, `useMap`, `FlyTo`, fit-bounds, live position updates, Leaflet layers, authentication, and backend behavior.
 - Verification: `npm run build` and `git diff --check` pass.
+
+## Design 6/10 — reports restyle + skeletons
+
+- Restyled only `src/pages/client/Reports.jsx`: RTL-safe period chips, 2×2 KPI grid with tabular animated values and per-card green glow, skeleton loading surfaces, green gradient speed chart, bilingual trip rows, replay actions, and a friendly empty state.
+- Preserved the existing report fetch, period boundaries, chart bucketing, real report values, Arabic/French support, and the existing TripReplay component/API boundary.
+- Added reduced-motion handling for skeletons, KPI count-up, chart entrance, and trip-row entrance motion.
+- Verification: `npm run build` and `git diff --check` pass.
