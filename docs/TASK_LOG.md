@@ -303,6 +303,7 @@ This file records the completed replay-related work and the current import audit
 
 ## Design 7.1/10 — device page icon, tabs, defaults, and editing
 
+- Safety note: this delivery follows a prior reverted attempt that broke client device-account binding; the existing device source, selectors, route params, and account filtering were intentionally preserved.
 - Fixed the device header to use the shared `VehicleIcon`, so motorcycles such as `bikan` no longer render as cars.
 - Kept one tab bar with `المعلومات` as the initial tab, and made the quick stats a symmetric 2-column layout with the last-update card spanning both columns.
 - Preserved the last known battery, signal, and fuel values when a stale/offline refresh omits live attributes.
