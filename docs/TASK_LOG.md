@@ -300,3 +300,11 @@ This file records the completed replay-related work and the current import audit
 - Preserved the existing report fetch, period boundaries, chart bucketing, real report values, Arabic/French support, and the existing TripReplay component/API boundary.
 - Added reduced-motion handling for skeletons, KPI count-up, chart entrance, and trip-row entrance motion.
 - Verification: `npm run build` and `git diff --check` pass.
+
+## Design 7.1/10 — device page icon, tabs, defaults, and editing
+
+- Fixed the device header to use the shared `VehicleIcon`, so motorcycles such as `bikan` no longer render as cars.
+- Kept one tab bar with `المعلومات` as the initial tab, and made the quick stats a symmetric 2-column layout with the last-update card spanning both columns.
+- Preserved the last known battery, signal, and fuel values when a stale/offline refresh omits live attributes.
+- Kept name, driver, phone, plate, and vehicle type editing in the visible form with Save/Cancel controls, the `تم الحفظ ✅` confirmation, and direct calling from the saved phone.
+- Verification: `npm run build` and `git diff --check` pass.

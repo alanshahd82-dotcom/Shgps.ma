@@ -6,7 +6,7 @@ import L from 'leaflet'
 import {
   ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Play,
   Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
-  Pencil, Check, X as CloseX, Phone, Radio, CarFront
+  Pencil, Check, X as CloseX, Phone, Radio
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
 import { useApp } from '../../context/AppContext'
@@ -15,7 +15,7 @@ import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import ConfirmModal from '../../components/ConfirmModal'
-import { getDeviceStatusKey, timeAgo, VehicleTypeControl } from '../../components/ui'
+import { getDeviceStatusKey, timeAgo, VehicleIcon, VehicleTypeControl } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
@@ -90,6 +90,19 @@ function speedColor(s) {
   if (s > 120) return '#FF3B30'
   if (s > 80)  return '#FF9500'
   return '#00D97E'
+}
+
+function mergeDeviceDetails(current, next) {
+  if (!current) return next
+  return {
+    ...current,
+    ...next,
+    // Offline responses can omit live attributes. Keep the last known values
+    // so the detail page agrees with the list/map instead of flashing blanks.
+    battery: next?.battery ?? current.battery ?? null,
+    signal: next?.signal ?? current.signal ?? null,
+    fuel: next?.fuel ?? current.fuel ?? null,
+  }
 }
 
 function FitRoute({ positions }) {
@@ -223,7 +236,7 @@ export default function DeviceDetail() {
       setLoading(true)
       try {
         const nextDevice = await api.devices.get(id)
-        if (!cancelled) setDevice(nextDevice)
+        if (!cancelled) setDevice(current => mergeDeviceDetails(current, nextDevice))
       } catch (e) {
         if (!cancelled) console.error(e)
       } finally {
@@ -399,7 +412,7 @@ export default function DeviceDetail() {
     setSaving(true); setSaveMsg('')
     try {
       const updated = await api.devices.updateInfo(id, editForm)
-      setDevice(d => ({ ...d, ...updated }))
+      setDevice(d => mergeDeviceDetails(d, updated))
       setSaveMsg(isAr ? 'تم الحفظ ✅' : 'Enregistré ✅')
       setEditing(false)
       setTimeout(() => setSaveMsg(''), 3000)
@@ -506,6 +519,8 @@ export default function DeviceDetail() {
   const cardStyle = { background:'#0e2035', border:'1px solid rgba(255,255,255,.10)', boxShadow:'0 16px 38px rgba(0,0,0,.20)' }
   const distanceToday = device?.distanceToday ?? device?.distance_today ?? device?.distance_km ?? device?.distance
   const signalStrength = device?.signalStrength ?? device?.signal_strength ?? device?.signal ?? device?.rssi
+  const vehicleType = ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike'
+  const batteryLevel = device?.battery ?? device?.last_battery ?? null
 
   if (loading && !device) return (
       <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">
@@ -525,7 +540,7 @@ export default function DeviceDetail() {
            <ChevronLeft size={20} className="text-primary-500" style={{ transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </button>
         <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#07111f]">
-          <CarFront size={24} className="text-[#38d39f]" />
+          <VehicleIcon type={vehicleType} iconSize={24} className="!h-10 !w-10 !rounded-xl" />
         </div>
         <div className="flex-1 min-w-0">
             {editing ? (
@@ -540,17 +555,7 @@ export default function DeviceDetail() {
             )}
             <p className="text-xs font-mono text-slate-500">{device?.plate || device?.imei || (isAr ? 'معرّف غير متاح' : 'Identifier unavailable')}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {editing ? (
-                <input
-                  aria-label={isAr ? 'اسم السائق' : 'Nom du conducteur'}
-                  value={editForm.driver}
-                  onChange={event => setEditForm(form => ({ ...form, driver: event.target.value }))}
-                  placeholder={isAr ? 'اسم السائق' : 'Nom du conducteur'}
-                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#07111f]/70 px-2 py-1 text-xs font-semibold text-white outline-none focus:border-[#38d39f]"
-                />
-              ) : (
-                <span className="text-xs font-semibold text-slate-300">{device?.driver || (isAr ? 'لا يوجد سائق' : 'Aucun conducteur')}</span>
-              )}
+              <span className="text-xs font-semibold text-slate-300">{editing ? editForm.driver || (isAr ? 'لا يوجد سائق' : 'Aucun conducteur') : device?.driver || (isAr ? 'لا يوجد سائق' : 'Aucun conducteur')}</span>
               {canCallDriver() && (
                 <button onClick={callDriver} className="inline-flex items-center gap-1 rounded-lg bg-[#1DBF73]/15 px-2 py-1 text-[10px] font-bold text-[#8ceac5] transition hover:bg-[#1DBF73]/25">
                   <Phone size={11} />{isAr ? 'اتصال مباشر' : 'Appeler'}
@@ -570,24 +575,6 @@ export default function DeviceDetail() {
           </button>
         )}
         </div>
-        {editing && (
-          <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
-            <Phone size={14} className="text-[#38d39f]" />
-            <input
-              aria-label={isAr ? 'هاتف السائق' : 'Téléphone du conducteur'}
-              value={editForm.phone}
-              onChange={event => setEditForm(form => ({ ...form, phone: event.target.value }))}
-              placeholder={isAr ? '+212 6…' : '+212 6…'}
-              inputMode="tel"
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#07111f]/70 px-2 py-1.5 text-xs font-semibold text-white outline-none focus:border-[#38d39f]"
-            />
-            <button onClick={() => setEditing(false)} className="rounded-lg p-2 text-slate-400 hover:text-white"><CloseX size={16} /></button>
-            <button onClick={saveEdit} disabled={saving} className="inline-flex items-center gap-1 rounded-lg bg-[#1DBF73] px-3 py-2 text-[11px] font-bold text-[#07111f] disabled:opacity-50">
-              {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-              {isAr ? 'حفظ' : 'Enregistrer'}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Status bar */}
@@ -599,15 +586,15 @@ export default function DeviceDetail() {
 
       {/* Quick stats */}
       {device && (
-        <div className="grid grid-cols-2 gap-2.5 px-5 mb-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
           {[
-              { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? `${Math.round(Number(device.battery))}%` : '—', color: Number(device.battery) < 30 ? '#ff625d' : '#38d39f', always: true, bar: device.battery },
               { Icon:Gauge, label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? `${Math.round(Number(currentSpeed))} km/h` : '—', color:'#38d39f', always: true },
-              { Icon:Radio, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff', always: true },
+              { Icon:Battery, label:isAr?'البطارية':'Batterie', val: batteryLevel != null ? `${Math.round(Number(batteryLevel))}%` : '—', color: Number(batteryLevel) < 30 ? '#ff625d' : '#38d39f', always: true, bar: batteryLevel },
               { Icon:Activity, label:'IMEI', val: device.imei || '—', color:'#d9ad62', always: true },
-              { Icon:Clock, label:isAr?'آخر تحديث':'Dernière mise à jour', val: lastUpdate ? timeAgo(lastUpdate, lang) : '—', color:'#b49cff', always: true },
-                    ].filter(m => m.always || m.val != null).map(({ Icon, label, val, color, bar },i) => (
-            <div key={i} className="flex min-w-0 flex-col items-center rounded-2xl p-3.5"
+              { Icon:Radio, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff', always: true },
+              { Icon:Clock, label:isAr?'آخر تحديث':'Dernière mise à jour', val: lastUpdate ? timeAgo(lastUpdate, lang) : '—', color:'#b49cff', always: true, className:'col-span-2' },
+                    ].filter(m => m.always || m.val != null).map(({ Icon, label, val, color, bar, className },i) => (
+            <div key={i} className={`flex min-w-0 flex-col items-center rounded-2xl p-3.5 ${className || ''}`}
               style={cardStyle}>
               <Icon size={16} style={{ color }} className="mb-1.5"/>
                <span className={`max-w-full truncate text-xs font-bold text-[#edf4f2] ${label === 'IMEI' ? 'font-mono' : ''}`}>{val}</span>
@@ -725,7 +712,9 @@ export default function DeviceDetail() {
                         <Pencil size={11}/>{isAr ? 'تعديل' : 'Modifier'}
                       </button>
                     : <div className="flex items-center gap-2">
-                        <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-slate-600"><CloseX size={14}/></button>
+                        <button onClick={() => setEditing(false)} className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-slate-600">
+                          <CloseX size={14}/>{isAr ? 'إلغاء' : 'Annuler'}
+                        </button>
                         <button onClick={saveEdit} disabled={saving}
                           className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:opacity-70 disabled:opacity-50">
                           {saving ? <Loader2 size={11} className="animate-spin"/> : <Check size={11}/>}
@@ -740,6 +729,7 @@ export default function DeviceDetail() {
                     {[
                       { label: isAr?'اسم الجهاز':'Nom', key:'name', placeholder: isAr?'مثال: سيارة المدير':'Ex: Voiture du directeur' },
                       { label: isAr?'السائق':'Conducteur', key:'driver', placeholder: isAr?'اسم السائق':'Nom du conducteur' },
+                      { label: isAr?'هاتف السائق':'Téléphone', key:'phone', placeholder: isAr?'+212 6…':'+212 6…', inputMode:'tel' },
                       { label: isAr?'اللوحة':'Plaque', key:'plate', placeholder: isAr?'رقم اللوحة':'Numéro de plaque' },
                     ].map(field => (
                       <div key={field.key} className="flex items-center gap-3 px-4 py-2.5">
@@ -749,6 +739,7 @@ export default function DeviceDetail() {
                           value={editForm[field.key]}
                           onChange={e => setEditForm(f => ({ ...f, [field.key]: e.target.value }))}
                           placeholder={field.placeholder}
+                          inputMode={field.inputMode}
                         />
                       </div>
                     ))}
