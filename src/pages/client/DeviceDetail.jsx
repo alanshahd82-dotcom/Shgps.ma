@@ -433,23 +433,6 @@ export default function DeviceDetail() {
     if (canCallDriver()) window.location.href = `tel:${driverPhone()}`
   }
 
-  async function openReplayFromHeader() {
-    if (!trackingEnabled || replayLoading) return
-    setReplayLoading('header')
-    try {
-      const route = routePoints.length > 1 ? routePoints : await loadRoute()
-      if (route?.length > 1) {
-        setReplayTrip({
-          startTime: route[0].fixTime,
-          endTime: route.at(-1).fixTime,
-          route,
-        })
-      }
-    } finally {
-      setReplayLoading('')
-    }
-  }
-
   async function generateShareLink() {
     try {
       const data = await api.sharing.create(id, 24)
@@ -612,14 +595,6 @@ export default function DeviceDetail() {
             className="ath-btn-solid col-span-2 flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Map size={16} />{isAr ? 'عرض على الخريطة' : 'Voir sur la carte'}
-          </button>
-          <button
-            onClick={openReplayFromHeader}
-            disabled={!trackingEnabled || Boolean(replayLoading)}
-            className="ath-btn-g flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {replayLoading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} fill="currentColor" />}
-            {isAr ? 'إعادة المسار' : 'Rejouer le trajet'}
           </button>
         </div>
       )}
