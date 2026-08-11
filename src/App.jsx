@@ -10,6 +10,7 @@ import ClientLogin from './pages/client/Login'
 import ForgotPassword from './pages/client/ForgotPassword'
 import ResetPassword from './pages/client/ResetPassword'
 import ClientHome from './pages/client/Home'
+import Subscriptions from './pages/client/Subscriptions'
 import DeviceList from './pages/client/DeviceList'
 import DeviceDetail from './pages/client/DeviceDetail'
 import Alerts from './pages/client/Alerts'
@@ -144,6 +145,7 @@ export default function App() {
           <Route path="/client/reset-password"  element={<ResetPassword />} />
 
           <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />
+          <Route path="/subscriptions"          element={<ClientRoute><Subscriptions /></ClientRoute>} />
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
           <Route path="/client/alerts"          element={<ClientRoute><Alerts /></ClientRoute>} />

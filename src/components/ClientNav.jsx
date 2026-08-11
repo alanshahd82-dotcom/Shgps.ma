@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Car, Map, Settings, MoreHorizontal, BarChart2, Bell } from 'lucide-react'
+import { Home, Car, Map, Settings, MoreHorizontal, BarChart2, Bell, Gauge, LogOut, MapPinned } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
@@ -8,23 +8,26 @@ const PRIMARY_NAV = [
   { path: '/client/home',     icon: Home,     labelKey: 'home'    },
   { path: '/client/devices',  icon: Car,      labelKey: 'devices' },
   { path: '/client/map',      icon: Map,      labelKey: 'liveMap' },
-  { path: '/client/settings', icon: Settings, labelKey: 'settings'},
 ]
 
 const MORE_NAV = [
+  { path: '/client/map',     icon: MapPinned, label: 'الخريطة', labelFr: 'Carte' },
   { path: '/client/reports', icon: BarChart2, labelKey: 'reports' },
   { path: '/client/alerts',  icon: Bell,      labelKey: 'alerts',  badge: true },
+  { path: '/client/driver-behavior', icon: Gauge, label: 'سلوك السائق', labelFr: 'Comportement' },
+  { path: '/client/settings', icon: Settings, labelKey: 'settings' },
 ]
 
 export default function ClientNav() {
   const navigate  = useNavigate()
   const location  = useLocation()
-  const { unreadCount, lang } = useApp()
+  const { unreadCount, lang, logoutClient } = useApp()
   const [moreOpen, setMoreOpen] = useState(false)
 
   const isMoreActive = MORE_NAV.some(item =>
     location.pathname === item.path ||
-    (item.path !== '/client/home' && location.pathname.startsWith(item.path))
+    (item.path !== '/client/home' && location.pathname.startsWith(item.path)) ||
+    location.pathname === '/subscriptions'
   )
 
   function navTo(path) { navigate(path); setMoreOpen(false) }
@@ -39,7 +42,7 @@ export default function ClientNav() {
       {/* More panel — slides up above nav bar */}
       {moreOpen && (
         <div
-          className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-50 min-w-[170px] overflow-hidden rounded-2xl border border-white/10 bg-[#0e2035]/95 shadow-2xl backdrop-blur-xl"
+          className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-50 min-w-[210px] overflow-hidden rounded-2xl border border-white/10 bg-[#0e2035]/95 shadow-2xl backdrop-blur-xl"
           style={{ boxShadow: '0 -4px 32px rgba(0,0,0,.35)' }}
         >
           {MORE_NAV.map(item => {
@@ -64,11 +67,18 @@ export default function ClientNav() {
                   )}
                 </div>
                 <span className="text-sm font-semibold" style={{ color: active ? '#38d39f' : '#a2b3c1' }}>
-                  {t(lang, item.labelKey)}
+                  {item.labelKey ? t(lang, item.labelKey) : (lang === 'ar' ? item.label : item.labelFr)}
                 </span>
               </button>
             )
           })}
+          <button
+            onClick={async () => { setMoreOpen(false); await logoutClient(); navigate('/client/login') }}
+            className="flex w-full items-center gap-3 border-t border-white/10 px-4 py-3.5 text-start transition-colors hover:bg-white/5"
+          >
+            <LogOut size={18} style={{ color: '#a2b3c1' }} />
+            <span className="text-sm font-semibold" style={{ color: '#a2b3c1' }}>{t(lang, 'logout')}</span>
+          </button>
         </div>
       )}
 

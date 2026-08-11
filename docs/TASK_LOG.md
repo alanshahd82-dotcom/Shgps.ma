@@ -242,3 +242,11 @@ This file records the completed replay-related work and the current import audit
 - Restyled `src/pages/client/Home.jsx` to match the Athar GPS reference with a live fleet card, real status donut and speed, animated status counts, subscription progress, shortcuts, and recent device cards.
 - Kept all existing `useApp()` bindings, routes, device detail handlers, subscription calculations, Arabic/French labels, and the shared vehicle icon helper intact.
 - Verification: `npm run build` passes and `git diff --check` passes.
+
+## Single-screen home, subscriptions, and More shortcuts
+
+- Reworked `src/pages/client/Home.jsx` into a no-scroll viewport layout containing only the live fleet card, real status grid, and clickable subscriptions summary.
+- Added `src/pages/client/Subscriptions.jsx` with real device subscription dates, remaining-day status styling, bilingual empty state, and WhatsApp/email renewal actions.
+- Added `/subscriptions` behind the existing client auth guard, moved the four shortcuts into the More sheet, and added the existing logout action there.
+- Added `src/config/contact.js` with clearly marked placeholder renewal contacts.
+- Verification: `npm run build` passes and `git diff --check` passes.
