@@ -504,15 +504,7 @@ async function connectTraccar() {
 
       // Send only if at least one device in the message belongs to this client
       const allowed = [...deviceIds].some(tid => traccarOwnerCache.get(tid) === client.userId)
-      if (allowed) {
-        // Convert speed from knots to km/h for live positions before broadcasting
-        let outMsg = msg
-        if (parsed && Array.isArray(parsed.positions)) {
-          const patched = { ...parsed, positions: parsed.positions.map(p => ({ ...p, speed: Math.round(Math.max(0, Number(p.speed ?? 0) * 1.852)) })) }
-          try { outMsg = JSON.stringify(patched) } catch {}
-        }
-        client.send(outMsg)
-      }
+      if (allowed) client.send(msg)
     }
   })
 

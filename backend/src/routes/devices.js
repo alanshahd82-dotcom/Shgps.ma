@@ -201,7 +201,7 @@ import {
           status,
           lat:       trackingEnabled && p != null ? p.latitude  : null,
           lng:       trackingEnabled && p != null ? p.longitude : null,
-          speed:     trackingEnabled ? Math.round(Math.max(0, Number(p?.speed ?? 0) * 1.852)) : null,
+          speed:     trackingEnabled ? (p?.speed     ?? 0) : null,
           lastUpdate:trackingEnabled ? (p?.fixTime   ?? null) : null,
           engineOn:  trackingEnabled ? (p?.attributes?.ignition ?? false) : false,
           battery:   trackingEnabled ? (p?.attributes?.battery ?? p?.attributes?.batteryLevel ?? p?.attributes?.voltage ?? p?.attributes?.power ?? null) : null,
