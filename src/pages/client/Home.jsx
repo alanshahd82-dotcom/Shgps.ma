@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Activity, CalendarDays, ChevronRight, CirclePause, CircleStop, WifiOff
@@ -8,6 +8,9 @@ import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import { getDeviceStatusKey } from '../../components/ui'
 import { getSubscriptionSnapshot, getSubscriptionPlan } from '../../utils/subscriptions'
+import promoSlide1 from '../../assets/promo/slide1.png'
+import promoSlide2 from '../../assets/promo/slide2.png'
+import promoSlide3 from '../../assets/promo/slide3.png'
 
 const STATUS = {
   moving:  { ar: 'تتحرك', fr: 'En mouvement', color: '#00D97E' },
@@ -58,6 +61,112 @@ function Stat({ label, value, color, icon: Icon, animate }) {
         <span className="mt-1 block truncate text-[9px] font-bold" style={{ color: 'var(--ath-mut)' }}>{label}</span>
       </span>
     </div>
+  )
+}
+
+const PROMO_SLIDES = [
+  {
+    image: promoSlide1,
+    fallback: '🛰️',
+    title: { ar: 'تتبّع لحظي دقيق', fr: 'Suivi en temps réel précis' },
+    body: { ar: 'شاهد مركباتك على الخريطة في الوقت الفعلي', fr: 'Visualisez vos véhicules sur la carte en temps réel' },
+  },
+  {
+    image: promoSlide2,
+    fallback: '🛡️',
+    title: { ar: 'تنبيهات ذكية', fr: 'Alertes intelligentes' },
+    body: { ar: 'إشعارات فورية عند تجاوز السرعة أو الخروج عن المسار', fr: 'Notifications instantanées en cas d’excès de vitesse ou de sortie de route' },
+  },
+  {
+    image: promoSlide3,
+    fallback: '📊',
+    title: { ar: 'تقارير احترافية', fr: 'Rapports professionnels' },
+    body: { ar: 'إحصائيات الرحلات وسلوك السائقين بنقرة واحدة', fr: 'Statistiques des trajets et du comportement des conducteurs en un clic' },
+  },
+]
+
+function PromoCarousel({ lang, reducedMotion, sectionStyle }) {
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const [failedImages, setFailedImages] = useState({})
+  const touchStartX = useRef(null)
+  const isAr = lang === 'ar'
+
+  useEffect(() => {
+    if (reducedMotion || paused) return undefined
+    const timer = window.setInterval(() => {
+      setActiveIndex(index => (index + 1) % PROMO_SLIDES.length)
+    }, 4000)
+    return () => window.clearInterval(timer)
+  }, [paused, reducedMotion])
+
+  function goTo(index) {
+    setActiveIndex((index + PROMO_SLIDES.length) % PROMO_SLIDES.length)
+  }
+
+  function handleTouchStart(event) {
+    touchStartX.current = event.touches[0]?.clientX ?? null
+    setPaused(true)
+  }
+
+  function handleTouchEnd(event) {
+    const startX = touchStartX.current
+    const endX = event.changedTouches[0]?.clientX
+    touchStartX.current = null
+    if (startX == null || endX == null || Math.abs(endX - startX) < 35) return
+    goTo(activeIndex + (endX < startX ? 1 : -1))
+  }
+
+  return (
+    <section
+      className="ath-promo relative min-h-0 flex-1 overflow-hidden rounded-[var(--ath-r)]"
+      style={sectionStyle(180)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      aria-label={isAr ? 'مزايا Athar GPS' : 'Fonctionnalités Athar GPS'}
+    >
+      <div
+        className="flex h-full transition-transform duration-500 ease-out"
+        style={{ transform: `translateX(-${activeIndex * 100}%)`, direction: 'ltr' }}
+      >
+        {PROMO_SLIDES.map((slide, index) => (
+          <div key={slide.title.ar} className="relative h-full min-w-full overflow-hidden">
+            {failedImages[index] ? (
+              <div className="flex h-full w-full items-center justify-center bg-[#10253b] text-5xl" aria-hidden="true">
+                {slide.fallback}
+              </div>
+            ) : (
+              <img
+                src={slide.image}
+                alt=""
+                className="h-full w-full object-cover object-center"
+                onError={() => setFailedImages(current => ({ ...current, [index]: true }))}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030914]/90 via-[#061222]/25 to-transparent" />
+            <div className={`absolute inset-x-0 bottom-0 p-4 ${isAr ? 'text-right' : 'text-left'}`}>
+              <p className="text-sm font-black text-white drop-shadow-md">{isAr ? slide.title.ar : slide.title.fr}</p>
+              <p className="mt-1 max-w-[85%] text-[10px] font-semibold leading-4 text-white/80">{isAr ? slide.body.ar : slide.body.fr}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5" dir="ltr">
+        {PROMO_SLIDES.map((slide, index) => (
+          <button
+            key={slide.title.ar}
+            type="button"
+            onClick={() => { goTo(index); setPaused(true) }}
+            className="h-1.5 rounded-full transition-all"
+            style={{ width: index === activeIndex ? 18 : 6, background: index === activeIndex ? '#00D97E' : 'rgba(255,255,255,.55)' }}
+            aria-label={isAr ? `الشريحة ${index + 1}` : `Diapositive ${index + 1}`}
+            aria-current={index === activeIndex ? 'true' : undefined}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -146,7 +255,7 @@ export default function Home() {
         }}
       >
         <div className="mx-auto flex h-full min-h-0 max-w-xl flex-col gap-2.5">
-          <section className="ath-card relative min-h-0 shrink-0 overflow-hidden p-4 sm:p-5" style={{ ...sectionStyle(0), color: 'var(--ath-txt)' }}>
+          <section className="ath-card relative min-h-0 shrink-0 overflow-hidden p-3.5 sm:p-5" style={{ ...sectionStyle(0), color: 'var(--ath-txt)' }}>
             <div
               className="pointer-events-none absolute -end-16 -top-24 h-52 w-52 rounded-full"
               style={{ background: 'radial-gradient(circle, rgba(0,217,126,.22), transparent 68%)' }}
@@ -161,7 +270,7 @@ export default function Home() {
               </div>
 
               <div
-                className="relative flex h-[5.8rem] w-[5.8rem] shrink-0 items-center justify-center rounded-full p-2"
+                className="relative flex h-[5.2rem] w-[5.2rem] shrink-0 items-center justify-center rounded-full p-2"
                 style={{
                   background: donut,
                   transform: `rotate(${mounted ? 360 : 0}deg)`,
@@ -178,7 +287,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative mt-3 flex items-center justify-between gap-2 border-t border-[var(--ath-line)] pt-2.5">
+            <div className="relative mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--ath-line)] pt-2.5">
               <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold" style={{ color: 'var(--ath-txt)' }}>
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${movingDevice ? 'live-dot' : ''}`} style={{ background: movingDevice ? STATUS.moving.color : STATUS.offline.color }} />
                 <span className="truncate">
@@ -194,7 +303,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="grid min-h-0 shrink-0 grid-cols-2 gap-2.5" style={sectionStyle(60)}>
+          <section className="grid min-h-0 shrink-0 grid-cols-2 gap-2" style={sectionStyle(60)}>
             <Stat label={isAr ? 'تتحرك' : 'En mouvement'} value={stats.moving} color={STATUS.moving.color} icon={Activity} animate={!reducedMotion} />
             <Stat label={isAr ? 'متوقفة' : 'À l’arrêt'} value={stats.stopped} color={STATUS.stopped.color} icon={CircleStop} animate={!reducedMotion} />
             <Stat label={isAr ? 'خاملة' : 'Au ralenti'} value={stats.idle} color={STATUS.idle.color} icon={CirclePause} animate={!reducedMotion} />
@@ -204,7 +313,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => navigate('/subscriptions')}
-            className="ath-card group min-h-0 shrink-0 p-4 text-start transition-all hover:-translate-y-0.5 hover:border-[rgba(224,179,111,.4)] sm:p-5"
+            className="ath-card group min-h-0 shrink-0 p-3.5 text-start transition-all hover:-translate-y-0.5 hover:border-[rgba(224,179,111,.4)] sm:p-5"
             style={{ ...sectionStyle(120), color: 'var(--ath-txt)' }}
           >
             <div className="flex items-center justify-between gap-3">
@@ -225,7 +334,7 @@ export default function Home() {
               </span>
             </div>
 
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: 'rgba(224,179,111,.13)' }}>
+            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: 'rgba(224,179,111,.13)' }}>
               <div
                 className="h-full rounded-full"
                 style={{
@@ -248,6 +357,8 @@ export default function Home() {
               )}
             </div>
           </button>
+
+          <PromoCarousel lang={lang} reducedMotion={reducedMotion} sectionStyle={sectionStyle} />
         </div>
       </main>
 

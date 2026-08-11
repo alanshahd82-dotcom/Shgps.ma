@@ -250,3 +250,11 @@ This file records the completed replay-related work and the current import audit
 - Added `/subscriptions` behind the existing client auth guard, moved the four shortcuts into the More sheet, and added the existing logout action there.
 - Added `src/config/contact.js` with clearly marked placeholder renewal contacts.
 - Verification: `npm run build` passes and `git diff --check` passes.
+
+## Design 3/10 follow-up — 3D carousel and admin-managed renewal contacts
+
+- Added the supplied three promotional images to the client home screen as a fixed-height, auto-rotating, swipeable carousel with Arabic/French copy, dots, touch hover pause, reduced-motion support, and emoji fallback only when an image fails.
+- Added public `GET /api/settings/renewal-contacts` and admin-protected `PUT /api/settings/renewal-contacts`, persisted through the existing `app_settings.support_contacts` record with safe defaults.
+- Added WhatsApp and email renewal contact fields to the admin Support Settings screen. The client subscription page now loads those values at runtime and disables unavailable links with a friendly hint.
+- Removed the old hardcoded renewal contact module; tracking, authentication, WebSocket, and existing support settings remain unchanged.
+- Verification: `npm run build`, backend syntax checks, and `git diff --check` pass.

@@ -1,7 +1,12 @@
 import { Router } from 'express'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { db } from '../db.js'
-import { getSupportSettings, saveSupportSettings } from '../services/supportSettings.js'
+import {
+  getRenewalContacts,
+  getSupportSettings,
+  saveRenewalContacts,
+  saveSupportSettings,
+} from '../services/supportSettings.js'
 
 export const settingsRouter = Router()
 
@@ -22,5 +27,25 @@ settingsRouter.put('/support', requireAuth, requireAdmin, async (req, res) => {
     const status = err.code?.startsWith('INVALID_') ? 400 : 500
     console.error('[settings/support update]', err)
     res.status(status).json({ error: err.message || 'Unable to save support contacts' })
+  }
+})
+
+// Renewal contacts are public because authenticated clients use them to start a request.
+settingsRouter.get('/renewal-contacts', async (_req, res) => {
+  try {
+    res.json(await getRenewalContacts(db))
+  } catch (err) {
+    console.error('[settings/renewal-contacts]', err)
+    res.status(500).json({ error: 'Unable to load renewal contacts' })
+  }
+})
+
+settingsRouter.put('/renewal-contacts', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    res.json(await saveRenewalContacts(db, req.body || {}))
+  } catch (err) {
+    const status = err.code?.startsWith('INVALID_') ? 400 : 500
+    console.error('[settings/renewal-contacts update]', err)
+    res.status(status).json({ error: err.message || 'Unable to save renewal contacts' })
   }
 })

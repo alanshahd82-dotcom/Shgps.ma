@@ -135,8 +135,10 @@ export const api = {
   },
   settings: {
     support: () => apiFetch('/settings/support'),
+    renewalContacts: () => apiFetch('/settings/renewal-contacts'),
   },
   adminSettings: {
     support: (data) => apiFetch('/settings/support', { method: 'PUT', body: JSON.stringify(data) }),
+    renewalContacts: (data) => apiFetch('/settings/renewal-contacts', { method: 'PUT', body: JSON.stringify(data) }),
   },
 }

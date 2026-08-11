@@ -608,6 +608,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: 0 6px 22px rgba(0,0,0,.25);
 }
 
+.ath-promo {
+  min-height: 96px;
+  max-height: 170px;
+  border: 1px solid rgba(148,180,215,.10);
+  background: var(--ath-card);
+  box-shadow: 0 14px 34px rgba(0,0,0,.22);
+}
+
 .ath-badge {
   font-size: 10px;
   font-weight: 700;
