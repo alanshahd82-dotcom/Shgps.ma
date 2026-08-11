@@ -113,8 +113,14 @@ function PromoCarousel({ lang, reducedMotion, sectionStyle }) {
     const startX = touchStartX.current
     const endX = event.changedTouches[0]?.clientX
     touchStartX.current = null
+    setPaused(false)
     if (startX == null || endX == null || Math.abs(endX - startX) < 35) return
     goTo(activeIndex + (endX < startX ? 1 : -1))
+  }
+
+  function handleTouchCancel() {
+    touchStartX.current = null
+    setPaused(false)
   }
 
   return (
@@ -125,6 +131,7 @@ function PromoCarousel({ lang, reducedMotion, sectionStyle }) {
       onMouseLeave={() => setPaused(false)}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       aria-label={isAr ? 'مزايا Athar GPS' : 'Fonctionnalités Athar GPS'}
     >
       <div
