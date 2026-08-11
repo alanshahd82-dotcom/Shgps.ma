@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  User, Lock, Globe, Moon, Bell, LogOut, Eye, EyeOff,
+  User, Lock, Globe, Moon, Bell, Volume2, LogOut, Eye, EyeOff,
   Users, Plus, Trash2, X, CheckCircle, Info
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
@@ -19,13 +19,14 @@ const TABS = [
   { key: 'subusers',  Icon: Users, ar: 'المستخدمون',  fr: 'Utilisateurs' },
 ]
 
-function Toggle({ checked, onChange }) {
+function Toggle({ checked, onChange, isAr = false }) {
   return (
     <button type="button" onClick={() => onChange(!checked)}
+      aria-pressed={checked}
       className="relative inline-flex items-center flex-shrink-0 rounded-full transition-colors duration-200"
-      style={{ width: 44, height: 24, background: checked ? '#38d39f' : 'rgba(255,255,255,0.15)' }}>
+      style={{ width: 46, height: 26, background: checked ? 'var(--ath-green)' : 'rgba(148,180,215,.18)', border: '1px solid ' + (checked ? 'rgba(0,217,126,.65)' : 'rgba(148,180,215,.14)') }}>
       <span className="inline-block w-5 h-5 rounded-full bg-white shadow transition-transform duration-200"
-        style={{ transform: checked ? 'translateX(22px)' : 'translateX(2px)' }}/>
+        style={{ transform: checked ? `translateX(${isAr ? -20 : 20}px)` : 'translateX(2px)' }}/>
     </button>
   )
 }
@@ -80,6 +81,12 @@ export default function Settings() {
   const [subErr, setSubErr] = useState('')
   const [subLoadErr, setSubLoadErr] = useState('')
   const showSubErr = (msg) => { setSubErr(msg); setTimeout(() => setSubErr(''), 4000) }
+  const [speedLimit, setSpeedLimit] = useState(() => {
+    const stored = Number(localStorage.getItem('athargps_speed_limit'))
+    return Number.isFinite(stored) && stored >= 30 && stored <= 160 ? stored : 80
+  })
+  const [settingsMsg, setSettingsMsg] = useState('')
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('athargps_sound') !== 'false')
 
   useEffect(() => {
     if (tab === 'subusers') loadSubUsers()
@@ -156,8 +163,15 @@ export default function Settings() {
     })
   }
 
-  const inputStyle = { background: 'rgba(7,17,31,0.6)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff' }
-  const cardStyle  = { background: 'rgba(14,32,53,0.85)', border: '1px solid rgba(255,255,255,0.08)' }
+  function saveAppearance() {
+    localStorage.setItem('athargps_speed_limit', String(speedLimit))
+    localStorage.setItem('athargps_sound', String(soundEnabled))
+    setSettingsMsg(isAr ? 'تم حفظ الإعدادات ✓' : 'Paramètres enregistrés ✓')
+    setTimeout(() => setSettingsMsg(''), 3000)
+  }
+
+  const inputStyle = { background: 'var(--ath-card2)', border: '1px solid var(--ath-line)', color: 'var(--ath-txt)' }
+  const cardStyle  = { background: 'linear-gradient(180deg, var(--ath-card), var(--ath-card2))', border: '1px solid var(--ath-line)' }
 
   return (
     <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
@@ -165,23 +179,30 @@ export default function Settings() {
 
       {/* Header */}
       <div className="px-5 pt-5 pb-4">
-        <h1 className="text-white font-extrabold text-xl">{t(lang,'settings')}</h1>
+        <p className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: 'var(--ath-green)' }}>
+          {isAr ? 'تخصيص التجربة' : 'Personnalisez votre expérience'}
+        </p>
+        <h1 className="text-white font-extrabold text-xl mt-1">{t(lang,'settings')}</h1>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1.5 px-5 pb-4 overflow-x-auto" style={{ scrollbarWidth:'none' }}>
+      <div className="relative mb-1">
+      <div className="flex gap-2 px-5 pb-4 overflow-x-auto" style={{ scrollbarWidth:'none', paddingInlineEnd: 28, scrollPaddingInline: 20 }}>
         {TABS.map(({ key, Icon, ar, fr }) => {
           const active = tab === key
           return (
             <motion.button key={key} whileTap={{ scale:0.94 }} onClick={() => setTab(key)}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all"
+              className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-full text-xs font-semibold transition-all"
               style={active
-                ? { background:'#38d39f', color:'#07111f' }
-                : { background:'rgba(14,32,53,0.85)', color:'rgba(255,255,255,0.6)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                ? { background:'var(--ath-green)', color:'#04120B', border:'1px solid var(--ath-green)' }
+                : { background:'var(--ath-card)', color:'var(--ath-mut)', border:'1px solid var(--ath-line)' }}>
               <Icon size={12}/>{isAr ? ar : fr}
             </motion.button>
           )
         })}
+      </div>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 w-7"
+        style={{ [isAr ? 'left' : 'right']: 0, background: isAr ? 'linear-gradient(to right, var(--ath-bg), transparent)' : 'linear-gradient(to left, var(--ath-bg), transparent)' }}/>
       </div>
 
       <div className="px-5 space-y-4">
@@ -250,7 +271,8 @@ export default function Settings() {
         {/* ── APPEARANCE ── */}
         {tab === 'appear' && (
           <motion.div key="appear" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }}
-            className="space-y-3 p-5 rounded-2xl" style={cardStyle}>
+            className="space-y-4" >
+            <div className="ath-card" style={{ padding: 0, overflow: 'hidden' }}>
             {[
               { Icon: Globe, label: isAr ? 'اللغة' : 'Langue', ctrl: (
                 <div className="flex gap-2">
@@ -265,18 +287,58 @@ export default function Settings() {
                   ))}
                 </div>
               )},
-              { Icon: Moon, label: isAr ? 'الوضع الليلي' : 'Mode sombre', ctrl: <Toggle checked={!!darkMode} onChange={toggleDarkMode}/> },
-              { Icon: Bell, label: isAr ? 'الإشعارات' : 'Notifications', ctrl: <Toggle checked={!!pushEnabled} onChange={v => v ? requestPushPermission() : disablePush()}/> },
-            ].map(({ Icon, label, ctrl }, i) => (
-              <div key={i} className="flex items-center justify-between py-2"
-                style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+               { Icon: Moon, label: isAr ? 'الوضع الداكن' : 'Mode sombre', ctrl: <Toggle checked={!!darkMode} isAr={isAr} onChange={toggleDarkMode}/> },
+               { Icon: Bell, label: isAr ? 'الإشعارات الفورية' : 'Notifications push', ctrl: <Toggle checked={!!pushEnabled} isAr={isAr} onChange={v => v ? requestPushPermission() : disablePush()}/> },
+               { Icon: Volume2, label: isAr ? 'تنبيه صوتي' : 'Alerte sonore', ctrl: <Toggle checked={soundEnabled} isAr={isAr} onChange={setSoundEnabled}/> },
+            ].map(({ Icon, label, ctrl }, i, rows) => (
+              <div key={i} className="flex items-center justify-between gap-4 px-4 py-4"
+                style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--ath-line)' : 'none' }}>
                 <div className="flex items-center gap-2.5">
-                  <Icon size={16} style={{ color: 'rgba(255,255,255,0.45)' }}/>
-                  <span className="text-white text-sm">{label}</span>
+                  <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,217,126,.10)' }}>
+                    <Icon size={16} style={{ color: 'var(--ath-green)' }}/>
+                  </span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--ath-txt)' }}>{label}</span>
                 </div>
                 {ctrl}
               </div>
             ))}
+            </div>
+
+            <div className="ath-card">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>{isAr ? 'حد السرعة' : 'Limite de vitesse'}</p>
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--ath-mut)' }}>
+                    {isAr ? 'تنبيه عند تجاوز السرعة المحددة' : 'Alerte lorsque la vitesse est dépassée'}
+                  </p>
+                </div>
+                <span className="ath-badge" style={{ background: 'rgba(0,217,126,.12)', color: 'var(--ath-green2)' }}>
+                  {speedLimit} {isAr ? 'كم/س' : 'km/h'}
+                </span>
+              </div>
+              <div className="relative pt-2">
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(148,180,215,.14)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${((speedLimit - 30) / 130) * 100}%`, background: 'linear-gradient(90deg, var(--ath-teal), var(--ath-green))' }}/>
+                </div>
+                <input type="range" min="30" max="160" step="5" value={speedLimit}
+                  onChange={e => setSpeedLimit(Number(e.target.value))}
+                  aria-label={isAr ? 'حد السرعة' : 'Limite de vitesse'}
+                  className="absolute inset-x-0 top-0 w-full opacity-0 cursor-pointer" style={{ height: 24 }}/>
+                <div className="flex justify-between mt-2 text-[9px]" style={{ color: 'var(--ath-mut)' }}>
+                  <span>30 {isAr ? 'كم/س' : 'km/h'}</span>
+                  <span>160 {isAr ? 'كم/س' : 'km/h'}</span>
+                </div>
+              </div>
+            </div>
+
+            {settingsMsg && (
+              <p className="text-xs text-center font-bold" style={{ color: 'var(--ath-green2)' }}>{settingsMsg}</p>
+            )}
+            <motion.button type="button" whileTap={{ scale: .97 }} onClick={saveAppearance}
+              className="ath-btn-solid flex items-center justify-center gap-2">
+              <CheckCircle size={16}/>
+              {isAr ? 'حفظ الإعدادات' : 'Enregistrer les paramètres'}
+            </motion.button>
           </motion.div>
         )}
 

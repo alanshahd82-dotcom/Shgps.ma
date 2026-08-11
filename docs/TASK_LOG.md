@@ -309,3 +309,15 @@ This file records the completed replay-related work and the current import audit
 - Preserved the last known battery, signal, and fuel values when a stale/offline refresh omits live attributes.
 - Kept name, driver, phone, plate, and vehicle type editing in the visible form with Save/Cancel controls, the `تم الحفظ ✅` confirmation, and direct calling from the saved phone.
 - Verification: `npm run build` and `git diff --check` pass.
+
+## Design 8/10 — alerts, driver behavior, and settings restyle
+
+- Restyled the client alerts screen with counted RTL-safe filters, severity-colored notification tiles, unread indicators, bilingual empty state, and preserved mark-read handlers.
+- Restyled driver behavior with an animated real-data safety ring, three behavior metrics, weekly event rows, and a friendly no-data state instead of a misleading zero score.
+- Restyled settings with grouped bilingual toggle rows, speed-limit slider and live readout, local persistence, save confirmation, and RTL-safe tabs.
+- Presentation-only delivery: existing data fetching, handlers, authentication, backend, WebSocket behavior, and unrelated pages remain unchanged.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.
