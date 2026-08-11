@@ -8,9 +8,9 @@ import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import { getDeviceStatusKey } from '../../components/ui'
 import { getSubscriptionSnapshot, getSubscriptionPlan } from '../../utils/subscriptions'
-import promoSlide1 from '../../assets/promo/slide1.png'
-import promoSlide2 from '../../assets/promo/slide2.png'
-import promoSlide3 from '../../assets/promo/slide3.png'
+import promoSlide1 from '../../assets/promo/slide1.jpg'
+import promoSlide2 from '../../assets/promo/slide2.jpg'
+import promoSlide3 from '../../assets/promo/slide3.jpg'
 
 const STATUS = {
   moving:  { ar: 'تتحرك', fr: 'En mouvement', color: '#00D97E' },
