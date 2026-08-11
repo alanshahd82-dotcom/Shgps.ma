@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ChevronRight, Car, Clock, RefreshCw, Wifi } from 'lucide-react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { Search, X, ChevronRight, Satellite, BatteryMedium, Clock, RefreshCw } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
@@ -15,6 +15,7 @@ import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 const FILTERS = [
   { key: 'all', ar: 'الكل', fr: 'Tous' },
   { key: 'moving', ar: 'تتحرك', fr: 'En mouvement' },
+  { key: 'idle', ar: 'خاملة', fr: 'Au ralenti' },
   { key: 'stopped', ar: 'متوقفة', fr: 'À l’arrêt' },
   { key: 'offline', ar: 'غير متصلة', fr: 'Hors ligne' },
 ]
@@ -28,34 +29,59 @@ const STATUS = {
 
 function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const isAr = lang === 'ar'
-  const status = STATUS[getDeviceStatusKey(device)] || STATUS.offline
+  const statusKey = getDeviceStatusKey(device)
+  const status = STATUS[statusKey] || STATUS.offline
   const subscription = getSubscriptionSnapshot(device)
   const needsRenewal = ['expiring_soon', 'expired'].includes(subscription.status)
+  const reduceMotion = useReducedMotion()
+  const rawBattery = device.battery
+  const parsedBattery = rawBattery == null || rawBattery === '' ? null : Number(rawBattery)
+  const battery = Number.isFinite(parsedBattery) ? Math.min(100, Math.max(0, parsedBattery)) : null
+  const batteryColor = battery == null ? '#8da2b5' : battery > 60 ? '#38d39f' : battery > 30 ? '#d9ad62' : '#e46b68'
+  const speed = Number(device.speed ?? device.last_speed ?? 0)
 
   return (
-    <motion.article initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.055, 0.3) }}
-      className="glass-card relative overflow-hidden">
-      <span className="absolute inset-y-0 start-0 w-1" style={{ background: status.color }} />
-      <button onClick={onClick} className="flex w-full items-center gap-3 p-4 text-start">
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reduceMotion ? { duration: 0 } : { delay: Math.min(index * 0.055, 0.3), duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      className="ath-card relative overflow-hidden p-0 transition-transform duration-200 hover:-translate-y-0.5"
+    >
+      <span className="absolute inset-y-0 start-0 w-1" style={{ background: status.color }} aria-hidden="true" />
+      <button onClick={onClick} className="flex w-full items-start gap-3 p-4 text-start" aria-label={isAr ? `فتح تفاصيل ${device.name}` : `Ouvrir les détails de ${device.name}`}>
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ background: status.soft }}>
           <VehicleIcon type={device.type} iconSize={22} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-extrabold text-slate-900">{device.name}</span>
-          <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
-            {device.plate && <span className="font-mono">{device.plate}</span>}
-            {device.driver && <span>{device.driver}</span>}
+          <span className="block truncate font-bold text-[var(--ath-txt)]" style={{ fontFamily: 'var(--ath-disp)' }}>{device.name}</span>
+          <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[var(--ath-mut)]">
+            {device.plate && <span dir="ltr" className="rounded-md border border-[var(--ath-line)] bg-[var(--ath-bg2)] px-1.5 py-0.5 font-mono tracking-wide">{device.plate}</span>}
+            {device.driver && <span className="truncate">{device.driver}</span>}
           </span>
-          <span className="mt-2 flex items-center gap-1.5 text-[10px] font-bold" style={{ color: status.color }}>
-             <span className={`h-1.5 w-1.5 rounded-full ${getDeviceStatusKey(device) === 'moving' ? 'live-dot' : ''}`} style={{ background: status.color }} />
-            {isAr ? status.ar : status.fr}
-            {(device.lastUpdate || device.last_update) && <><Clock size={10} className="ms-1 text-slate-400" /> <span className="font-normal text-slate-400">{timeAgo(device.lastUpdate || device.last_update)}</span></>}
+          <span className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] font-bold" style={{ color: status.color }}>
+            <span className={`h-1.5 w-1.5 rounded-full ${statusKey === 'moving' ? 'live-dot' : ''}`} style={{ background: status.color }} aria-hidden="true" />
+            <span className="rounded-full px-2 py-0.5" style={{ background: status.soft }}>{isAr ? status.ar : status.fr}</span>
+            {(device.lastUpdate || device.last_update) && <><Clock size={10} className="ms-1 text-[var(--ath-mut)]" /> <span className="font-normal text-[var(--ath-mut)]">{timeAgo(device.lastUpdate || device.last_update, lang)}</span></>}
           </span>
           <span className="mt-2 block"><SubscriptionBadge device={device} lang={lang} /></span>
+          {battery != null && (
+            <span className="mt-3 flex items-center gap-2" aria-label={isAr ? `البطارية ${Math.round(battery)} بالمئة` : `Batterie ${Math.round(battery)} pour cent`}>
+              <BatteryMedium size={14} style={{ color: batteryColor }} aria-hidden="true" />
+              <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+                <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${battery}%`, background: batteryColor }} />
+              </span>
+              <span className="w-8 text-end text-[10px] font-bold tabular-nums" style={{ color: batteryColor }}>{Math.round(battery)}%</span>
+            </span>
+          )}
         </span>
-        <span className="flex shrink-0 flex-col items-end gap-1 text-slate-400">
-          {device.speed > 0 ? <span className="text-sm font-extrabold text-primary-500">{Math.round(device.speed)} <small className="text-[9px] font-normal text-slate-400">km/h</small></span> : <span className="text-sm">—</span>}
-          <ChevronRight size={15} className={isAr ? 'rotate-180' : ''} />
+        <span className="flex shrink-0 flex-col items-end gap-2 text-[var(--ath-mut)]">
+          {statusKey === 'moving' && speed > 0 && (
+            <span className="rounded-lg bg-[rgba(56,211,159,.12)] px-2 py-1 text-end">
+              <span className="block text-lg font-extrabold leading-none tabular-nums text-[var(--ath-green2)]">{Math.round(speed)}</span>
+              <small className="text-[9px] font-normal">km/h</small>
+            </span>
+          )}
+          <ChevronRight size={15} className={isAr ? 'rotate-180' : ''} aria-hidden="true" />
         </span>
       </button>
 
@@ -86,6 +112,7 @@ export default function DeviceList() {
   const counts = useMemo(() => ({
     all: devices.length,
     moving: devices.filter(d => getDeviceStatusKey(d) === 'moving').length,
+    idle: devices.filter(d => getDeviceStatusKey(d) === 'idle').length,
     stopped: devices.filter(d => getDeviceStatusKey(d) === 'stopped').length,
     offline: devices.filter(d => getDeviceStatusKey(d) === 'offline').length,
   }), [devices])
@@ -104,18 +131,18 @@ export default function DeviceList() {
   return (
     <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
-      <header className="border-b border-slate-200 bg-white px-5 pb-4 pt-5">
+      <header className="border-b border-white/10 bg-[var(--ath-bg)] px-5 pb-4 pt-5">
         <div className="mx-auto max-w-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>
-           <h1 className="text-2xl font-extrabold tracking-tight text-[#edf4f2]">{t(lang, 'myDevices')}</h1>
-              <p className="mt-1 text-xs text-slate-500">{devices.length} {isAr ? 'أجهزة مرتبطة بالحساب' : 'appareil(s) lié(s)'}</p>
+              <h1 className="text-2xl font-extrabold tracking-tight text-[var(--ath-txt)]">{t(lang, 'myDevices')}</h1>
+              <p className="mt-1 text-xs text-[var(--ath-mut)]">{devices.length} {isAr ? 'أجهزة مرتبطة بالحساب' : 'appareil(s) lié(s)'}</p>
             </div>
           </div>
-           <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0e2035] px-3.5 py-3 shadow-inner">
-            <Search size={16} className="shrink-0 text-slate-400" />
-            <input value={search} onChange={event => setSearch(event.target.value)} placeholder={isAr ? 'ابحث باسم المركبة أو اللوحة' : 'Rechercher par nom ou plaque'} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" />
-            {search && <button onClick={() => setSearch('')}><X size={15} className="text-slate-400" /></button>}
+           <div className="ath-card flex items-center gap-2 p-3">
+            <Search size={16} className="shrink-0 text-[var(--ath-mut)]" aria-hidden="true" />
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder={isAr ? 'ابحث باسم المركبة أو اللوحة…' : 'Rechercher par nom ou plaque…'} aria-label={isAr ? 'البحث في المركبات' : 'Rechercher les véhicules'} className="min-w-0 flex-1 bg-transparent text-sm text-[var(--ath-txt)] outline-none placeholder:text-[var(--ath-mut)]" />
+            {search && <button type="button" onClick={() => setSearch('')} aria-label={isAr ? 'مسح البحث' : 'Effacer la recherche'}><X size={15} className="text-[var(--ath-mut)]" /></button>}
           </div>
         </div>
       </header>
@@ -123,10 +150,16 @@ export default function DeviceList() {
       <main className="mx-auto max-w-xl space-y-4 px-5 py-4">
         {attentionDevice && <SubscriptionBanner device={attentionDevice} lang={lang} onRenew={() => setRenewDevice(attentionDevice)} />}
 
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div
+          className="relative -mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+          style={{
+            maskImage: 'linear-gradient(to right, transparent 0, black 18px, black calc(100% - 18px), transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to right, transparent 0, black 18px, black calc(100% - 18px), transparent 100%)',
+          }}
+        >
           {FILTERS.map(item => (
              <button key={item.key} onClick={() => setFilter(item.key)}
-               className={`shrink-0 rounded-lg border px-3 py-2 text-[11px] font-bold transition-all active:scale-95 ${filter === item.key ? 'border-[#38d39f] bg-[#38d39f] text-[#07111f]' : 'border-white/10 bg-[#0e2035] text-slate-400'}`}>
+               className={`shrink-0 rounded-full border px-3 py-2 text-[11px] font-bold transition-all active:scale-95 ${filter === item.key ? 'border-[var(--ath-green)] bg-[var(--ath-green)] text-[#07111f]' : 'border-[var(--ath-line)] bg-[var(--ath-card)] text-[var(--ath-mut)]'}`}>
               {item[isAr ? 'ar' : 'fr']} <span className="ms-1 opacity-60">{counts[item.key]}</span>
             </button>
           ))}
@@ -135,11 +168,10 @@ export default function DeviceList() {
         <div className="space-y-2.5">
           <AnimatePresence mode="popLayout">
             {filtered.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
-                <Car size={40} className="mx-auto mb-3 text-slate-300" />
-                <p className="text-sm font-bold text-slate-700">{search ? (isAr ? 'لا توجد نتائج' : 'Aucun résultat') : (isAr ? 'لا توجد أجهزة' : 'Aucun appareil')}</p>
-                <p className="mt-1 text-xs text-slate-400">{search ? (isAr ? 'حاول كلمة بحث مختلفة' : 'Essayez un autre terme') : (isAr ? 'تواصل مع الدعم لإضافة جهاز' : 'Contactez le support pour ajouter un appareil')}</p>
-                <p className="mt-1 text-xs text-slate-400">{isAr ? 'ستظهر الأجهزة المرتبطة بحسابك هنا' : 'Les appareils liés à votre compte apparaîtront ici'}</p>
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ath-card flex flex-col items-center px-5 py-12 text-center">
+                <Satellite size={40} className="mb-3 text-[var(--ath-green2)]" strokeWidth={1.5} />
+                <p className="text-sm font-bold text-[var(--ath-txt)]">{search || filter !== 'all' ? (isAr ? 'لا توجد نتائج' : 'Aucun résultat') : (isAr ? 'لا توجد أجهزة' : 'Aucun appareil')}</p>
+                <p className="mt-1 text-xs text-[var(--ath-mut)]">{search || filter !== 'all' ? (isAr ? 'جرّب بحثاً أو فلتر مختلف' : 'Essayez une autre recherche ou un autre filtre') : (isAr ? 'ستظهر الأجهزة المرتبطة بحسابك هنا' : 'Les appareils liés à votre compte apparaîtront ici')}</p>
               </motion.div>
             ) : filtered.map((device, index) => (
               <DeviceCard key={device.id} device={device} lang={lang} index={index}

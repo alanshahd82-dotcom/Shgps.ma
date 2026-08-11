@@ -15,10 +15,13 @@ const VEHICLE_CFGS = {
 export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
   const { bg, Icon } = VEHICLE_CFGS[type] || VEHICLE_CFGS.car
   const pad = iconSize + 14
+  const label = type === 'bike' ? 'Motorcycle' : type === 'truck' ? 'Truck' : 'Car'
   return (
     <div
       className={`flex items-center justify-center rounded-xl flex-shrink-0 ${className}`}
       style={{ background: bg, width: pad, height: pad }}
+      aria-label={label}
+      title={label}
     >
       <Icon size={iconSize} color="white" strokeWidth={1.8} />
     </div>

@@ -138,6 +138,18 @@ This file records the completed replay-related work and the current import audit
 - Added the supplied blue Mercedes Actros truck marker at `src/assets/truck-marker.png` with full transparency, preserved orientation, and an optimized size of 59.9 KB.
 - Extended the shared vehicle selector and vehicle icon support with `شاحنة` / `Camion`.
 - Enabled `truck` in device creation and update validation, preserved existing `bike` defaults, and kept the existing marker consumers and replay engine unchanged.
+
+## Design 4/10 — devices list restyle + battery on cards
+
+- Restyled the client device list with an Athar card surface, search input with clear action, RTL-safe status filter chips, status stripes and badges, vehicle-type icon tiles, moving-device speed blocks, and a friendly empty state.
+- Added battery progress indicators to device cards with green, amber, and red thresholds while safely hiding the indicator when battery data is unavailable.
+- Preserved live search/filter behavior, device detail navigation, subscription renewal actions, vehicle-type helper usage, and Arabic/French labels. Card entrance motion respects reduced-motion preferences.
+
+## Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.
+- Modified UI files: `src/pages/client/DeviceList.jsx` and `src/components/ui.jsx`; this task log entry records the delivery.
 - Calibrated the truck marker with an offset of `-135°`: bearing 0° → nose up, 90° → right, and 180° → down.
 
 ## Fix black map and frozen replay
