@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, Plus, Minus, BatteryMedium, Wifi } from 'lucide-react'
-import { MapContainer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi } from 'lucide-react'
+import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
@@ -87,25 +87,6 @@ function FitTodayRoute({ route }) {
     }
   }, [map, route])
   return null
-}
-
-function LiveMapControls({ bottomOffset, onRecenter, lang }) {
-  const map = useMap()
-  const isAr = lang === 'ar'
-
-  return (
-    <div className="athar-map-controls" style={{ bottom: bottomOffset + 14 }} aria-label={isAr ? 'أدوات الخريطة' : 'Contrôles de carte'}>
-      <button type="button" onClick={() => map.zoomIn()} aria-label={isAr ? 'تكبير' : 'Zoom avant'} title={isAr ? 'تكبير' : 'Zoom avant'}>
-        <Plus size={17} />
-      </button>
-      <button type="button" onClick={() => map.zoomOut()} aria-label={isAr ? 'تصغير' : 'Zoom arrière'} title={isAr ? 'تصغير' : 'Zoom arrière'}>
-        <Minus size={17} />
-      </button>
-      <button type="button" onClick={onRecenter} aria-label={isAr ? 'إعادة التمركز' : 'Recentrer'} title={isAr ? 'إعادة التمركز' : 'Recentrer'}>
-        <LocateFixed size={17} />
-      </button>
-    </div>
-  )
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -294,7 +275,11 @@ export default function LiveMap() {
     <div className="relative w-full overflow-hidden" style={{ height: '100dvh' }}>
 
       {/* ── Map ── */}
-      <div className="athar-live-map-shell" aria-label={isAr ? 'الخريطة المباشرة' : 'Carte en direct'}>
+      <div
+        className="athar-live-map-shell"
+        style={{ '--athar-map-controls-offset': `${panelH + 8}px` }}
+        aria-label={isAr ? 'الخريطة المباشرة' : 'Carte en direct'}
+      >
         <MapContainer
           preferCanvas
           center={[31.7917, -7.0926]}
@@ -369,7 +354,7 @@ export default function LiveMap() {
            )}
           {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
           <FlyToUser target={locateTarget} />
-          <LiveMapControls bottomOffset={panelH} onRecenter={locateMe} lang={lang} />
+          <ZoomControl position="bottomright" />
         </MapContainer>
         <div className="athar-map-vignette" aria-hidden="true" />
       </div>
@@ -466,6 +451,17 @@ export default function LiveMap() {
           <span key={item.key}><i style={{ background: item.color }} />{item.label[lang] || item.label.fr}</span>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={locateMe}
+        aria-label={isAr ? 'إعادة التمركز' : 'Recentrer'}
+        title={isAr ? 'إعادة التمركز' : 'Recentrer'}
+        className="athar-map-recenter"
+        style={{ bottom: panelH + 14 }}
+      >
+        <LocateFixed size={17} />
+      </button>
 
       {/* ── Bottom Panel ── */}
       <div
