@@ -403,14 +403,19 @@ import {
       }
     })
 
-    // PATCH /:id/info — device owner (or admin) can edit name / driver / plate
+    // PATCH /:id/info — device owner (or admin) can edit name / driver / phone / plate
     devicesRouter.patch('/:id/info', requireAuth, async (req, res) => {
-      const { name, driver, plate, type } = req.body
-      if (name === undefined && driver === undefined && plate === undefined && type === undefined)
+      const { name, driver, phone, plate, type } = req.body
+      if (name === undefined && driver === undefined && phone === undefined && plate === undefined && type === undefined)
         return res.status(400).json({ error: 'Nothing to update' })
       if (type !== undefined && !['car', 'bike', 'truck'].includes(type))
         return res.status(400).json({ error: 'Type must be car, bike, or truck' })
+      if (phone !== undefined && phone !== '' && !/^\+?[0-9\s().-]{8,24}$/.test(String(phone).trim()))
+        return res.status(400).json({ error: 'Invalid driver phone number' })
       try {
+        // Older installations may have created devices before the driver phone field existed.
+        // Keep the existing update API backward-compatible without changing the schema file.
+        await db.query('ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone VARCHAR(20)')
         const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
         if (!devRows[0]) return res.status(404).json({ error: 'Device not found' })
         const device = devRows[0]
@@ -420,12 +425,13 @@ import {
         const sets = []; const vals = []; let i = 1
         if (name   !== undefined) { sets.push(`name=$${i++}`);   vals.push(String(name).trim())   }
         if (driver !== undefined) { sets.push(`driver=$${i++}`); vals.push(String(driver).trim()) }
+        if (phone  !== undefined) { sets.push(`phone=$${i++}`);  vals.push(String(phone).trim())  }
         if (plate  !== undefined) { sets.push(`plate=$${i++}`);  vals.push(String(plate).trim())  }
         if (type   !== undefined) { sets.push(`type=$${i++}`);   vals.push(type)                 }
         sets.push(`updated_at=NOW()`)
         vals.push(req.params.id)
         const { rows } = await db.query(
-           `UPDATE devices SET ${sets.join(',')} WHERE id=$${i} RETURNING id,name,driver,plate,type,updated_at`,
+           `UPDATE devices SET ${sets.join(',')} WHERE id=$${i} RETURNING id,name,driver,phone,plate,type,updated_at`,
           vals
         )
         res.json(rows[0])

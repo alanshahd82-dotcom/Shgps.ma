@@ -6,7 +6,7 @@ import L from 'leaflet'
 import {
   ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Battery, Play,
   Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
-  Pencil, Check, X as CloseX
+  Pencil, Check, X as CloseX, Phone, Radio, CarFront
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
 import { useApp } from '../../context/AppContext'
@@ -140,7 +140,7 @@ export default function DeviceDetail() {
   const [coordinatesCopied, setCoordinatesCopied] = useState(false)
   const [coordinatesToast, setCoordinatesToast] = useState(false)
   const [editing,   setEditing]   = useState(false)
-  const [editForm,  setEditForm]  = useState({ name: '', driver: '', plate: '', type: 'bike' })
+  const [editForm,  setEditForm]  = useState({ name: '', driver: '', phone: '', plate: '', type: 'bike' })
   const [saving,    setSaving]    = useState(false)
   const [saveMsg,   setSaveMsg]   = useState('')
   const isAr = lang === 'ar'
@@ -387,6 +387,7 @@ export default function DeviceDetail() {
     setEditForm({
       name: device?.name || '',
       driver: device?.driver || '',
+      phone: device?.phone || '',
       plate: device?.plate || '',
       type: ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike',
     })
@@ -399,12 +400,41 @@ export default function DeviceDetail() {
     try {
       const updated = await api.devices.updateInfo(id, editForm)
       setDevice(d => ({ ...d, ...updated }))
-      setSaveMsg(isAr ? 'تم الحفظ بنجاح ✓' : 'Enregistré ✓')
+      setSaveMsg(isAr ? 'تم الحفظ ✅' : 'Enregistré ✅')
       setEditing(false)
       setTimeout(() => setSaveMsg(''), 3000)
     } catch (e) {
       setSaveMsg(isAr ? 'تعذّر الحفظ. حاول مرة أخرى.' : 'Erreur. Réessayez.')
     } finally { setSaving(false) }
+  }
+
+  function driverPhone(value = device?.phone) {
+    return String(value || '').trim()
+  }
+
+  function canCallDriver(value = device?.phone) {
+    return /^\+?[0-9\s().-]{8,24}$/.test(driverPhone(value))
+  }
+
+  function callDriver() {
+    if (canCallDriver()) window.location.href = `tel:${driverPhone()}`
+  }
+
+  async function openReplayFromHeader() {
+    if (!trackingEnabled || replayLoading) return
+    setReplayLoading('header')
+    try {
+      const route = routePoints.length > 1 ? routePoints : await loadRoute()
+      if (route?.length > 1) {
+        setReplayTrip({
+          startTime: route[0].fixTime,
+          endTime: route.at(-1).fixTime,
+          route,
+        })
+      }
+    } finally {
+      setReplayLoading('')
+    }
   }
 
   async function generateShareLink() {
@@ -488,14 +518,45 @@ export default function DeviceDetail() {
       <ClientHeader />
 
       {/* Header */}
-        <div className="mx-4 mt-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#102945] to-[#0e2035] px-4 pb-5 pt-4 shadow-[0_18px_48px_rgba(0,0,0,.25)] flex items-center gap-3">
+        <div className="mx-4 mt-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#102945] to-[#0e2035] px-4 pb-5 pt-4 shadow-[0_18px_48px_rgba(0,0,0,.25)]">
+          <div className="flex items-start gap-3">
          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/10 bg-[#07111f] active:scale-95"
            >
            <ChevronLeft size={20} className="text-primary-500" style={{ transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </button>
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#07111f]">
+          <CarFront size={24} className="text-[#38d39f]" />
+        </div>
         <div className="flex-1 min-w-0">
-            <h1 className="text-[#edf4f2] font-extrabold text-lg truncate">{device?.name || '...'}</h1>
+            {editing ? (
+              <input
+                aria-label={isAr ? 'اسم الجهاز' : 'Nom du véhicule'}
+                value={editForm.name}
+                onChange={event => setEditForm(form => ({ ...form, name: event.target.value }))}
+                className="w-full rounded-lg border border-[#38d39f]/50 bg-[#07111f]/70 px-2 py-1 text-base font-extrabold text-white outline-none focus:border-[#38d39f]"
+              />
+            ) : (
+              <h1 className="truncate text-lg font-extrabold text-[#edf4f2]">{device?.name || '...'}</h1>
+            )}
             <p className="text-xs font-mono text-slate-500">{device?.plate || device?.imei || (isAr ? 'معرّف غير متاح' : 'Identifier unavailable')}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {editing ? (
+                <input
+                  aria-label={isAr ? 'اسم السائق' : 'Nom du conducteur'}
+                  value={editForm.driver}
+                  onChange={event => setEditForm(form => ({ ...form, driver: event.target.value }))}
+                  placeholder={isAr ? 'اسم السائق' : 'Nom du conducteur'}
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#07111f]/70 px-2 py-1 text-xs font-semibold text-white outline-none focus:border-[#38d39f]"
+                />
+              ) : (
+                <span className="text-xs font-semibold text-slate-300">{device?.driver || (isAr ? 'لا يوجد سائق' : 'Aucun conducteur')}</span>
+              )}
+              {canCallDriver() && (
+                <button onClick={callDriver} className="inline-flex items-center gap-1 rounded-lg bg-[#1DBF73]/15 px-2 py-1 text-[10px] font-bold text-[#8ceac5] transition hover:bg-[#1DBF73]/25">
+                  <Phone size={11} />{isAr ? 'اتصال مباشر' : 'Appeler'}
+                </button>
+              )}
+            </div>
         </div>
         {/* Live indicator */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-shrink-0"
@@ -503,6 +564,30 @@ export default function DeviceDetail() {
            <div className={`w-1.5 h-1.5 rounded-full ${st === 'moving' ? 'live-dot' : ''}`} style={{ background:stColor }}/>
              <span className="text-xs font-bold" style={{ color:stColor }}>{stLabel}</span>
         </div>
+        {!editing && (
+          <button onClick={openEdit} aria-label={isAr ? 'تعديل بيانات الجهاز' : 'Modifier l’appareil'} className="mt-1 rounded-xl border border-white/10 bg-white/[.06] p-2 text-[#8ceac5] transition hover:bg-white/10">
+            <Pencil size={14} />
+          </button>
+        )}
+        </div>
+        {editing && (
+          <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
+            <Phone size={14} className="text-[#38d39f]" />
+            <input
+              aria-label={isAr ? 'هاتف السائق' : 'Téléphone du conducteur'}
+              value={editForm.phone}
+              onChange={event => setEditForm(form => ({ ...form, phone: event.target.value }))}
+              placeholder={isAr ? '+212 6…' : '+212 6…'}
+              inputMode="tel"
+              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#07111f]/70 px-2 py-1.5 text-xs font-semibold text-white outline-none focus:border-[#38d39f]"
+            />
+            <button onClick={() => setEditing(false)} className="rounded-lg p-2 text-slate-400 hover:text-white"><CloseX size={16} /></button>
+            <button onClick={saveEdit} disabled={saving} className="inline-flex items-center gap-1 rounded-lg bg-[#1DBF73] px-3 py-2 text-[11px] font-bold text-[#07111f] disabled:opacity-50">
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+              {isAr ? 'حفظ' : 'Enregistrer'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Status bar */}
@@ -514,20 +599,65 @@ export default function DeviceDetail() {
 
       {/* Quick stats */}
       {device && (
-        <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
+        <div className="grid grid-cols-2 gap-2.5 px-5 mb-4 sm:grid-cols-3">
           {[
-              { Icon:Gauge,   label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? Math.round(currentSpeed)+' km/h' : t(lang, 'noData'), color:'#38d39f', always: true },
-              { Icon:Navigation, label:isAr?'المسافة اليوم':'Distance aujourd\'hui', val: distanceToday != null ? Number(distanceToday).toFixed(1)+' km' : t(lang, 'noData'), color:'#d9ad62', always: true },
-             { Icon:Wifi, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : null, color:'#6fc8ff', always: false },
-             { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? device.battery+'%' : null, color: device.battery < 30 ? '#e46b68' : '#38d39f', always: false },
-          ].filter(m => m.always || m.val != null).map(({ Icon, label, val, color },i) => (
+              { Icon:Battery, label:isAr?'البطارية':'Batterie', val: device.battery != null ? `${Math.round(Number(device.battery))}%` : '—', color: Number(device.battery) < 30 ? '#ff625d' : '#38d39f', always: true, bar: device.battery },
+              { Icon:Gauge, label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? `${Math.round(Number(currentSpeed))} km/h` : '—', color:'#38d39f', always: true },
+              { Icon:Radio, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff', always: true },
+              { Icon:Activity, label:'IMEI', val: device.imei || '—', color:'#d9ad62', always: true },
+              { Icon:Clock, label:isAr?'آخر تحديث':'Dernière mise à jour', val: lastUpdate ? timeAgo(lastUpdate, lang) : '—', color:'#b49cff', always: true },
+                    ].filter(m => m.always || m.val != null).map(({ Icon, label, val, color, bar },i) => (
             <div key={i} className="flex min-w-0 flex-col items-center rounded-2xl p-3.5"
               style={cardStyle}>
               <Icon size={16} style={{ color }} className="mb-1.5"/>
-               <span className="text-xs font-bold text-[#edf4f2]">{val}</span>
+               <span className={`max-w-full truncate text-xs font-bold text-[#edf4f2] ${label === 'IMEI' ? 'font-mono' : ''}`}>{val}</span>
                <span className="text-[9px] mt-0.5 text-slate-400">{label}</span>
+                        {bar != null && (
+                          <div className="mt-2 h-1.5 w-full max-w-24 overflow-hidden rounded-full bg-white/10" aria-label={`${Math.round(Number(bar))}%`}>
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{ width: `${Math.max(0, Math.min(100, Number(bar) || 0))}%`, background: color }}
+                            />
+                          </div>
+                        )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Primary device actions */}
+      {device && (
+        <div className="grid grid-cols-2 gap-2.5 px-5 mb-5">
+          <button
+            onClick={() => navigate(`/client/map?device=${encodeURIComponent(id)}`)}
+            disabled={!validPosition(latitude, longitude)}
+            className="ath-btn-solid col-span-2 flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Map size={16} />{isAr ? 'عرض على الخريطة' : 'Voir sur la carte'}
+          </button>
+          <button
+            onClick={openReplayFromHeader}
+            disabled={!trackingEnabled || Boolean(replayLoading)}
+            className="ath-btn-g flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {replayLoading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} fill="currentColor" />}
+            {isAr ? 'إعادة المسار' : 'Rejouer le trajet'}
+          </button>
+          <button
+            onClick={callDriver}
+            disabled={!canCallDriver()}
+            className="ath-btn-g flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Phone size={15} />{isAr ? 'الاتصال بالسائق' : 'Appeler le conducteur'}
+          </button>
+          <button
+            onClick={() => setConfirm({ label: ignition ? t(lang, 'cutEngine') : t(lang, 'startEngine'), turnOff: !!ignition })}
+            disabled={sending}
+            className={`col-span-2 flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-xs font-bold transition disabled:opacity-50 ${ignition ? 'border-[#ff625d]/35 bg-[#ff625d]/10 text-[#ffaaa6]' : 'border-[#1DBF73]/35 bg-[#1DBF73]/10 text-[#8ceac5]'}`}
+          >
+            {sending ? <Loader2 size={15} className="animate-spin" /> : (ignition ? <ZapOff size={15} /> : <Zap size={15} />)}
+            {ignition ? t(lang, 'cutEngine') : t(lang, 'startEngine')}
+          </button>
         </div>
       )}
 
@@ -537,8 +667,8 @@ export default function DeviceDetail() {
           <motion.button key={key} whileTap={{ scale:0.94 }} onClick={() => setTab(key)}
             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
                style={tab===key
-               ? { background:'#38d39f', color:'#07111f' }
-               : { background:'#0e2035', color:'#8da2b5', border:'1px solid rgba(255,255,255,.10)' }}>
+               ? { background:'transparent', color:'#38d39f', borderBottom:'2px solid #38d39f', borderRadius:0 }
+               : { background:'transparent', color:'#8da2b5', borderBottom:'2px solid transparent' }}>
             <Icon size={12}/>{isAr ? ar : fr}
           </motion.button>
         ))}
@@ -577,7 +707,7 @@ export default function DeviceDetail() {
               )}
               {/* Detail rows + edit */}
               {saveMsg && (
-                <div className={`text-xs text-center px-4 py-2 rounded-xl font-medium ${saveMsg.includes('✓') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  <div className={`text-xs text-center px-4 py-2 rounded-xl font-medium ${saveMsg.includes('✅') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                   {saveMsg}
                 </div>
               )}

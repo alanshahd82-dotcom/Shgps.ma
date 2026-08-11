@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi } from 'lucide-react'
 import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -122,6 +122,7 @@ function getLiveBearing(device) {
 export default function LiveMap() {
   const { devices, lang, wsConnected } = useApp()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [search,       setSearch]       = useState('')
   const [selected,     setSelected]     = useState(null)
   const [panelOpen,    setPanelOpen]    = useState(false)
@@ -134,6 +135,7 @@ export default function LiveMap() {
   const [routeError, setRouteError] = useState('')
   const routeRequestRef = useRef(0)
   const isAr = lang === 'ar'
+  const requestedDeviceId = searchParams.get('device')
   useEffect(() => {
     localStorage.setItem('athargps_auto_follow', String(autoFollow))
   }, [autoFollow])
@@ -202,6 +204,15 @@ export default function LiveMap() {
   [filtered])
 
   const sel = selected ? devices.find(d => d.id === selected) : null
+
+  useEffect(() => {
+    if (!requestedDeviceId) return
+    const requested = devices.find(d => String(d.id) === String(requestedDeviceId))
+    if (requested) {
+      setSelected(requested.id)
+      setPanelOpen(true)
+    }
+  }, [devices, requestedDeviceId])
 
   useEffect(() => {
     setTodayRoute([])

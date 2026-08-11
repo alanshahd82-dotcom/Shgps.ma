@@ -216,6 +216,20 @@ This file records the completed replay-related work and the current import audit
 - `npm run build` passes.
 - `git diff --check` passes.
 
+## Design 7/10 — unified client device page and replay entry points
+
+- Reworked the client device header into a unified bilingual surface with vehicle identity, editable device/driver fields, status, and driver phone actions.
+- Added driver phone persistence through the existing device info update endpoint, including validation and backwards-compatible creation of the legacy `phone` column when needed.
+- Added battery progress, IMEI, last-update, speed, and signal quick stats with RTL-safe tabs and primary actions for the live map, replay, engine command, and driver call.
+- The live-map action opens the selected device and flies to its current position through the existing map flow.
+- Preserved the existing replay playback engine, positions fetching, Leaflet replay map, WebSocket behavior, and Task-0 engine-cut confirmation flow.
+
+## Verification
+
+- `npm run build` passes.
+- `node --check backend/src/routes/devices.js` passes.
+- `git diff --check` passes.
+
 ## Mobile replay map controls
 
 - Changed replay map following to be user-controlled: dragging or zooming pauses auto-follow, while the visible recenter button restores it.
