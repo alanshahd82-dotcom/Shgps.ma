@@ -3,29 +3,44 @@
  * No emoji. Mobile-first. Dark mode aware. RTL-safe.
  */
 import React from 'react'
-import { Loader2, AlertCircle, Car, Truck, Bike, WifiOff } from 'lucide-react'
+import { Loader2, AlertCircle, WifiOff } from 'lucide-react'
+import { markerFor } from '../utils/vehicleAssets'
 
 // ── Vehicle type icon ─────────────────────────────────────────────────────────
-const VEHICLE_CFGS = {
-  car:   { bg: '#0F2044', Icon: Car   },
-  bike:  { bg: '#c2410c', Icon: Bike  },
-  truck: { bg: '#6B21A8', Icon: Truck },
-}
-
 export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
-  const { bg, Icon } = VEHICLE_CFGS[type] || VEHICLE_CFGS.car
+  const marker = markerFor(type)
   const pad = iconSize + 14
   const label = type === 'bike' ? 'Motorcycle' : type === 'truck' ? 'Truck' : 'Car'
   return (
     <div
       className={`flex items-center justify-center rounded-xl flex-shrink-0 ${className}`}
-      style={{ background: bg, width: pad, height: pad }}
+      style={{
+        background: 'linear-gradient(145deg, #102b5b, #08152d)',
+        width: pad,
+        height: pad,
+        overflow: 'hidden',
+      }}
       aria-label={label}
       title={label}
     >
-      <Icon size={iconSize} color="white" strokeWidth={1.8} />
+      <img
+        src={marker.url}
+        alt=""
+        aria-hidden="true"
+        style={{
+          width: `${Math.max(iconSize + 8, 28)}px`,
+          height: `${Math.max(iconSize + 8, 28)}px`,
+          objectFit: 'contain',
+        }}
+      />
     </div>
   )
+}
+
+export function getBatteryColor(value) {
+  const battery = Number(value)
+  if (!Number.isFinite(battery)) return '#94A3B8'
+  return battery > 60 ? '#1DBF73' : battery > 30 ? '#FF9500' : '#FF3B30'
 }
 
 export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', className = '' }) {
