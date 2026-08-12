@@ -341,9 +341,6 @@ export default function Reports() {
             </p>
             <h1 className="text-xl font-black text-white">{t(lang, 'reports')}</h1>
           </div>
-          <div className="rounded-xl border border-[#1DBF73]/20 bg-[#1DBF73]/[.08] px-2.5 py-1.5 text-[10px] font-bold text-[#6ee7b7]">
-            {isAr ? 'بيانات حقيقية' : 'Données réelles'}
-          </div>
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-3">
