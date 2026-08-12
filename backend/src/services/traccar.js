@@ -1,7 +1,29 @@
 import { config } from '../config.js'
 
 const base = () => config.traccar.url
-const auth = () => 'Basic ' + Buffer.from(`${config.traccar.email}:${config.traccar.password}`).toString('base64')
+
+// ── Session-based auth (Traccar 5.x+ dropped Basic Auth for REST) ──
+let _sessionCookie = null
+let _sessionExpiresAt = 0
+
+async function ensureSession() {
+  if (_sessionCookie && Date.now() < _sessionExpiresAt) return _sessionCookie
+  const url = `${base()}/api/session`
+  const body = new URLSearchParams({ email: config.traccar.email, password: config.traccar.password }).toString()
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  })
+  if (!res.ok) throw Object.assign(new Error(`Traccar session ${res.status}`), { code: 'TRACCAR_AUTH_FAILED', status: res.status })
+  const setCookie = res.headers.get('set-cookie') || ''
+  const m = setCookie.match(/JSESSIONID=[^;]+/)
+  if (!m) throw Object.assign(new Error('Traccar: no JSESSIONID in response'), { code: 'TRACCAR_AUTH_FAILED', status: 401 })
+  _sessionCookie = m[0]
+  _sessionExpiresAt = Date.now() + 25 * 60 * 1000 // refresh before ~30 min expiry
+  console.log('[Traccar] REST session established')
+  return _sessionCookie
+}
 const MAX_POSITION_SPEED_KMH = 220
 
 function haversineKm(a, b) {
@@ -52,11 +74,21 @@ export function cleanPositions(list) {
   return cleaned
 }
 
-async function call(path, opts = {}) {
+async function call(path, opts = {}, _retried = false) {
+  let cookie
+  try { cookie = await ensureSession() } catch (e) {
+    if (!_retried && (e.code === 'TRACCAR_AUTH_FAILED')) { _sessionCookie = null; _sessionExpiresAt = 0; return call(path, opts, true) }
+    throw e
+  }
   const res = await fetch(`${base()}${path}`, {
     ...opts,
-    headers: { Authorization: auth(), 'Content-Type': 'application/json', ...opts.headers },
+    headers: { Cookie: cookie, 'Content-Type': 'application/json', ...opts.headers },
   })
+  // If session expired mid-flight, retry once with a fresh session
+  if ((res.status === 401 || res.status === 403) && !_retried) {
+    _sessionCookie = null; _sessionExpiresAt = 0
+    return call(path, opts, true)
+  }
   if (!res.ok) {
     const error = new Error(`Traccar ${res.status}: ${await res.text()}`)
     error.code = res.status === 401 || res.status === 403
