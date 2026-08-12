@@ -116,7 +116,7 @@ function FitRoute({ positions }) {
 
 const TABS = [
   { key:'info',     Icon: MapPin,      ar: 'المعلومات',  fr: 'Infos'    },
-  { key:'route',    Icon: RouteIcon,   ar: 'الرحلات',    fr: 'Trajets'  },
+  { key:'route',    Icon: RouteIcon,   labelKey: 'replayRoute'         },
   { key:'commands', Icon: Terminal,    ar: 'الأوامر',    fr: 'Commandes'},
   { key:'share',    Icon: Share2,      ar: 'مشاركة',     fr: 'Partager' },
 ]
@@ -586,14 +586,14 @@ export default function DeviceDetail() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1.5 px-5 mb-4 overflow-x-auto" style={{ scrollbarWidth:'none' }}>
-        {tabs.map(({ key, Icon, ar, fr }) => (
+       <div className="flex gap-1.5 px-5 mb-4 overflow-x-auto" style={{ scrollbarWidth:'none' }}>
+         {tabs.map(({ key, Icon, ar, fr, labelKey }) => (
           <motion.button key={key} whileTap={{ scale:0.94 }} onClick={() => setTab(key)}
             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
                style={tab===key
                ? { background:'transparent', color:'#38d39f', borderBottom:'2px solid #38d39f', borderRadius:0 }
                : { background:'transparent', color:'#8da2b5', borderBottom:'2px solid transparent' }}>
-            <Icon size={12}/>{isAr ? ar : fr}
+             <Icon size={12}/>{labelKey ? t(lang, labelKey) : (isAr ? ar : fr)}
           </motion.button>
         ))}
       </div>
@@ -753,8 +753,8 @@ export default function DeviceDetail() {
           {/* ROUTE */}
           {tab === 'route' && (
             <motion.div key="route" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
-              <div className="rounded-2xl p-3" style={cardStyle}>
-                <div className="flex flex-wrap items-center gap-2">
+               <div className="rounded-2xl p-3" style={cardStyle}>
+                 <div className="ath-period-control" role="tablist" aria-label={isAr ? 'الفترة' : 'Période'}>
                   {[
                     ['today', t(lang, 'today')],
                     ['week', t(lang, 'last7Days')],
@@ -763,11 +763,11 @@ export default function DeviceDetail() {
                   ].map(([key, label]) => (
                     <button
                       key={key}
+                       type="button"
+                       role="tab"
+                       aria-selected={rangePreset === key}
                       onClick={() => setRangePreset(key)}
-                      className="rounded-xl px-3 py-2 text-[11px] font-bold transition"
-                      style={rangePreset === key
-                        ? { background: '#1DBF73', color: '#07111f' }
-                        : { background: 'rgba(255,255,255,.07)', color: '#a9bac7', border: '1px solid rgba(255,255,255,.09)' }}
+                       className={`ath-period-control-button ${rangePreset === key ? 'is-active' : ''}`}
                     >
                       {label}
                     </button>
@@ -1020,8 +1020,6 @@ export default function DeviceDetail() {
             const cmdColor = engineOn ? '#FF3B30' : '#00D97E'
             const CmdIcon  = engineOn ? ZapOff : Zap
             const cmdLabel = engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')
-            const cmdDesc  = engineOn ? (isAr ? 'سيتم إيقاف محرك المركبة عن بعد' : 'Coupure moteur à distance') : (isAr ? 'سيتم تشغيل محرك المركبة عن بعد' : 'Démarrage moteur à distance')
-            const cmdType  = engineOn ? 'engineStop' : 'engineResume'
             const turnOff  = engineOn
             return (
               <motion.div key="cmds" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
@@ -1030,11 +1028,8 @@ export default function DeviceDetail() {
                   style={{ background: (engineOn ? '#00D97E' : '#6b7280') + '14', border: '1px solid ' + (engineOn ? '#00D97E' : '#6b7280') + '30' }}>
                   <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: engineOn ? '#00D97E' : '#6b7280' }}/>
                   <p className="text-sm font-bold" style={{ color: engineOn ? '#16866d' : '#6b7280' }}>
-                    {isAr
-                      ? (engineOn ? 'المحرك يعمل حالياً' : 'المحرك متوقف حالياً')
-                      : (engineOn ? 'Moteur en marche' : 'Moteur à l\'arrêt')}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mr-auto ml-auto">{isAr ? 'آخر تحديث:' : 'Mis à jour:'} {timeAgo(lastUpdate, lang)}</p>
+                     {t(lang, engineOn ? 'engineOn' : 'engineOff')}
+                   </p>
                 </div>
                 {/* Single action button */}
                 <motion.button whileTap={{ scale:0.97 }}
@@ -1048,15 +1043,9 @@ export default function DeviceDetail() {
                       : <CmdIcon size={22} style={{ color: cmdColor }}/>}
                   </div>
                   <div className={isAr ? 'text-right' : 'text-left'}>
-                    <p className="text-slate-800 font-bold text-sm">{cmdLabel}</p>
-                    <p className="text-xs mt-0.5 text-slate-500">{cmdDesc}</p>
+                     <p className="font-bold text-sm" style={{ color: cmdColor }}>{cmdLabel}</p>
                   </div>
                 </motion.button>
-                <p className="text-[10px] text-slate-400 text-center px-4">
-                  {isAr
-                    ? 'حالة الزر تعكس الحالة الحقيقية للجهاز. لن تتغير إلا بعد تأكيد تنفيذ الأمر.'
-                    : 'L\'état du bouton reflète l\'état réel de l\'appareil.'}
-                </p>
               </motion.div>
             )
           })()}
