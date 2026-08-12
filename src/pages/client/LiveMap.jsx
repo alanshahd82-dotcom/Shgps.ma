@@ -283,14 +283,19 @@ export default function LiveMap() {
   }
 
   const panelH = panelOpen ? PANEL_OPEN : PANEL_PEEK
+  const clientNavOffset = 'calc(5.6rem + env(safe-area-inset-bottom, 0px))'
+  const panelAwareOffset = `calc(${panelH}px + var(--athar-client-nav-offset) + 8px)`
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: '100dvh' }}>
+    <div
+      className="relative w-full overflow-hidden"
+      style={{ height: '100dvh', '--athar-client-nav-offset': clientNavOffset }}
+    >
 
       {/* ── Map ── */}
       <div
         className="athar-live-map-shell"
-        style={{ '--athar-map-controls-offset': `${panelH + 8}px` }}
+        style={{ '--athar-map-controls-offset': panelAwareOffset }}
         aria-label={isAr ? 'الخريطة المباشرة' : 'Carte en direct'}
       >
         <MapContainer
@@ -455,7 +460,7 @@ export default function LiveMap() {
       </div>
 
       {/* ── Status legend ── */}
-      <div className="athar-map-legend" style={{ bottom: panelH + 14 }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
+      <div className="athar-map-legend" style={{ bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
         {[
           { key: 'moving', color: ST_CLR.moving, label: { ar: 'تتحرك', fr: 'En mouvement' } },
           { key: 'idle', color: ST_CLR.idle, label: { ar: 'خاملة', fr: 'Ralentie' } },
@@ -472,7 +477,7 @@ export default function LiveMap() {
         aria-label={isAr ? 'إعادة التمركز' : 'Recentrer'}
         title={isAr ? 'إعادة التمركز' : 'Recentrer'}
         className="athar-map-recenter"
-        style={{ bottom: panelH + 14 }}
+        style={{ bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }}
       >
         <LocateFixed size={17} />
       </button>
@@ -481,7 +486,7 @@ export default function LiveMap() {
       <div
         className="absolute left-0 right-0 z-20"
         style={{
-          bottom: 0,
+          bottom: 'var(--athar-client-nav-offset)',
           height: panelH,
           transition: 'height 0.35s cubic-bezier(0.4,0,0.2,1)',
           borderRadius: '22px 22px 0 0',
