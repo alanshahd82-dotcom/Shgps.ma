@@ -23,7 +23,7 @@ const MAX_EVENT_INTERVAL_MS = 30 * 1000
 const TRAIL_POINT_LIMIT = 15
 const MAP_STYLE_STORAGE_KEY = 'athargps_map_style'
 const MAX_POSITION_SPEED_KMH = 220
-const PLAYBACK_RENDER_INTERVAL_MS = 50
+const PLAYBACK_RENDER_INTERVAL_MS = 250
 const MIN_REPLAY_STEP_MS = 120
 
 function validPoint(point) {
@@ -789,8 +789,8 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
 
   return (
     <div className="fixed inset-0 z-[1000] bg-[#0B1220] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
-      <div className="absolute inset-0 h-full w-full">
-          <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} minZoom={3} maxZoom={19} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas>
+      <div className="absolute inset-0 h-[100dvh] min-h-[420px] w-full">
+          <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} minZoom={3} maxZoom={19} style={{ height: '100%', width: '100%', minHeight: '420px' }} zoomControl={false} preferCanvas>
           <MapLayers
             satellite={allowSatellite && satelliteMode}
             onSatelliteTimeout={allowSatellite ? handleSatelliteTimeout : undefined}
@@ -851,7 +851,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
         <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-extrabold text-white">{deviceName || t(lang, 'device')}</p>
-          <p className="truncate text-[10px] text-white/50">{label('إعادة عرض الرحلة', 'Relecture du trajet')} · {route.length ? `${formatTime(route[0].fixTime, lang, false)} — ${formatTime(route.at(-1).fixTime, lang, false)}` : '—'}</p>
+          <p className="truncate text-[10px] text-white/50">{t(lang, 'replayRoute')} · {route.length ? `${formatTime(route[0].fixTime, lang, false)} — ${formatTime(route.at(-1).fixTime, lang, false)}` : '—'}</p>
         </div>
         <span className="hidden shrink-0 rounded-lg bg-[#35d39a]/10 px-2 py-1 text-[9px] font-bold tracking-[.12em] text-[#8ceac5] sm:inline">ATHAR GPS</span>
       </header>
