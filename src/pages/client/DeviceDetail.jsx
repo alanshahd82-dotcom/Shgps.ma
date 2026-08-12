@@ -1035,7 +1035,8 @@ export default function DeviceDetail() {
                 <motion.button whileTap={{ scale:0.97 }}
                   onClick={() => setConfirm({ label: cmdLabel, turnOff })}
                   disabled={sending}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl disabled:opacity-50 transition-all"
+                  aria-label={cmdLabel}
+                  className="w-full min-h-[88px] flex items-center gap-4 p-4 rounded-2xl disabled:opacity-50 transition-all"
                   style={{ background: cmdColor+'18', border:'1.5px solid '+cmdColor+'44' }}>
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: cmdColor+'22' }}>
                     {sending
