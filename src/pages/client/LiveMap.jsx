@@ -25,7 +25,6 @@ const userLocIcon = L.divIcon({
 })
 
 const ST_CLR = { moving: '#00D97E', idle: '#FF9500', stopped: '#FF3B30', awaiting_gps: '#F59E0B', offline: '#6b7280' }
-const EMPTY_DEVICES = []
 
 function makeVehicleIcon(device, isSelected) {
   const st  = getDeviceStatusKey(device)
@@ -53,12 +52,7 @@ function FlyToUser({ target }) {
     if (!target) return
     if (prev.current === target.ts) return
     prev.current = target.ts
-    if (typeof map?.flyTo !== 'function') return
-    try {
-      map.flyTo([target.lat, target.lng], 16, { duration: 1.2 })
-    } catch {
-      // Ignore a locate request that races with map teardown.
-    }
+    map.flyTo([target.lat, target.lng], 16, { duration: 1.2 })
   }, [target])
   return null
 }
@@ -73,12 +67,7 @@ function FlyTo({ lat, lng, zoom = 15 }) {
     const key = la + ',' + ln
     if (prev.current === key) return
     prev.current = key
-    if (typeof map?.flyTo !== 'function') return
-    try {
-      map.flyTo([la, ln], zoom, { duration: 1.2 })
-    } catch {
-      // Ignore a selection update that races with map teardown.
-    }
+    map.flyTo([la, ln], zoom, { duration: 1.2 })
   }, [lat, lng, zoom])
   return null
 }
@@ -147,7 +136,6 @@ export default function LiveMap() {
   const [routeError, setRouteError] = useState('')
   const routeRequestRef = useRef(0)
   const isAr = lang === 'ar'
-  const safeDevices = Array.isArray(devices) ? devices : EMPTY_DEVICES
   const requestedDeviceId = searchParams.get('device')
   useEffect(() => {
     localStorage.setItem('athargps_auto_follow', String(autoFollow))
@@ -198,13 +186,13 @@ export default function LiveMap() {
     !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
 
   const filtered = useMemo(() => {
-    const trackable = safeDevices.filter(Boolean).filter(d => d.trackingEnabled !== false)
+    const trackable = devices.filter(d => d.trackingEnabled !== false)
     if (!search.trim()) return trackable
     const q = search.toLowerCase()
     return trackable.filter(d =>
       d.name?.toLowerCase().includes(q) || d.plate?.toLowerCase().includes(q)
     )
-  }, [safeDevices, search])
+  }, [devices, search])
 
   const positioned = useMemo(() =>
     filtered
@@ -216,16 +204,16 @@ export default function LiveMap() {
       .filter(d => hasValidMapPoint(d.lat, d.lng)),
   [filtered])
 
-  const sel = selected ? safeDevices.find(d => d?.id === selected) : null
+  const sel = selected ? devices.find(d => d.id === selected) : null
 
   useEffect(() => {
     if (!requestedDeviceId) return
-    const requested = safeDevices.find(d => String(d?.id) === String(requestedDeviceId))
+    const requested = devices.find(d => String(d.id) === String(requestedDeviceId))
     if (requested) {
       setSelected(requested.id)
       setPanelOpen(true)
     }
-  }, [safeDevices, requestedDeviceId])
+  }, [devices, requestedDeviceId])
 
   useEffect(() => {
     setTodayRoute([])
@@ -267,7 +255,7 @@ export default function LiveMap() {
 
   // Status summary counts
   const counts = useMemo(() => {
-    const all = safeDevices.filter(Boolean).filter(d => d.trackingEnabled !== false)
+    const all = devices.filter(d => d.trackingEnabled !== false)
     return {
       moving:  all.filter(d => getDeviceStatusKey(d) === 'moving').length,
       idle:    all.filter(d => getDeviceStatusKey(d) === 'idle').length,
@@ -275,7 +263,7 @@ export default function LiveMap() {
       awaiting_gps: all.filter(d => getDeviceStatusKey(d) === 'awaiting_gps').length,
       offline: all.filter(d => getDeviceStatusKey(d) === 'offline').length,
     }
-  }, [safeDevices])
+  }, [devices])
 
   function openMaps(type, device) {
     const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
