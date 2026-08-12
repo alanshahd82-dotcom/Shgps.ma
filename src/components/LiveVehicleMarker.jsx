@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { getDeviceStatusKey } from './ui'
+import { getBatteryColor, getDeviceStatusKey } from './ui'
 import { markerFor } from '../utils/vehicleAssets'
 
 const ANIMATION_MS = 800
@@ -64,9 +64,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   const speed = Number(device?.speed ?? device?.last_speed ?? 0)
   const label = status === 'moving' && speed > 0 ? `${Math.round(speed)} km/h` : statusLabel
   const batteryValue = Number(device?.battery)
-  const batteryColor = !Number.isFinite(batteryValue)
-    ? '#94A3B8'
-    : batteryValue > 60 ? '#1DBF73' : batteryValue > 30 ? '#FF9500' : '#FF3B30'
+  const batteryColor = getBatteryColor(batteryValue)
   const size = isSelected ? 62 : 56
   const width = isSelected ? 142 : 136
   const height = 92
@@ -91,10 +89,16 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   })
 }
 
-function updateMarkerRotation(marker, bearing, type) {
+function shortestTurn(from, to) {
+  return ((to - from + 540) % 360) - 180
+}
+
+function updateMarkerRotation(marker, bearing, type, rotationRef) {
   const image = marker?.getElement()?.querySelector('[data-live-vehicle]')
   if (!image) return
-  image.style.transform = `rotate(${bearing + markerFor(type).offset}deg)`
+  const nextBearing = rotationRef.current + shortestTurn(rotationRef.current, bearing)
+  rotationRef.current = nextBearing
+  image.style.transform = `rotate(${nextBearing + markerFor(type).offset}deg)`
 }
 
 export default function LiveVehicleMarker({
@@ -109,6 +113,7 @@ export default function LiveVehicleMarker({
   const firstPositionRef = useRef(toPoint(device))
   const previousPointRef = useRef(firstPositionRef.current)
   const frameRef = useRef(null)
+  const rotationRef = useRef(initialBearingRef.current)
   const trailRef = useRef(firstPositionRef.current ? [firstPositionRef.current] : [])
   const [trail, setTrail] = useState(trailRef.current)
   const point = toPoint(device)
@@ -133,9 +138,9 @@ export default function LiveVehicleMarker({
     previousPointRef.current = point
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
+    updateMarkerRotation(marker, bearing, device?.type, rotationRef)
     if (distance < 0.0000001) {
       marker.setLatLng(point)
-       updateMarkerRotation(marker, bearing, device?.type)
       return
     }
 
@@ -148,7 +153,6 @@ export default function LiveVehicleMarker({
         start[1] + (point[1] - start[1]) * eased,
       ]
       marker.setLatLng(next)
-       updateMarkerRotation(marker, bearing, device?.type)
       if (progress < 1) frameRef.current = requestAnimationFrame(animate)
       else frameRef.current = null
     }

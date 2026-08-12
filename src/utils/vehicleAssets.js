@@ -3,9 +3,11 @@ import bikeUrl from '../assets/bike-marker.png'
 import truckUrl from '../assets/truck-marker.png'
 
 export const VEHICLE_MARKERS = {
-  car: { url: carUrl, offset: -135 },
-  bike: { url: bikeUrl, offset: -135 },
-  truck: { url: truckUrl, offset: -135 },
+  // The supplied cut-outs face down-right in their source artwork. These
+  // offsets rotate each nose to north when the live course is 0°.
+  car: { url: carUrl, offset: -125 },
+  bike: { url: bikeUrl, offset: -130 },
+  truck: { url: truckUrl, offset: -120 },
 }
 
 export function markerFor(type) {
