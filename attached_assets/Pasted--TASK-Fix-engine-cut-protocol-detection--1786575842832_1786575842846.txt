@@ -1,0 +1,68 @@
+═══════════════════════════════════════════════════════════
+TASK: Fix engine-cut protocol detection (continuation)
+═══════════════════════════════════════════════════════════
+
+🔴 MANDATORY FIRST: read docs/AI_CONTEXT.md + docs/TASK_LOG.md.
+Work on REAL GitHub repo https://github.com/alanshahd82-dotcom/Shgps.ma
+(branch main). Use GITHUB_TOKEN secret (GIT_ASKPASS, never in URL/logs).
+DO NOT touch Traccar core / H2 DB schema.
+
+🚨 GOLDEN RULE: engine cut/start WORKED for bekane before (RELAY via
+GT06). Do NOT break that. Only fix the protocol-detection bug below.
+Keep live map, replay, ErrorBoundary, subscriptions, voltage feature
+(commit afe6761) all intact.
+
+═══════════════════════════════════════════════════════════
+CONTEXT (a previous session diagnosed this — DO NOT re-investigate):
+═══════════════════════════════════════════════════════════
+The engine-cut command path is: frontend confirm modal → 
+POST /api/devices/:id/command {type:"engineStop"/"engineResume"} →
+backend (backend/src/routes/devices.js, the '/:id/command' route) →
+traccar.sendCommand(traccar_id, traccarType, attributes) →
+Traccar POST /api/commands/send.
+
+VERIFIED FACTS:
+• Server-side curl with a valid token returns {"ok":true,"relay":true}
+  and bekane's engine REALLY cuts. So Traccar + RELAY + GT06 work.
+• The BUG: the backend decides whether to send a custom RELAY command
+  by testing `dev.type` (and dev.name) against /bike|car|gt06|wanway/.
+  But `dev.type` is the VEHICLE type (bike/car/truck), NOT the Traccar
+  PROTOCOL. This makes RELAY routing unreliable, and the traccar_id
+  check was missing in some paths. DACIA (car) may be sending RELAY
+  incorrectly because of this.
+
+═══════════════════════════════════════════════════════════
+YOUR JOB — fix protocol detection properly:
+═══════════════════════════════════════════════════════════
+In backend/src/routes/devices.js ('/:id/command' route):
+  1. Determine the device's actual Traccar PROTOCOL from Traccar's own
+     data, not from dev.type. Fetch the Traccar device (by traccar_id)
+     and read its `protocol` field (e.g. "gt06"). Cache/reuse the
+     existing traccar service call if available — don't add heavy calls.
+  2. If protocol is gt06/concox/wanway/gs900-family → send custom RELAY:
+       engineStop  → { type:"custom", attributes:{ data:"RELAY,1,0#" } }
+       engineResume→ { type:"custom", attributes:{ data:"RELAY,1,1#" } }
+     Otherwise → send standard { type:"engineStop"/"engineResume", attributes:{} }.
+  3. GUARD: if traccar_id is missing/null → return 400 "Device has no
+     Traccar mapping" (don't crash, don't send to undefined).
+  4. Keep the existing device_commands DB insert + logAudit + the
+     {ok:true, type, relay} response shape unchanged (frontend depends on it).
+  5. Verify traccar.sendCommand signature accepts (deviceId, type, attributes).
+
+DO NOT change frontend, Traccar config, or DB schema. Backend route only.
+
+═══════════════════════════════════════════════════════════
+DELIVERY:
+- npm run build passes (backend: node --check on the route; full build).
+- Commit: "fix: detect engine-cut RELAY protocol from Traccar device, guard traccar_id"
+- Push origin/main (fetch+rebase; NEVER force-push).
+- PRINT `git log origin/main --oneline -5` to PROVE push landed.
+- Update docs/TASK_LOG.md: the dev.type-vs-protocol bug, the fix, how
+  protocol is now resolved, files changed, and verification:
+    • bekane (gt06) still cuts engine ✅
+    • DACIA (gt06) now routes RELAY correctly ✅
+    • missing traccar_id returns clean 400 ✅
+- Provide the exact curl test commands (login as mustapha for bekane id=14,
+  amin for DACIA id=16) so the user can verify from server.
+Stop and report if push permission missing. Do NOT save locally only.
+═══════════════════════════════════════════════════════════
