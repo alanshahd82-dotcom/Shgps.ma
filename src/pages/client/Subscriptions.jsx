@@ -49,12 +49,12 @@ function daysRemaining(endDate) {
 function RenewalActions({ device, lang, contacts, onClose }) {
   const { clientAuth } = useApp()
   const isAr = lang === 'ar'
-  const snapshot = getSubscriptionSnapshot(device)
+  const snapshot = getSubscriptionSnapshot(device || {})
   const defaultPlanId = snapshot.planId && getSubscriptionPlan(snapshot.planId)
     ? snapshot.planId
     : SUBSCRIPTION_PLANS[0].id
   const [planId, setPlanId] = useState(defaultPlanId)
-  const plate = device.plate || device.licensePlate || device.license_plate || '—'
+  const plate = device?.plate || device?.licensePlate || device?.license_plate || '—'
   const endDate = dateOnly(snapshot.endDate)
   const today = dateOnly(new Date())
   const renewalStartDate = endDate && endDate >= today ? endDate : today
@@ -63,11 +63,11 @@ function RenewalActions({ device, lang, contacts, onClose }) {
   const clientName = clientAuth?.name || '—'
   const email = clientAuth?.email || '—'
   const message = isAr
-    ? `مرحباً، أرغب في تجديد اشتراك جهازي على منصة Athar GPS:\n• الجهاز: ${device.name || '—'} (${plate})\n• العميل: ${clientName} (${email})\n• انتهاء الاشتراك الحالي: ${endDate || 'غير محدد'}\n• الخطة المطلوبة: ${selectedPlan.label} — ${selectedPlan.price} MAD\n• تاريخ الانتهاء بعد التجديد: ${projectedEndDate}\nشكراً لكم.`
-    : `Bonjour, je souhaite renouveler l’abonnement de mon appareil sur la plateforme Athar GPS :\n• Appareil : ${device.name || '—'} (${plate})\n• Client : ${clientName} (${email})\n• Expiration actuelle : ${endDate || 'non définie'}\n• Forfait souhaité : ${selectedPlan.labelFr} — ${selectedPlan.price} MAD\n• Nouvelle date d’expiration : ${projectedEndDate}\nMerci.`
+    ? `مرحباً، أرغب في تجديد اشتراك جهازي على منصة Athar GPS:\n• الجهاز: ${device?.name || '—'} (${plate})\n• العميل: ${clientName} (${email})\n• انتهاء الاشتراك الحالي: ${endDate || 'غير محدد'}\n• الخطة المطلوبة: ${selectedPlan.label} — ${selectedPlan.price} MAD\n• تاريخ الانتهاء بعد التجديد: ${projectedEndDate}\nشكراً لكم.`
+    : `Bonjour, je souhaite renouveler l’abonnement de mon appareil sur la plateforme Athar GPS :\n• Appareil : ${device?.name || '—'} (${plate})\n• Client : ${clientName} (${email})\n• Expiration actuelle : ${endDate || 'non définie'}\n• Forfait souhaité : ${selectedPlan.labelFr} — ${selectedPlan.price} MAD\n• Nouvelle date d’expiration : ${projectedEndDate}\nMerci.`
   const whatsappNumber = String(contacts?.renew_whatsapp_phone || '').replace(/\D/g, '')
   const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}` : ''
-  const subject = isAr ? `تجديد اشتراك Athar GPS — ${device.name || 'جهاز'}` : `Renouvellement Athar GPS — ${device.name || 'appareil'}`
+  const subject = isAr ? `تجديد اشتراك Athar GPS — ${device?.name || 'جهاز'}` : `Renouvellement Athar GPS — ${device?.name || 'appareil'}`
   const mailtoUrl = contacts?.renew_email
     ? `mailto:${contacts.renew_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`
     : ''
@@ -148,6 +148,7 @@ function RenewalActions({ device, lang, contacts, onClose }) {
 }
 
 function SubscriptionCard({ device, lang, contacts, renewOpen, onRenew }) {
+  if (!device) return null
   const isAr = lang === 'ar'
   const snapshot = getSubscriptionSnapshot(device)
   const remaining = snapshot.status === 'expired' ? daysRemaining(snapshot.endDate) : snapshot.daysRemaining
@@ -213,14 +214,16 @@ export default function Subscriptions() {
   const navigate = useNavigate()
   const { devices, lang } = useApp()
   const isAr = lang === 'ar'
+  const safeDevices = Array.isArray(devices) ? devices : []
   const [renewingId, setRenewingId] = useState(null)
   const [renewalContacts, setRenewalContacts] = useState(null)
   const subscribedDevices = useMemo(
-    () => devices.filter(device => {
+    () => safeDevices.filter(device => {
+      if (!device) return false
       const snapshot = getSubscriptionSnapshot(device)
       return Boolean(snapshot.planId || snapshot.startDate || snapshot.endDate)
     }),
-    [devices],
+    [safeDevices],
   )
 
   useEffect(() => {

@@ -87,6 +87,7 @@ export default function Settings() {
   })
   const [settingsMsg, setSettingsMsg] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('athargps_sound') !== 'false')
+  const safeSubUsers = Array.isArray(subUsers) ? subUsers : []
 
   useEffect(() => {
     if (tab === 'subusers') loadSubUsers()
@@ -94,8 +95,11 @@ export default function Settings() {
 
   async function loadSubUsers() {
     setLoadingSub(true); setSubLoadErr('')
-    try { setSubUsers((await api.subUsers.list()) || []) }
-    catch (e) { setSubLoadErr(isAr ? 'تعذّر تحميل المستخدمين. حاول مرة أخرى.' : 'Impossible de charger les utilisateurs. Réessayez.') }
+    try {
+      const result = await api.subUsers.list()
+      setSubUsers(Array.isArray(result) ? result : [])
+    }
+    catch { setSubLoadErr(isAr ? 'تعذّر تحميل المستخدمين. حاول مرة أخرى.' : 'Impossible de charger les utilisateurs. Réessayez.') }
     finally { setLoadingSub(false) }
   }
 
@@ -109,7 +113,7 @@ export default function Settings() {
         setEmail(result.user.email || email)
       }
       setProfMsg(isAr ? 'تم الحفظ ✓' : 'Enregistré ✓')
-    } catch (err) { setProfMsg(err.message) }
+    } catch (err) { setProfMsg(err?.message || (isAr ? 'تعذّر الحفظ' : 'Enregistrement impossible')) }
     finally { setSavingProf(false) }
   }
 
@@ -122,7 +126,7 @@ export default function Settings() {
       await api.auth.changePassword(curPass, newPass)
       setPassMsg(isAr ? 'تم التغيير ✓' : 'Modifié ✓')
       setCurPass(''); setNewPass(''); setConfPass('')
-    } catch (err) { setPassMsg(err.message) }
+    } catch (err) { setPassMsg(err?.message || (isAr ? 'تعذّر تغيير كلمة المرور' : 'Modification impossible')) }
     finally { setSavingPass(false) }
   }
 
@@ -131,7 +135,7 @@ export default function Settings() {
     try {
       await api.subUsers.create(newUser)
       setShowAdd(false); setNewUser({ name:'', email:'', password:'', role:'viewer' }); loadSubUsers()
-    } catch (err) { showSubErr(err.message) }
+    } catch (err) { showSubErr(err?.message || (isAr ? 'تعذّرت الإضافة' : 'Ajout impossible')) }
     finally { setSavingSub(false) }
   }
 
@@ -143,7 +147,7 @@ export default function Settings() {
       danger:    true,
       onConfirm: async () => {
         closeConfirm()
-        try { await api.subUsers.remove(id); loadSubUsers() } catch (e) { showSubErr(e.message) }
+        try { await api.subUsers.remove(id); loadSubUsers() } catch (e) { showSubErr(e?.message || (isAr ? 'تعذّر الحذف' : 'Suppression impossible')) }
       },
     })
   }
@@ -369,12 +373,12 @@ export default function Settings() {
                   {isAr?'إعادة المحاولة':'Réessayer'}
                 </button>
               </div>
-            ) : subUsers.length === 0 ? (
+            ) : safeSubUsers.length === 0 ? (
               <div className="p-6 rounded-2xl text-center" style={cardStyle}>
                 <Users size={28} className="mx-auto mb-2" style={{ color: 'rgba(255,255,255,0.2)' }}/>
                 <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>{isAr ? 'لا يوجد مستخدمون فرعيون' : 'Aucun sous-utilisateur'}</p>
               </div>
-            ) : subUsers.map(u => (
+            ) : safeSubUsers.map(u => (
               <div key={u.id} className="flex items-center gap-3 p-4 rounded-2xl" style={cardStyle}>
                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ background:'rgba(56,211,159,0.1)' }}>

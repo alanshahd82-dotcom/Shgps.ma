@@ -20,6 +20,7 @@ const RANGES = [
   { key: 'week', labelKey: 'last7Days' },
   { key: 'month', labelKey: 'last30Days' },
 ]
+const EMPTY_DEVICES = []
 
 const styles = `
   .ath-reports-page {
@@ -254,12 +255,13 @@ export default function Reports() {
   const [replayTrip, setReplayTrip] = useState(null)
   const [replayLoading, setReplayLoading] = useState('')
   const isAr = lang === 'ar'
+  const safeDevices = Array.isArray(devices) ? devices : EMPTY_DEVICES
 
-  const selectedDevice = devices.find(d => String(d.id) === String(deviceId))
+  const selectedDevice = safeDevices.find(d => String(d?.id) === String(deviceId))
 
   useEffect(() => {
-    if (devices.length && !deviceId) setDeviceId(String(devices[0].id))
-  }, [devices, deviceId])
+    if (safeDevices.length && !deviceId && safeDevices[0]) setDeviceId(String(safeDevices[0].id))
+  }, [safeDevices, deviceId])
 
   async function load() {
     if (!deviceId) return
@@ -274,7 +276,7 @@ export default function Reports() {
       const res = await api.reports.get(deviceId, from.toISOString(), now.toISOString())
       setData(res)
     } catch (e) {
-      setError(e.message)
+      setError(e?.message || (isAr ? 'تعذّر تحميل التقرير' : 'Impossible de charger le rapport'))
     } finally {
       setLoading(false)
     }
@@ -282,7 +284,7 @@ export default function Reports() {
 
   useEffect(() => { load() }, [deviceId, range])
 
-  const rawChartData = bucketMax(data?.speedSeries || [], 300)
+  const rawChartData = bucketMax(Array.isArray(data?.speedSeries) ? data.speedSeries : [], 300)
   const chartData = rawChartData.map((point) => {
     const date = new Date(point.time)
     return {
@@ -300,8 +302,8 @@ export default function Reports() {
   )
   const maxSpeed = Number(data?.max_speed ?? data?.maxSpeed ?? 0)
   const hasReportData = chartData.length > 0 || trips.length > 0
-  const subscriptionSummary = devices.reduce((summary, device) => {
-    const status = getSubscriptionSnapshot(device).status
+  const subscriptionSummary = safeDevices.reduce((summary, device) => {
+    const status = getSubscriptionSnapshot(device || {}).status
     if (status === 'expired') summary.expired += 1
     if (status === 'expiring_soon') summary.expiringSoon += 1
     return summary
@@ -322,7 +324,7 @@ export default function Reports() {
         })
       }
     } catch (e) {
-      setError(e.message)
+      setError(e?.message || (isAr ? 'تعذّرت قراءة الرحلة' : 'Impossible de lire le trajet'))
     } finally {
       setReplayLoading('')
     }
@@ -384,7 +386,7 @@ export default function Reports() {
               className="mb-3 overflow-hidden rounded-2xl"
               style={{ background: 'var(--reports-surface)', border: '1px solid var(--reports-line)' }}
             >
-              {devices.map(d => (
+              {safeDevices.map(d => (
                 <button
                   key={d.id}
                   onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}

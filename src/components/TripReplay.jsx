@@ -26,6 +26,26 @@ const MAX_POSITION_SPEED_KMH = 220
 const PLAYBACK_RENDER_INTERVAL_MS = 250
 const MIN_REPLAY_STEP_MS = 120
 
+function readyMapContainer(map) {
+  if (!map || map._loaded !== true || typeof map.getContainer !== 'function') return null
+  try {
+    const container = map.getContainer()
+    return container && container.isConnected !== false ? container : null
+  } catch {
+    return null
+  }
+}
+
+function safeInvalidateSize(map, options) {
+  if (!map || map._loaded !== true || typeof map.invalidateSize !== 'function') return false
+  try {
+    map.invalidateSize(options)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function validPoint(point) {
   const latitude = Number(point?.latitude ?? point?.lat)
   const longitude = Number(point?.longitude ?? point?.lng)
@@ -242,22 +262,28 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, m
   const lastFollowAtRef = useRef(0)
 
   useEffect(() => {
-    if (!map._loaded) return undefined
+    if (!readyMapContainer(map)) return undefined
     const timer = window.setTimeout(() => {
-      const mapContainer = map.getContainer()
+      const mapContainer = readyMapContainer(map)
+      if (!mapContainer) return
       const mapRect = mapContainer.getBoundingClientRect()
-      if (!map._loaded || mapRect.width <= 0 || mapRect.height <= 0) return
-      map.invalidateSize()
+      if (mapRect.width <= 0 || mapRect.height <= 0) return
+      safeInvalidateSize(map)
       if (route.length) {
-        const bounds = L.latLngBounds(route.map(leafletPosition))
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
+        try {
+          const bounds = L.latLngBounds(route.map(leafletPosition))
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
+        } catch {
+          // The map may be disposed while the delayed layout pass is running.
+        }
       }
     }, 100)
     return () => window.clearTimeout(timer)
   }, [map, mapReady, route])
 
   useEffect(() => {
-    const container = map.getContainer()
+    const container = readyMapContainer(map)
+    if (!container) return undefined
     const disableFollow = () => onManualMove()
     const eventOptions = { passive: true }
 
@@ -276,31 +302,36 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, m
   }, [map, onManualMove])
 
   useEffect(() => {
-    if (mapReady && map._loaded && current && followCurrent) {
-      if (map.getZoom() < 15) map.setZoom(15, { animate: false })
-      const mapContainer = map.getContainer()
-      const mapRect = mapContainer.getBoundingClientRect()
-      if (mapRect.width <= 0 || mapRect.height <= 0) return
-      const sheet = document.querySelector('.athar-replay-sheet')
-      const header = document.querySelector('.athar-replay-header')
-      const sheetTop = sheet?.getBoundingClientRect().top ?? mapRect.bottom
-      const headerBottom = header?.getBoundingClientRect().bottom ?? mapRect.top + 68
-      const visibleTop = Math.max(mapRect.top, headerBottom + 12) - mapRect.top
-      const visibleBottom = Math.min(mapRect.bottom, sheetTop - 12) - mapRect.top
-      const targetY = Math.max(visibleTop, Math.min(visibleBottom, (visibleTop + visibleBottom) / 2))
-       const currentPoint = map.latLngToContainerPoint(leafletPosition(current))
-      const offset = L.point(mapRect.width / 2, targetY).subtract(currentPoint)
+    if (mapReady && current && followCurrent) {
+      const mapContainer = readyMapContainer(map)
+      if (!mapContainer) return
+      try {
+        if (map.getZoom() < 15) map.setZoom(15, { animate: false })
+        const mapRect = mapContainer.getBoundingClientRect()
+        if (mapRect.width <= 0 || mapRect.height <= 0) return
+        const sheet = document.querySelector('.athar-replay-sheet')
+        const header = document.querySelector('.athar-replay-header')
+        const sheetTop = sheet?.getBoundingClientRect().top ?? mapRect.bottom
+        const headerBottom = header?.getBoundingClientRect().bottom ?? mapRect.top + 68
+        const visibleTop = Math.max(mapRect.top, headerBottom + 12) - mapRect.top
+        const visibleBottom = Math.min(mapRect.bottom, sheetTop - 12) - mapRect.top
+        const targetY = Math.max(visibleTop, Math.min(visibleBottom, (visibleTop + visibleBottom) / 2))
+        const currentPoint = map.latLngToContainerPoint(leafletPosition(current))
+        const offset = L.point(mapRect.width / 2, targetY).subtract(currentPoint)
 
-      if (Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
-        // The playback clock can update at 60fps. Animating a new Leaflet pan
-        // on every frame queues overlapping transitions and eventually freezes
-        // the replay. Keep the vehicle comfortably in view with an immediate,
-        // throttled pan instead.
-        const now = performance.now()
-        if (Math.hypot(offset.x, offset.y) >= 24 && now - lastFollowAtRef.current >= 120) {
-          lastFollowAtRef.current = now
-          map.panBy(offset, { animate: false })
+        if (Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
+          // The playback clock can update at 60fps. Animating a new Leaflet pan
+          // on every frame queues overlapping transitions and eventually freezes
+          // the replay. Keep the vehicle comfortably in view with an immediate,
+          // throttled pan instead.
+          const now = performance.now()
+          if (Math.hypot(offset.x, offset.y) >= 24 && now - lastFollowAtRef.current >= 120) {
+            lastFollowAtRef.current = now
+            map.panBy(offset, { animate: false })
+          }
         }
+      } catch {
+        // Leaflet can finish tearing down between a playback tick and a map call.
       }
     }
   }, [current?.latitude, current?.longitude, followCurrent, map, mapReady, showAnalysis])
@@ -314,11 +345,11 @@ function MapLifecycle({ onLoad }) {
   useEffect(() => {
     let cancelled = false
     const markReady = () => {
-      if (cancelled || !map.getContainer()) return
-      map.invalidateSize(false)
+      if (cancelled || !readyMapContainer(map)) return
+      safeInvalidateSize(map, false)
       onLoad()
     }
-    map.whenReady(markReady)
+    if (typeof map.whenReady === 'function') map.whenReady(markReady)
     const raf = requestAnimationFrame(markReady)
     const forceTimer = window.setTimeout(markReady, 300)
     return () => {
@@ -338,10 +369,11 @@ function MapResizeSync({ mapReady, showAnalysis, routeLength }) {
     let resizeFrame = null
     let resizeTimer = null
     const resize = () => {
-      const container = map.getContainer()
+      const container = readyMapContainer(map)
+      if (!container) return
       const rect = container.getBoundingClientRect()
-      if (!map._loaded || rect.width <= 0 || rect.height <= 0) return
-      map.invalidateSize({ pan: false, animate: false })
+      if (rect.width <= 0 || rect.height <= 0) return
+      safeInvalidateSize(map, { pan: false, animate: false })
     }
     const scheduleResize = () => {
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
@@ -357,7 +389,7 @@ function MapResizeSync({ mapReady, showAnalysis, routeLength }) {
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleResize)
 
     sheet?.addEventListener('transitionend', handleTransitionEnd)
-    observer?.observe(sheet)
+    if (observer && sheet) observer.observe(sheet)
     window.addEventListener('resize', scheduleResize)
     scheduleResize()
 
