@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X, LocateFixed, Gauge, List, BatteryMedium, Wifi } from 'lucide-react'
-import { MapContainer, Marker, Popup, ZoomControl, useMap } from 'react-leaflet'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi } from 'lucide-react'
+import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
@@ -10,7 +10,9 @@ import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon, timeAgo, getDeviceStatusKey } from '../../components/ui'
+import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
+import { downsample, simplifyPath } from '../../utils/simplify'
 
 // ── Map icons ──────────────────────────────────────────────────────────────────
 const userLocIcon = L.divIcon({
@@ -24,27 +26,22 @@ const userLocIcon = L.divIcon({
 
 const ST_CLR = { moving: '#00D97E', idle: '#FF9500', stopped: '#FF3B30', awaiting_gps: '#F59E0B', offline: '#6b7280' }
 
-function GoogleMapsMark() {
-  return (
-    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-      <path fill="#34A853" d="M12 22c-.3-1.4-1.7-3.1-3.2-5.1C6.8 14.2 5 11.9 5 9a7 7 0 1 1 14 0c0 2.9-1.8 5.2-3.8 7.9C13.7 18.9 12.3 20.6 12 22Z" />
-      <path fill="#4285F4" d="M5.4 7.2A7 7 0 0 1 12 2v5.2H5.4Z" />
-      <path fill="#EA4335" d="M12 2a7 7 0 0 1 6.6 5.2H12V2Z" />
-      <path fill="#FBBC04" d="M5.4 7.2H12v5.1H6.2a7 7 0 0 1-.8-5.1Z" />
-      <circle cx="12" cy="9" r="2.4" fill="white" />
-    </svg>
-  )
-}
-
-function WazeMark() {
-  return (
-    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-      <path fill="#79D7F2" d="M21 10.2c0 4.4-3.4 7.4-8.2 7.4H9.5l-2.1 2.1c-.5.5-1.4.2-1.4-.5v-1.9C3.6 16.4 2 14 2 11.3 2 7 5.8 3.5 11.6 3.5 17.2 3.5 21 6.1 21 10.2Z" />
-      <circle cx="9" cy="10" r="1.4" fill="#10233D" />
-      <circle cx="16" cy="10" r="1.4" fill="#10233D" />
-      <path d="M8.5 14c1.5 1.1 4.4 1.1 6 0" fill="none" stroke="#10233D" strokeLinecap="round" strokeWidth="1.2" />
-    </svg>
-  )
+function makeVehicleIcon(device, isSelected) {
+  const st  = getDeviceStatusKey(device)
+  const c   = ST_CLR[st] || '#6b7280'
+  const sz  = isSelected ? 24 : 18
+  const glow = isSelected ? `0 0 0 4px ${c}44,` : ''
+  const pulse = st === 'moving'
+    ? `<div style="position:absolute;inset:-7px;border-radius:50%;background:${c}22;animation:ping 2s ease-out infinite"></div>`
+    : ''
+  return L.divIcon({
+    className: '',
+    html: `<div style="position:relative;width:${sz}px;height:${sz}px">
+      ${pulse}
+      <div style="position:absolute;inset:0;border-radius:50%;background:${c};border:${isSelected ? 3 : 2}px solid white;box-shadow:${glow}0 2px 12px rgba(0,0,0,0.5)"></div>
+    </div>`,
+    iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+  })
 }
 
 // ── Map helpers ────────────────────────────────────────────────────────────────
@@ -75,7 +72,25 @@ function FlyTo({ lat, lng, zoom = 15 }) {
   return null
 }
 
+function FitTodayRoute({ route }) {
+  const map = useMap()
+  useEffect(() => {
+    if (route.length < 2) return
+    try {
+      const bounds = L.latLngBounds(route)
+      if (bounds.isValid()) {
+        map.invalidateSize({ pan: false })
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
+      }
+    } catch {
+      // Keep the current map view if a malformed upstream route slips through.
+    }
+  }, [map, route])
+  return null
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────────
+const PANEL_PEEK = 132
 const PANEL_OPEN = 480
 
 const ST_LABEL = {
@@ -106,7 +121,7 @@ function getLiveBearing(device) {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function LiveMap() {
-  const { devices, lang } = useApp()
+  const { devices, lang, wsConnected } = useApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [search,       setSearch]       = useState('')
@@ -116,6 +131,10 @@ export default function LiveMap() {
   const [locateTarget, setLocateTarget] = useState(null)
   const [autoFollow, setAutoFollow] = useState(() => localStorage.getItem('athargps_auto_follow') !== 'false')
   const [clock, setClock] = useState(() => Date.now())
+  const [todayRoute, setTodayRoute] = useState([])
+  const [routeLoading, setRouteLoading] = useState(false)
+  const [routeError, setRouteError] = useState('')
+  const routeRequestRef = useRef(0)
   const isAr = lang === 'ar'
   const requestedDeviceId = searchParams.get('device')
   useEffect(() => {
@@ -196,6 +215,56 @@ export default function LiveMap() {
     }
   }, [devices, requestedDeviceId])
 
+  useEffect(() => {
+    setTodayRoute([])
+    setRouteError('')
+  }, [selected])
+
+  async function showTodayRoute(device) {
+    if (routeLoading) return
+    const requestId = ++routeRequestRef.current
+    const from = new Date()
+    from.setHours(0, 0, 0, 0)
+    setRouteLoading(true)
+    setRouteError('')
+    try {
+      const points = await api.stats.getPositions(device.id, from.toISOString(), new Date().toISOString(), 1500)
+      const rawRoute = (Array.isArray(points) ? points : [])
+        .map(point => [toCoord(point?.latitude ?? point?.lat), toCoord(point?.longitude ?? point?.lng)])
+        .filter(([lat, lng]) =>
+          Number.isFinite(lat) && Number.isFinite(lng)
+          && lat >= -90 && lat <= 90
+          && lng >= -180 && lng <= 180
+          && !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
+        )
+      const route = downsample(simplifyPath(rawRoute, 0.00005), 600)
+      if (requestId !== routeRequestRef.current) return
+      if (route.length < 2) {
+        setRouteError(isAr ? 'لا توجد نقاط كافية لمسار اليوم.' : 'Pas assez de points pour le trajet du jour.')
+        setTodayRoute([])
+      } else {
+        setTodayRoute(route)
+      }
+    } catch {
+      if (requestId !== routeRequestRef.current) return
+      setRouteError(isAr ? 'تعذّر تحميل مسار اليوم.' : 'Impossible de charger le trajet du jour.')
+    } finally {
+      if (requestId === routeRequestRef.current) setRouteLoading(false)
+    }
+  }
+
+  // Status summary counts
+  const counts = useMemo(() => {
+    const all = devices.filter(d => d.trackingEnabled !== false)
+    return {
+      moving:  all.filter(d => getDeviceStatusKey(d) === 'moving').length,
+      idle:    all.filter(d => getDeviceStatusKey(d) === 'idle').length,
+      stopped: all.filter(d => getDeviceStatusKey(d) === 'stopped').length,
+      awaiting_gps: all.filter(d => getDeviceStatusKey(d) === 'awaiting_gps').length,
+      offline: all.filter(d => getDeviceStatusKey(d) === 'offline').length,
+    }
+  }, [devices])
+
   function openMaps(type, device) {
     const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
     const lng = toCoord(device.lng) ?? toCoord(device.last_lng)
@@ -213,7 +282,7 @@ export default function LiveMap() {
     }
   }
 
-  const panelH = panelOpen ? PANEL_OPEN : 0
+  const panelH = panelOpen ? PANEL_OPEN : PANEL_PEEK
   const clientNavOffset = 'calc(5.6rem + env(safe-area-inset-bottom, 0px))'
   const panelAwareOffset = `calc(${panelH}px + var(--athar-client-nav-offset) + 8px)`
 
@@ -288,6 +357,19 @@ export default function LiveMap() {
               </Popup>
             </LiveVehicleMarker>
           ))}
+           {todayRoute.length > 1 && (
+             <Polyline
+               positions={todayRoute}
+               pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }}
+             />
+           )}
+           <FitTodayRoute route={todayRoute} />
+           {todayRoute.length > 1 && (
+             <Polyline
+               positions={todayRoute}
+               pathOptions={{ color: '#1DBF73', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
+             />
+           )}
           {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
           <FlyToUser target={locateTarget} />
           <ZoomControl position="bottomright" />
@@ -296,6 +378,50 @@ export default function LiveMap() {
       </div>
 
       <ClientHeader overlay />
+
+      <button
+        type="button"
+        onClick={() => setAutoFollow(value => !value)}
+        aria-pressed={autoFollow}
+        aria-label={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
+        title={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
+        className="absolute z-[500] flex items-center gap-1.5 rounded-2xl p-2.5 text-[11px] font-bold"
+        style={{
+          top: 116,
+          left: 14,
+          background: 'rgba(6,12,26,0.92)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(18px)',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+          color: autoFollow ? '#7ff3bf' : 'rgba(255,255,255,0.62)',
+        }}
+      >
+        <LocateFixed size={14} />
+        <span>{t(lang, 'autoFollow')}</span>
+      </button>
+
+      {/* ── Live indicator ── */}
+      <div className="absolute z-20" style={{ top: 72, left: 14 }}>
+        <div
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold"
+          style={{
+            background: wsConnected ? 'rgba(0,217,126,0.92)' : 'rgba(239,68,68,0.92)',
+            color: 'white',
+            backdropFilter: 'blur(16px)',
+            boxShadow: wsConnected
+              ? '0 2px 16px rgba(0,217,126,0.5)'
+              : '0 2px 16px rgba(239,68,68,0.5)',
+          }}
+        >
+          <span
+            className="rounded-full"
+            style={{ width: 6, height: 6, display: 'inline-block',
+              background: wsConnected ? '#38d39f' : '#e46b68',
+              animation: wsConnected ? 'ping 2s ease-out infinite' : 'none' }}
+          />
+           {wsConnected ? t(lang, 'live') : t(lang, 'reconnecting')}
+        </div>
+      </div>
 
       {/* ── Search bar ── */}
       <div
@@ -333,6 +459,18 @@ export default function LiveMap() {
         </div>
       </div>
 
+      {/* ── Status legend ── */}
+      <div className="athar-map-legend" style={{ bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
+        {[
+          { key: 'moving', color: ST_CLR.moving, label: { ar: 'تتحرك', fr: 'En mouvement' } },
+          { key: 'idle', color: ST_CLR.idle, label: { ar: 'خاملة', fr: 'Ralentie' } },
+          { key: 'stopped', color: ST_CLR.stopped, label: { ar: 'متوقفة', fr: 'Arrêtée' } },
+          { key: 'awaiting_gps', color: ST_CLR.awaiting_gps, label: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' } },
+        ].map(item => (
+          <span key={item.key}><i style={{ background: item.color }} />{item.label[lang] || item.label.fr}</span>
+        ))}
+      </div>
+
       <button
         type="button"
         onClick={locateMe}
@@ -344,55 +482,68 @@ export default function LiveMap() {
         <LocateFixed size={17} />
       </button>
 
-      {!panelOpen && (
-        <button
-          type="button"
-          onClick={() => setPanelOpen(true)}
-          aria-label={isAr ? 'فتح أجهزتي' : 'Ouvrir mes appareils'}
-          className="athar-devices-launcher"
-          style={{ bottom: `calc(var(--athar-client-nav-offset) + 18px)` }}
-        >
-          <List size={16} />
-          <span>{isAr ? 'أجهزتي' : 'Mes appareils'}</span>
-          <span className="athar-devices-count">{filtered.length}</span>
-        </button>
-      )}
-
-      <AnimatePresence>
-      {panelOpen && <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 24 }}
-        transition={{ duration: 0.24 }}
-        className="absolute left-2 right-2 z-20"
+      {/* ── Bottom Panel ── */}
+      <div
+        className="absolute left-0 right-0 z-20"
         style={{
           bottom: 'var(--athar-client-nav-offset)',
-          height: PANEL_OPEN,
-          maxHeight: 'calc(100dvh - var(--athar-client-nav-offset) - 18px)',
+          height: panelH,
+          transition: 'height 0.35s cubic-bezier(0.4,0,0.2,1)',
           borderRadius: '22px 22px 0 0',
           background: 'rgba(5,10,24,0.98)',
           backdropFilter: 'blur(32px)',
-          border: '1px solid rgba(255,255,255,0.09)',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
           boxShadow: '0 -12px 48px rgba(0,0,0,0.7)',
         }}
       >
+        {/* Drag handle */}
+        <button
+          className="w-full flex justify-center pt-3 pb-1"
+          onClick={() => setPanelOpen(p => !p)}
+        >
+          <div
+            className="rounded-full transition-all duration-300"
+            style={{
+              width: panelOpen ? 32 : 40,
+              height: 4,
+              background: 'rgba(255,255,255,0.15)',
+            }}
+          />
+        </button>
+
         {/* Panel header */}
-        <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <p className="text-sm font-black text-white">{isAr ? 'أجهزتي' : 'Mes appareils'}</p>
-            <p className="mt-0.5 text-[10px] font-semibold text-white/40">
-              {isAr ? 'اختر مركبة للتركيز عليها' : 'Choisissez un véhicule à suivre'}
-            </p>
+        <button
+          className="w-full flex items-center justify-between px-4 py-2"
+          onClick={() => setPanelOpen(p => !p)}
+          aria-label={isAr ? (panelOpen ? 'إغلاق القائمة' : 'فتح القائمة') : (panelOpen ? 'Fermer' : 'Ouvrir')}
+          aria-expanded={panelOpen}
+        >
+          {/* Status chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[
+              { key: 'moving',  color: '#00D97E', bg: 'rgba(0,217,126,0.12)',  border: 'rgba(0,217,126,0.25)',  label: { ar: 'يتحرك',    fr: 'Mvt'      } },
+              { key: 'idle',    color: '#FF9500', bg: 'rgba(255,149,0,0.12)',  border: 'rgba(255,149,0,0.25)',  label: { ar: 'خامل',     fr: 'Ralenti'  } },
+              { key: 'stopped', color: '#FF3B30', bg: 'rgba(255,59,48,0.12)',  border: 'rgba(255,59,48,0.25)',  label: { ar: 'متوقف',    fr: 'Arrêté'   } },
+              { key: 'awaiting_gps', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)', label: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' } },
+              { key: 'offline', color: '#9ca3af', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.22)', label: { ar: 'غير متصل', fr: 'Hors ligne' } },
+            ].map(({ key, color, bg, border, label }) =>
+              counts[key] > 0 ? (
+                <span
+                  key={key}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                  style={{ background: bg, color, border: `1px solid ${border}` }}
+                >
+                  <span className="rounded-full" style={{ width: 6, height: 6, background: color, display: 'inline-block' }} />
+                  {counts[key]} {label[lang] || label.fr}
+                </span>
+              ) : null
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => setPanelOpen(false)}
-            aria-label={isAr ? 'إغلاق أجهزتي' : 'Fermer mes appareils'}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60"
-          >
-            <X size={15} />
-          </button>
-        </div>
+
+          <motion.div animate={{ rotate: panelOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
+            <ChevronUp size={16} style={{ color: 'rgba(255,255,255,0.25)' }} />
+          </motion.div>
+        </button>
 
         {/* Device list */}
         <AnimatePresence>
@@ -566,9 +717,23 @@ export default function LiveMap() {
                               }}
                             >
                               <button
-                                type="button"
+                                 onClick={(event) => {
+                                   event.stopPropagation()
+                                   showTodayRoute(d)
+                                 }}
+                                disabled={routeLoading}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs disabled:opacity-60"
+                                style={{
+                                  background: 'rgba(217,173,98,0.14)',
+                                  border: '1px solid rgba(217,173,98,0.38)',
+                                  color: '#e7c788',
+                                }}
+                              >
+                                {routeLoading ? <Loader2 size={13} className="animate-spin" /> : <RouteIcon size={13} />}
+                                {t(lang, 'showRoute')}
+                              </button>
+                              <button
                                 onClick={() => openMaps('google', d)}
-                                aria-label={isAr ? 'فتح Google Maps' : 'Ouvrir Google Maps'}
                                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs"
                                 style={{
                                   background: 'rgba(59,130,246,0.18)',
@@ -576,13 +741,11 @@ export default function LiveMap() {
                                   color: '#93C5FD',
                                 }}
                               >
-                                <GoogleMapsMark />
+                                <Navigation size={13} />
                                 Google Maps
                               </button>
                               <button
-                                type="button"
                                 onClick={() => openMaps('waze', d)}
-                                aria-label={isAr ? 'فتح Waze' : 'Ouvrir Waze'}
                                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs"
                                 style={{
                                   background: 'rgba(0,217,126,0.12)',
@@ -590,10 +753,13 @@ export default function LiveMap() {
                                   color: '#00D97E',
                                 }}
                               >
-                                <WazeMark />
+                                <MapPin size={13} />
                                 Waze
                               </button>
                             </div>
+                            {routeError && (
+                              <p className="px-3 pb-1 text-center text-[10px] font-semibold text-amber-300">{routeError}</p>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -605,8 +771,7 @@ export default function LiveMap() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>}
-      </AnimatePresence>
+      </div>
 
       <ClientNav />
     </div>
