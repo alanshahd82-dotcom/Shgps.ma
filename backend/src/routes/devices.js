@@ -1,9 +1,10 @@
 import { Router } from 'express'
-    import { requireAuth }  from '../middleware/auth.js'
+import { requireAuth, requireMainAdmin }  from '../middleware/auth.js'
 import { logAudit }    from '../services/auditLog.js'
 import { validateBody, schemas } from '../validation/schemas.js'
     import { db }          from '../db.js'
     import * as traccar    from '../services/traccar.js'
+import { deviceAccessScope, getAccessibleDevice } from '../middleware/deviceAccess.js'
 import {
   addMonths,
   dateOnly,
@@ -19,19 +20,12 @@ import {
     // only access devices assigned directly to their own account.
     async function requireDeviceOwner(req, res, next) {
       try {
-        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-        const device = rows[0]
-        if (!device) return res.status(404).json({ error: 'Device not found' })
-
-        const canAccessAllDevices = req.user.is_admin || req.user.role === 'manager'
-        if (!canAccessAllDevices && device.user_id !== req.user.id) {
-          return res.status(403).json({ error: 'You are not authorized to access this device' })
-        }
-
+        const device = await getAccessibleDevice(db, req.user, req.params.id)
+        if (!device) return res.status(404).json({ error: 'Device not found or access denied' })
         req.device = device
         next()
       } catch (err) {
-        console.error(err)
+        console.error('[device-access]', err.message)
         res.status(500).json({ error: 'Server error' })
       }
     }
@@ -49,18 +43,13 @@ import {
     }
 
     // GET /devices/test-connection?imei= — check whether a registered device has sent data
-    devicesRouter.get('/test-connection', requireAuth, async (req, res) => {
+    devicesRouter.get('/test-connection', requireAuth, requireMainAdmin, async (req, res) => {
       const { imei } = req.query
       if (!imei) return res.status(400).json({ error: 'IMEI required' })
       try {
         // Check local DB first
         const { rows } = await db.query('SELECT id, traccar_id, name, user_id FROM devices WHERE imei=$1', [imei])
         if (rows[0]) {
-          // Reject if the device belongs to a different user (and requester is not admin)
-          const ownerId = req.user.parent_client_id || req.user.id
-          if (!req.user.is_admin && rows[0].user_id !== ownerId) {
-            return res.status(403).json({ error: 'Access denied' })
-          }
           let traccarDevice = null
           let position = null
           try {
@@ -106,18 +95,15 @@ import {
 
     devicesRouter.get('/', requireAuth, async (req, res) => {
     try {
-      const { rows } = req.user.is_admin
-        ? req.user.is_sub_admin
-          // Sub-admin: only devices of assigned clients
-          ? await db.query(`
-              SELECT d.*,u.name AS client_name FROM devices d
-              LEFT JOIN users u ON d.user_id=u.id
-              WHERE d.user_id IN (
-                SELECT client_id FROM sub_admin_client_access WHERE sub_admin_id=$1
-              ) ORDER BY d.created_at DESC`, [req.user.id])
-          // Main admin: all devices
-          : await db.query('SELECT d.*,u.name AS client_name FROM devices d LEFT JOIN users u ON d.user_id=u.id ORDER BY d.created_at DESC')
-        : await db.query('SELECT * FROM devices WHERE user_id=$1 ORDER BY created_at DESC', [req.user.id])
+      const scope = deviceAccessScope(req.user, 'd')
+      const { rows } = await db.query(
+        `SELECT d.*,u.name AS client_name
+         FROM devices d
+         LEFT JOIN users u ON d.user_id=u.id
+         WHERE ${scope.text}
+         ORDER BY d.created_at DESC`,
+        scope.values
+      )
 
       // Build position map by Traccar device ID
       let pm = {}
@@ -416,12 +402,8 @@ import {
         // Older installations may have created devices before the driver phone field existed.
         // Keep the existing update API backward-compatible without changing the schema file.
         await db.query('ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone VARCHAR(20)')
-        const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-        if (!devRows[0]) return res.status(404).json({ error: 'Device not found' })
-        const device = devRows[0]
-        const ownerId = req.user.parent_client_id || req.user.id
-        if (!req.user.is_admin && device.user_id !== ownerId)
-          return res.status(403).json({ error: 'Access denied' })
+        const device = await getAccessibleDevice(db, req.user, req.params.id)
+        if (!device) return res.status(404).json({ error: 'Device not found or access denied' })
         const sets = []; const vals = []; let i = 1
         if (name   !== undefined) { sets.push(`name=$${i++}`);   vals.push(String(name).trim())   }
         if (driver !== undefined) { sets.push(`driver=$${i++}`); vals.push(String(driver).trim()) }
@@ -446,10 +428,8 @@ import {
       const plan = getSubscriptionPlan(subscriptionPlanId)
       if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
       try {
-        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-        const device = rows[0]
-        if (!device) return res.status(404).json({ error: 'Device not found' })
-        if (!req.user.is_admin && device.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+        const device = await getAccessibleDevice(db, req.user, req.params.id)
+        if (!device) return res.status(404).json({ error: 'Device not found or access denied' })
          if (plan.trial && !req.user.is_admin) {
            return res.status(403).json({
              code: 'FREE_TRIAL_REQUIRES_APPROVAL',
@@ -546,10 +526,8 @@ import {
     // POST /:id/geofence — ينشئ سياجاً جغرافياً ويخزّنه محلياً وفي Traccar (إن أمكن)
     devicesRouter.post('/:id/geofence', requireAuth, async (req, res) => {
       try {
-        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-        const dev = rows[0]
-        if (!dev) return res.status(404).json({ error: 'Device not found' })
-        if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
+        const dev = await getAccessibleDevice(db, req.user, req.params.id)
+        if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
 
         const { name, latitude, longitude, radius } = req.body
         if (!latitude || !longitude || !radius) {
@@ -597,9 +575,8 @@ import {
     devicesRouter.delete('/:id', requireAuth, async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       try {
-        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-        const dev = rows[0]
-        if (!dev) return res.status(404).json({ error: 'Device not found' })
+        const dev = await getAccessibleDevice(db, req.user, req.params.id)
+        if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
         // حذف من Traccar (اختياري — لا يُفشل الطلب)
         if (dev.traccar_id) {
           try { await traccar.deleteDevice(dev.traccar_id) } catch (e) {
@@ -621,7 +598,6 @@ import {
         const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
         const dev = rows[0]
         if (!dev) return res.status(404).json({ error: 'Device not found' })
-        if (!req.user.is_admin && dev.user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' })
 
         // حذف من قاعدة البيانات المحلية
         await db.query('DELETE FROM local_geofences WHERE device_id=$1', [dev.id])

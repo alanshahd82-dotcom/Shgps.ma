@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { getAccessibleDevice } from '../middleware/deviceAccess.js'
 
 export const statsRouter = Router()
 
@@ -63,17 +64,9 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
   }
 
   try {
-    const { rows } = await db.query(
-      'SELECT id, traccar_id, user_id FROM devices WHERE id=$1',
-      [deviceIdNumber]
-    )
-    const device = rows[0]
+    const device = await getAccessibleDevice(db, req.user, deviceIdNumber)
 
-    if (!device) return res.status(404).json({ error: 'Device not found' })
-    const ownerId = req.user.parent_client_id || req.user.id
-    if (!req.user.is_admin && device.user_id !== ownerId) {
-      return res.status(403).json({ error: 'Access denied' })
-    }
+    if (!device) return res.status(404).json({ error: 'Device not found or access denied' })
     if (!device.traccar_id) {
       return res.status(502).json({ error: 'Device is not linked to the tracking service' })
     }

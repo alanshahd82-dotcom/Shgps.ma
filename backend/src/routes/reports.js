@@ -4,6 +4,7 @@ import { requireRole } from '../middleware/requireRole.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
+import { getAccessibleDevice } from '../middleware/deviceAccess.js'
 
 export const reportsRouter = Router()
 
@@ -97,12 +98,8 @@ reportsRouter.get(['/', '/trips'], requireAuth, requireRole('manager', 'reports'
 
   try {
     // Check device ownership
-    const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-    const dev = rows[0]
-    if (!dev) return res.status(404).json({ error: 'Device not found' })
-    const ownerId = req.user.parent_client_id || req.user.id
-    if (!req.user.is_admin && dev.user_id !== ownerId)
-      return res.status(403).json({ error: 'Access denied' })
+    const dev = await getAccessibleDevice(db, req.user, deviceId)
+    if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
     if (!dev.traccar_id) {
       return res.status(502).json({
         code: 'DEVICE_NOT_LINKED',

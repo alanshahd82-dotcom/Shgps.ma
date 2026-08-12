@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { validateBody, schemas } from '../validation/schemas.js'
 import { db } from '../db.js'
+import { getAccessibleDevice } from '../middleware/deviceAccess.js'
 
 export const driverBehaviorRouter = Router()
 
@@ -14,12 +15,8 @@ driverBehaviorRouter.post('/scores', requireAuth, validateBody(schemas.driverBeh
     }
 
     // Verify device access
-    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-    const dev = devRows[0]
-    if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' })
-    }
+    const dev = await getAccessibleDevice(db, req.user, deviceId)
+    if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
 
     // Upsert: one score per device per day
     const today = new Date().toISOString().split('T')[0]
@@ -52,12 +49,8 @@ driverBehaviorRouter.get('/scores', requireAuth, async (req, res) => {
     const parsedDays = Math.min(Math.max(Number.parseInt(String(days), 10) || 30, 1), 365)
 
     // Verify device access
-    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-    const dev = devRows[0]
-    if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' })
-    }
+    const dev = await getAccessibleDevice(db, req.user, deviceId)
+    if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
 
     const { rows } = await db.query(
       `SELECT score, speeding_events, idle_min, trip_count, recorded_date
@@ -79,12 +72,8 @@ driverBehaviorRouter.get('/summary', requireAuth, async (req, res) => {
     const { deviceId } = req.query
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
-    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-    const dev = devRows[0]
-    if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' })
-    }
+    const dev = await getAccessibleDevice(db, req.user, deviceId)
+    if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
 
     const { rows } = await db.query(
       `SELECT score, speeding_events, idle_min, trip_count, recorded_date

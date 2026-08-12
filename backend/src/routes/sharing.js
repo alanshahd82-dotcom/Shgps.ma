@@ -6,6 +6,7 @@ import { db } from '../db.js'
 import crypto from 'crypto'
 import * as traccar from '../services/traccar.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
+import { getAccessibleDevice } from '../middleware/deviceAccess.js'
 
 export const sharingRouter = Router()
 
@@ -15,11 +16,8 @@ sharingRouter.post('/', requireAuth, requireRole('manager'), async (req, res) =>
     const { deviceId, expireHours = 24 } = req.body
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
-    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-    const dev = devRows[0]
-    if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id)
-      return res.status(403).json({ error: 'Access denied' })
+    const dev = await getAccessibleDevice(db, req.user, deviceId)
+    if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
     if (!getSubscriptionSnapshot(dev).trackingEnabled) {
       return res.status(409).json({ error: 'Device subscription is expired. Renew it before sharing live location.' })
     }
@@ -33,7 +31,7 @@ sharingRouter.post('/', requireAuth, requireRole('manager'), async (req, res) =>
       [token, deviceId, expiresAt]
     )
 
-    await logAudit(req.user.id, 'share_link_created', 'device', deviceId, { token, expiresAt })
+    await logAudit(req.user.id, 'share_link_created', 'device', deviceId, { expiresAt })
     res.status(201).json({ token, expiresAt })
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })

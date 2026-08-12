@@ -4,6 +4,7 @@ import { requireRole }    from '../middleware/requireRole.js'
 import { validateBody, schemas } from '../validation/schemas.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
+import { deviceAccessScope, getAccessibleDevice } from '../middleware/deviceAccess.js'
 
 export const geofencesRouter = Router()
 
@@ -14,12 +15,8 @@ geofencesRouter.get('/', requireAuth, async (req, res) => {
 
     if (deviceId) {
       // تحقق من أن المستخدم يملك صلاحية الوصول للجهاز
-      const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-      const dev = rows[0]
-      if (!dev) return res.status(404).json({ error: 'Device not found' })
-      if (!req.user.is_admin && dev.user_id !== req.user.id) {
-        return res.status(403).json({ error: 'Access denied' })
-      }
+      const dev = await getAccessibleDevice(db, req.user, deviceId)
+      if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
       const geofences = await traccar.getGeofencesByDevice(dev.traccar_id)
       return res.json(geofences)
     }
@@ -31,9 +28,10 @@ geofencesRouter.get('/', requireAuth, async (req, res) => {
     }
 
     // جمع traccar_id لأجهزة المستخدم الحالي
+    const scope = deviceAccessScope(req.user, 'd')
     const { rows: devRows } = await db.query(
-      'SELECT traccar_id FROM devices WHERE user_id=$1',
-      [req.user.id]
+      `SELECT d.traccar_id FROM devices d WHERE ${scope.text}`,
+      scope.values
     )
     if (devRows.length === 0) return res.json([])
 
@@ -59,11 +57,23 @@ geofencesRouter.get('/:id', requireAuth, async (req, res) => {
   try {
     // Try local DB first
     const { rows } = await db.query(
-      'SELECT * FROM local_geofences WHERE id=$1 AND user_id=$2',
-      [req.params.id, req.user.id]
+      `SELECT lg.*, d.id AS device_id
+       FROM local_geofences lg
+       LEFT JOIN devices d ON d.id=lg.device_id
+       WHERE lg.id=$1`,
+      [req.params.id]
     )
-    if (rows[0]) return res.json(rows[0])
+    const localGeofence = rows[0]
+    if (localGeofence) {
+      const allowed = req.user.is_admin ||
+        (localGeofence.device_id
+          ? await getAccessibleDevice(db, req.user, localGeofence.device_id)
+          : String(localGeofence.user_id) === String(req.user.id))
+      if (allowed) return res.json(localGeofence)
+      return res.status(404).json({ error: 'Geofence not found' })
+    }
     // Fallback to Traccar
+    if (!req.user.is_admin) return res.status(404).json({ error: 'Geofence not found' })
     const geofences = await traccar.getGeofencesByDevice('').catch(() => [])
     const geofence  = geofences.find(g => String(g.id) === String(req.params.id))
     if (!geofence) return res.status(404).json({ error: 'Geofence not found' })
@@ -84,12 +94,8 @@ geofencesRouter.post('/', requireAuth, requireRole('manager'), validateBody(sche
 
     let dbDeviceId = null
     if (deviceId) {
-      const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-      const dev = devRows[0]
+      const dev = await getAccessibleDevice(db, req.user, deviceId)
       if (dev) {
-        if (!req.user.is_admin && dev.user_id !== req.user.id) {
-          return res.status(403).json({ error: 'Access denied' })
-        }
         dbDeviceId = dev.id
       }
     }
@@ -124,16 +130,21 @@ geofencesRouter.post('/', requireAuth, requireRole('manager'), validateBody(sche
 geofencesRouter.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT * FROM local_geofences WHERE id=$1 AND user_id=$2',
-      [req.params.id, req.user.id]
+      `SELECT lg.*, d.id AS device_id
+       FROM local_geofences lg
+       LEFT JOIN devices d ON d.id=lg.device_id
+       WHERE lg.id=$1`,
+      [req.params.id]
     )
-    if (!rows[0] && !req.user.is_admin) {
+    const geofence = rows[0]
+    if (!geofence) return res.status(404).json({ error: 'Geofence not found' })
+    if (geofence.device_id && !await getAccessibleDevice(db, req.user, geofence.device_id)) {
       return res.status(404).json({ error: 'Geofence not found' })
     }
     await db.query('DELETE FROM local_geofences WHERE id=$1', [req.params.id])
 
     // Attempt Traccar delete (non-blocking)
-    if (rows[0]) {
+    if (geofence) {
       traccar.deleteGeofence(req.params.id).catch(() => {})
     }
 

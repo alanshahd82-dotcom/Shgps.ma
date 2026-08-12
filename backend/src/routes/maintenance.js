@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
+import { getAccessibleDevice } from '../middleware/deviceAccess.js'
 
 export const maintenanceRouter = Router()
 
@@ -11,11 +12,8 @@ maintenanceRouter.get('/', requireAuth, async (req, res) => {
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
     // Verify access
-    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-    const dev = devRows[0]
-    if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id)
-      return res.status(403).json({ error: 'Access denied' })
+    const dev = await getAccessibleDevice(db, req.user, deviceId)
+    if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
 
     const { rows } = await db.query(
       'SELECT * FROM maintenance_logs WHERE device_id=$1 ORDER BY date DESC',
@@ -31,11 +29,8 @@ maintenanceRouter.post('/', requireAuth, async (req, res) => {
     const { deviceId, type, note, mileage, date, nextDueMileage } = req.body
     if (!deviceId || !type) return res.status(400).json({ error: 'deviceId and type are required' })
 
-    const { rows: devRows } = await db.query('SELECT * FROM devices WHERE id=$1', [deviceId])
-    const dev = devRows[0]
-    if (!dev) return res.status(404).json({ error: 'Device not found' })
-    if (!req.user.is_admin && dev.user_id !== req.user.id)
-      return res.status(403).json({ error: 'Access denied' })
+    const dev = await getAccessibleDevice(db, req.user, deviceId)
+    if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
 
     const { rows } = await db.query(
       `INSERT INTO maintenance_logs (device_id, type, note, mileage, date, next_due_mileage)
@@ -52,8 +47,8 @@ maintenanceRouter.delete('/:id', requireAuth, async (req, res) => {
     const { rows } = await db.query('SELECT ml.*, d.user_id FROM maintenance_logs ml JOIN devices d ON d.id=ml.device_id WHERE ml.id=$1', [req.params.id])
     const log = rows[0]
     if (!log) return res.status(404).json({ error: 'Not found' })
-    if (!req.user.is_admin && log.user_id !== req.user.id)
-      return res.status(403).json({ error: 'Access denied' })
+    const device = await getAccessibleDevice(db, req.user, log.device_id)
+    if (!device) return res.status(404).json({ error: 'Not found or access denied' })
     await db.query('DELETE FROM maintenance_logs WHERE id=$1', [req.params.id])
     res.json({ success: true })
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }

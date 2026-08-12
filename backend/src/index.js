@@ -347,7 +347,6 @@ app.use('/api/sub-users',       subUsersRouter)
 app.use('/api/sub-admins',      subAdminsRouter)
 app.use('/api/settings',        settingsRouter)
 
-
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'disconnected'
   let traccarStatus = 'unreachable'
