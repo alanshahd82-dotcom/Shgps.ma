@@ -528,13 +528,18 @@ import { speedKmh } from '../utils/speed.js'
         if (!['engineStop', 'engineResume'].includes(type)) {
           return res.status(400).json({ error: 'Command type must be engineStop or engineResume' })
         }
+        if (!dev.traccar_id) {
+          return res.status(400).json({ error: 'Device has no Traccar mapping' })
+        }
 
-        // ── GT06 / WanWay GS900: يحتاج أمر RELAY مخصص، لا engineStop القياسي ──
-        // باقي الأجهزة: تستخدم النوع القياسي.
-        const isGt06 = !dev.type || /bike|car|gt06|wanway|gs900|concox/i.test(dev.type + ' ' + (dev.name||''))
+        // Resolve the protocol from Traccar, not the local vehicle type.
+        // The local type describes the vehicle (bike/car/truck), not its tracker.
+        const traccarDevice = await traccar.getDevice(dev.traccar_id)
+        const protocol = String(traccarDevice?.protocol || '').toLowerCase()
+        const isRelayProtocol = /^(?:gt06|concox|wanway|gs900)/i.test(protocol)
         let traccarType = type
         let attributes = {}
-        if (isGt06) {
+        if (isRelayProtocol) {
           traccarType = 'custom'
           attributes = { data: type === 'engineStop' ? 'RELAY,1,0#' : 'RELAY,1,1#' }
         }
@@ -547,8 +552,8 @@ import { speedKmh } from '../utils/speed.js'
           [dev.id, req.user.id, type, dev.traccar_id, req.ip]
         ).catch(e => console.error('[device_commands insert]', e.message))
 
-        await logAudit(req.user.id, `engine_${type}`, 'device', dev.id, { imei: dev.imei, command: type, relay: isGt06 }).catch(()=>{})
-        res.json({ ok: true, type, relay: isGt06 })
+        await logAudit(req.user.id, `engine_${type}`, 'device', dev.id, { imei: dev.imei, command: type, relay: isRelayProtocol }).catch(()=>{})
+        res.json({ ok: true, type, relay: isRelayProtocol })
       } catch (err) {
         console.error('[command error]', err.message)
         await db.query(

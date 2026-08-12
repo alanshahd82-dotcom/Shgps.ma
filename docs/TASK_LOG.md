@@ -2,6 +2,72 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## Fix engine-cut protocol detection
+
+- Root cause: the engine command route inferred the Traccar protocol from the local vehicle `type`/name fields. Those fields describe the vehicle, not the tracker protocol, so RELAY routing could be selected for the wrong device or skipped for a GT06-family tracker.
+- Fix: the command route now rejects devices without `traccar_id` with HTTP 400 (`Device has no Traccar mapping`), resolves the mapped Traccar device through the lightweight device endpoint, reads its authoritative `protocol`, and uses RELAY only for `gt06`, `concox`, `wanway`, and `gs900` protocol families. All other protocols use standard `engineStop` / `engineResume`.
+- The existing `device_commands` insert, `logAudit` call, and `{ ok, type, relay }` response shape remain unchanged. The `sendCommand(deviceId, type, attributes)` signature remains in use.
+- Files changed: `backend/src/routes/devices.js`, `backend/src/services/traccar.js`, and this log. Frontend, Traccar configuration, and database schema were not changed.
+
+### Verification
+
+- [x] `npm run build` passes.
+- [x] `node --check backend/src/routes/devices.js` passes.
+- [x] `node --check backend/src/services/traccar.js` passes.
+- [x] `git diff --check` passes.
+- [ ] bekane (GT06, local device id 14) live engine-cut verification requires the deployed backend and reachable GPS device.
+- [ ] DACIA (GT06, local device id 16) live RELAY verification requires the deployed backend and reachable GPS device.
+- [x] A device without `traccar_id` now returns a clean HTTP 400 before any Traccar command is sent.
+
+### Server-side curl checks
+
+Replace the four credential variables and `BASE_URL` on the server; do not put passwords or tokens in shell history.
+
+```sh
+BASE_URL=https://your-athargps-server.example
+MUSTAPHA_EMAIL='mustapha-account-email'
+MUSTAPHA_PASSWORD='mustapha-account-password'
+AMIN_EMAIL='amin-account-email'
+AMIN_PASSWORD='amin-account-password'
+
+MUSTAPHA_TOKEN=$(curl -fsS "$BASE_URL/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  --data "$(jq -nc --arg email "$MUSTAPHA_EMAIL" --arg password "$MUSTAPHA_PASSWORD" \
+    '{email:$email,password:$password}')" | jq -r '.token')
+
+curl -fsS -X POST "$BASE_URL/api/devices/14/command" \
+  -H "Authorization: Bearer $MUSTAPHA_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"type":"engineStop"}'
+
+curl -fsS -X POST "$BASE_URL/api/devices/14/command" \
+  -H "Authorization: Bearer $MUSTAPHA_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"type":"engineResume"}'
+
+AMIN_TOKEN=$(curl -fsS "$BASE_URL/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  --data "$(jq -nc --arg email "$AMIN_EMAIL" --arg password "$AMIN_PASSWORD" \
+    '{email:$email,password:$password}')" | jq -r '.token')
+
+curl -fsS -X POST "$BASE_URL/api/devices/16/command" \
+  -H "Authorization: Bearer $AMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"type":"engineStop"}'
+
+curl -fsS -X POST "$BASE_URL/api/devices/16/command" \
+  -H "Authorization: Bearer $AMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"type":"engineResume"}'
+
+# Use any local device id whose database row has a NULL traccar_id.
+curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/command" \
+  -H "Authorization: Bearer $MUSTAPHA_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"type":"engineStop"}'
+# Expected: HTTP/1.1 400 and {"error":"Device has no Traccar mapping"}
+```
+
 ## Finish voltage feature — safe separation of external voltage and internal battery
 
 - Production attributes previously confirmed for the real devices remain unchanged: DACIA (Traccar device 70) reports internal battery `33%` and signal only; bekane (Traccar device 37) reports ignition, satellite, and distance data only. Neither device reports external/main-power voltage, `power`, `voltage`, `externalPower`, `adc1`, or `analog1`.

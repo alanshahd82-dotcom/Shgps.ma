@@ -103,6 +103,7 @@ async function call(path, opts = {}, _retried = false) {
 
 export const getAllPositions  = ()            => call('/api/positions')
 export const getAllDevices    = ()            => call('/api/devices')
+export const getDevice        = (id)          => call(`/api/devices/${id}`)
 export const getDevicesByUser = (uid)        => call(`/api/devices?userId=${uid}`)
 export const createDevice     = (name, imei) => call('/api/devices', { method:'POST', body: JSON.stringify({ name, uniqueId: imei }) })
 export const deleteDevice     = (id)         => call(`/api/devices/${id}`, { method:'DELETE' })
