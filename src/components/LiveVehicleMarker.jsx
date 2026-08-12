@@ -113,11 +113,11 @@ export default function LiveVehicleMarker({
   const firstPositionRef = useRef(toPoint(device))
   const previousPointRef = useRef(firstPositionRef.current)
   const frameRef = useRef(null)
-  const rotationRef = useRef(initialBearingRef.current)
   const trailRef = useRef(firstPositionRef.current ? [firstPositionRef.current] : [])
   const [trail, setTrail] = useState(trailRef.current)
   const point = toPoint(device)
   const initialBearingRef = useRef(getBearing(device, firstPositionRef.current, point))
+  const rotationRef = useRef(initialBearingRef.current)
   const status = getDeviceStatusKey(device)
   const icon = useMemo(
     () => createLiveVehicleIcon(device, isSelected, initialBearingRef.current, device?.lang || 'ar'),

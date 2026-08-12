@@ -2,6 +2,12 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## Follow-up fix — LiveMap vehicle marker render crash
+
+- Root cause: `src/components/LiveVehicleMarker.jsx` read `initialBearingRef.current` while initializing `rotationRef` before `initialBearingRef` itself was declared. When the live map rendered a positioned device, JavaScript threw a temporal-dead-zone `ReferenceError`.
+- Exact fix: initialize `initialBearingRef` first, then initialize `rotationRef` from its value. Map marker animation, follow behavior, and trail rendering remain unchanged.
+- Verification: `npm run build` passes, `git diff --check` passes, and the fix is pushed to `origin/main`.
+
 ## Crash fixes — LiveMap open and subscription renewal
 
 - Fixed the LiveMap crash on open. Root cause: the status-count calculation still called `devices.filter(...)` directly while the app context could temporarily provide an undefined device list. Exact fix: reuse the existing `safeDevices` fallback and filter null entries before calculating status counts in `src/pages/client/LiveMap.jsx`.
