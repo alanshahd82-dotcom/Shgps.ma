@@ -19,7 +19,7 @@ import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
-import { VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import { getBatteryColor, VehicleIcon, VehicleTypeControl } from '../../components/ui'
 
 /* ─── helpers ──────────────────────────────────────────────────────────────── */
 function getRangeDates(preset, customFrom, customTo) {
@@ -665,8 +665,8 @@ export default function ClientDetail() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex items-center gap-1 text-xs">
-                      <Battery size={12} className={device.battery < 30 ? 'text-red-500' : 'text-slate-400'}/>
-                      <span className={device.battery < 30 ? 'text-red-500 font-semibold' : 'text-slate-400'}>{device.battery}%</span>
+                      <Battery size={12} style={{ color: getBatteryColor(device.battery) }}/>
+                      <span style={{ color: getBatteryColor(device.battery) }} className="font-semibold">{device.battery}%</span>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${device.status === 'online' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
                       {device.status === 'online'

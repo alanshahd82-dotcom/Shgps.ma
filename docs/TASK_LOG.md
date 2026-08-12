@@ -365,3 +365,15 @@ This file records the completed replay-related work and the current import audit
 
 - `npm run build` passes successfully.
 - Backend JavaScript syntax checks, backup-script syntax check, and `git diff --check` pass.
+
+## Phase 1/3 — real vehicle artwork, smooth live movement, and clean live map
+
+- Replaced the three vehicle marker assets with the supplied transparent artwork and compressed each to approximately 54–60 KB.
+- Calibrated artwork offsets per type: car `-125°`, bike `-130°`, truck `-120°`; each value points the visible nose north when the course is `0°`.
+- Live markers now normalize heading changes to the shortest `[-180°, 180°]` turn, transition rotation over `800ms`, and interpolate each GPS position over the same `800ms` window.
+- Replaced shared vehicle glyphs in client, subscription, maintenance, and admin surfaces with the shared `markerFor()` artwork.
+- Removed the global live-map live-status pill, auto-follow overlay button, status legend, route/replay action, and persistent bottom device strip. Added the compact `أجهزتي` / `Mes appareils` launcher and sheet.
+- Replaced generic Google Maps and Waze action glyphs with local brand-mark SVG icons while preserving the existing navigation URLs.
+- Unified battery thresholds across live markers, device lists, device detail, and admin client detail: above 60% green, above 30% amber, otherwise red; unknown values remain slate.
+- Checklist: backend command logic, Traccar, database schema, authentication/session, subscriptions, GPS-await state, speed units, replay, reports, alerts, settings, and engine RELAY command code were not changed. Live-map build path remains intact; engine-cut behavior remains in its existing handler.
+- Verification: `pnpm install` completed, `npm run build` passed, `node --check backend/src/routes/map.js` passed, and `git diff --check` passed.

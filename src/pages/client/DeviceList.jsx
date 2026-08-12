@@ -6,7 +6,7 @@ import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
-import { VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
+import { getBatteryColor, VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
@@ -38,7 +38,7 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const rawBattery = device.battery
   const parsedBattery = rawBattery == null || rawBattery === '' ? null : Number(rawBattery)
   const battery = Number.isFinite(parsedBattery) ? Math.min(100, Math.max(0, parsedBattery)) : null
-  const batteryColor = battery == null ? '#8da2b5' : battery > 60 ? '#38d39f' : battery > 30 ? '#d9ad62' : '#e46b68'
+  const batteryColor = getBatteryColor(battery)
   const speed = Number(device.speed ?? device.last_speed ?? 0)
 
   return (

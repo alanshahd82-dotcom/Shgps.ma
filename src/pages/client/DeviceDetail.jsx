@@ -15,7 +15,7 @@ import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import ConfirmModal from '../../components/ConfirmModal'
-import { getDeviceStatusKey, hasGpsPosition, timeAgo, VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import { getBatteryColor, getDeviceStatusKey, hasGpsPosition, timeAgo, VehicleIcon, VehicleTypeControl } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
@@ -549,7 +549,7 @@ export default function DeviceDetail() {
         <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
           {[
               { Icon:Gauge, label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? `${Math.round(Number(currentSpeed))} km/h` : '—', color:'#38d39f', always: true },
-              { Icon:Battery, label:isAr?'البطارية':'Batterie', val: batteryLevel != null ? `${Math.round(Number(batteryLevel))}%` : '—', color: Number(batteryLevel) < 30 ? '#ff625d' : '#38d39f', always: true, bar: batteryLevel },
+              { Icon:Battery, label:isAr?'البطارية':'Batterie', val: batteryLevel != null ? `${Math.round(Number(batteryLevel))}%` : '—', color: getBatteryColor(batteryLevel), always: true, bar: batteryLevel },
               { Icon:Activity, label:'IMEI', val: device.imei || '—', color:'#d9ad62', always: true },
               { Icon:Radio, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff', always: true },
               { Icon:Clock, label:isAr?'آخر تحديث':'Dernière mise à jour', val: lastUpdate ? timeAgo(lastUpdate, lang) : '—', color:'#b49cff', always: true, className:'col-span-2' },
