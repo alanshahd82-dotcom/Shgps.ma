@@ -4,6 +4,27 @@ This file records the completed replay-related work and the current import audit
 
 ## Completed tasks
 
+- Current task — Mobile UI cleanup, single engine toggle, and replay-map reliability
+- Removed the exact Arabic engine helper strings `سيتم إيقاف محرك المركبة عن بعد`, `سيتم تشغيل محرك المركبة عن بعد`, `المحرك يعمل حالياً`, `المحرك متوقف حالياً`, and `حالة الزر تعكس الحالة الحقيقية للجهاز. لن تتغير إلا بعد تأكيد تنفيذ الأمر.` together with their inline French equivalents. The engine status remains a dot plus a short bilingual state label, and the command action is one large state-colored button.
+- Renamed the playback tab and replay header from `الرحلات` / `Trajets` to `إعادة المسار` / `Rejouer le trajet`.
+- Replay-map root causes addressed: playback was reconciling Leaflet too frequently, the map surface did not declare a minimum stable height, and overlay resizing needed to remain independent from playback updates. The map now keeps one mounted `MapContainer`, renders playback positions at a 250ms cadence through the existing ref-driven frame loop, has an explicit full-viewport/minimum height, and retains the post-sheet-transition `invalidateSize` synchronization.
+- Unified DeviceDetail and Reports period selectors into accessible segmented controls with one active state and bilingual 1/7/15/30-day labels. Existing range fetch/filter behavior was preserved.
+- Raised the LiveMap bottom panel and map controls above the fixed ClientNav safe-area offset so the panel, legend, recenter action, and Leaflet controls are not covered on mobile.
+- Files changed: `src/pages/client/DeviceDetail.jsx`, `src/components/TripReplay.jsx`, `src/pages/client/Reports.jsx`, `src/pages/client/LiveMap.jsx`, `src/i18n/translations.js`, `src/index.css`, and this log.
+
+### Previously-working feature preservation checklist
+
+- [x] Live map and `مباشر` / live connection indicator — map and WebSocket code paths were not changed.
+- [x] Device list and device detail — navigation, device selection, and detail data paths were not changed.
+- [x] Engine cut/start — existing confirm modal, `toggleEngine`, RELAY command path, toast handling, and in-flight state were preserved; only the surrounding presentation was cleaned.
+- [x] Trips/replay — existing positions API, playback controls, route calculations, and Leaflet layers were preserved; only render cadence, stable sizing, and labels changed.
+- [x] Reports — existing report fetch and selected-period boundaries were preserved; only selector presentation and translated labels changed.
+- [x] Alerts and settings — no functional code in either screen was changed.
+- [x] Arabic/French switch and RTL/LTR — all new labels use the existing translation helper and direction handling.
+- [x] Session persistence, GPS-await amber state, km/h speed, and subscriptions — no related logic or files were changed.
+
+- Verification: `npm run build` passes, `git diff --check` passes, and the instructional-string scan is clean. Live engine/device verification still depends on an authenticated running backend and a reachable GPS device.
+
 - Current task — Five-item safe-area bottom navigation, real More bottom sheet, and shared Toast feedback
 - `0c64756` — Add positions endpoint for trip replay (`GET /api/stats/positions`)
 - `eb9e5d6` — Add bilingual trip replay with stop and speed analysis (`TripReplay` component plus client and admin integration)
