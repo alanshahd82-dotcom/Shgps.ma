@@ -410,7 +410,8 @@
 
 .athar-map-recenter {
   position: absolute;
-  right: 14px;
+  left: 14px;
+  right: auto;
   z-index: 500;
   display: inline-flex;
   width: 46px;

@@ -2,6 +2,19 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## Crash guards and conservative LiveMap cleanup
+
+- Added a global React `ErrorBoundary` around the application. Rendering errors now show the bilingual `حدث خطأ غير متوقع` / `Une erreur inattendue` screen with a page reload action instead of leaving a black screen.
+- Guarded device arrays, report chart payloads, subscription cards, settings sub-user responses, and replay Leaflet lifecycle calls before using `.map()`, `.filter()`, `.reduce()`, or map methods.
+- Kept the existing LiveMap map, markers, `useMap`, follow, route, and device-sheet logic. The compact `أجهزتي` launcher remains, and the locate button now sits on the left side away from Leaflet's bottom-right zoom controls. Existing live/follow/legend controls remain hidden without removing their underlying state or map behavior.
+
+### Verification checklist
+
+- [x] `npm run build` passed.
+- [x] Largest generated JavaScript asset is below 500 KB (383.20 KB).
+- [x] `git diff --check` passed.
+- [ ] Authenticated live-map and replay verification still requires a reachable backend and GPS device.
+
 ## Phase 2/3 completion — replay, reports, and real renewal messaging
 
 - Trip replay is already delivered on `main` through the existing replay commits: one stable Leaflet map remains mounted during playback, map sizing is invalidated after the sheet transition, playback rendering is throttled, and period/day selection is held in stable state. The flow is range/day selection → load trips → select a trip → one replay map.
