@@ -8,7 +8,7 @@ import {
   Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
   Pencil, Check, X as CloseX, Phone, Radio
 } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
+import NativeAreaChart from '../../components/NativeAreaChart'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -469,14 +469,6 @@ export default function DeviceDetail() {
     }),
     300,
   ), [isAr, routePoints])
-  const speedMax = speedData.reduce((max, point) => Math.max(max, point.speed), 0)
-  const speedDomainMax = Math.max(10, Math.ceil((speedMax + 5) / 5) * 5)
-  const speedTicks = speedData.length > 1
-    ? Array.from({ length: Math.min(5, speedData.length) }, (_, index) => {
-      const position = Math.round(index * (speedData.length - 1) / Math.max(1, Math.min(5, speedData.length) - 1))
-      return speedData[position].index
-    })
-    : []
   const formatTripDateTime = (value) => {
     if (!value) return isAr ? 'لا توجد بيانات' : 'Aucune donnée'
     const date = new Date(value)
@@ -965,26 +957,12 @@ export default function DeviceDetail() {
                         {speedData.length > 1 && <span className="text-[10px] text-slate-500">{speedData.length} {isAr ? 'نقطة' : 'points'}</span>}
                       </div>
                       {speedData.length > 1 ? (
-                      <ResponsiveContainer width="100%" height={132}>
-                        <AreaChart data={speedData} margin={{ top: 4, right: 22, left: 0, bottom: 2 }}>
-                          <defs>
-                            <linearGradient id="device-speed-fill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#1DBF73" stopOpacity={0.42} />
-                              <stop offset="100%" stopColor="#1DBF73" stopOpacity={0.03} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid vertical={false} stroke="rgba(255,255,255,.08)" strokeDasharray="3 4" />
-                          <XAxis dataKey="xIndex" ticks={speedTicks} tickFormatter={value => speedData[value]?.time || ''} tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
-                          <YAxis domain={[0, speedDomainMax]} tickFormatter={value => `${value}`} label={{ value: 'km/h', angle: -90, position: 'insideLeft', offset: 8, fill: '#8da2b5', fontSize: 9 }} tick={{ fill: '#8da2b5', fontSize: 9 }} axisLine={false} tickLine={false} width={30} />
-                          <Tooltip
-                            labelFormatter={value => value}
-                            formatter={value => [`${value} km/h`, isAr ? 'السرعة' : 'Vitesse']}
-                            contentStyle={{ background: '#0a1220', border: '1px solid rgba(255,255,255,.12)', borderRadius: 12, color: '#edf4f2', fontSize: 11 }}
-                            labelStyle={{ color: '#8da2b5', marginBottom: 4 }}
-                          />
-                          <Area type="monotone" dataKey="speed" stroke="#1DBF73" strokeWidth={2.5} fill="url(#device-speed-fill)" dot={false} activeDot={{ r: 4, fill: '#1DBF73', stroke: '#07111f', strokeWidth: 2 }} />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                        <NativeAreaChart
+                          data={speedData}
+                          xKey="time"
+                          series={[{ dataKey: 'speed', color: '#1DBF73' }]}
+                          height={132}
+                        />
                       ) : (
                         <div className="flex h-[132px] flex-col items-center justify-center gap-2 text-center">
                           <Activity size={22} className="text-slate-500" />

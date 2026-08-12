@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Users, Cpu, Wifi, Bell, WifiOff, AlertTriangle } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
+import NativeAreaChart from '../../components/NativeAreaChart'
 
 // Animated count-up hook
 function useCountUp(target, duration = 1200) {
@@ -68,22 +68,6 @@ function StatCard({ icon: Icon, label, value, sub, color, delay, onClick }) {
   )
 }
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-3 border border-gray-100">
-        <p className="text-xs font-bold text-primary-500 mb-1">{label}</p>
-        {payload.map((p, i) => (
-          <p key={i} className="text-xs" style={{ color: p.color }}>
-            {p.name}: {p.value}{p.name === 'revenue' ? ' DH' : ''}
-          </p>
-        ))}
-      </div>
-    )
-  }
-  return null
-}
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const { devices, clientList, alertsList, lang } = useApp()
@@ -119,6 +103,12 @@ export default function Dashboard() {
     { name: lang === 'ar' ? 'متصل' : 'En ligne',    value: online,  color: '#00D97E' },
     { name: lang === 'ar' ? 'غير متصل' : 'Hors ligne', value: offline, color: '#94A3B8' },
   ]
+  const deviceStatusTotal = Math.max(1, online + offline)
+  const deviceStatusGradient = `conic-gradient(${deviceStatusData.map((item, index) => {
+    const start = deviceStatusData.slice(0, index).reduce((sum, entry) => sum + entry.value, 0) / deviceStatusTotal * 100
+    const end = (start + item.value / deviceStatusTotal * 100).toFixed(2)
+    return `${item.color} ${start.toFixed(2)}% ${end}%`
+  }).join(', ')})`
 
   return (
     <AdminLayout>
@@ -166,25 +156,15 @@ export default function Dashboard() {
                   {lang === 'ar' ? 'لا توجد بيانات كافية بعد' : 'Pas encore assez de données'}
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={monthlyData}>
-                    <defs>
-                      <linearGradient id="clientGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#0F2044" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#0F2044" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#00D97E" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#00D97E" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} allowDecimals={false} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="clients" stroke="#0F2044" strokeWidth={2} fill="url(#clientGrad)" name="clients" dot={false} />
-                    <Area type="monotone" dataKey="devices" stroke="#00D97E" strokeWidth={2} fill="url(#devGrad)" name="devices" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <NativeAreaChart
+                  data={monthlyData}
+                  xKey="month"
+                  series={[
+                    { dataKey: 'clients', color: '#0F2044' },
+                    { dataKey: 'devices', color: '#00D97E' },
+                  ]}
+                  height={200}
+                />
               )}
             </div>
           </div>
@@ -195,14 +175,14 @@ export default function Dashboard() {
               <h3 className="font-bold text-primary-500">{t(lang, 'deviceStatus')}</h3>
             </div>
             <div className="p-4 flex items-center gap-6">
-              <PieChart width={140} height={140}>
-                <Pie data={deviceStatusData} cx={65} cy={65} innerRadius={40} outerRadius={62}
-                  dataKey="value" paddingAngle={3}>
-                  {deviceStatusData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
+              <div
+                className="relative h-[140px] w-[140px] shrink-0 rounded-full"
+                style={{ background: deviceStatusGradient }}
+                role="img"
+                aria-label={lang === 'ar' ? 'نسبة الأجهزة المتصلة وغير المتصلة' : 'Répartition des appareils en ligne et hors ligne'}
+              >
+                <div className="absolute inset-[22px] rounded-full bg-white" />
+              </div>
               <div className="flex-1 space-y-3">
                 {deviceStatusData.map((item, i) => (
                   <div key={i} className="flex items-center justify-between">
