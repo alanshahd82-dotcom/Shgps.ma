@@ -8,7 +8,12 @@ import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import { VehicleIcon } from '../../components/ui'
-import { getSubscriptionSnapshot } from '../../utils/subscriptions'
+import {
+  SUBSCRIPTION_PLANS,
+  addMonths,
+  getSubscriptionPlan,
+  getSubscriptionSnapshot,
+} from '../../utils/subscriptions'
 import { api } from '../../api/index.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -44,13 +49,22 @@ function daysRemaining(endDate) {
 function RenewalActions({ device, lang, contacts, onClose }) {
   const { clientAuth } = useApp()
   const isAr = lang === 'ar'
+  const snapshot = getSubscriptionSnapshot(device)
+  const defaultPlanId = snapshot.planId && getSubscriptionPlan(snapshot.planId)
+    ? snapshot.planId
+    : SUBSCRIPTION_PLANS[0].id
+  const [planId, setPlanId] = useState(defaultPlanId)
   const plate = device.plate || device.licensePlate || device.license_plate || '—'
-  const endDate = dateOnly(getSubscriptionSnapshot(device).endDate)
+  const endDate = dateOnly(snapshot.endDate)
+  const today = dateOnly(new Date())
+  const renewalStartDate = endDate && endDate >= today ? endDate : today
+  const selectedPlan = getSubscriptionPlan(planId) || SUBSCRIPTION_PLANS[0]
+  const projectedEndDate = addMonths(renewalStartDate, selectedPlan.durationMonths)
   const clientName = clientAuth?.name || '—'
   const email = clientAuth?.email || '—'
   const message = isAr
-    ? `مرحباً، أرغب في تجديد اشتراك جهازي على منصة Athar GPS:\n• الجهاز: ${device.name || '—'} (${plate})\n• العميل: ${clientName} (${email})\n• انتهاء الاشتراك: ${endDate || 'غير محدد'}\n• مدة التجديد المطلوبة: 6 أشهر\nشكراً لكم.`
-    : `Bonjour, je souhaite renouveler l’abonnement de mon appareil sur la plateforme Athar GPS :\n• Appareil : ${device.name || '—'} (${plate})\n• Client : ${clientName} (${email})\n• Expiration : ${endDate || 'non définie'}\n• Durée souhaitée : 6 mois\nMerci.`
+    ? `مرحباً، أرغب في تجديد اشتراك جهازي على منصة Athar GPS:\n• الجهاز: ${device.name || '—'} (${plate})\n• العميل: ${clientName} (${email})\n• انتهاء الاشتراك الحالي: ${endDate || 'غير محدد'}\n• الخطة المطلوبة: ${selectedPlan.label} — ${selectedPlan.price} MAD\n• تاريخ الانتهاء بعد التجديد: ${projectedEndDate}\nشكراً لكم.`
+    : `Bonjour, je souhaite renouveler l’abonnement de mon appareil sur la plateforme Athar GPS :\n• Appareil : ${device.name || '—'} (${plate})\n• Client : ${clientName} (${email})\n• Expiration actuelle : ${endDate || 'non définie'}\n• Forfait souhaité : ${selectedPlan.labelFr} — ${selectedPlan.price} MAD\n• Nouvelle date d’expiration : ${projectedEndDate}\nMerci.`
   const whatsappNumber = String(contacts?.renew_whatsapp_phone || '').replace(/\D/g, '')
   const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}` : ''
   const subject = isAr ? `تجديد اشتراك Athar GPS — ${device.name || 'جهاز'}` : `Renouvellement Athar GPS — ${device.name || 'appareil'}`
@@ -67,6 +81,38 @@ function RenewalActions({ device, lang, contacts, onClose }) {
         <button type="button" onClick={onClose} aria-label={isAr ? 'إغلاق' : 'Fermer'} style={{ color: 'var(--ath-mut)' }}>
           <X size={14} />
         </button>
+      </div>
+      <div className="mb-3">
+        <p className="mb-2 text-[10px] font-bold" style={{ color: 'var(--ath-mut)' }}>
+          {isAr ? 'اختر مدة التجديد' : 'Choisissez la durée du renouvellement'}
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {SUBSCRIPTION_PLANS.map(plan => {
+            const selected = plan.id === selectedPlan.id
+            return (
+              <button
+                key={plan.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setPlanId(plan.id)}
+                className="rounded-lg px-2 py-2 text-center transition"
+                style={{
+                  background: selected ? 'rgba(224,179,111,.22)' : 'rgba(140,163,184,.10)',
+                  border: `1px solid ${selected ? 'rgba(224,179,111,.72)' : 'rgba(140,163,184,.16)'}`,
+                  color: selected ? 'var(--ath-gold)' : 'var(--ath-txt)',
+                }}
+              >
+                <span className="block text-[10px] font-black">{isAr ? plan.label : plan.labelFr}</span>
+                <span className="mt-0.5 block text-[9px] font-semibold opacity-70">{plan.price} MAD</span>
+              </button>
+            )
+          })}
+        </div>
+        <p className="mt-2 text-[10px] font-semibold" style={{ color: 'var(--ath-mut)' }}>
+          {isAr
+            ? `تاريخ الانتهاء المتوقع بعد التجديد: ${formatDate(projectedEndDate, lang)}`
+            : `Nouvelle date d’expiration prévue : ${formatDate(projectedEndDate, lang)}`}
+        </p>
       </div>
       {!whatsappUrl && !mailtoUrl && (
         <p className="rounded-lg bg-[rgba(255,176,32,.10)] px-3 py-2 text-[10px] font-semibold leading-5" style={{ color: 'var(--ath-amber)' }}>

@@ -2,6 +2,23 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## Phase 2/3 completion — replay, reports, and real renewal messaging
+
+- Trip replay is already delivered on `main` through the existing replay commits: one stable Leaflet map remains mounted during playback, map sizing is invalidated after the sheet transition, playback rendering is throttled, and period/day selection is held in stable state. The flow is range/day selection → load trips → select a trip → one replay map.
+- Reports no longer displays the `بيانات حقيقية` / `Données réelles` badge. The existing real report values, chart data, and unified period selector remain unchanged.
+- Client renewal now uses the same 3/6/12-month plans and prices as the backend subscription service. The WhatsApp/email message includes the selected plan and a projected expiry calculated from the later of today or the current subscription end date, using the same calendar-month logic as the renewal endpoint.
+- Files changed for this completion: `src/pages/client/Reports.jsx`, `src/pages/client/Subscriptions.jsx`, and this log.
+
+### Verification checklist
+
+- [x] `pnpm install` completed without rewriting the tracked lockfile.
+- [x] `npm run build` passed.
+- [x] Largest generated JavaScript asset is below 500 KB.
+- [x] `git diff --check` passed.
+- [x] Engine cut/start code path preserved.
+- [x] Live map and replay code paths preserved and included in the existing `main` history.
+- [ ] Live engine, live map, and replay device verification requires an authenticated backend and a reachable GPS device.
+
 ## Completed tasks
 
 - Current task — Mobile UI cleanup, single engine toggle, and replay-map reliability
