@@ -329,3 +329,18 @@ This file records the completed replay-related work and the current import audit
 - Rebuilt More as a full-width bottom sheet with safe-area spacing, backdrop dismissal, Escape support, account shortcuts, and logout.
 - Unified device save, engine command, coordinate, IMEI, and share-link feedback through one bilingual accessible Toast component.
 - Existing API calls, handlers, authentication, replay behavior, and backend boundaries remain unchanged.
+
+## Athar GPS completion audit
+
+- Security and device ownership: removed the public debug positions endpoint, centralized device access rules for main admins, sub-admins, client owners, and client sub-users, protected IMEI checks, and applied ownership checks to devices, replay, reports, maintenance, driver behavior, maps, and geofences.
+- Client functionality audit: verified the client routes and corrected shared ownership enforcement so client device operations cannot cross account boundaries. Renewal actions remain bilingual and preserve WhatsApp/email contact behavior.
+- Administration audit: verified the admin dashboard data and device access paths. The remaining gap is visual/design parity work, not a missing admin capability.
+- Arabic/French and direction: added the missing French notification labels, made the carousel bilingual without Arabic-only copy, and kept the global document language and RTL/LTR direction synchronized with the selected language.
+- Performance: kept promo images as compressed JPG assets, enabled nginx gzip and sanitized access logs, and moved chart rendering to a lightweight SVG component so the Recharts chunk is loaded only by the lazy Reports page.
+- Backups: added `scripts/backup-db.sh`, which reads `DATABASE_URL` from `backend/.env`, creates compressed timestamped dumps, and retains the latest seven files. No cron entry was installed automatically.
+- Suggested cron (review and install manually): `0 2 * * * /absolute/path/to/Shgps.ma/scripts/backup-db.sh >> /var/log/athargps-backup.log 2>&1`
+
+## Completion verification
+
+- `npm run build` passes successfully.
+- Backend JavaScript syntax checks, backup-script syntax check, and `git diff --check` pass.
