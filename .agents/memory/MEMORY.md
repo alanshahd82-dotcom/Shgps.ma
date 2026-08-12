@@ -1,3 +1,4 @@
 - [Docker Alpine npm install breakage](docker-alpine-npm.md) — package-lock.json from non-Alpine env breaks npm install inside Docker; always use COPY package.json (not package*.json) and add .dockerignore
 - [Trip replay timing](trip-replay-timing.md) — preserve equal-timestamp GPS fixes and use a monotonic internal clock for playback
 - [Replay map fallback](replay-map-fallback.md) — replay basemaps must survive missing optional keys and tile-provider failures
+- [Duplicate artifact workflow ports](workflow-port-collision.md) — nested and root artifact workflows can compete for one managed port
