@@ -164,8 +164,8 @@ export async function getHistory(deviceId, from, to) {
 }
 
 // ─── المرحلة 1: إصلاح إرسال الأمر (إضافة attributes) ──────────
-export const sendCommand = (deviceId, type) =>
-  call('/api/commands/send', { method:'POST', body: JSON.stringify({ deviceId, type, attributes: {} }) })
+export const sendCommand = (deviceId, type, attributes = {}) =>
+  call('/api/commands/send', { method:'POST', body: JSON.stringify({ deviceId, type, attributes }) })
 
 // ─── المرحلة 2 (Draft): دوال السياج الجغرافي ──────────────────
 //

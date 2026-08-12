@@ -503,24 +503,42 @@ import {
     })
 
     devicesRouter.post('/:id/command', requireAuth, requireDeviceOwner, async (req, res) => {
-    try {
-      const allowedCommands = new Set(['engineStop', 'engineResume'])
-      if (!allowedCommands.has(req.body?.type)) {
-        return res.status(400).json({ error: 'Command type must be engineStop or engineResume' })
-      }
-      const dev = req.device
+      try {
+        const dev = req.device
+        const type = req.body.type
+        if (!['engineStop', 'engineResume'].includes(type)) {
+          return res.status(400).json({ error: 'Command type must be engineStop or engineResume' })
+        }
 
-      // ── تحقق من وجود traccar_id قبل إرسال الأمر ──────────────────────────
-      if (!dev.traccar_id) {
-        return res.status(400).json({
-          error: 'الجهاز غير مرتبط بالمتتبع. تواصل مع المدير. / Appareil non lié au tracker. Contactez l\'admin.'
-        })
-      }
+        // ── GT06 / WanWay GS900: يحتاج أمر RELAY مخصص، لا engineStop القياسي ──
+        // باقي الأجهزة: تستخدم النوع القياسي.
+        const isGt06 = !dev.type || /bike|car|gt06|wanway|gs900|concox/i.test(dev.type + ' ' + (dev.name||''))
+        let traccarType = type
+        let attributes = {}
+        if (isGt06) {
+          traccarType = 'custom'
+          attributes = { data: type === 'engineStop' ? 'RELAY,1,0#' : 'RELAY,1,1#' }
+        }
 
-      await traccar.sendCommand(dev.traccar_id, req.body.type)
-      await logAudit(req.user.id, `engine_${req.body.type}`, 'device', dev.id, { imei: dev.imei, command: req.body.type })
-      res.json({ success:true })
-    } catch (err) { console.error(err); res.status(500).json({ error:'Failed to send command' }) }
+        await traccar.sendCommand(dev.traccar_id, traccarType, attributes)
+
+        await db.query(
+          `INSERT INTO device_commands (device_id, user_id, command, traccar_id, result, ip_address)
+           VALUES ($1,$2,$3,$4,'sent',$5)`,
+          [dev.id, req.user.id, type, dev.traccar_id, req.ip]
+        ).catch(e => console.error('[device_commands insert]', e.message))
+
+        await logAudit(req.user.id, `engine_${type}`, 'device', dev.id, { imei: dev.imei, command: type, relay: isGt06 }).catch(()=>{})
+        res.json({ ok: true, type, relay: isGt06 })
+      } catch (err) {
+        console.error('[command error]', err.message)
+        await db.query(
+          `INSERT INTO device_commands (device_id, user_id, command, traccar_id, result, error_msg, ip_address)
+           VALUES ($1,$2,$3,$4,'failed',$5,$6)`,
+          [req.device?.id, req.user.id, req.body.type, req.device?.traccar_id, err.message, req.ip]
+        ).catch(()=>{})
+        res.status(502).json({ error: 'Failed to send command: ' + err.message })
+      }
     })
 
     // POST /:id/geofence — ينشئ سياجاً جغرافياً ويخزّنه محلياً وفي Traccar (إن أمكن)
