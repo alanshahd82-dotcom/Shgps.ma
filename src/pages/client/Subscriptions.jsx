@@ -20,7 +20,14 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 function dateOnly(value) {
   if (!value) return null
-  return String(value).slice(0, 10)
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const isoDate = trimmed.match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+    if (isoDate) return isoDate
+  }
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10)
 }
 
 function formatDate(value, lang) {
@@ -56,10 +63,13 @@ function RenewalActions({ device, lang, contacts, onClose }) {
   const [planId, setPlanId] = useState(defaultPlanId)
   const plate = device?.plate || device?.licensePlate || device?.license_plate || '—'
   const endDate = dateOnly(snapshot.endDate)
-  const today = dateOnly(new Date())
+  const today = dateOnly(new Date()) || '1970-01-01'
   const renewalStartDate = endDate && endDate >= today ? endDate : today
   const selectedPlan = getSubscriptionPlan(planId) || SUBSCRIPTION_PLANS[0]
-  const projectedEndDate = addMonths(renewalStartDate, selectedPlan.durationMonths)
+  const projectedEndDate = addMonths(
+    renewalStartDate,
+    Number(selectedPlan?.durationMonths) || 3,
+  )
   const clientName = clientAuth?.name || '—'
   const email = clientAuth?.email || '—'
   const message = isAr
@@ -68,8 +78,9 @@ function RenewalActions({ device, lang, contacts, onClose }) {
   const whatsappNumber = String(contacts?.renew_whatsapp_phone || '').replace(/\D/g, '')
   const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}` : ''
   const subject = isAr ? `تجديد اشتراك Athar GPS — ${device?.name || 'جهاز'}` : `Renouvellement Athar GPS — ${device?.name || 'appareil'}`
-  const mailtoUrl = contacts?.renew_email
-    ? `mailto:${contacts.renew_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`
+  const renewalEmail = String(contacts?.renew_email || '').trim()
+  const mailtoUrl = renewalEmail
+    ? `mailto:${renewalEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`
     : ''
 
   return (

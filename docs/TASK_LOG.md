@@ -2,6 +2,23 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## Crash fixes — LiveMap open and subscription renewal
+
+- Fixed the LiveMap crash on open. Root cause: the status-count calculation still called `devices.filter(...)` directly while the app context could temporarily provide an undefined device list. Exact fix: reuse the existing `safeDevices` fallback and filter null entries before calculating status counts in `src/pages/client/LiveMap.jsx`.
+- Fixed the subscription renewal crash. Root cause: `dateOnly(new Date())` converted a Date object to a non-ISO display string such as `Wed Aug 12`, which made `addMonths` receive an invalid date and throw while rendering renewal actions. Exact fix: normalize Date and string inputs safely, add a deterministic date/plan fallback, and normalize the renewal email before building contact URLs in `src/pages/client/Subscriptions.jsx`.
+- Files changed: `src/pages/client/LiveMap.jsx`, `src/pages/client/Subscriptions.jsx`, and this log.
+
+### Verification checklist
+
+- [x] LiveMap opens without the ErrorBoundary crash.
+- [x] Subscription renewal opens the plan choices safely.
+- [x] Trip replay player remains untouched and continues to use the existing stable playback path.
+- [x] ErrorBoundary remains in place as a permanent safety net.
+- [x] Engine cut/start path remains untouched.
+- [x] `npm run build` passes.
+- [x] Largest generated JavaScript asset is below 500 KB (383.15 KB).
+- [x] `git diff --check` passes.
+
 ## Crash guards and conservative LiveMap cleanup
 
 - Added a global React `ErrorBoundary` around the application. Rendering errors now show the bilingual `حدث خطأ غير متوقع` / `Une erreur inattendue` screen with a page reload action instead of leaving a black screen.
