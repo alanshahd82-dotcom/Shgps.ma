@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
 import { getAccessibleDevice } from '../middleware/deviceAccess.js'
+import { speedKmh } from '../utils/speed.js'
 
 export const statsRouter = Router()
 
@@ -84,9 +85,7 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
     const replayPositions = positions.map((position) => ({
         latitude: Number(position.latitude),
         longitude: Number(position.longitude),
-        speed: Number.isFinite(Number(position.speed))
-          ? Math.max(0, Number(position.speed) * 1.852)
-          : 0,
+        speed: speedKmh(position.speed),
         fixTime: position.fixTime,
         address: position.address || null,
       }))

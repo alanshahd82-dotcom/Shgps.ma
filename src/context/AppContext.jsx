@@ -515,11 +515,12 @@ export function AppProvider({ children }) {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const toggleEngine = async (deviceId, turnOff) => {
-    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !turnOff } : d))
+    const normalizedDeviceId = String(deviceId)
+    setDevices(prev => prev.map(d => String(d.id) === normalizedDeviceId ? { ...d, engineOn: !turnOff } : d))
     try {
       await api.devices.sendCommand(deviceId, turnOff ? 'engineStop' : 'engineResume')
     } catch (err) {
-      setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, engineOn: !!turnOff } : d))
+      setDevices(prev => prev.map(d => String(d.id) === normalizedDeviceId ? { ...d, engineOn: !!turnOff } : d))
       throw err
     }
   }

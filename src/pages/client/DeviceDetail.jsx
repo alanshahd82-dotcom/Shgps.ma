@@ -15,7 +15,7 @@ import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import ConfirmModal from '../../components/ConfirmModal'
-import { getDeviceStatusKey, timeAgo, VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import { getDeviceStatusKey, hasGpsPosition, timeAgo, VehicleIcon, VehicleTypeControl } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
@@ -223,8 +223,8 @@ export default function DeviceDetail() {
   }, [customFrom, customRangeTooLong, customTo, rangeBounds, rangePreset])
 
   const st = getDeviceStatusKey(device || {})
-  const stColor = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', offline:'#6b7280' }[st] || '#6b7280'
-  const stLabel = { moving: isAr?'يتحرك':'En mouvement', idle:isAr?'خمول':'Ralenti', stopped:isAr?'متوقف':'Arrêté', offline:isAr?'غير متصل':'Hors ligne' }[st] || st
+  const stColor = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', awaiting_gps:'#F59E0B', offline:'#6b7280' }[st] || '#6b7280'
+  const stLabel = { moving: isAr?'يتحرك':'En mouvement', idle:isAr?'خمول':'Ralenti', stopped:isAr?'متوقف':'Arrêté', awaiting_gps:isAr?'في انتظار تحديد الموقع':'En attente de localisation', offline:isAr?'غير متصل':'Hors ligne' }[st] || st
 
   useEffect(() => {
     let cancelled = false
@@ -619,6 +619,14 @@ export default function DeviceDetail() {
                   </p>
                 </div>
               )}
+      {device.status === 'online' && !hasGpsPosition(device) && (
+        <div className="flex items-start gap-2.5 p-3.5 rounded-xl" style={{ background:'rgba(245,158,11,0.10)', border:'1px solid rgba(245,158,11,0.28)' }}>
+          <MapPin size={14} className="text-amber-400 flex-shrink-0" />
+          <p className="text-xs text-amber-200 leading-relaxed">
+            {isAr ? 'في انتظار تحديد الموقع' : 'En attente de localisation'}
+          </p>
+        </div>
+      )}
               {/* Mini map */}
               {trackingEnabled && validPosition(latitude, longitude) && (
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
@@ -1094,6 +1102,7 @@ export default function DeviceDetail() {
       {/* Confirm modal */}
       {confirm && (
         <ConfirmModal
+          open={!!confirm}
           title={t(lang, confirm.turnOff ? 'engineCutConfirmTitle' : 'engineStartConfirmTitle')}
           message={t(lang, confirm.turnOff ? 'engineCutConfirmMsg' : 'engineStartConfirmMsg')}
           onConfirm={() => sendCommand(confirm.turnOff)}

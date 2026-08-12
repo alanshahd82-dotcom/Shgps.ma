@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import * as traccar from '../services/traccar.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
 import { getAccessibleDevice } from '../middleware/deviceAccess.js'
+import { speedKmh } from '../utils/speed.js'
 
 export const sharingRouter = Router()
 
@@ -64,7 +65,7 @@ sharingRouter.get('/:token', async (req, res) => {
       position: position ? {
         lat: position.latitude,
         lng: position.longitude,
-        speed: position.speed,
+        speed: speedKmh(position.speed),
         fixTime: position.fixTime,
       } : null,
     })

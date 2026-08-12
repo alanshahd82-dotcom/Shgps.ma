@@ -5,6 +5,7 @@ import { db } from '../db.js'
 import * as traccar from '../services/traccar.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
 import { getAccessibleDevice } from '../middleware/deviceAccess.js'
+import { speedKmh } from '../utils/speed.js'
 
 export const reportsRouter = Router()
 
@@ -19,11 +20,6 @@ function haversine(lat1, lng1, lat2, lng2) {
     Math.cos((lat2 * Math.PI) / 180) *
     Math.sin(dLng / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-// Traccar returns speed in knots; the ATHAR GPS UI displays km/h.
-function speedKmh(speed) {
-  return Math.max(0, Number(speed || 0) * 1.852)
 }
 
 // A trip is a continuous group of fixes that contains movement. A tracker

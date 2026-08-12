@@ -26,6 +26,7 @@ import { isRevoked }    from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
+import { speedKmh } from './utils/speed.js'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -506,7 +507,7 @@ async function connectTraccar() {
       if (allowed) {
         let outMsg = msg
         if (parsed && Array.isArray(parsed.positions)) {
-          const patched = { ...parsed, positions: parsed.positions.map(p => ({ ...p, speed: Math.round(Math.max(0, Number(p.speed ?? 0) * 1.852)) })) }
+          const patched = { ...parsed, positions: parsed.positions.map(p => ({ ...p, speed: Math.round(speedKmh(p.speed)) })) }
           try { outMsg = JSON.stringify(patched) } catch {}
         }
         client.send(outMsg)

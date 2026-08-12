@@ -24,6 +24,7 @@ const STATUS = {
   moving: { ar: 'تتحرك', fr: 'En mouvement', color: '#38d39f', soft: 'rgba(56,211,159,.12)' },
   idle: { ar: 'خاملة', fr: 'Au ralenti', color: '#d9ad62', soft: 'rgba(217,173,98,.12)' },
   stopped: { ar: 'متوقفة', fr: 'À l’arrêt', color: '#e46b68', soft: 'rgba(228,107,104,.12)' },
+  awaiting_gps: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation', color: '#f59e0b', soft: 'rgba(245,158,11,.12)' },
   offline: { ar: 'غير متصلة', fr: 'Hors ligne', color: '#8da2b5', soft: 'rgba(141,162,181,.12)' },
 }
 

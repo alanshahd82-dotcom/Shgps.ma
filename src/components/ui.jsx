@@ -56,9 +56,19 @@ export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', clas
 }
 
 // ── Device status computation ─────────────────────────────────────────────────
+export function hasGpsPosition(device) {
+  const lat = Number(device?.lat ?? device?.last_lat)
+  const lng = Number(device?.lng ?? device?.last_lng)
+  return Number.isFinite(lat) && Number.isFinite(lng)
+    && lat >= -90 && lat <= 90
+    && lng >= -180 && lng <= 180
+    && !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
+}
+
 export function getDeviceStatusKey(device) {
   if (!device) return 'offline'
   if (device.status !== 'online') return 'offline'
+  if (!hasGpsPosition(device)) return 'awaiting_gps'
   const speed = device.speed ?? device.last_speed ?? 0
   if (speed > 2) return 'moving'
   const eng = device.engineOn ?? device.ignition ?? false

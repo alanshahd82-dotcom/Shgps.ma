@@ -24,7 +24,7 @@ const userLocIcon = L.divIcon({
   iconSize: [22, 22], iconAnchor: [11, 11],
 })
 
-const ST_CLR = { moving: '#00D97E', idle: '#FF9500', stopped: '#FF3B30', offline: '#6b7280' }
+const ST_CLR = { moving: '#00D97E', idle: '#FF9500', stopped: '#FF3B30', awaiting_gps: '#F59E0B', offline: '#6b7280' }
 
 function makeVehicleIcon(device, isSelected) {
   const st  = getDeviceStatusKey(device)
@@ -97,6 +97,7 @@ const ST_LABEL = {
   moving:  { ar: 'يتحرك',    fr: 'En mouvement' },
   idle:    { ar: 'خامل',     fr: 'Ralenti'       },
   stopped: { ar: 'متوقف',    fr: 'Arrêté'        },
+  awaiting_gps: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' },
   offline: { ar: 'غير متصل', fr: 'Hors ligne'    },
 }
 
@@ -259,6 +260,7 @@ export default function LiveMap() {
       moving:  all.filter(d => getDeviceStatusKey(d) === 'moving').length,
       idle:    all.filter(d => getDeviceStatusKey(d) === 'idle').length,
       stopped: all.filter(d => getDeviceStatusKey(d) === 'stopped').length,
+      awaiting_gps: all.filter(d => getDeviceStatusKey(d) === 'awaiting_gps').length,
       offline: all.filter(d => getDeviceStatusKey(d) === 'offline').length,
     }
   }, [devices])
@@ -458,6 +460,7 @@ export default function LiveMap() {
           { key: 'moving', color: ST_CLR.moving, label: { ar: 'تتحرك', fr: 'En mouvement' } },
           { key: 'idle', color: ST_CLR.idle, label: { ar: 'خاملة', fr: 'Ralentie' } },
           { key: 'stopped', color: ST_CLR.stopped, label: { ar: 'متوقفة', fr: 'Arrêtée' } },
+          { key: 'awaiting_gps', color: ST_CLR.awaiting_gps, label: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' } },
         ].map(item => (
           <span key={item.key}><i style={{ background: item.color }} />{item.label[lang] || item.label.fr}</span>
         ))}
@@ -516,6 +519,7 @@ export default function LiveMap() {
               { key: 'moving',  color: '#00D97E', bg: 'rgba(0,217,126,0.12)',  border: 'rgba(0,217,126,0.25)',  label: { ar: 'يتحرك',    fr: 'Mvt'      } },
               { key: 'idle',    color: '#FF9500', bg: 'rgba(255,149,0,0.12)',  border: 'rgba(255,149,0,0.25)',  label: { ar: 'خامل',     fr: 'Ralenti'  } },
               { key: 'stopped', color: '#FF3B30', bg: 'rgba(255,59,48,0.12)',  border: 'rgba(255,59,48,0.25)',  label: { ar: 'متوقف',    fr: 'Arrêté'   } },
+              { key: 'awaiting_gps', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)', label: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' } },
               { key: 'offline', color: '#9ca3af', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.22)', label: { ar: 'غير متصل', fr: 'Hors ligne' } },
             ].map(({ key, color, bg, border, label }) =>
               counts[key] > 0 ? (
