@@ -275,13 +275,12 @@
 .athar-live-marker img {
   position: relative;
   z-index: 2;
-  width: 48px;
-  height: 34px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
   transform-origin: center;
-  mix-blend-mode: multiply;
   filter: drop-shadow(0 3px 5px rgba(0,0,0,.5));
-  transition: transform .3s linear, filter .2s ease;
+  transition: transform .8s linear, filter .2s ease;
 }
 
 .athar-live-marker-ring {
@@ -364,6 +363,49 @@
 
 .athar-map-controls button:active {
   transform: scale(.92);
+}
+
+.athar-devices-launcher {
+  position: absolute;
+  right: 66px;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(56,211,159,.32);
+  border-radius: 14px;
+  background: rgba(5,10,24,.92);
+  color: #dffcf0;
+  box-shadow: 0 8px 24px rgba(0,0,0,.38);
+  backdrop-filter: blur(18px);
+  font-family: 'Cairo', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.athar-devices-launcher:hover {
+  border-color: rgba(56,211,159,.65);
+  background: rgba(8,28,42,.96);
+}
+
+.athar-devices-launcher:active {
+  transform: scale(.96);
+}
+
+.athar-devices-count {
+  display: inline-flex;
+  min-width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(56,211,159,.16);
+  color: #71e8ba;
+  font-size: 10px;
+  line-height: 1;
 }
 
 .athar-map-recenter {
