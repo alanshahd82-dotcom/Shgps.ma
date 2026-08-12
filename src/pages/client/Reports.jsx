@@ -16,9 +16,9 @@ import { bucketMax } from '../../utils/simplify'
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
 const RANGES = [
-  { key: 'today', ar: 'اليوم', fr: "Aujourd'hui" },
-  { key: 'week', ar: 'الأسبوع', fr: 'Semaine' },
-  { key: 'month', ar: 'الشهر', fr: 'Mois' },
+  { key: 'today', labelKey: 'today' },
+  { key: 'week', labelKey: 'last7Days' },
+  { key: 'month', labelKey: 'last30Days' },
 ]
 
 const styles = `
@@ -402,23 +402,19 @@ export default function Reports() {
           )}
         </AnimatePresence>
 
-        <div className="ath-reports-chip-row" role="tablist" aria-label={isAr ? 'الفترة' : 'Période'}>
-          <div className="ath-reports-chip-track">
-            {RANGES.map(r => (
-              <button
-                key={r.key}
-                role="tab"
-                aria-selected={range === r.key}
-                onClick={() => setRange(r.key)}
-                className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-xs font-extrabold transition-all"
-                style={range === r.key
-                  ? { background: '#1DBF73', color: '#04120B', boxShadow: '0 8px 20px rgba(29,191,115,.18)' }
-                  : { background: 'rgba(16,27,46,.86)', color: '#8CA3B8', border: '1px solid rgba(148,180,215,.11)' }}
-              >
-                {r[isAr ? 'ar' : 'fr']}
-              </button>
-            ))}
-          </div>
+        <div className="ath-period-control" role="tablist" aria-label={isAr ? 'الفترة' : 'Période'}>
+          {RANGES.map(r => (
+            <button
+              key={r.key}
+              type="button"
+              role="tab"
+              aria-selected={range === r.key}
+              onClick={() => setRange(r.key)}
+              className={`ath-period-control-button ${range === r.key ? 'is-active' : ''}`}
+            >
+              {t(lang, r.labelKey)}
+            </button>
+          ))}
         </div>
       </div>
 
