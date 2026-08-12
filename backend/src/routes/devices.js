@@ -16,6 +16,22 @@ import { speedKmh } from '../utils/speed.js'
 
     export const devicesRouter = Router()
 
+    function readElectricalTelemetry(position) {
+      const attributes = position?.attributes || {}
+      const voltageRaw = attributes.power
+        ?? attributes.voltage
+        ?? attributes.externalPower
+        ?? attributes.adc1
+        ?? attributes.analog1
+      const batteryRaw = attributes.batteryLevel ?? attributes.battery
+      const voltageNumber = voltageRaw == null || voltageRaw === '' ? NaN : Number(voltageRaw)
+      const batteryNumber = batteryRaw == null || batteryRaw === '' ? NaN : Number(batteryRaw)
+      return {
+        voltage: Number.isFinite(voltageNumber) && voltageNumber > 0 ? voltageNumber : null,
+        batteryLevel: Number.isFinite(batteryNumber) ? batteryNumber : null,
+      }
+    }
+
     // Device-level authorization for reads and remote engine commands.
     // Admins and managers can operate across the fleet; regular clients can
     // only access devices assigned directly to their own account.
@@ -176,6 +192,7 @@ import { speedKmh } from '../utils/speed.js'
         const localGeo = geofenceMap[d.id] || null
         const subscription = getSubscriptionSnapshot(d)
         const trackingEnabled = subscription.trackingEnabled
+        const electrical = trackingEnabled ? readElectricalTelemetry(p) : { voltage: null, batteryLevel: null }
         return {
           id:        d.id,
           traccarId: d.traccar_id ?? td?.id ?? null,
@@ -191,7 +208,8 @@ import { speedKmh } from '../utils/speed.js'
           speed:     trackingEnabled ? Math.round(speedKmh(p?.speed)) : null,
           lastUpdate:trackingEnabled ? (p?.fixTime   ?? null) : null,
           engineOn:  trackingEnabled ? (p?.attributes?.ignition ?? false) : false,
-          battery:   trackingEnabled ? (p?.attributes?.battery ?? p?.attributes?.batteryLevel ?? p?.attributes?.voltage ?? p?.attributes?.power ?? null) : null,
+          voltage:   electrical.voltage,
+          batteryLevel: electrical.batteryLevel,
           signal:    trackingEnabled ? (p?.attributes?.rssi ?? p?.attributes?.gsm ?? p?.attributes?.signal ?? p?.attributes?.signalStrength ?? null) : null,
           fuel:      trackingEnabled ? (p?.attributes?.fuel ?? p?.attributes?.fuelLevel ?? null) : null,
           subscriptionPlanId: subscription.subscriptionPlanId,
@@ -271,7 +289,7 @@ import { speedKmh } from '../utils/speed.js'
         res.status(201).json({
           id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
           clientId: d.user_id, status: 'offline', lat: null, lng: null, speed: 0,
-          lastUpdate: null, engineOn: false, battery: null, signal: null, fuel: null,
+          lastUpdate: null, engineOn: false, voltage: null, batteryLevel: null, signal: null, fuel: null,
           subscriptionPlanId: d.subscription_plan_id,
           subscriptionStartDate: d.subscription_start_date,
           subscriptionEndDate: d.subscription_end_date,
@@ -373,7 +391,7 @@ import { speedKmh } from '../utils/speed.js'
              id: d.id, name: d.name, imei: d.imei, type: d.type, phone: d.phone,
             clientId: d.user_id, status: 'offline',
             lat: null, lng: null, speed: 0, lastUpdate: null,
-            engineOn: false, battery: null, signal: null, fuel: null,
+            engineOn: false, voltage: null, batteryLevel: null, signal: null, fuel: null,
             subscriptionPlanId: d.subscription_plan_id,
             subscriptionStartDate: d.subscription_start_date,
             subscriptionEndDate: d.subscription_end_date,

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi } from 'lucide-react'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
 import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
@@ -321,7 +321,8 @@ export default function LiveMap() {
                 {(() => {
                   const popupStatus = getDeviceStatusKey(d)
                   const popupColor = ST_CLR[popupStatus] || ST_CLR.offline
-                  const popupBattery = Number(d.battery)
+                  const popupVoltage = Number(d.voltage)
+                  const popupBattery = Number(d.batteryLevel)
                   const popupSignal = d.signal ?? d.signalStrength ?? d.signal_strength ?? d.rssi
                   return (
                     <div className="athar-device-popup" dir={isAr ? 'rtl' : 'ltr'}>
@@ -337,7 +338,8 @@ export default function LiveMap() {
                       </div>
                       <div className="athar-device-popup-grid">
                         <span><Gauge size={13} />{Math.round(Number(d.speed) || 0)} {t(lang, 'kmh')}</span>
-                        <span><BatteryMedium size={13} />{Number.isFinite(popupBattery) ? `${Math.round(popupBattery)}%` : '—'}</span>
+                        <span><Zap size={13} />{Number.isFinite(popupVoltage) && popupVoltage > 0 ? `${popupVoltage.toFixed(1)} V` : (isAr ? 'مفصول' : 'Déconnecté')}</span>
+                        {Number.isFinite(popupBattery) && <span><BatteryMedium size={13} />{Math.round(popupBattery)}%</span>}
                         <span><Wifi size={13} />{popupSignal == null ? '—' : popupSignal}</span>
                       </div>
                       <button

@@ -376,9 +376,10 @@ export default function AllDevices() {
                         {isOnline ? `${device.speed ?? 0} km/h` : '—'}
                       </td>
                       <td className="px-4 py-3">
-                        {device.battery != null
-                          ? <span className="text-xs font-medium text-slate-600">🔋 {device.battery}%</span>
-                          : <span className="text-slate-300">—</span>}
+                        <span className="text-xs font-medium text-slate-600">
+                          {Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}
+                          {device.batteryLevel != null && <small className="ms-1 text-slate-400">{Math.round(Number(device.batteryLevel))}%</small>}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
@@ -436,7 +437,10 @@ export default function AllDevices() {
                       <span className={`text-xs font-medium ${isOnline ? 'text-emerald-500' : 'text-gray-400'}`}>
                         ● {isOnline ? t(lang, 'online') : t(lang, 'offline')}
                       </span>
-                      {device.battery != null && <span className="text-xs text-slate-400">🔋 {device.battery}%</span>}
+                      <span className="text-xs text-slate-400">
+                        {Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}
+                        {device.batteryLevel != null && ` · ${Math.round(Number(device.batteryLevel))}%`}
+                      </span>
                       <SubscriptionBadge device={device} lang={lang} />
                     </div>
                   </div>

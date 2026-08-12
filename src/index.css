@@ -249,7 +249,7 @@
 }
 
 .athar-live-label-status,
-.athar-live-label-battery {
+.athar-live-label-voltage {
   display: inline-block;
   width: 6px;
   height: 6px;
@@ -262,8 +262,8 @@
   box-shadow: 0 0 7px var(--athar-live-color, #1DBF73);
 }
 
-.athar-live-label-battery {
-  background: var(--athar-battery-color, #94A3B8);
+.athar-live-label-voltage {
+  background: var(--athar-voltage-color, #94A3B8);
 }
 
 .athar-live-marker-visual .athar-live-marker-pulse {

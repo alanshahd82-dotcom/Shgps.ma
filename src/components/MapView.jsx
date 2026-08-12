@@ -299,7 +299,9 @@ export default function MapView({
               </div>
               {device.status === 'online' && (
                 <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
-                  {lang === 'ar' ? `بطارية ${device.battery}% · إشارة ${device.signal}/4` : `Batt. ${device.battery}% · Signal ${device.signal}/4`}
+                  {lang === 'ar'
+                    ? `الفولطاج ${Number.isFinite(Number(device.voltage)) && Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : 'مفصول'} · البطارية ${device.batteryLevel != null ? `${Math.round(Number(device.batteryLevel))}%` : '—'} · إشارة ${device.signal ?? '—'}/4`
+                    : `Tension ${Number.isFinite(Number(device.voltage)) && Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : 'Déconnecté'} · Batt. ${device.batteryLevel != null ? `${Math.round(Number(device.batteryLevel))}%` : '—'} · Signal ${device.signal ?? '—'}/4`}
                 </div>
               )}
               {onRouteRequest && (

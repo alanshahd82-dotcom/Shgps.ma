@@ -8,6 +8,22 @@ import { config } from '../config.js'
 
     export const mapRouter = Router()
 
+function readElectricalTelemetry(position) {
+  const attributes = position?.attributes || {}
+  const voltageRaw = attributes.power
+    ?? attributes.voltage
+    ?? attributes.externalPower
+    ?? attributes.adc1
+    ?? attributes.analog1
+  const batteryRaw = attributes.batteryLevel ?? attributes.battery
+  const voltageNumber = voltageRaw == null || voltageRaw === '' ? NaN : Number(voltageRaw)
+  const batteryNumber = batteryRaw == null || batteryRaw === '' ? NaN : Number(batteryRaw)
+  return {
+    voltage: Number.isFinite(voltageNumber) && voltageNumber > 0 ? voltageNumber : null,
+    batteryLevel: Number.isFinite(batteryNumber) ? batteryNumber : null,
+  }
+}
+
 const ALLOWED_STYLES = new Set([
   'osm-bright',
   'osm-bright-grey',
@@ -112,6 +128,7 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
       res.json(rows.map(d => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null
+        const electrical = position ? readElectricalTelemetry(position) : { voltage: null, batteryLevel: null }
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
           lat: position?.latitude ?? null, lng: position?.longitude ?? null,
@@ -119,7 +136,8 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
           status: position ? 'online' : 'offline',
           lastUpdate: position?.fixTime ?? null,
           engineOn: position?.attributes?.ignition ?? false,
-          battery: position?.attributes?.battery ?? position?.attributes?.batteryLevel ?? position?.attributes?.voltage ?? position?.attributes?.power ?? null,
+          voltage: electrical.voltage,
+          batteryLevel: electrical.batteryLevel,
           signal: position?.attributes?.rssi ?? position?.attributes?.gsm ?? position?.attributes?.signal ?? position?.attributes?.signalStrength ?? null,
           fuel: position?.attributes?.fuel ?? position?.attributes?.fuelLevel ?? null,
           subscriptionStatus: subscription.subscriptionStatus,

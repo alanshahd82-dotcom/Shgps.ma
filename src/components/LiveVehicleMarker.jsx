@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { getBatteryColor, getDeviceStatusKey } from './ui'
+import { getDeviceStatusKey, getVoltageColor } from './ui'
 import { markerFor } from '../utils/vehicleAssets'
 
 const ANIMATION_MS = 800
@@ -63,15 +63,15 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   const statusLabel = STATUS_LABELS[status]?.[lang] || STATUS_LABELS[status]?.fr || status
   const speed = Number(device?.speed ?? device?.last_speed ?? 0)
   const label = status === 'moving' && speed > 0 ? `${Math.round(speed)} km/h` : statusLabel
-  const batteryValue = Number(device?.battery)
-  const batteryColor = getBatteryColor(batteryValue)
+  const voltageValue = Number(device?.voltage)
+  const voltageColor = getVoltageColor(voltageValue)
   const size = isSelected ? 62 : 56
   const width = isSelected ? 142 : 136
   const height = 92
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
-      <div class="athar-live-marker" style="width:${width}px;height:${height}px;--athar-live-color:${color};--athar-battery-color:${batteryColor}">
+      <div class="athar-live-marker" style="width:${width}px;height:${height}px;--athar-live-color:${color};--athar-voltage-color:${voltageColor}">
         <span class="athar-live-marker-visual" style="width:${size}px;height:${size}px">
           <span class="athar-live-marker-pulse"></span>
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
@@ -80,7 +80,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
         <span class="athar-live-label">
           <span class="athar-live-label-status" aria-hidden="true"></span>
           <span>${label}</span>
-          <span class="athar-live-label-battery" aria-hidden="true"></span>
+           <span class="athar-live-label-voltage" aria-label="${Number.isFinite(voltageValue) && voltageValue > 0 ? `${voltageValue.toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}">${Number.isFinite(voltageValue) && voltageValue > 0 ? `${voltageValue.toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}</span>
         </span>
       </div>
     `,
@@ -121,7 +121,7 @@ export default function LiveVehicleMarker({
   const status = getDeviceStatusKey(device)
   const icon = useMemo(
     () => createLiveVehicleIcon(device, isSelected, initialBearingRef.current, device?.lang || 'ar'),
-    [device?.type, device?.lang, isSelected, status, device?.speed, device?.last_speed, device?.battery]
+    [device?.type, device?.lang, isSelected, status, device?.speed, device?.last_speed, device?.voltage]
   )
 
   useEffect(() => () => {

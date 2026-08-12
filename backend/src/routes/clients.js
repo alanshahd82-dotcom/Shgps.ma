@@ -226,7 +226,7 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
     res.status(201).json({
       id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
       clientId: d.user_id, status: 'offline', lat: 0, lng: 0, speed: 0,
-      lastUpdate: null, engineOn: false, battery: null, signal: null, fuel: null,
+      lastUpdate: null, engineOn: false, voltage: null, batteryLevel: null, signal: null, fuel: null,
       subscriptionPlanId: d.subscription_plan_id,
       subscriptionStartDate: d.subscription_start_date,
       subscriptionEndDate: d.subscription_end_date,

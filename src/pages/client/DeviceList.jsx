@@ -35,7 +35,7 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const subscription = getSubscriptionSnapshot(device)
   const needsRenewal = ['expiring_soon', 'expired'].includes(subscription.status)
   const reduceMotion = useReducedMotion()
-  const rawBattery = device.battery
+  const rawBattery = device.batteryLevel
   const parsedBattery = rawBattery == null || rawBattery === '' ? null : Number(rawBattery)
   const battery = Number.isFinite(parsedBattery) ? Math.min(100, Math.max(0, parsedBattery)) : null
   const batteryColor = getBatteryColor(battery)

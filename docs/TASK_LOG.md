@@ -2,6 +2,25 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## Finish voltage feature — safe separation of external voltage and internal battery
+
+- Production attributes previously confirmed for the real devices remain unchanged: DACIA (Traccar device 70) reports internal battery `33%` and signal only; bekane (Traccar device 37) reports ignition, satellite, and distance data only. Neither device reports external/main-power voltage, `power`, `voltage`, `externalPower`, `adc1`, or `analog1`.
+- Decision: Branch B. The API now exposes `voltage` and `batteryLevel` as separate fields. Voltage is read only from `power`, `voltage`, `externalPower`, `adc1`, or `analog1`; missing, zero, or invalid values become `null`. Internal battery percentage is read only from `batteryLevel` or `battery`.
+- The client and admin interfaces show voltage in volts with the requested thresholds: `>=13.2` green, `12.4–13.2` amber, `12.0–12.4` orange, `<12.0` red. Missing, zero, or offline voltage shows `مفصول` / `Déconnecté`; no voltage is fabricated. Battery percentage remains a small secondary value where available.
+- The implementation is ready to display voltage automatically when a device starts reporting it. The real fix for the two current devices is hardware-side: enable main-power voltage reporting with the device SMS command or use a firmware/model that emits a supported voltage attribute. A Traccar `gt06.codec` change was not attempted.
+- Files changed: `backend/src/routes/devices.js`, `backend/src/routes/map.js`, `backend/src/routes/clients.js`, `src/context/AppContext.jsx`, `src/components/LiveVehicleMarker.jsx`, `src/components/MapView.jsx`, `src/components/ui.jsx`, `src/index.css`, `src/pages/client/DeviceDetail.jsx`, `src/pages/client/DeviceList.jsx`, `src/pages/client/LiveMap.jsx`, `src/pages/admin/ClientDetail.jsx`, and `src/pages/admin/AllDevices.jsx`.
+
+### Preservation checklist
+
+- [x] Engine cut/start RELAY command path preserved.
+- [x] Live map and live position flow preserved.
+- [x] Replay player and route loading preserved.
+- [x] Subscription and renewal behavior preserved.
+- [x] Global ErrorBoundary preserved.
+- [x] `npm run build` passes; largest generated JavaScript asset is 383.20 KB.
+- [x] `git diff --check` passes.
+- [ ] Authenticated live-device verification still requires a reachable backend and GPS device.
+
 ## Follow-up fix — LiveMap vehicle marker render crash
 
 - Root cause: `src/components/LiveVehicleMarker.jsx` read `initialBearingRef.current` while initializing `rotationRef` before `initialBearingRef` itself was declared. When the live map rendered a positioned device, JavaScript threw a temporal-dead-zone `ReferenceError`.
