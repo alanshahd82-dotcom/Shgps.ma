@@ -267,7 +267,7 @@ export default function LiveMap() {
 
   // Status summary counts
   const counts = useMemo(() => {
-    const all = devices.filter(d => d.trackingEnabled !== false)
+    const all = safeDevices.filter(Boolean).filter(d => d.trackingEnabled !== false)
     return {
       moving:  all.filter(d => getDeviceStatusKey(d) === 'moving').length,
       idle:    all.filter(d => getDeviceStatusKey(d) === 'idle').length,
@@ -275,7 +275,7 @@ export default function LiveMap() {
       awaiting_gps: all.filter(d => getDeviceStatusKey(d) === 'awaiting_gps').length,
       offline: all.filter(d => getDeviceStatusKey(d) === 'offline').length,
     }
-  }, [devices])
+  }, [safeDevices])
 
   function openMaps(type, device) {
     const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
