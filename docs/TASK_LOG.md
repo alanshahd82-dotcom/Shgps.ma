@@ -728,3 +728,73 @@ curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/comma
 - Broadcast `device:power-disconnected` over the existing frontend WebSocket to the device owner and administrators. The client immediately adds the alert to the local alert list, shows a dismissible bilingual banner, and uses the existing browser-notification preference when enabled.
 - Preserved engine-cut behavior, Traccar polling and subscriptions, GPS position updates, maps, markers, replay, authentication, and existing alert types.
 - Verification: `npm run build`, backend `node --check` checks, `git diff --check`, and a frontend search confirm no `batteryLevel` or percentage battery value remains in vehicle UI.
+## BUG 1 fix — alert spam on battery pull (transition-only alerts)
+
+### Root cause
+In `observePowerTelemetry` (backend/src/index.js), the `if (powerLossSignal)` block
+unconditionally set `current.disconnected = false` **before** calling
+`createPowerDisconnectedAlert`. This reset the "already alerted" guard
+(`state.disconnected`) every time a new packet arrived with `charge:false`.
+The guard in `createPowerDisconnectedAlert` checked `state.disconnected` and saw
+`false`, so it inserted a new alert and emitted a new WebSocket event on every
+incoming position — one alert per packet instead of one per episode.
+
+### Fix
+- Removed `current.disconnected = false` from the power-loss-signal block.
+- Added `alreadyHandled = current.disconnected || current.alerting` guard: only
+  calls `createPowerDisconnectedAlert` when transitioning INTO disconnected for the
+  first time. Subsequent packets with the same signal are ignored until the episode
+  resets (battery restored).
+- The disconnect episode now follows: first power-loss packet → ONE alert → all
+  further power-loss packets → silent; battery restore → ONE restore alert → back
+  to normal.
+
+### Added: battery-restored alert
+- New `createPowerRestoredAlert(traccarId)` and `sendPowerRestoredEvent()` in
+  backend/src/index.js.
+- Triggered inside the existing restore block
+  (`current.disconnected && !powerLossSignal`), which already ran on the first
+  healthy position after a confirmed disconnect.
+- Inserts one `power_restored` row into the `alerts` table.
+- Broadcasts `device:power-restored` WebSocket event to the device owner and admins.
+- Frontend (AppContext.jsx) handles the event: adds a restore alert to the alert
+  list, clears `powerDisconnected` flag on the specific device, sets status back to
+  `'online'`, and dismisses the disconnect banner if it was for that device.
+
+---
+
+## BUG 2 fix — disconnect state bleeding across all devices/accounts
+
+### Root cause
+`markVehicleConnected(traccarId)` was **never called** after battery restore.
+`observePowerTelemetry` cleared `current.disconnected` in its in-memory `powerTelemetry`
+Map, but left the device's Traccar ID inside the `disconnectedVehicles` Set
+(in vehicleTelemetry.js). The WebSocket bridge checked
+`isVehicleDisconnected(p.deviceId)` for every outgoing position, which kept
+returning `true` for the restored device forever. Every subsequent position from
+that device had `powerDisconnected: true`, so the frontend kept showing it as
+disconnected even after the battery was re-connected.
+
+### Fix
+- Added `markVehicleConnected` to the import from `vehicleTelemetry.js` in index.js.
+- Called `markVehicleConnected(traccarId)` immediately after clearing the
+  in-memory state in the restore block, before `createPowerRestoredAlert`.
+- This removes the device from `disconnectedVehicles` so the WebSocket bridge
+  immediately starts sending `powerDisconnected: false` for its positions.
+- Per-device isolation was already correct in the WebSocket bridge (keyed by
+  Traccar device ID) and in the frontend (`setDevices` maps only the matching
+  device). No shared global state was found. The missing `markVehicleConnected`
+  call was the only source of cross-episode bleed.
+
+### Files changed
+- `backend/src/index.js` — import, observePowerTelemetry, sendPowerRestoredEvent,
+  createPowerRestoredAlert
+- `src/context/AppContext.jsx` — device:power-restored handler
+
+### Verification
+- [x] `node --check` passes on all backend source files
+- [x] `git diff --check` passes
+- [x] `npm run build` passes (largest asset 383 KB, unchanged)
+- [ ] Live battery-pull + restore test on a real device not yet performed;
+      logic verified by code trace. The spam guard and markVehicleConnected
+      fix are the minimal changes required.

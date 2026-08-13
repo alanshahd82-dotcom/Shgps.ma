@@ -391,6 +391,7 @@ export function AppProvider({ children }) {
           setAlertsList(prev => prev.some(item => String(item.id) === String(alert.id))
             ? prev
             : [alert, ...prev].slice(0, 100))
+          // Mark ONLY the specific device as disconnected — never touch other devices.
           setDevices(prev => prev.map(item => (
             String(item.id) === String(data.deviceId)
               || String(item.traccarId ?? item.traccar_id) === String(data.traccarId)
@@ -402,6 +403,48 @@ export function AppProvider({ children }) {
             try {
               new Notification('ATHAR GPS', {
                 body: alert.message || 'تم فصل تغذية المركبة / Alimentation véhicule débranchée',
+                icon: '/athar-gps-mark.svg',
+              })
+            } catch { /* ignore */ }
+          }
+        }
+
+        if (data.type === 'device:power-restored') {
+          const incoming = data.alert || {}
+          const device = devicesRef.current.find(item =>
+            String(item.id) === String(data.deviceId)
+              || String(item.traccarId ?? item.traccar_id) === String(data.traccarId)
+          )
+          const createdAt = incoming.createdAt || new Date().toISOString()
+          const alert = {
+            id: incoming.id || `power-restored-${data.deviceId}-${createdAt}`,
+            type: 'power_restored',
+            deviceId: data.deviceId,
+            deviceName: incoming.deviceName || device?.name || '',
+            message: incoming.message || '',
+            created_at: createdAt,
+            time: createdAt,
+            data: incoming.data,
+            read: false,
+          }
+          setAlertsList(prev => prev.some(item => String(item.id) === String(alert.id))
+            ? prev
+            : [alert, ...prev].slice(0, 100))
+          // Clear disconnect flag ONLY for the restored device — never affect other devices.
+          setDevices(prev => prev.map(item => (
+            String(item.id) === String(data.deviceId)
+              || String(item.traccarId ?? item.traccar_id) === String(data.traccarId)
+              ? { ...item, status: 'online', powerDisconnected: false }
+              : item
+          )))
+          // Dismiss the disconnect banner if it was for this device.
+          setPowerDisconnectNotice(prev =>
+            prev && (String(prev.deviceId) === String(data.deviceId)) ? null : prev
+          )
+          if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
+            try {
+              new Notification('ATHAR GPS', {
+                body: alert.message || 'تم استعادة البطارية / Batterie rebranchée',
                 icon: '/athar-gps-mark.svg',
               })
             } catch { /* ignore */ }

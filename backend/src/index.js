@@ -29,6 +29,7 @@ import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
 import { speedKmh } from './utils/speed.js'
 import {
   markVehicleDisconnected,
+  markVehicleConnected,
   detectExternalPowerLoss,
   isVehicleDisconnected,
   observeVehicleVoltage,
@@ -449,6 +450,54 @@ function sendPowerDisconnectEvent(device, alert) {
   }
 }
 
+function sendPowerRestoredEvent(device, alert) {
+  const message = JSON.stringify({
+    type: 'device:power-restored',
+    deviceId: device.id,
+    traccarId: device.traccar_id,
+    alert: {
+      id: alert.id,
+      type: alert.type,
+      message: alert.message,
+      deviceName: device.name,
+      createdAt: alert.created_at,
+      data: alert.data,
+      read: false,
+    },
+  })
+  for (const client of frontendClients) {
+    if (client.readyState !== WebSocket.OPEN) continue
+    if (client.isAdmin || client.userId === device.user_id) client.send(message)
+  }
+}
+
+async function createPowerRestoredAlert(traccarId) {
+  try {
+    const { rows } = await db.query(
+      'SELECT id, traccar_id, user_id, name FROM devices WHERE traccar_id=$1 LIMIT 1',
+      [traccarId]
+    )
+    const device = rows[0]
+    if (!device) return
+    const message = `تم استعادة تغذية ${device.name} / Alimentation restaurée : ${device.name}`
+    const { rows: alertRows } = await db.query(
+      `INSERT INTO alerts (device_id, user_id, type, message, data)
+       VALUES ($1, $2, 'power_restored', $3, $4)
+       RETURNING id, type, message, data, created_at`,
+      [
+        device.id,
+        device.user_id,
+        message,
+        JSON.stringify({ traccarId }),
+      ]
+    )
+    sendPowerRestoredEvent(device, alertRows[0])
+    console.log('[Power] Vehicle power restored — device:', device.id)
+  } catch (err) {
+    console.warn('[Power] Restore alert skipped:', err.message)
+  }
+}
+
 async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {}) {
   const key = String(traccarId)
   const state = powerTelemetry.get(key)
@@ -582,12 +631,18 @@ function observePowerTelemetry(position) {
       : Math.max(current.lastPositionAt, observedAt)
   }
 
-  // The next real position starts a new episode after a confirmed alert.
+  // A healthy position after a confirmed disconnect episode: transition back to connected.
+  // Fire ONE restore alert, clear the in-memory disconnect state, and remove the device
+  // from the disconnectedVehicles Set so the WebSocket bridge stops marking it disconnected.
   if (current.disconnected && !powerLossSignal) {
     current.disconnected = false
     current.powerLossSignal = null
     current.missingSince = null
     current.alerting = false
+    powerTelemetry.set(key, current)
+    markVehicleConnected(traccarId)
+    void createPowerRestoredAlert(traccarId)
+    // Fall through to process this healthy position normally (voltage cache, silence timer).
   }
 
   if (voltage !== null) {
@@ -600,10 +655,15 @@ function observePowerTelemetry(position) {
     current.powerLossSignal = powerLossSignal
     current.missingSince = now
     current.invalidPositionCount = 0
-    current.disconnected = false
+    // Guard: only alert on the TRANSITION into disconnected (first packet with power loss
+    // signal). Do NOT reset current.disconnected here — that would bypass the guard on
+    // every subsequent packet and cause repeated alerts (the spam bug).
+    const alreadyHandled = current.disconnected || current.alerting
     powerTelemetry.set(key, current)
-    clearPowerDisconnectTimer(traccarId)
-    void createPowerDisconnectedAlert(traccarId, { immediate: true })
+    if (!alreadyHandled) {
+      clearPowerDisconnectTimer(traccarId)
+      void createPowerDisconnectedAlert(traccarId, { immediate: true })
+    }
     return
   }
 
