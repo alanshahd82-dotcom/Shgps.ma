@@ -461,8 +461,8 @@ export default function LiveMap() {
         </div>
       </div>
 
-      {/* ── Status legend ── */}
-      <div className="athar-map-legend" style={{ bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
+      {/* ── Status legend (hidden: was covering the map — kept in code, not deleted) ── */}
+      <div className="athar-map-legend" style={{ display: 'none', bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
         {[
           { key: 'moving', color: ST_CLR.moving, label: { ar: 'تتحرك', fr: 'En mouvement' } },
           { key: 'idle', color: ST_CLR.idle, label: { ar: 'خاملة', fr: 'Ralentie' } },
