@@ -2,6 +2,32 @@
 
 This file records the completed work and the current production verification notes.
 
+## Live verification — DACIA command delivery and current telemetry
+
+- Production checks on `https://athargps.com` returned HTTP 200 for the public
+  health endpoint (`status: ok`, database `connected`, Traccar `reachable`),
+  authenticated login, and the authenticated device list.
+- The supplied Amin account can see DACIA only: local device `16`, Traccar
+  device `70`. `bekane` / Traccar `37` is not visible to this account and was
+  not commanded.
+- With DACIA confirmed parked and safe, the live command endpoints returned
+  HTTP 200 for both actions. The exact Traccar responses were:
+  `engineStop` → `{ deviceId: 70, type: "custom", attributes: { data:
+  "RELAY,1,0#" } }`; `engineResume` → `{ deviceId: 70, type: "custom",
+  attributes: { data: "RELAY,1,1#" } }`. This proves the application sent the
+  expected request and Traccar accepted it; it does not by itself prove the
+  physical relay moved.
+- A live WebSocket position for Traccar `70` was captured with raw attributes:
+  `type:19`, `status:134`, `ignition:true`, `charge:true`, `blocked:true`,
+  `batteryLevel:100`, `rssi:3`, `distance:0`, `totalDistance:84563876.2733509`,
+  `motion:false`, and `hours:6970863`. No `powerCut`, `externalPowerLost`,
+  or equivalent explicit power-loss flag was present in that healthy packet.
+- Physical battery-pull verification was not performed remotely. The actual
+  tracker must be disconnected while its final WebSocket packet is captured
+  to determine whether this hardware emits an immediate power-loss flag; if
+  it emits no such flag, the five-minute silence fallback remains the honest
+  trigger.
+
 ## Follow-up — forward immediate power-loss state over the live socket
 
 - The backend already detected explicit tracker power-loss attributes, but the
