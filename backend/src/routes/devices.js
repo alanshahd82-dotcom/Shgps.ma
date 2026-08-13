@@ -199,7 +199,9 @@ import {
         // A position is proof of a live/known device even when it is stationary.
         // Traccar's device.status can lag behind the last position, so do not
         // label a stopped device offline merely because speed is zero.
-        const status = telemetrySilent || isVehicleDisconnected(telemetryId)
+        // External power loss is not a connection loss. A tracker with an
+        // internal battery remains online while fresh positions arrive.
+        const status = telemetrySilent
           ? 'offline'
           : (td?.status === 'online' || !!p ? 'online' : 'offline')
         const localGeo = geofenceMap[d.id] || null

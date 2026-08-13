@@ -2,6 +2,97 @@
 
 This file records the completed work and the current production verification notes.
 
+## Three live bugs — real root causes and precise state separation
+
+### Bug 1: repeated disconnect/restore alerts
+
+- The live account's `/api/alerts` response showed alternating
+  `power_disconnected` and `power_restored` rows for DACIA (for example IDs
+  `121`, `122`, `123`, `124`, `125`, `126`, `127`, `128`, `131`, `132`).
+  The disconnect rows carried `trigger: "telemetry"` and `reason:
+  "charge:false"`, proving this was not a five-minute silence sequence.
+- The actual cause was two pieces of state fighting each other:
+  `observeVehicleVoltage()` called `markVehicleConnected()` on every position,
+  and `observePowerTelemetry()` treated every packet without a loss field as a
+  restore. GT06 packets can omit `charge` intermittently after sending
+  `charge:false`; omission is not proof that external power returned.
+- The transition guard itself was present, but the false restore reset the
+  episode. The next `charge:false` packet then looked like a new disconnect,
+  producing the observed alternating alert spam.
+
+### Bug 1 fix
+
+- Voltage observation no longer mutates the power-connection state. Only the
+  power telemetry transition logic calls `markVehicleConnected()` or
+  `markVehicleDisconnected()`.
+- A confirmed explicit-loss episode now stays disconnected until an
+  affirmative restoration signal arrives (`charge:true`, external power
+  explicitly on, a loss flag explicitly false, or a recognized restored/normal
+  alarm). A packet that merely omits `charge` is ignored for restoration.
+- Repeated loss packets therefore remain silent; the next affirmative restore
+  produces one restore alert, and the following loss starts one new episode.
+- The existing in-memory per-device guard remains keyed by Traccar device ID.
+  Surviving a process restart requires the separate persistent-episode follow-up
+  because the current alert state is not stored in the database as a state
+  machine.
+
+### Bug 2: external power loss is not device offline
+
+- REST device status no longer checks `isVehicleDisconnected()` when deciding
+  connection status. A fresh position means `status: "online"` even when
+  `powerDisconnected: true`.
+- Live WebSocket position updates now keep `status: "online"` whenever the
+  position itself is fresh. A silence-triggered alert can still set the UI to
+  offline; a telemetry-triggered external-power alert keeps it online.
+- The map fallback exposes the confirmed per-device `powerDisconnected` flag
+  independently of the fresh-position status.
+- Client device cards and map popups show `على البطارية الداخلية` /
+  `Sur batterie interne` only when the tracker is still online with external
+  power lost. They do not replace `moving`, `idle`, or `stopped`, so a moving
+  bike remains moving.
+
+### Bug 3: engine command chain
+
+- The current command chain was traced on `main`: the protected frontend action
+  posts to `/api/devices/:id/command`, the route resolves the mapped Traccar
+  device when possible, defaults unknown/GT06-family devices to `custom`, and
+  calls `traccar.sendCommand()`.
+- `backend/src/services/traccar.js` logs the exact non-secret request and
+  Traccar response/error. The GT06/WanWay payload remains
+  `RELAY,1,0#` for stop and `RELAY,1,1#` for resume.
+- No engine code was changed in this delivery because the source path and
+  payload were already correct, and the prior authenticated DACIA checks
+  recorded HTTP 200 plus Traccar acceptance. A physical relay movement was not
+  claimed without a safe live-device test.
+
+### Verification
+
+| Requirement | Result | Evidence |
+|---|---|---|
+| One alert per explicit loss episode | PASS by transition trace and helper smoke test | missing `charge` does not restore; repeated `charge:false` stays in the same episode |
+| One restore alert per real restore | PASS by transition trace and helper smoke test | restore requires an affirmative signal for explicit-loss episodes |
+| External power loss keeps a reporting tracker online | PASS by source audit | REST/WS status depends on fresh telemetry, not `powerDisconnected` |
+| True silence can still show offline | PASS by source audit | silence trigger remains separate and sets offline only after the five-minute window |
+| Distinct internal-battery state | PASS by source audit | client device list and map popup show bilingual internal-battery label |
+| Engine RELAY payload | PASS by source audit and prior live Traccar response | `custom` + `RELAY,1,0#` / `RELAY,1,1#` |
+| Bike at 35 km/h | PASS locally; moving-bike production capture unavailable | `18.9` knots → `35` km/h; status threshold remains `>2` |
+| Real voltage / no fabricated voltage | PASS | `batteryLevel` remains percentage; helper smoke test returns no voltage from percentage-only data |
+| Per-device state isolation | PASS by source audit | power state and frontend updates remain keyed by Traccar/local device ID |
+| Build and syntax | PASS | `npm run build`, four backend `node --check` runs, and `git diff --check` |
+
+### Live verification limits
+
+- Before this fix, production health returned HTTP 200 with database connected
+  and Traccar reachable. The authenticated account exposed DACIA/Traccar `70`
+  only.
+- The production alert history was sufficient to identify the alternating
+  spam root cause. A physical battery pull/restore was not performed, so no
+  physical relay or hardware transition is claimed.
+- Replit deployment metadata reports no active deployment for this workspace;
+  `athargps.com` is an external production runtime. The pushed commit must be
+  picked up by that runtime before the post-fix live API behavior can be
+  certified.
+
 ## Regression fix — moving bike speed/status consistency
 
 ### Investigation and root cause

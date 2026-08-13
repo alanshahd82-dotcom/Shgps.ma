@@ -112,7 +112,9 @@ export function AppProvider({ children }) {
             lastUpdate: pos.fixTime ?? current.lastUpdate,
             fixTime:    pos.fixTime ?? current.fixTime,
             course:     pos.course ?? pos.attributes?.course ?? current.course,
-            status:     powerDisconnected ? 'offline' : 'online',
+            // A fresh position proves the tracker is connected. External
+            // vehicle-power loss is a separate flag, not an offline state.
+            status:     'online',
             engineOn:   pos.attributes?.ignition   ?? current.engineOn,
             voltage:   pos.voltage
               ?? pos.attributes?.voltage
@@ -372,6 +374,8 @@ export function AppProvider({ children }) {
 
         if (data.type === 'device:power-disconnected') {
           const incoming = data.alert || {}
+          const alertData = incoming.data && typeof incoming.data === 'object' ? incoming.data : {}
+          const silenceConfirmed = alertData.trigger === 'silence'
           const device = devicesRef.current.find(item =>
             String(item.id) === String(data.deviceId)
               || String(item.traccarId ?? item.traccar_id) === String(data.traccarId)
@@ -395,7 +399,12 @@ export function AppProvider({ children }) {
           setDevices(prev => prev.map(item => (
             String(item.id) === String(data.deviceId)
               || String(item.traccarId ?? item.traccar_id) === String(data.traccarId)
-              ? { ...item, status: 'offline', voltage: null, powerDisconnected: true }
+              ? {
+                  ...item,
+                  status: silenceConfirmed ? 'offline' : 'online',
+                  voltage: null,
+                  powerDisconnected: true,
+                }
               : item
           )))
           setPowerDisconnectNotice(alert)

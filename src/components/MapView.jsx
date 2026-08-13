@@ -298,6 +298,11 @@ export default function MapView({
                   <span style={{ color: '#0F2044', fontWeight: 600 }}>{device.speed} {t(lang, 'kmh')}</span>
                 )}
               </div>
+              {device.status === 'online' && device.powerDisconnected && (
+                <div style={{ fontSize: 10, color: '#B45309', fontWeight: 600, marginTop: 3 }}>
+                  {lang === 'ar' ? 'على البطارية الداخلية' : 'Sur batterie interne'}
+                </div>
+              )}
               {device.status === 'online' && (
                 <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
                   {lang === 'ar'

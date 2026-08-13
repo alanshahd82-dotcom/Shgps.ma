@@ -56,6 +56,42 @@ export function detectExternalPowerLoss(position) {
   return null
 }
 
+/**
+ * Return an affirmative tracker signal that external power is back.
+ *
+ * Absence of a loss field is deliberately not enough. GT06 packets can omit
+ * `charge` intermittently while the vehicle is still on internal battery.
+ */
+export function detectExternalPowerRestored(position) {
+  const attributes = position?.attributes || {}
+  const isTrueLike = value => value === true || value === 1
+    || (typeof value === 'string' && /^(?:true|1|yes|on|connected|restored|normal|ok)$/i.test(value.trim()))
+
+  if (isTrueLike(attributes.charge)) return { source: 'charge:true' }
+  if (isTrueLike(attributes.externalPower)) return { source: 'externalPower:true' }
+
+  const lossKeys = [
+    'externalPowerLost',
+    'external_power_lost',
+    'powerLost',
+    'power_lost',
+    'powerCut',
+    'power_cut',
+    'chargeOff',
+    'charge_off',
+  ]
+  for (const key of lossKeys) {
+    if (isFalseLike(attributes[key])) return { source: `${key}:false` }
+  }
+
+  const alarm = String(attributes.alarm ?? '').trim()
+  if (/^(?:power[_ -]?(?:restored|on|normal)|external[_ -]?power[_ -]?(?:restored|on|normal)|charge[_ -]?(?:on|restored|normal))$/i.test(alarm)) {
+    return { source: `alarm:${alarm}` }
+  }
+
+  return null
+}
+
 function toFinitePositiveNumber(raw) {
   if (raw == null || raw === '') return null
   const value = Number(raw)
@@ -131,8 +167,6 @@ export function observeVehicleVoltage(position) {
   const deviceId = position?.deviceId
   const reported = extractReportedVoltage(position)
   const now = Date.now()
-
-  markVehicleConnected(deviceId)
 
   if (reported !== null) {
     rememberVoltage(deviceId, reported, now)

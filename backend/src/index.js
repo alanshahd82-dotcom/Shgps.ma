@@ -31,6 +31,7 @@ import {
   markVehicleDisconnected,
   markVehicleConnected,
   detectExternalPowerLoss,
+  detectExternalPowerRestored,
   isVehicleDisconnected,
   observeVehicleVoltage,
   POWER_SILENCE_WINDOW_MS,
@@ -623,6 +624,7 @@ function observePowerTelemetry(position) {
   const signature = positionSignature(position)
   const isNewTelemetry = current.lastPositionKey !== signature
   const powerLossSignal = detectExternalPowerLoss(position)
+  const powerRestoredSignal = detectExternalPowerRestored(position)
   if (isNewTelemetry) {
     current.lastPositionKey = signature
     const observedAt = positionTimestamp(position, now)
@@ -634,7 +636,11 @@ function observePowerTelemetry(position) {
   // A healthy position after a confirmed disconnect episode: transition back to connected.
   // Fire ONE restore alert, clear the in-memory disconnect state, and remove the device
   // from the disconnectedVehicles Set so the WebSocket bridge stops marking it disconnected.
-  if (current.disconnected && !powerLossSignal) {
+  const explicitLossEpisode = Boolean(current.powerLossSignal)
+  const confirmedRestore = current.disconnected
+    && !powerLossSignal
+    && (!explicitLossEpisode || Boolean(powerRestoredSignal))
+  if (confirmedRestore) {
     current.disconnected = false
     current.powerLossSignal = null
     current.missingSince = null

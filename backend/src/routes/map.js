@@ -22,7 +22,7 @@ function readElectricalTelemetry(position, traccarId, connected) {
   return {
     voltage: readVehicleVoltage(position, traccarId, { connected }),
     batteryLevel: readBatteryLevel(position),
-    powerDisconnected: !connected && isVehicleDisconnected(traccarId),
+    powerDisconnected: isVehicleDisconnected(traccarId),
   }
 }
 

@@ -60,6 +60,11 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
           <span className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] font-bold" style={{ color: status.color }}>
             <span className={`h-1.5 w-1.5 rounded-full ${statusKey === 'moving' ? 'live-dot' : ''}`} style={{ background: status.color }} aria-hidden="true" />
             <span className="rounded-full px-2 py-0.5" style={{ background: status.soft }}>{isAr ? status.ar : status.fr}</span>
+            {device.powerDisconnected && device.status === 'online' && (
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-300">
+                {isAr ? 'على البطارية الداخلية' : 'Sur batterie interne'}
+              </span>
+            )}
             {(device.lastUpdate || device.last_update) && <><Clock size={10} className="ms-1 text-[var(--ath-mut)]" /> <span className="font-normal text-[var(--ath-mut)]">{timeAgo(device.lastUpdate || device.last_update, lang)}</span></>}
           </span>
           <span className="mt-2 block"><SubscriptionBadge device={device} lang={lang} /></span>
