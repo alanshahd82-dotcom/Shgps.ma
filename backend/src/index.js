@@ -29,6 +29,7 @@ import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
 import { speedKmh } from './utils/speed.js'
 import {
   markVehicleDisconnected,
+  detectExternalPowerLoss,
   observeVehicleVoltage,
   POWER_SILENCE_WINDOW_MS,
   readVehicleVoltage as readCachedVehicleVoltage,
@@ -390,11 +391,39 @@ const POWER_DISCONNECT_GRACE_MS = POWER_SILENCE_WINDOW_MS
 const POWER_POSITION_MAX_AGE_MS = POWER_SILENCE_WINDOW_MS
 const powerTelemetry = new Map()
 const powerDisconnectTimers = new Map()
+const powerDisconnectRetryTimers = new Map()
 
 function clearPowerDisconnectTimer(traccarId) {
   const timer = powerDisconnectTimers.get(String(traccarId))
   if (timer) clearTimeout(timer)
   powerDisconnectTimers.delete(String(traccarId))
+}
+
+function clearPowerDisconnectRetryTimer(traccarId) {
+  const timer = powerDisconnectRetryTimers.get(String(traccarId))
+  if (timer) clearTimeout(timer)
+  powerDisconnectRetryTimers.delete(String(traccarId))
+}
+
+function positionTimestamp(position, fallback) {
+  const raw = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
+  const timestamp = raw ? new Date(raw).getTime() : NaN
+  if (!Number.isFinite(timestamp)) return fallback
+  return Math.min(timestamp, fallback)
+}
+
+function positionSignature(position) {
+  const attributes = position?.attributes || {}
+  return [
+    position?.id ?? '',
+    position?.fixTime ?? position?.lastUpdate ?? position?.last_update ?? '',
+    position?.latitude ?? '',
+    position?.longitude ?? '',
+    attributes.charge ?? '',
+    attributes.alarm ?? '',
+    attributes.powerCut ?? attributes.power_cut ?? '',
+    attributes.externalPower ?? '',
+  ].join('|')
 }
 
 function sendPowerDisconnectEvent(device, alert) {
@@ -419,14 +448,19 @@ function sendPowerDisconnectEvent(device, alert) {
   }
 }
 
-async function createPowerDisconnectedAlert(traccarId) {
+async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {}) {
   const key = String(traccarId)
   const state = powerTelemetry.get(key)
   const now = Date.now()
-  if (!state || state.alerting || state.disconnected
-    || !state.lastValidAt || !state.missingSince
-    || now - state.missingSince < POWER_DISCONNECT_GRACE_MS
-    || now - state.lastPositionAt < POWER_POSITION_MAX_AGE_MS) return
+  if (!state || state.alerting || state.disconnected || !state.lastPositionAt) return
+
+  const silenceConfirmed = Boolean(
+    state.missingSince
+      && now - state.missingSince >= POWER_DISCONNECT_GRACE_MS
+      && now - state.lastPositionAt >= POWER_POSITION_MAX_AGE_MS,
+  )
+  const signalConfirmed = Boolean(immediate && state.powerLossSignal)
+  if (!silenceConfirmed && !signalConfirmed) return
 
   state.alerting = true
   try {
@@ -441,9 +475,14 @@ async function createPowerDisconnectedAlert(traccarId) {
     }
 
     const latest = powerTelemetry.get(key)
+    const latestSilenceConfirmed = Boolean(
+      latest?.missingSince
+        && Date.now() - latest.missingSince >= POWER_DISCONNECT_GRACE_MS
+        && Date.now() - latest.lastPositionAt >= POWER_POSITION_MAX_AGE_MS,
+    )
+    const latestSignalConfirmed = Boolean(immediate && latest?.powerLossSignal)
     if (!latest || latest !== state || latest.disconnected
-      || Date.now() - latest.missingSince < POWER_DISCONNECT_GRACE_MS
-      || Date.now() - latest.lastPositionAt < POWER_POSITION_MAX_AGE_MS) {
+      || (!latestSilenceConfirmed && !latestSignalConfirmed)) {
       state.alerting = false
       return
     }
@@ -458,7 +497,8 @@ async function createPowerDisconnectedAlert(traccarId) {
         device.user_id,
         message,
         JSON.stringify({
-          reason: 'vehicle_power_missing',
+          reason: latest.powerLossSignal?.source || 'vehicle_power_missing',
+          trigger: latestSignalConfirmed ? 'telemetry' : 'silence',
           traccarId,
           lastValidVoltage: state.lastValidVoltage,
           graceSeconds: POWER_DISCONNECT_GRACE_MS / 1000,
@@ -468,18 +508,30 @@ async function createPowerDisconnectedAlert(traccarId) {
 
     state.disconnected = true
     state.alerting = false
+    clearPowerDisconnectRetryTimer(traccarId)
     markVehicleDisconnected(traccarId)
     sendPowerDisconnectEvent(device, alertRows[0])
     console.log('[Power] Vehicle power disconnected — device:', device.id)
   } catch (err) {
     state.alerting = false
     console.warn('[Power] Disconnect alert skipped:', err.message)
+    if (state.powerLossSignal) {
+      clearPowerDisconnectRetryTimer(traccarId)
+      powerDisconnectRetryTimers.set(key, setTimeout(() => {
+        powerDisconnectRetryTimers.delete(key)
+        void createPowerDisconnectedAlert(traccarId, { immediate: true })
+      }, 5000))
+    }
   }
 }
 
 function schedulePowerDisconnectCheck(traccarId, lastPositionAt) {
   const key = String(traccarId)
   clearPowerDisconnectTimer(traccarId)
+  const delay = Math.max(
+    25,
+    POWER_DISCONNECT_GRACE_MS - (Date.now() - lastPositionAt) + 25,
+  )
   powerDisconnectTimers.set(key, setTimeout(() => {
     powerDisconnectTimers.delete(key)
     const state = powerTelemetry.get(key)
@@ -497,7 +549,7 @@ function schedulePowerDisconnectCheck(traccarId, lastPositionAt) {
     state.missingSince = state.lastPositionAt
     powerTelemetry.set(key, state)
     void createPowerDisconnectedAlert(traccarId)
-  }, POWER_DISCONNECT_GRACE_MS + 25))
+  }, delay))
 }
 
 function observePowerTelemetry(position) {
@@ -512,12 +564,30 @@ function observePowerTelemetry(position) {
     lastValidVoltage: null,
     missingSince: null,
     lastPositionAt: null,
+    lastPositionKey: null,
+    powerLossSignal: null,
     invalidPositionCount: 0,
     disconnected: false,
     alerting: false,
   }
-  // A position arrived NOW → the device is genuinely connected.
-  current.lastPositionAt = now
+  const signature = positionSignature(position)
+  const isNewTelemetry = current.lastPositionKey !== signature
+  const powerLossSignal = detectExternalPowerLoss(position)
+  if (isNewTelemetry) {
+    current.lastPositionKey = signature
+    const observedAt = positionTimestamp(position, now)
+    current.lastPositionAt = current.lastPositionAt === null
+      ? observedAt
+      : Math.max(current.lastPositionAt, observedAt)
+  }
+
+  // The next real position starts a new episode after a confirmed alert.
+  if (current.disconnected && !powerLossSignal) {
+    current.disconnected = false
+    current.powerLossSignal = null
+    current.missingSince = null
+    current.alerting = false
+  }
 
   if (voltage !== null) {
     // A real voltage reading (not a guess) — store it as the last known good value.
@@ -525,14 +595,26 @@ function observePowerTelemetry(position) {
     current.lastValidVoltage = voltage
   }
 
+  if (powerLossSignal) {
+    current.powerLossSignal = powerLossSignal
+    current.missingSince = now
+    current.invalidPositionCount = 0
+    current.disconnected = false
+    powerTelemetry.set(key, current)
+    clearPowerDisconnectTimer(traccarId)
+    void createPowerDisconnectedAlert(traccarId, { immediate: true })
+    return
+  }
+
   // A position without voltage is still connected. Keep the last real
-  // voltage, clear any prior disconnect episode, and wait for actual silence.
-  current.missingSince = null
+  // voltage and wait for actual silence. Keep a pending explicit power-loss
+  // signal until its alert has been persisted, even if another packet races in.
+  if (!current.powerLossSignal) current.missingSince = null
   current.invalidPositionCount = 0
-  current.disconnected = false
-  current.alerting = false
   powerTelemetry.set(key, current)
-  schedulePowerDisconnectCheck(traccarId, current.lastPositionAt)
+  if (isNewTelemetry && !current.powerLossSignal) {
+    schedulePowerDisconnectCheck(traccarId, current.lastPositionAt)
+  }
 }
 
 // Cache: Traccar device ID → local user_id (owner). Refreshed on start + hourly.

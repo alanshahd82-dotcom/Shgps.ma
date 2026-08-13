@@ -583,14 +583,18 @@ import {
           return res.status(400).json({ error: 'Device has no Traccar mapping' })
         }
 
-        // Resolve the protocol from Traccar, not the local vehicle type.
-        // The local type describes the vehicle (bike/car/truck), not its tracker.
-        const traccarDevice = await traccar.getDevice(dev.traccar_id)
-        const protocol = String(traccarDevice?.protocol || '').toLowerCase()
-        // Traccar's /api/devices does NOT return `protocol` (always undefined),
-        // so we cannot detect GT06 from it. All current trackers are GT06/WanWay
-        // and REQUIRE the custom RELAY command. Default to RELAY; only skip it if
-        // a protocol is explicitly known AND is a non-relay family.
+        // Resolve the protocol when Traccar exposes it, but never let an
+        // optional lookup prevent the command from being sent. Traccar's
+        // /api/devices response often omits protocol; current GT06/WanWay
+        // trackers must use the custom RELAY payload, so RELAY is the safe
+        // fallback for an unknown protocol.
+        let protocol = ''
+        try {
+          const traccarDevice = await traccar.getDevice(dev.traccar_id)
+          protocol = String(traccarDevice?.protocol || '').toLowerCase()
+        } catch (lookupError) {
+          console.warn('[engine] protocol lookup failed; defaulting to RELAY:', lookupError.message)
+        }
         const knownNonRelay = /^(?:teltonika|t55|h02|tk103|meiligao|suntech|wondex)/i.test(protocol)
         const isRelayProtocol = protocol ? !knownNonRelay : true
         let traccarType = type
@@ -600,7 +604,7 @@ import {
           attributes = { data: type === 'engineStop' ? 'RELAY,1,0#' : 'RELAY,1,1#' }
         }
 
-        await traccar.sendCommand(dev.traccar_id, traccarType, attributes)
+        const traccarResponse = await traccar.sendCommand(dev.traccar_id, traccarType, attributes)
 
         await db.query(
           `INSERT INTO device_commands (device_id, user_id, command, traccar_id, result, ip_address)
@@ -609,7 +613,7 @@ import {
         ).catch(e => console.error('[device_commands insert]', e.message))
 
         await logAudit(req.user.id, `engine_${type}`, 'device', dev.id, { imei: dev.imei, command: type, relay: isRelayProtocol }).catch(()=>{})
-        res.json({ ok: true, type, relay: isRelayProtocol })
+        res.json({ ok: true, type, relay: isRelayProtocol, traccarResponse: traccarResponse ?? null })
       } catch (err) {
         console.error('[command error]', err.message)
         await db.query(

@@ -1,6 +1,25 @@
 # Athar GPS — Task Log
 
-This file records the completed replay-related work and the current import audit fix.
+This file records the completed work and the current production verification notes.
+
+## Follow-up — real immediate power telemetry and command delivery
+
+- Root causes found on `main`: the engine route made an optional Traccar device lookup a hard prerequisite, so a lookup failure stopped the command before `/api/commands/send`; the disconnect observer only watched silence and treated every received packet as a fresh timer reset, so it ignored explicit GT06 power-loss flags and could stay silent forever on repeated stale packets.
+- Engine commands now attempt protocol discovery with a short timeout, fall back to the required GT06/WanWay custom command when the protocol is missing or the lookup fails, and log the exact method/path/body plus the returned Traccar response without logging authentication. The payload remains `custom` with `attributes.data` equal to `RELAY,1,0#` or `RELAY,1,1#`.
+- Disconnect detection now has two honest paths: explicit `charge:false` / equivalent power-loss telemetry creates the alert immediately; otherwise a five-minute silence window is measured from the newest real telemetry timestamp and duplicate stale positions do not reset it. The alert is de-duplicated until a non-loss position returns.
+- Voltage behavior remains conservative: missing voltage is not a disconnect signal, no voltage is fabricated, and the existing shared formatter/state continue to control every visible voltage surface.
+- Files changed: `backend/src/index.js`, `backend/src/services/vehicleTelemetry.js`, `backend/src/services/traccar.js`, `backend/src/routes/devices.js`, and this log.
+
+### Verification
+
+- [x] `npm run build` passes.
+- [x] Backend `node --check` passes for all four changed JavaScript modules.
+- [x] `git diff --check` passes.
+- [x] Unit smoke checks pass for `charge:false`, `powerCut`, non-power alarms, and last-known voltage caching.
+- [x] Mocked Traccar smoke check confirms the command request uses `POST /api/commands/send` with the expected `deviceId`, `custom` type, and RELAY payload, and returns the mocked Traccar response.
+- [ ] Live Traccar response and physical engine cut/resume for bekane (Traccar `37`) and DACIA (Traccar `70`) could not be run from this environment; deployed Traccar credentials and reachable devices were not available.
+- [ ] Live battery-pull verification could not be run here; production must confirm the actual GT06 attribute name emitted immediately before power loss.
+- [ ] Authenticated production `/api/health` was not claimed because no deployed application credentials or production URL were available.
 
 ## Restore engine cut and make power disconnect honest
 
@@ -102,7 +121,7 @@ This file records the completed replay-related work and the current import audit
 
 - Root cause: the engine command route inferred the Traccar protocol from the local vehicle `type`/name fields. Those fields describe the vehicle, not the tracker protocol, so RELAY routing could be selected for the wrong device or skipped for a GT06-family tracker.
 - Fix: the command route now rejects devices without `traccar_id` with HTTP 400 (`Device has no Traccar mapping`), resolves the mapped Traccar device through the lightweight device endpoint, reads its authoritative `protocol`, and uses RELAY only for `gt06`, `concox`, `wanway`, and `gs900` protocol families. All other protocols use standard `engineStop` / `engineResume`.
-- The existing `device_commands` insert, `logAudit` call, and `{ ok, type, relay }` response shape remain unchanged. The `sendCommand(deviceId, type, attributes)` signature remains in use.
+- The existing `device_commands` insert and `logAudit` call remain unchanged. The command response keeps `{ ok, type, relay }` and now also returns the actual Traccar response as `traccarResponse`; the `sendCommand(deviceId, type, attributes)` signature remains in use.
 - Files changed: `backend/src/routes/devices.js`, `backend/src/services/traccar.js`, and this log. Frontend, Traccar configuration, and database schema were not changed.
 
 ### Verification

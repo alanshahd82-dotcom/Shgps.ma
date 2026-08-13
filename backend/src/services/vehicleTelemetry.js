@@ -13,6 +13,49 @@ const VOLTAGE_ATTRIBUTE_KEYS = [
 // power-disconnect episode. A missing voltage field by itself never starts it.
 export const POWER_SILENCE_WINDOW_MS = 5 * 60 * 1000
 
+function isFalseLike(raw) {
+  if (raw === false || raw === 0) return true
+  if (typeof raw !== 'string') return false
+  return /^(?:false|0|no|off|lost|cut|disconnected?)$/i.test(raw.trim())
+}
+
+const POWER_LOSS_ALARM_PATTERN = /^(?:power[_ -]?(?:cut|lost|off|disconnect(?:ed)?|failure)|external[_ -]?power(?:[_ -]?(?:cut|lost|off|disconnect(?:ed)?))?|charge[_ -]?(?:off|lost|disconnect(?:ed)?))$/i
+
+/**
+ * Return an explicit tracker signal that external power was lost.
+ *
+ * Missing voltage is intentionally not considered a signal: GT06 devices
+ * commonly omit that field while still sending valid positions.
+ */
+export function detectExternalPowerLoss(position) {
+  const attributes = position?.attributes || {}
+  const directKeys = [
+    'externalPower',
+    'externalPowerLost',
+    'external_power_lost',
+    'powerLost',
+    'power_lost',
+    'powerCut',
+    'power_cut',
+    'chargeOff',
+    'charge_off',
+  ]
+
+  for (const key of directKeys) {
+    if (isFalseLike(attributes[key])) return { source: key }
+    if (/lost|cut|off/i.test(key) && attributes[key] === true) return { source: key }
+  }
+
+  if (isFalseLike(attributes.charge)) return { source: 'charge:false' }
+
+  const alarm = String(attributes.alarm ?? '').trim()
+  if (alarm && POWER_LOSS_ALARM_PATTERN.test(alarm)) {
+    return { source: `alarm:${alarm}` }
+  }
+
+  return null
+}
+
 function toFinitePositiveNumber(raw) {
   if (raw == null || raw === '') return null
   const value = Number(raw)

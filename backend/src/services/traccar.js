@@ -103,7 +103,7 @@ async function call(path, opts = {}, _retried = false) {
 
 export const getAllPositions  = ()            => call('/api/positions')
 export const getAllDevices    = ()            => call('/api/devices')
-export const getDevice        = (id)          => call(`/api/devices/${id}`)
+export const getDevice        = (id)          => call(`/api/devices/${id}`, { signal: AbortSignal.timeout(3000) })
 export const getDevicesByUser = (uid)        => call(`/api/devices?userId=${uid}`)
 export const createDevice     = (name, imei) => call('/api/devices', { method:'POST', body: JSON.stringify({ name, uniqueId: imei }) })
 export const deleteDevice     = (id)         => call(`/api/devices/${id}`, { method:'DELETE' })
@@ -164,9 +164,17 @@ export async function getHistory(deviceId, from, to) {
   return [...unique.values()].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
 }
 
-// ─── المرحلة 1: إصلاح إرسال الأمر (إضافة attributes) ──────────
-export const sendCommand = (deviceId, type, attributes = {}) =>
-  call('/api/commands/send', { method:'POST', body: JSON.stringify({ deviceId, type, attributes }) })
+// ─── Engine commands ─────────────────────────────────────────────────────────
+export async function sendCommand(deviceId, type, attributes = {}) {
+  const request = { deviceId, type, attributes }
+  console.log('[Traccar] POST /api/commands/send', JSON.stringify(request))
+  const response = await call('/api/commands/send', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+  console.log('[Traccar] command response', JSON.stringify(response ?? null))
+  return response
+}
 
 // ─── المرحلة 2 (Draft): دوال السياج الجغرافي ──────────────────
 //
