@@ -561,6 +561,13 @@ curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/comma
 - Verified all three PNGs have corner alpha `0` and retain sub-60 KB sizes: bike `41.1 KB`, car `53.6 KB`, truck `30.9 KB`. The exact bike output is `41,099` bytes.
 - The marker drop shadow and neutral ring styling remain unchanged; no map, movement, rotation, backend, Traccar, database, engine-cut, replay, or WebSocket logic was modified.
 
+## Professional polish — stopped vehicles point up
+
+- Added a stopped-bearing gate in `src/components/LiveVehicleMarker.jsx`: when the shared status is `stopped` or the reported speed is exactly `0`, the rendered vehicle rotation is forced to `0°`, so parked vehicles point north instead of retaining a stale tilted heading.
+- Moving vehicles still use the existing course/fallback bearing calculation and unchanged shortest-turn smoothing. When a vehicle starts moving again, its real bearing resumes from the centered north orientation.
+- The gate also runs when speed/status changes, not only when GPS coordinates change, so a newly stopped marker is corrected immediately. `MARKER_SIZE` and `SELECTED_BOOST` remain unchanged.
+- The default street layer is Geoapify with the expected provider color/style change; map movement, marker interpolation, engine-cut, replay, WebSocket, backend, Traccar, and database behavior remain unchanged.
+
 ## Revised larger mobile marker sizing
 
 - Kept the three processed supplied vehicle images at the exact shared asset paths with transparent RGBA backgrounds and sub-60 KB file sizes.

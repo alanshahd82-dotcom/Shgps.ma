@@ -65,6 +65,13 @@ function getBearing(device, from, to) {
   return Number.isFinite(course) ? course : calculateBearing(from, to)
 }
 
+function getRenderedBearing(device, from, to) {
+  const speed = Number(device?.speed ?? device?.last_speed ?? 0)
+  return getDeviceStatusKey(device) === 'stopped' || speed === 0
+    ? 0
+    : getBearing(device, from, to)
+}
+
 function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar') {
   const marker = markerFor(device?.type)
   const status = getDeviceStatusKey(device)
@@ -127,7 +134,7 @@ export default function LiveVehicleMarker({
   const trailRef = useRef(firstPositionRef.current ? [firstPositionRef.current] : [])
   const [trail, setTrail] = useState(trailRef.current)
   const point = toPoint(device)
-  const initialBearingRef = useRef(getBearing(device, firstPositionRef.current, point))
+  const initialBearingRef = useRef(getRenderedBearing(device, firstPositionRef.current, point))
   const rotationRef = useRef(initialBearingRef.current)
   const status = getDeviceStatusKey(device)
   const icon = useMemo(
@@ -144,12 +151,20 @@ export default function LiveVehicleMarker({
     const marker = markerRef.current
     const from = marker.getLatLng()
     const start = [from.lat, from.lng]
-    const bearing = getBearing(device, previousPointRef.current, point)
+    const speed = Number(device?.speed ?? device?.last_speed ?? 0)
+    const isStopped = status === 'stopped' || speed === 0
+    const bearing = getRenderedBearing(device, previousPointRef.current, point)
     const distance = distanceBetween(start, point)
     previousPointRef.current = point
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
-    updateMarkerRotation(marker, bearing, device?.type, rotationRef)
+    if (isStopped) {
+      rotationRef.current = 0
+      const image = marker.getElement()?.querySelector('[data-live-vehicle]')
+      if (image) image.style.transform = `rotate(${markerFor(device?.type).offset}deg)`
+    } else {
+      updateMarkerRotation(marker, bearing, device?.type, rotationRef)
+    }
     if (distance < 0.0000001) {
       marker.setLatLng(point)
       return
@@ -168,7 +183,7 @@ export default function LiveVehicleMarker({
       else frameRef.current = null
     }
     frameRef.current = requestAnimationFrame(animate)
-  }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type])
+  }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type, device?.speed, device?.last_speed, status])
 
   useEffect(() => {
     if (!point) return
