@@ -374,34 +374,12 @@ export default function LiveMap() {
            )}
           {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
           <FlyToUser target={locateTarget} />
-          <ZoomControl position="bottomright" />
         </MapContainer>
         <div className="athar-map-vignette" aria-hidden="true" />
       </div>
 
       <ClientHeader overlay />
 
-      <button
-        type="button"
-        onClick={() => setAutoFollow(value => !value)}
-        aria-pressed={autoFollow}
-        aria-label={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
-        title={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
-        className="absolute z-[500] flex items-center gap-1.5 rounded-2xl p-2.5 text-[11px] font-bold"
-        style={{
-          top: 116,
-           left: 'auto',
-           right: 14,
-          background: 'rgba(6,12,26,0.92)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          backdropFilter: 'blur(18px)',
-          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
-          color: autoFollow ? '#7ff3bf' : 'rgba(255,255,255,0.62)',
-        }}
-      >
-        <LocateFixed size={14} />
-        <span>{t(lang, 'autoFollow')}</span>
-      </button>
 
       {/* ── Live indicator ── */}
       <div className="absolute z-20" style={{ top: 72, left: 14 }}>
