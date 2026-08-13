@@ -560,3 +560,10 @@ curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/comma
 - Replaced the previous small live-marker dimensions with named `MARKER_SIZE` constants: bike `42px`, car `48px`, and truck `56px` wide. `SELECTED_BOOST` is `8px`.
 - Derived each marker height from its processed image aspect ratio so the taller artwork stays proportional and is never squashed. The constants are used for the rendered artwork dimensions, icon size, and centered Leaflet anchor.
 - Preserved the existing bearing rotation, shortest-turn smoothing, position interpolation, WebSocket updates, engine-cut path, replay behavior, and map interaction logic. No backend, Traccar, or database changes were made.
+
+## Professional polish — Arabic street labels via Geoapify
+
+- Changed the default non-satellite street provider in `src/components/MapLayers.jsx` from raw OSM to the existing `GeoapifyTileLayer` proxy, so Arabic/Maghreb labels use the configured Geoapify map style instead of garbled raw OSM glyphs.
+- Reused the existing server-side `GEOAPIFY_API_KEY` path through `/api/map/tiles`; no key was hardcoded or exposed in browser code. The current proxy supports style selection, not a language query parameter, so no backend change was needed.
+- Preserved the fallback rotation: normal street maps fall back to OSM, while satellite maps continue Esri → Geoapify hybrid → OSM on tile errors. The map style/color change is expected.
+- Backend, Traccar, database schema, engine-cut, replay, WebSocket, subscriptions, and marker movement logic were not changed.
