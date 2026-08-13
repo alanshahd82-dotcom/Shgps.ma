@@ -20,10 +20,13 @@ const STATUS_LABELS = {
   offline: { ar: 'غير متصل', fr: 'Hors ligne' },
 }
 
-const VEHICLE_MARKER_SIZES = {
-  bike: { width: 28, height: 46 },
-  car: { width: 34, height: 50 },
-  truck: { width: 40, height: 58 },
+// Keep these values together so mobile marker sizing is a one-line tune per type.
+const MARKER_SIZE = { bike: 42, car: 48, truck: 56 }
+const SELECTED_BOOST = 8
+const MARKER_ASPECT_RATIO = {
+  bike: 256 / 152,
+  car: 256 / 171,
+  truck: 256 / 150,
 }
 
 function toPoint(device) {
@@ -71,16 +74,16 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   const label = status === 'moving' && speed > 0 ? `${Math.round(speed)} km/h` : statusLabel
   const voltageValue = Number(device?.voltage)
   const voltageColor = getVoltageColor(voltageValue)
-  const baseSize = VEHICLE_MARKER_SIZES[device?.type] || VEHICLE_MARKER_SIZES.bike
-  const visualWidth = baseSize.width + (isSelected ? 6 : 0)
-  const visualHeight = baseSize.height + (isSelected ? 8 : 0)
-  const width = 136
-  const height = Math.max(92, visualHeight + 30)
+  const vehicleType = device?.type || 'bike'
+  const markerWidth = (MARKER_SIZE[vehicleType] || MARKER_SIZE.bike) + (isSelected ? SELECTED_BOOST : 0)
+  const markerHeight = Math.round(markerWidth * (MARKER_ASPECT_RATIO[vehicleType] || MARKER_ASPECT_RATIO.bike))
+  const iconWidth = Math.max(136, markerWidth)
+  const iconHeight = Math.max(92, markerHeight + 30)
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
-      <div class="athar-live-marker" style="width:${width}px;height:${height}px;--athar-live-color:${color};--athar-voltage-color:${voltageColor}">
-        <span class="athar-live-marker-visual" style="width:${visualWidth}px;height:${visualHeight}px">
+      <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color};--athar-voltage-color:${voltageColor}">
+        <span class="athar-live-marker-visual" style="width:${markerWidth}px;height:${markerHeight}px">
           <span class="athar-live-marker-pulse"></span>
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
           <span class="athar-live-marker-ring"></span>
@@ -92,8 +95,8 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
         </span>
       </div>
     `,
-    iconSize: [width, height],
-    iconAnchor: [width / 2, visualHeight / 2],
+    iconSize: [iconWidth, iconHeight],
+    iconAnchor: [iconWidth / 2, markerHeight / 2],
   })
 }
 

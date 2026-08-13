@@ -553,3 +553,10 @@ curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/comma
 - Centered the Leaflet anchor horizontally and vertically on each vehicle artwork. Preserved the existing `requestAnimationFrame` position interpolation, shortest-turn rotation, status label, trail, and auto-follow behavior.
 - Updated the artwork heading offsets to `0°` because all supplied images point up at bearing `0°`; the existing `transform: rotate(bearing)` path remains intact.
 - Backend, Traccar, database schema, WebSocket feed, engine-cut commands, replay logic, and unrelated UI were not changed.
+
+## Revised larger mobile marker sizing
+
+- Kept the three processed supplied vehicle images at the exact shared asset paths with transparent RGBA backgrounds and sub-60 KB file sizes.
+- Replaced the previous small live-marker dimensions with named `MARKER_SIZE` constants: bike `42px`, car `48px`, and truck `56px` wide. `SELECTED_BOOST` is `8px`.
+- Derived each marker height from its processed image aspect ratio so the taller artwork stays proportional and is never squashed. The constants are used for the rendered artwork dimensions, icon size, and centered Leaflet anchor.
+- Preserved the existing bearing rotation, shortest-turn smoothing, position interpolation, WebSocket updates, engine-cut path, replay behavior, and map interaction logic. No backend, Traccar, or database changes were made.
