@@ -14,6 +14,7 @@ import {
   readVehicleVoltage,
 } from '../services/vehicleTelemetry.js'
 import { config } from '../config.js'
+import { speedKmh } from '../utils/speed.js'
 
     export const mapRouter = Router()
 
@@ -142,7 +143,7 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
           lat: position?.latitude ?? null, lng: position?.longitude ?? null,
-          speed: position?.speed ?? 0,
+          speed: Math.round(speedKmh(position?.speed)),
           status: freshPosition ? 'online' : 'offline',
           lastUpdate: position?.fixTime ?? null,
           engineOn: position?.attributes?.ignition ?? false,

@@ -2,6 +2,59 @@
 
 This file records the completed work and the current production verification notes.
 
+## Regression fix — moving bike speed/status consistency
+
+### Investigation and root cause
+
+- `getDeviceStatusKey` in `src/components/ui.jsx` is correct: after an online
+  device has a valid GPS fix, `speed > 2` means `moving`; otherwise it falls
+  through to `idle`/`stopped`.
+- The normal `/api/devices` response already converts Traccar knots through
+  `speedKmh`, and the authenticated WebSocket bridge already converts each
+  position through the same helper.
+- The fallback path used when the WebSocket is disconnected,
+  `src/context/AppContext.jsx -> startFallbackPolling -> /api/map/positions`,
+  had a real inconsistency: `backend/src/routes/map.js` returned raw
+  `position.speed` instead of km/h. That line was introduced by `e90686ff3`.
+  This could make the fallback map disagree with the device API and violated
+  the product-wide km/h contract.
+- The power-alert commits, including `a2a9f5e`, do not touch speed conversion,
+  status computation, or position selection. No evidence supports blaming
+  those alert edits for the speed regression.
+
+### Fix
+
+- `backend/src/routes/map.js` now imports the shared `speedKmh` helper and
+  returns `Math.round(speedKmh(position?.speed))`, matching `/api/devices`,
+  WebSocket positions, sharing, and reports.
+- Example verified locally: raw Traccar `18.9` knots → `35` km/h; the
+  frontend status rule then returns `moving` for an online device with a
+  valid GPS fix.
+- No database schema, Traccar internals, authentication, subscriptions, map
+  tiles, engine command logic, or power-alert logic was changed.
+
+### Regression checklist
+
+| Requirement | Result | Evidence |
+|---|---|---|
+| Engine cut/resume payloads | PASS by source audit; prior live DACIA test recorded | `RELAY,1,0#` / `RELAY,1,1#` path unchanged |
+| Disconnect alert exactly once | PASS by source audit; live battery pull not repeated here | transition guard remains in `observePowerTelemetry` |
+| Restore alert exactly once | PASS by source audit; physical restore not run here | `current.disconnected` restore transition remains one-shot |
+| Per-device state isolation | PASS by source audit | Maps/Sets and frontend updates are keyed by Traccar/local device ID |
+| Voltage honesty | PASS by source audit and current production response | real value only when reported; otherwise `null`/localized no-data state |
+| Moving speed path | PASS locally; production moving-bike comparison pending | all four live speed paths use `speedKmh`; `18.9` knots → `35` km/h |
+
+### Live verification limits
+
+- Production health and authenticated API checks passed on 2026-08-13.
+- The available production account currently exposes DACIA/Traccar `70` only;
+  DACIA was offline with `speed: 0` at the check time. It does not expose the
+  reported moving bike / Traccar `37`, so a live raw-speed-vs-API comparison
+  for the moving bike could not be honestly performed.
+- Real battery pull/restore and engine actuation were not repeated as part of
+  this regression fix. Existing live DACIA command results and the alert
+  transition code audit remain recorded above.
+
 ## Live verification — DACIA command delivery and current telemetry
 
 - Production checks on `https://athargps.com` returned HTTP 200 for the public
