@@ -20,6 +20,12 @@ const STATUS_LABELS = {
   offline: { ar: 'غير متصل', fr: 'Hors ligne' },
 }
 
+const VEHICLE_MARKER_SIZES = {
+  bike: { width: 28, height: 46 },
+  car: { width: 34, height: 50 },
+  truck: { width: 40, height: 58 },
+}
+
 function toPoint(device) {
   const parseCoordinate = value => value == null || value === '' ? null : Number(value)
   const primaryLat = parseCoordinate(device?.lat)
@@ -65,14 +71,16 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   const label = status === 'moving' && speed > 0 ? `${Math.round(speed)} km/h` : statusLabel
   const voltageValue = Number(device?.voltage)
   const voltageColor = getVoltageColor(voltageValue)
-  const size = isSelected ? 62 : 56
-  const width = isSelected ? 142 : 136
-  const height = 92
+  const baseSize = VEHICLE_MARKER_SIZES[device?.type] || VEHICLE_MARKER_SIZES.bike
+  const visualWidth = baseSize.width + (isSelected ? 6 : 0)
+  const visualHeight = baseSize.height + (isSelected ? 8 : 0)
+  const width = 136
+  const height = Math.max(92, visualHeight + 30)
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
       <div class="athar-live-marker" style="width:${width}px;height:${height}px;--athar-live-color:${color};--athar-voltage-color:${voltageColor}">
-        <span class="athar-live-marker-visual" style="width:${size}px;height:${size}px">
+        <span class="athar-live-marker-visual" style="width:${visualWidth}px;height:${visualHeight}px">
           <span class="athar-live-marker-pulse"></span>
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
           <span class="athar-live-marker-ring"></span>
@@ -85,7 +93,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
       </div>
     `,
     iconSize: [width, height],
-    iconAnchor: [width / 2, size / 2],
+    iconAnchor: [width / 2, visualHeight / 2],
   })
 }
 

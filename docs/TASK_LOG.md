@@ -544,3 +544,12 @@ curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/comma
 - Unified battery thresholds across live markers, device lists, device detail, and admin client detail: above 60% green, above 30% amber, otherwise red; unknown values remain slate.
 - Checklist: backend command logic, Traccar, database schema, authentication/session, subscriptions, GPS-await state, speed units, replay, reports, alerts, settings, and engine RELAY command code were not changed. Live-map build path remains intact; engine-cut behavior remains in its existing handler.
 - Verification: `pnpm install` completed, `npm run build` passed, `node --check backend/src/routes/map.js` passed, and `git diff --check` passed.
+
+## Replacement vehicle map icons — natural mobile sizing
+
+- Replaced `src/assets/bike-marker.png`, `src/assets/car-marker.png`, and `src/assets/truck-marker.png` with the three supplied top-down images. Each was trimmed to the visible vehicle, kept as RGBA PNG, and resized to a 256px maximum dimension; final files are approximately 41 KB, 54 KB, and 31 KB.
+- Verified the processed PNGs have transparent alpha pixels around the vehicles, so no white map tile box or opaque background is introduced. The white truck body remains opaque vehicle artwork, not background.
+- Set natural default live-marker artwork sizes to bike `28×46px`, car `34×50px`, and truck `40×58px`; selected devices receive a small bounded `+6/+8px` emphasis.
+- Centered the Leaflet anchor horizontally and vertically on each vehicle artwork. Preserved the existing `requestAnimationFrame` position interpolation, shortest-turn rotation, status label, trail, and auto-follow behavior.
+- Updated the artwork heading offsets to `0°` because all supplied images point up at bearing `0°`; the existing `transform: rotate(bearing)` path remains intact.
+- Backend, Traccar, database schema, WebSocket feed, engine-cut commands, replay logic, and unrelated UI were not changed.
