@@ -554,6 +554,13 @@ curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/comma
 - Updated the artwork heading offsets to `0°` because all supplied images point up at bearing `0°`; the existing `transform: rotate(bearing)` path remains intact.
 - Backend, Traccar, database schema, WebSocket feed, engine-cut commands, replay logic, and unrelated UI were not changed.
 
+## Professional polish — clean transparent vehicle icons
+
+- Reprocessed `src/assets/bike-marker.png`, `src/assets/car-marker.png`, and `src/assets/truck-marker.png` as RGBA PNGs while preserving the supplied top-down artwork and 256px maximum long side.
+- Removed near-white anti-aliased edge pixels only when they were part of the transparent fringe, preserving the opaque white truck body. This removes the faint white halo without erasing vehicle details.
+- Verified all three PNGs have corner alpha `0` and retain sub-60 KB sizes: bike `41.1 KB`, car `53.6 KB`, truck `30.9 KB`. The exact bike output is `41,099` bytes.
+- The marker drop shadow and neutral ring styling remain unchanged; no map, movement, rotation, backend, Traccar, database, engine-cut, replay, or WebSocket logic was modified.
+
 ## Revised larger mobile marker sizing
 
 - Kept the three processed supplied vehicle images at the exact shared asset paths with transparent RGBA backgrounds and sub-60 KB file sizes.
