@@ -367,7 +367,8 @@
 
 .athar-devices-launcher {
   position: absolute;
-  right: 66px;
+  left: 50%;
+  right: auto;
   z-index: 500;
   display: inline-flex;
   align-items: center;
@@ -383,6 +384,8 @@
   font-family: 'Cairo', sans-serif;
   font-size: 11px;
   font-weight: 800;
+  white-space: nowrap;
+  transform: translateX(-50%);
   transition: transform .2s ease, border-color .2s ease, background .2s ease;
 }
 
@@ -392,7 +395,7 @@
 }
 
 .athar-devices-launcher:active {
-  transform: scale(.96);
+  transform: translateX(-50%) scale(.96);
 }
 
 .athar-devices-count {

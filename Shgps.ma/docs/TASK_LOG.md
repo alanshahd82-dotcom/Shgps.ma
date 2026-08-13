@@ -2,6 +2,21 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## LiveMap mobile device launcher cleanup
+
+- Removed the persistent full-width black device strip from the default live-map view. The device list is now hidden until requested.
+- Added a centered, mobile-safe `أجهزتي` / `Mes appareils` floating launcher with a vehicle icon and visible device count. It sits above the five-item navigation bar and stays clear of Leaflet zoom and recenter controls.
+- The existing device list remains available in a compact floating dialog only after pressing the launcher. It has rounded margins, a controlled 360px height, internal scrolling, and a 64px separation above the mobile navigation bar so it cannot cover the full map.
+- Device filtering, selection, route loading, navigation buttons, marker clicks, live movement, auto-follow, engine commands, replay, subscriptions, and WebSocket behavior were not changed.
+- Files changed: `src/pages/client/LiveMap.jsx` and `src/index.css`.
+
+### Verification
+
+- [x] `npm run build` passes.
+- [x] `git diff --check` passes.
+- [x] Closed state shows the map without the black device strip.
+- [x] Open state keeps the device list bounded and scrollable instead of covering the full map.
+
 ## LiveMap visual cleanup — cosmetic only
 
 - Fix B — `src/pages/client/LiveMap.jsx:392-393`: moved the existing auto-follow control from the upper-left stack to the upper-right. Its click handler, state, local-storage preference, and map-follow behavior remain unchanged.

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, Car, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
 import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
@@ -90,8 +90,7 @@ function FitTodayRoute({ route }) {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const PANEL_PEEK = 132
-const PANEL_OPEN = 380
+const PANEL_OPEN = 360
 
 const ST_LABEL = {
   moving:  { ar: 'يتحرك',    fr: 'En mouvement' },
@@ -282,7 +281,7 @@ export default function LiveMap() {
     }
   }
 
-  const panelH = panelOpen ? PANEL_OPEN : PANEL_PEEK
+  const panelH = panelOpen ? PANEL_OPEN + 64 : 0
   const clientNavOffset = 'calc(5.6rem + env(safe-area-inset-bottom, 0px))'
   const panelAwareOffset = `calc(${panelH}px + var(--athar-client-nav-offset) + 8px)`
 
@@ -485,18 +484,41 @@ export default function LiveMap() {
         <LocateFixed size={17} />
       </button>
 
-      {/* ── Bottom Panel ── */}
+      {/* ── Floating device launcher ── */}
+      <button
+        type="button"
+        className="athar-devices-launcher"
+        style={{ bottom: `calc(${clientNavOffset} + 12px)` }}
+        onClick={() => setPanelOpen(value => !value)}
+        aria-expanded={panelOpen}
+        aria-haspopup="dialog"
+      >
+        <Car size={16} aria-hidden="true" />
+        <span>{isAr ? 'أجهزتي' : 'Mes appareils'}</span>
+        <span className="athar-devices-count">{filtered.length}</span>
+        <ChevronUp
+          size={14}
+          aria-hidden="true"
+          style={{ transform: panelOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s ease' }}
+        />
+      </button>
+
+      {/* ── Floating device panel ── */}
       <div
-        className="absolute left-0 right-0 z-20"
+        className="absolute left-3 right-3 z-40 overflow-hidden"
+        role="dialog"
+        aria-label={isAr ? 'أجهزتي' : 'Mes appareils'}
+        aria-hidden={!panelOpen}
         style={{
-          bottom: 'var(--athar-client-nav-offset)',
-          height: panelH,
-          transition: 'height 0.35s cubic-bezier(0.4,0,0.2,1)',
-          borderRadius: '22px 22px 0 0',
-          background: 'rgba(5,10,24,0.98)',
-          backdropFilter: 'blur(32px)',
-          borderTop: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: '0 -12px 48px rgba(0,0,0,0.7)',
+          display: panelOpen ? 'block' : 'none',
+          bottom: 'calc(var(--athar-client-nav-offset) + 64px)',
+          height: PANEL_OPEN,
+          maxHeight: 'calc(100dvh - 180px)',
+          borderRadius: 24,
+          background: 'rgba(5,10,24,0.96)',
+          backdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 18px 48px rgba(0,0,0,0.42)',
         }}
       >
         {/* Drag handle */}
@@ -557,7 +579,7 @@ export default function LiveMap() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="overflow-y-auto px-3"
-              style={{ maxHeight: PANEL_OPEN - 95, paddingBottom: 74 }}
+              style={{ maxHeight: PANEL_OPEN - 95, paddingBottom: 20 }}
             >
               {filtered.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
