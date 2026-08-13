@@ -103,6 +103,9 @@ function mergeDeviceDetails(current, next) {
     voltage: Object.prototype.hasOwnProperty.call(next || {}, 'voltage')
       ? next.voltage
       : current.voltage ?? null,
+    powerDisconnected: Object.prototype.hasOwnProperty.call(next || {}, 'powerDisconnected')
+      ? next.powerDisconnected
+      : current.powerDisconnected ?? false,
     signal: next?.signal ?? current.signal ?? null,
     fuel: next?.fuel ?? current.fuel ?? null,
   }
@@ -493,7 +496,7 @@ export default function DeviceDetail() {
   const vehicleType = ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike'
   const voltage = device?.voltage ?? null
   const voltageColor = getVoltageColor(voltage)
-  const voltageLabel = formatVoltage(voltage, lang, lastUpdate)
+  const voltageLabel = formatVoltage(voltage, lang, lastUpdate, device?.powerDisconnected)
 
   if (loading && !device) return (
       <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">

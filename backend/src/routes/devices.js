@@ -13,14 +13,24 @@ import {
   syncSubscriptionState,
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
-import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemetry.js'
+import {
+  hasKnownVehicleVoltage,
+  isVehicleDisconnected,
+  positionIsFresh,
+  positionIsSilent,
+  POWER_SILENCE_WINDOW_MS,
+  readBatteryLevel,
+  readVehicleVoltage,
+} from '../services/vehicleTelemetry.js'
 
     export const devicesRouter = Router()
 
-    function readElectricalTelemetry(position, traccarId, options) {
+    function readElectricalTelemetry(position, traccarId, options = {}) {
+      const connected = options.connected !== false
       return {
-        voltage: readVehicleVoltage(position, traccarId, options),
+        voltage: readVehicleVoltage(position, traccarId, { ...options, connected }),
         batteryLevel: readBatteryLevel(position),
+        powerDisconnected: Boolean(options.powerDisconnected || isVehicleDisconnected(traccarId)),
       }
     }
 
@@ -176,17 +186,31 @@ import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemet
         // If Traccar has no fresh position for a connected stationary device,
         // keep its last locally stored GPS fix visible on the map.
         const p = livePosition ?? (td?.status === 'online' ? storedPosition : null)
+        const freshLivePosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
+        const telemetryId = d.traccar_id ?? td?.id
+        const telemetrySilent = positionIsSilent(livePosition ?? storedPosition, POWER_SILENCE_WINDOW_MS)
+        const inferredDisconnect = !freshLivePosition
+          && telemetrySilent
+          && hasKnownVehicleVoltage(telemetryId)
+        // Stored coordinates keep the map useful, but must never count as
+        // current telemetry for voltage or disconnect decisions.
+        const telemetryPosition = freshLivePosition ? livePosition : null
         // Traccar device entry (for authoritative status field)
         // A position is proof of a live/known device even when it is stationary.
         // Traccar's device.status can lag behind the last position, so do not
         // label a stopped device offline merely because speed is zero.
-        const status = td?.status === 'online' || !!p ? 'online' : 'offline'
+        const status = telemetrySilent || isVehicleDisconnected(telemetryId)
+          ? 'offline'
+          : (td?.status === 'online' || !!p ? 'online' : 'offline')
         const localGeo = geofenceMap[d.id] || null
         const subscription = getSubscriptionSnapshot(d)
         const trackingEnabled = subscription.trackingEnabled
         const electrical = trackingEnabled
-          ? readElectricalTelemetry(p, d.traccar_id ?? td?.id, { connected: status === 'online' })
-          : { voltage: null, batteryLevel: null }
+          ? readElectricalTelemetry(telemetryPosition, telemetryId, {
+              connected: freshLivePosition,
+              powerDisconnected: inferredDisconnect,
+            })
+          : { voltage: null, batteryLevel: null, powerDisconnected: false }
         return {
           id:        d.id,
           traccarId: d.traccar_id ?? td?.id ?? null,
@@ -204,6 +228,7 @@ import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemet
           engineOn:  trackingEnabled ? (p?.attributes?.ignition ?? false) : false,
           voltage:   electrical.voltage,
           batteryLevel: electrical.batteryLevel,
+          powerDisconnected: electrical.powerDisconnected,
           signal:    trackingEnabled ? (p?.attributes?.rssi ?? p?.attributes?.gsm ?? p?.attributes?.signal ?? p?.attributes?.signalStrength ?? null) : null,
           fuel:      trackingEnabled ? (p?.attributes?.fuel ?? p?.attributes?.fuelLevel ?? null) : null,
           subscriptionPlanId: subscription.subscriptionPlanId,
@@ -487,6 +512,22 @@ import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemet
     try {
       const dev = req.device
       const subscription = getSubscriptionSnapshot(dev)
+      let livePosition = null
+      try {
+        const positions = await traccar.getAllPositions()
+        livePosition = positions.find(position => position.deviceId === dev.traccar_id) || null
+      } catch {}
+      const freshPosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
+      const inferredDisconnect = !freshPosition
+        && positionIsSilent(livePosition ?? { lastUpdate: dev.last_update }, POWER_SILENCE_WINDOW_MS)
+        && hasKnownVehicleVoltage(dev.traccar_id)
+      const electrical = subscription.trackingEnabled
+        ? readElectricalTelemetry(
+            freshPosition ? livePosition : null,
+            dev.traccar_id,
+            { connected: freshPosition, powerDisconnected: inferredDisconnect },
+          )
+        : { voltage: null, batteryLevel: null, powerDisconnected: false }
       // Load geofence state from local DB
       let localGeo = null
       try {
@@ -499,6 +540,22 @@ import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemet
 
       res.json({
         ...dev,
+        status: freshPosition ? 'online' : 'offline',
+        lat: subscription.trackingEnabled && freshPosition ? livePosition.latitude : null,
+        lng: subscription.trackingEnabled && freshPosition ? livePosition.longitude : null,
+        speed: subscription.trackingEnabled && freshPosition ? Math.round(speedKmh(livePosition.speed)) : null,
+        lastUpdate: subscription.trackingEnabled
+          ? (livePosition?.fixTime ?? dev.last_update ?? null)
+          : null,
+        engineOn: subscription.trackingEnabled && freshPosition
+          ? (livePosition.attributes?.ignition ?? false)
+          : false,
+        voltage: electrical.voltage,
+        batteryLevel: electrical.batteryLevel,
+        powerDisconnected: electrical.powerDisconnected,
+        signal: subscription.trackingEnabled && freshPosition
+          ? (livePosition.attributes?.rssi ?? livePosition.attributes?.gsm ?? livePosition.attributes?.signal ?? null)
+          : null,
         ...(subscription.trackingEnabled ? {} : {
           last_lat: null, last_lng: null, last_speed: null, last_update: null,
         }),

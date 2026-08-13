@@ -116,7 +116,9 @@ export function AppProvider({ children }) {
             voltage:   pos.voltage
               ?? pos.attributes?.voltage
               ?? pos.attributes?.power
+              ?? current.voltage
               ?? null,
+            powerDisconnected: pos.powerDisconnected ?? false,
             signal:     pos.attributes?.rssi       ?? current.signal,
             fuel:       pos.attributes?.fuel       ?? current.fuel,
           }
@@ -388,6 +390,12 @@ export function AppProvider({ children }) {
           setAlertsList(prev => prev.some(item => String(item.id) === String(alert.id))
             ? prev
             : [alert, ...prev].slice(0, 100))
+          setDevices(prev => prev.map(item => (
+            String(item.id) === String(data.deviceId)
+              || String(item.traccarId ?? item.traccar_id) === String(data.traccarId)
+              ? { ...item, status: 'offline', voltage: null, powerDisconnected: true }
+              : item
+          )))
           setPowerDisconnectNotice(alert)
           if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
             try {

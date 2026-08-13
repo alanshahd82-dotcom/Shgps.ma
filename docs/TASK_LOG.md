@@ -2,6 +2,59 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## Restore engine cut and make power disconnect honest
+
+- Root cause confirmed in `backend/src/index.js`: `observePowerTelemetry` set
+  `lastPositionAt` to the current time and then immediately tested that same
+  value for staleness. The silence branch was therefore unreachable, so a
+  tracker that stopped reporting could never reach the disconnect alert.
+- The fix schedules one five-minute silence check from each real Traccar
+  position. A newer position cancels and replaces the check. Only when no new
+  position arrives for the full window does the server create one
+  `power_disconnected` alert, mark the episode as disconnected, clear the
+  cached voltage, and allow the next position to begin a new episode.
+- Missing voltage in an otherwise current position never starts or resets a
+  disconnect alert. The last real voltage remains cached while positions
+  continue. A device with no voltage ever reported stays at `—`; it is not
+  labelled `مفصول` merely because its voltage field is absent.
+- The engine command path was traced and remains the minimal GT06/WanWay
+  route: `POST /api/devices/:id/command` calls Traccar `sendCommand` with
+  `type: "custom"` and attributes
+  `data: "RELAY,1,0#"` for `engineStop` or `data: "RELAY,1,1#"` for
+  `engineResume`. An explicitly known non-relay protocol uses the standard
+  Traccar command instead.
+- Added one shared `powerDisconnected` API state and updated the shared
+  `formatVoltage` helper plus every voltage render site: client device list,
+  client detail, client live-map popup, admin all-devices, admin client detail,
+  map popup, and live marker. The formatter now renders the real value,
+  `مفصول` / `Déconnecté` only for the backend-confirmed state, and `—`
+  otherwise. Stale stored coordinates are not treated as fresh telemetry.
+- Files changed: `backend/src/index.js`,
+  `backend/src/services/vehicleTelemetry.js`,
+  `backend/src/routes/devices.js`, `backend/src/routes/map.js`,
+  `src/components/ui.jsx`, `src/context/AppContext.jsx`,
+  `src/components/MapView.jsx`, `src/components/LiveVehicleMarker.jsx`,
+  `src/pages/client/LiveMap.jsx`, `src/pages/client/DeviceList.jsx`,
+  `src/pages/client/DeviceDetail.jsx`, `src/pages/admin/ClientDetail.jsx`,
+  `src/pages/admin/AllDevices.jsx`, and this log.
+
+### Verification
+
+- [x] `npm run build` passes after the implementation.
+- [x] Backend `node --check` passes for `index.js`, `vehicleTelemetry.js`,
+  `devices.js`, and `map.js`.
+- [x] `git diff --check` passes.
+- [x] The source audit confirms every visible voltage render uses
+  `formatVoltage(..., powerDisconnected)`.
+- [x] The source audit confirms the exact RELAY payload strings for both
+  engine actions.
+- [ ] Live Traccar command results for bekane (local device `14`, Traccar
+  `37`) and DACIA (local device `16`, Traccar `70`) could not be run from this
+  environment because production application credentials and reachable GPS
+  devices were not available.
+- [ ] No live authenticated `/api/health` or device API response was claimed;
+  the production runtime check must be performed on the deployed server.
+
 ## GT06 vehicle-voltage follow-up — raw audit and last-known cache
 
 - The production raw-data audit already recorded on this branch was checked before this change. Traccar device `37` (`bekane`) exposed position/telemetry keys such as `ignition`, `satellite`, and `distance`; it did not expose `voltage`, `power`, `externalPower`, `adc1`, `adc`, `analog1`, `vbat`, `supply`, or a voltage-like `battery` value.

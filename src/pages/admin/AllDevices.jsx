@@ -377,7 +377,7 @@ export default function AllDevices() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-xs font-medium text-slate-600">
-                          {formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update)}
+                          {formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -437,7 +437,7 @@ export default function AllDevices() {
                         ● {isOnline ? t(lang, 'online') : t(lang, 'offline')}
                       </span>
                       <span className="text-xs text-slate-400">
-                        {formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update)}
+                        {formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)}
                       </span>
                       <SubscriptionBadge device={device} lang={lang} />
                     </div>

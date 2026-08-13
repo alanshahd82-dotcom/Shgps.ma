@@ -4,15 +4,24 @@ import { Router } from 'express'
     import * as traccar from '../services/traccar.js'
 import { deviceAccessScope } from '../middleware/deviceAccess.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
-import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemetry.js'
+import {
+  hasKnownVehicleVoltage,
+  isVehicleDisconnected,
+  positionIsFresh,
+  positionIsSilent,
+  POWER_SILENCE_WINDOW_MS,
+  readBatteryLevel,
+  readVehicleVoltage,
+} from '../services/vehicleTelemetry.js'
 import { config } from '../config.js'
 
     export const mapRouter = Router()
 
-function readElectricalTelemetry(position, traccarId) {
+function readElectricalTelemetry(position, traccarId, connected) {
   return {
-    voltage: readVehicleVoltage(position, traccarId, { connected: !!position }),
+    voltage: readVehicleVoltage(position, traccarId, { connected }),
     batteryLevel: readBatteryLevel(position),
+    powerDisconnected: !connected && isVehicleDisconnected(traccarId),
   }
 }
 
@@ -120,18 +129,26 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
       res.json(rows.map(d => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null
-        const electrical = position
-          ? readElectricalTelemetry(position, d.traccar_id)
-          : { voltage: null, batteryLevel: null }
+        const freshPosition = positionIsFresh(position, POWER_SILENCE_WINDOW_MS)
+        const inferredDisconnect = !freshPosition
+          && positionIsSilent(position, POWER_SILENCE_WINDOW_MS)
+          && hasKnownVehicleVoltage(d.traccar_id)
+        const electrical = readElectricalTelemetry(
+          freshPosition ? position : null,
+          d.traccar_id,
+          freshPosition,
+        )
+        electrical.powerDisconnected = electrical.powerDisconnected || inferredDisconnect
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
           lat: position?.latitude ?? null, lng: position?.longitude ?? null,
           speed: position?.speed ?? 0,
-          status: position ? 'online' : 'offline',
+          status: freshPosition ? 'online' : 'offline',
           lastUpdate: position?.fixTime ?? null,
           engineOn: position?.attributes?.ignition ?? false,
           voltage: electrical.voltage,
           batteryLevel: electrical.batteryLevel,
+          powerDisconnected: electrical.powerDisconnected,
           signal: position?.attributes?.rssi ?? position?.attributes?.gsm ?? position?.attributes?.signal ?? position?.attributes?.signalStrength ?? null,
           fuel: position?.attributes?.fuel ?? position?.attributes?.fuelLevel ?? null,
           subscriptionStatus: subscription.subscriptionStatus,

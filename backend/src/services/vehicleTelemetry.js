@@ -9,6 +9,10 @@ const VOLTAGE_ATTRIBUTE_KEYS = [
   'supply',
 ]
 
+// The backend and frontend use the same silence window for a confirmed
+// power-disconnect episode. A missing voltage field by itself never starts it.
+export const POWER_SILENCE_WINDOW_MS = 5 * 60 * 1000
+
 function toFinitePositiveNumber(raw) {
   if (raw == null || raw === '') return null
   const value = Number(raw)
@@ -19,6 +23,7 @@ function toFinitePositiveNumber(raw) {
 // A missing position for longer than this is treated as a real disconnect.
 export const VOLTAGE_DISCONNECT_GRACE_MS = 10 * 60 * 1000
 const lastKnownVoltage = new Map()
+const disconnectedVehicles = new Set()
 
 function isBatteryVoltage(value) {
   return value >= 9 && value <= 15
@@ -84,6 +89,8 @@ export function observeVehicleVoltage(position) {
   const reported = extractReportedVoltage(position)
   const now = Date.now()
 
+  markVehicleConnected(deviceId)
+
   if (reported !== null) {
     rememberVoltage(deviceId, reported, now)
     return reported
@@ -106,10 +113,7 @@ export function readVehicleVoltage(position, deviceId = position?.deviceId, { co
     return reported
   }
 
-  if (!connected) {
-    clearVehicleVoltage(deviceId)
-    return null
-  }
+  if (!connected) return null
 
   const cached = expireVoltage(deviceId, now)
   if (!cached) return null
@@ -120,4 +124,39 @@ export function readVehicleVoltage(position, deviceId = position?.deviceId, { co
 export function clearVehicleVoltage(deviceId) {
   const key = cacheKey(deviceId)
   if (key) lastKnownVoltage.delete(key)
+}
+
+export function hasKnownVehicleVoltage(deviceId, now = Date.now()) {
+  return Boolean(expireVoltage(deviceId, now))
+}
+
+export function markVehicleConnected(deviceId) {
+  const key = cacheKey(deviceId)
+  if (key) disconnectedVehicles.delete(key)
+}
+
+export function markVehicleDisconnected(deviceId) {
+  const key = cacheKey(deviceId)
+  if (!key) return
+  disconnectedVehicles.add(key)
+  lastKnownVoltage.delete(key)
+}
+
+export function isVehicleDisconnected(deviceId) {
+  const key = cacheKey(deviceId)
+  return Boolean(key && disconnectedVehicles.has(key))
+}
+
+export function positionIsFresh(position, maxAgeMs = POWER_SILENCE_WINDOW_MS, now = Date.now()) {
+  const raw = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
+  const timestamp = raw ? new Date(raw).getTime() : NaN
+  if (!Number.isFinite(timestamp)) return false
+  const age = now - timestamp
+  return age >= 0 && age < maxAgeMs
+}
+
+export function positionIsSilent(position, maxAgeMs = POWER_SILENCE_WINDOW_MS, now = Date.now()) {
+  const raw = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
+  const timestamp = raw ? new Date(raw).getTime() : NaN
+  return Number.isFinite(timestamp) && now - timestamp >= maxAgeMs
 }

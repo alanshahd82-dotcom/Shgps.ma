@@ -28,8 +28,9 @@ import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
 import { speedKmh } from './utils/speed.js'
 import {
-  clearVehicleVoltage,
+  markVehicleDisconnected,
   observeVehicleVoltage,
+  POWER_SILENCE_WINDOW_MS,
   readVehicleVoltage as readCachedVehicleVoltage,
 } from './services/vehicleTelemetry.js'
 
@@ -382,11 +383,11 @@ function readVehicleVoltage(position) {
 // Real disconnect = the device stopped sending ANY data for this long.
 // Voltage itself is intermittent on GT06 (sent every few minutes), so we
 // must NOT alert on missing voltage alone — only on a truly silent device.
-const POWER_DISCONNECT_GRACE_MS = 5 * 60 * 1000
+const POWER_DISCONNECT_GRACE_MS = POWER_SILENCE_WINDOW_MS
 // A device is considered connected if it sent ANY data within this window.
 // Must be >= POWER_DISCONNECT_GRACE_MS so a slowly-reporting but connected
 // device is never mistaken for disconnected.
-const POWER_POSITION_MAX_AGE_MS = 5 * 60 * 1000
+const POWER_POSITION_MAX_AGE_MS = POWER_SILENCE_WINDOW_MS
 const powerTelemetry = new Map()
 const powerDisconnectTimers = new Map()
 
@@ -424,9 +425,8 @@ async function createPowerDisconnectedAlert(traccarId) {
   const now = Date.now()
   if (!state || state.alerting || state.disconnected
     || !state.lastValidAt || !state.missingSince
-    || state.invalidPositionCount < 2
     || now - state.missingSince < POWER_DISCONNECT_GRACE_MS
-    || now - state.lastPositionAt > POWER_POSITION_MAX_AGE_MS) return
+    || now - state.lastPositionAt < POWER_POSITION_MAX_AGE_MS) return
 
   state.alerting = true
   try {
@@ -442,9 +442,8 @@ async function createPowerDisconnectedAlert(traccarId) {
 
     const latest = powerTelemetry.get(key)
     if (!latest || latest !== state || latest.disconnected
-      || latest.invalidPositionCount < 2
       || Date.now() - latest.missingSince < POWER_DISCONNECT_GRACE_MS
-      || Date.now() - latest.lastPositionAt > POWER_POSITION_MAX_AGE_MS) {
+      || Date.now() - latest.lastPositionAt < POWER_POSITION_MAX_AGE_MS) {
       state.alerting = false
       return
     }
@@ -469,13 +468,36 @@ async function createPowerDisconnectedAlert(traccarId) {
 
     state.disconnected = true
     state.alerting = false
-    clearVehicleVoltage(traccarId)
+    markVehicleDisconnected(traccarId)
     sendPowerDisconnectEvent(device, alertRows[0])
     console.log('[Power] Vehicle power disconnected — device:', device.id)
   } catch (err) {
     state.alerting = false
     console.warn('[Power] Disconnect alert skipped:', err.message)
   }
+}
+
+function schedulePowerDisconnectCheck(traccarId, lastPositionAt) {
+  const key = String(traccarId)
+  clearPowerDisconnectTimer(traccarId)
+  powerDisconnectTimers.set(key, setTimeout(() => {
+    powerDisconnectTimers.delete(key)
+    const state = powerTelemetry.get(key)
+    if (!state || state.lastPositionAt !== lastPositionAt || state.disconnected) return
+
+    const remaining = POWER_DISCONNECT_GRACE_MS - (Date.now() - state.lastPositionAt)
+    if (remaining > 0) {
+      schedulePowerDisconnectCheck(traccarId, state.lastPositionAt)
+      return
+    }
+
+    // No new position arrived during the complete silence window. This is
+    // intentionally based on the last GPS/data timestamp, never on voltage
+    // omission in an otherwise connected position.
+    state.missingSince = state.lastPositionAt
+    powerTelemetry.set(key, state)
+    void createPowerDisconnectedAlert(traccarId)
+  }, POWER_DISCONNECT_GRACE_MS + 25))
 }
 
 function observePowerTelemetry(position) {
@@ -503,41 +525,14 @@ function observePowerTelemetry(position) {
     current.lastValidVoltage = voltage
   }
 
-  // CRITICAL RULE (per product requirement):
-  // 'Disconnected' + the power-disconnect alert must fire ONLY on a REAL
-  // disconnection — i.e. the device stopped sending ANY data. A connected
-  // device that simply isn't reporting voltage in this packet (normal for
-  // GT06, which sends voltage intermittently) is NOT disconnected: keep
-  // showing the last real voltage, raise no alert, show no 'مفصول'.
-  const deviceConnected = (now - current.lastPositionAt) < POWER_POSITION_MAX_AGE_MS
-  if (deviceConnected) {
-    current.missingSince = null
-    current.invalidPositionCount = 0
-    current.disconnected = false
-    current.alerting = false
-    clearPowerDisconnectTimer(traccarId)
-    powerTelemetry.set(key, current)
-    return
-  }
-
-  // The device has been completely silent (no GPS/data) beyond the grace
-  // window → this is a genuine disconnect → alert once.
-  current.missingSince ??= now
-  current.invalidPositionCount += 1
+  // A position without voltage is still connected. Keep the last real
+  // voltage, clear any prior disconnect episode, and wait for actual silence.
+  current.missingSince = null
+  current.invalidPositionCount = 0
+  current.disconnected = false
+  current.alerting = false
   powerTelemetry.set(key, current)
-
-  if (now - current.missingSince >= POWER_DISCONNECT_GRACE_MS) {
-    void createPowerDisconnectedAlert(traccarId)
-    return
-  }
-
-  if (!powerDisconnectTimers.has(key)) {
-    const remaining = POWER_DISCONNECT_GRACE_MS - (now - current.missingSince)
-    powerDisconnectTimers.set(key, setTimeout(() => {
-      powerDisconnectTimers.delete(key)
-      void createPowerDisconnectedAlert(traccarId)
-    }, Math.max(0, remaining)))
-  }
+  schedulePowerDisconnectCheck(traccarId, current.lastPositionAt)
 }
 
 // Cache: Traccar device ID → local user_id (owner). Refreshed on start + hourly.
@@ -687,6 +682,7 @@ async function connectTraccar() {
               ...p,
               speed: Math.round(speedKmh(p.speed)),
               voltage: readVehicleVoltage(p),
+              powerDisconnected: false,
             })),
           }
           try { outMsg = JSON.stringify(patched) } catch {}

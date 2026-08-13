@@ -45,18 +45,14 @@ export function getVoltageColor(value) {
   return '#FF3B30'
 }
 
-// Shows real battery voltage when available.
-// 'Disconnected' (مفصول) is shown ONLY on a genuine disconnection
-// (no update for > DISCONNECT_GRACE_MS). A stopped/sleeping vehicle that
-// is still reporting GPS recently shows '—' instead of 'مفصول', because
-// it is connected — it simply isn't sending a voltage reading while idle.
-export const DISCONNECT_GRACE_MS = 10 * 60 * 1000
-export function formatVoltage(value, lang = 'ar', lastUpdate = null) {
+// Shows the same backend-provided voltage state everywhere. The formatter
+// never infers disconnection from a missing voltage or from a stale UI clock.
+export function formatVoltage(value, lang = 'ar', _lastUpdate = null, powerDisconnected = false) {
   const voltage = Number(value)
   if (Number.isFinite(voltage) && voltage > 0) return `${voltage.toFixed(1)} V`
-  const recent = !!lastUpdate && (Date.now() - new Date(lastUpdate).getTime()) < DISCONNECT_GRACE_MS
-  if (recent) return '—'
-  return lang === 'ar' ? 'مفصول' : 'Déconnecté'
+  return powerDisconnected
+    ? (lang === 'ar' ? 'مفصول' : 'Déconnecté')
+    : '—'
 }
 
 export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', className = '' }) {
