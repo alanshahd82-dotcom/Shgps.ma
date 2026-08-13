@@ -379,8 +379,14 @@ function readVehicleVoltage(position) {
   return readCachedVehicleVoltage(position, position?.deviceId, { connected: true })
 }
 
-const POWER_DISCONNECT_GRACE_MS = 90 * 1000
-const POWER_POSITION_MAX_AGE_MS = 120 * 1000
+// Real disconnect = the device stopped sending ANY data for this long.
+// Voltage itself is intermittent on GT06 (sent every few minutes), so we
+// must NOT alert on missing voltage alone — only on a truly silent device.
+const POWER_DISCONNECT_GRACE_MS = 5 * 60 * 1000
+// A device is considered connected if it sent ANY data within this window.
+// Must be >= POWER_DISCONNECT_GRACE_MS so a slowly-reporting but connected
+// device is never mistaken for disconnected.
+const POWER_POSITION_MAX_AGE_MS = 5 * 60 * 1000
 const powerTelemetry = new Map()
 const powerDisconnectTimers = new Map()
 
@@ -488,11 +494,23 @@ function observePowerTelemetry(position) {
     disconnected: false,
     alerting: false,
   }
+  // A position arrived NOW → the device is genuinely connected.
   current.lastPositionAt = now
 
   if (voltage !== null) {
+    // A real voltage reading (not a guess) — store it as the last known good value.
     current.lastValidAt = now
     current.lastValidVoltage = voltage
+  }
+
+  // CRITICAL RULE (per product requirement):
+  // 'Disconnected' + the power-disconnect alert must fire ONLY on a REAL
+  // disconnection — i.e. the device stopped sending ANY data. A connected
+  // device that simply isn't reporting voltage in this packet (normal for
+  // GT06, which sends voltage intermittently) is NOT disconnected: keep
+  // showing the last real voltage, raise no alert, show no 'مفصول'.
+  const deviceConnected = (now - current.lastPositionAt) < POWER_POSITION_MAX_AGE_MS
+  if (deviceConnected) {
     current.missingSince = null
     current.invalidPositionCount = 0
     current.disconnected = false
@@ -502,11 +520,8 @@ function observePowerTelemetry(position) {
     return
   }
 
-  if (!current.lastValidAt || current.disconnected) {
-    powerTelemetry.set(key, current)
-    return
-  }
-
+  // The device has been completely silent (no GPS/data) beyond the grace
+  // window → this is a genuine disconnect → alert once.
   current.missingSince ??= now
   current.invalidPositionCount += 1
   powerTelemetry.set(key, current)
