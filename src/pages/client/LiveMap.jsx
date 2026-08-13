@@ -91,7 +91,7 @@ function FitTodayRoute({ route }) {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const PANEL_PEEK = 132
-const PANEL_OPEN = 480
+const PANEL_OPEN = 380
 
 const ST_LABEL = {
   moving:  { ar: 'يتحرك',    fr: 'En mouvement' },
