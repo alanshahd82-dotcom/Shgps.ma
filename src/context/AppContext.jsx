@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { AlertTriangle, X } from 'lucide-react'
 import { api } from '../api/index.js'
 
 const AppContext = createContext(null)
@@ -69,6 +70,7 @@ export function AppProvider({ children }) {
   const [subscriptionExpired, setSubscriptionExpired] = useState(false)
   const [darkMode,       setDarkModeState]  = useState(() => localStorage.getItem('athargps_darkmode') === 'true')
   const [pushEnabled,    setPushEnabled]    = useState(() => localStorage.getItem('athargps_push') === 'true')
+  const [powerDisconnectNotice, setPowerDisconnectNotice] = useState(null)
   const wsRef      = useRef(null)
   const wsRetryRef = useRef(0) // exponential backoff counter
   const wsHeartbeatRef = useRef(null)
@@ -364,6 +366,38 @@ export function AppProvider({ children }) {
             return [...newAlerts, ...prev].slice(0, 100) // keep last 100
           })
         }
+
+        if (data.type === 'device:power-disconnected') {
+          const incoming = data.alert || {}
+          const device = devicesRef.current.find(item =>
+            String(item.id) === String(data.deviceId)
+              || String(item.traccarId ?? item.traccar_id) === String(data.traccarId)
+          )
+          const createdAt = incoming.createdAt || new Date().toISOString()
+          const alert = {
+            id: incoming.id || `power-${data.deviceId}-${createdAt}`,
+            type: 'power_disconnected',
+            deviceId: data.deviceId,
+            deviceName: incoming.deviceName || device?.name || '',
+            message: incoming.message || '',
+            created_at: createdAt,
+            time: createdAt,
+            data: incoming.data,
+            read: false,
+          }
+          setAlertsList(prev => prev.some(item => String(item.id) === String(alert.id))
+            ? prev
+            : [alert, ...prev].slice(0, 100))
+          setPowerDisconnectNotice(alert)
+          if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
+            try {
+              new Notification('ATHAR GPS', {
+                body: alert.message || 'تم فصل تغذية المركبة / Alimentation véhicule débranchée',
+                icon: '/athar-gps-mark.svg',
+              })
+            } catch { /* ignore */ }
+          }
+        }
       } catch {}
     }
 
@@ -616,30 +650,57 @@ export function AppProvider({ children }) {
   }
 
   return (
-    <AppContext.Provider value={{
-      lang, setLang,
-      clientAuth, adminAuth, authReady,
-       setClientAuth,
-      mustChangePassword, clearMustChange,
-      devices, alertsList, clientList,
-      loginClient, loginAdmin,
-      logoutClient, logoutAdmin,
-      toggleEngine,
-      saveGeofence, removeGeofence,
-      getClientDevices, getOnlineDevices,
-      unreadCount, markAlertRead, markAllAlertsRead,
-      addClient, updateClient, addDevice, addDeviceDirect, deleteDevice, deleteClient,
-      refreshDevices: loadDevices,
-      refreshClients: loadClients,
-      updateUserInContext,
-      networkError, clientsError,
-      wsConnected,
-      darkMode, toggleDarkMode, setDarkMode,
-      pushEnabled, requestPushPermission, disablePush, sendBrowserNotification,
-      subscriptionExpired, setSubscriptionExpired,
-    }}>
-      {children}
-    </AppContext.Provider>
+    <>
+      <AppContext.Provider value={{
+        lang, setLang,
+        clientAuth, adminAuth, authReady,
+         setClientAuth,
+        mustChangePassword, clearMustChange,
+        devices, alertsList, clientList,
+        loginClient, loginAdmin,
+        logoutClient, logoutAdmin,
+        toggleEngine,
+        saveGeofence, removeGeofence,
+        getClientDevices, getOnlineDevices,
+        unreadCount, markAlertRead, markAllAlertsRead,
+        addClient, updateClient, addDevice, addDeviceDirect, deleteDevice, deleteClient,
+        refreshDevices: loadDevices,
+        refreshClients: loadClients,
+        updateUserInContext,
+        networkError, clientsError,
+        wsConnected,
+        darkMode, toggleDarkMode, setDarkMode,
+        pushEnabled, requestPushPermission, disablePush, sendBrowserNotification,
+        subscriptionExpired, setSubscriptionExpired,
+      }}>
+        {children}
+      </AppContext.Provider>
+      {powerDisconnectNotice && (
+        <div
+          role="alert"
+          className="fixed inset-x-3 top-[calc(1rem+env(safe-area-inset-top))] z-[1200] mx-auto flex max-w-xl items-start gap-3 rounded-2xl border border-red-400/30 bg-[#35131c]/95 px-4 py-3 text-white shadow-2xl backdrop-blur"
+          dir={lang === 'ar' ? 'rtl' : 'ltr'}
+        >
+          <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-300" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold">
+              {lang === 'ar' ? 'تم فصل تغذية المركبة' : 'Alimentation véhicule débranchée'}
+            </p>
+            {powerDisconnectNotice.deviceName && (
+              <p className="mt-0.5 truncate text-xs text-red-100/80">{powerDisconnectNotice.deviceName}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setPowerDisconnectNotice(null)}
+            className="shrink-0 rounded-lg p-1 text-red-100/70 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label={lang === 'ar' ? 'إغلاق التنبيه' : 'Fermer l’alerte'}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+    </>
   )
 }
 

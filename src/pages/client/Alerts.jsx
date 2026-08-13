@@ -15,6 +15,7 @@ const ALERT_CFG = {
   low_battery:    { Icon: BatteryLow,   color: 'var(--ath-amber)', tone: 'warning' },
   battery_alert:  { Icon: BatteryLow,   color: 'var(--ath-amber)', tone: 'warning' },
   power_cut:      { Icon: Zap,          color: 'var(--ath-red)',   tone: 'danger' },
+  power_disconnected: { Icon: Zap,       color: 'var(--ath-red)',   tone: 'danger' },
   engine_on:      { Icon: Activity,     color: 'var(--ath-green)', tone: 'ok' },
   engine_off:     { Icon: Activity,     color: 'var(--ath-amber)', tone: 'warning' },
   signal_lost:    { Icon: WifiOff,      color: 'var(--ath-red)',   tone: 'danger' },
@@ -31,6 +32,7 @@ const FILTERS = [
   { key: 'geofence_enter', ar: 'دخول سياج', fr: 'Entrée zone' },
   { key: 'geofence_exit',  ar: 'خروج سياج', fr: 'Sortie zone' },
   { key: 'battery_alert',  ar: 'بطارية',   fr: 'Batterie'    },
+  { key: 'power_disconnected', ar: 'فصل الطاقة', fr: 'Alimentation' },
 ]
 
 function timeAgoShort(ts) {

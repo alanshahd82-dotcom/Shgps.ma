@@ -581,3 +581,14 @@ curl -i -X POST "$BASE_URL/api/devices/<device-id-without-traccar-mapping>/comma
 - Reused the existing server-side `GEOAPIFY_API_KEY` path through `/api/map/tiles`; no key was hardcoded or exposed in browser code. The current proxy supports style selection, not a language query parameter, so no backend change was needed.
 - Preserved the fallback rotation: normal street maps fall back to OSM, while satellite maps continue Esri → Geoapify hybrid → OSM on tile errors. The map style/color change is expected.
 - Backend, Traccar, database schema, engine-cut, replay, WebSocket, subscriptions, and marker movement logic were not changed.
+
+## Real vehicle voltage and instant power-disconnect alerts
+
+- Replaced vehicle battery-percentage presentation with the real electrical voltage everywhere in the client and admin vehicle surfaces. All displays now use the shared `formatVoltage(value, lang)` helper and show `V` or a localized disconnected state.
+- Standardized telemetry precedence to `attributes.voltage ?? attributes.power` in the devices route, map route, and live WebSocket position mapping. The raw numeric voltage remains available to the frontend; the internal Traccar battery percentage is no longer rendered as vehicle power.
+- Unified voltage colors: green at `>= 12.4 V`, orange from `11.8 V` through `< 12.4 V`, red below `11.8 V`, and slate gray for missing, zero, or invalid values.
+- Added server-side per-device voltage tracking. A device must have a previous valid voltage, continue sending GPS positions, and provide at least two consecutive voltage-missing positions across a 90-second grace window before the alert is created.
+- Persisted `power_disconnected` alerts in the existing `alerts` table with the device owner, bilingual message, last valid voltage, Traccar ID, and grace-window metadata. Alerts are de-duplicated per disconnect episode and become eligible again only after a valid voltage is observed.
+- Broadcast `device:power-disconnected` over the existing frontend WebSocket to the device owner and administrators. The client immediately adds the alert to the local alert list, shows a dismissible bilingual banner, and uses the existing browser-notification preference when enabled.
+- Preserved engine-cut behavior, Traccar polling and subscriptions, GPS position updates, maps, markers, replay, authentication, and existing alert types.
+- Verification: `npm run build`, backend `node --check` checks, `git diff --check`, and a frontend search confirm no `batteryLevel` or percentage battery value remains in vehicle UI.

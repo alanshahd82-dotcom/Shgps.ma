@@ -11,6 +11,7 @@ const alertIcons = {
   geofence: { icon: MapPin,         color: 'text-red-500',    bg: 'bg-red-100'    },
   battery:  { icon: Battery,        color: 'text-yellow-500', bg: 'bg-yellow-100' },
   power:    { icon: Zap,           color: 'text-red-600',    bg: 'bg-red-100'    },
+  power_disconnected: { icon: Zap, color: 'text-red-600', bg: 'bg-red-100' },
   engine:   { icon: AlertTriangle,  color: 'text-purple-500', bg: 'bg-purple-100' },
   // Traccar event types
   deviceOverspeed:    { icon: Zap,           color: 'text-orange-500', bg: 'bg-orange-100' },
@@ -34,7 +35,7 @@ const TYPE_FILTER = {
   speed:        t => t === 'deviceOverspeed' || t === 'speed',
   geofence:     t => t === 'geofenceExit'  || t === 'geofenceEnter' || t === 'geofence',
   subscription: t => t === 'subscription_expired' || t === 'subscription_expiring',
-  power:        t => t === 'devicePowerCut' || t === 'deviceOnline' || t === 'deviceOffline' || t === 'power',
+  power:        t => t === 'devicePowerCut' || t === 'deviceOnline' || t === 'deviceOffline' || t === 'power' || t === 'power_disconnected',
 }
 
 

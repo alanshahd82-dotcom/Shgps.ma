@@ -376,6 +376,151 @@ function readVehicleVoltage(position) {
   return Number.isFinite(voltage) && voltage > 0 ? voltage : null
 }
 
+const POWER_DISCONNECT_GRACE_MS = 90 * 1000
+const POWER_POSITION_MAX_AGE_MS = 120 * 1000
+const powerTelemetry = new Map()
+const powerDisconnectTimers = new Map()
+
+function clearPowerDisconnectTimer(traccarId) {
+  const timer = powerDisconnectTimers.get(String(traccarId))
+  if (timer) clearTimeout(timer)
+  powerDisconnectTimers.delete(String(traccarId))
+}
+
+function sendPowerDisconnectEvent(device, alert) {
+  const message = JSON.stringify({
+    type: 'device:power-disconnected',
+    deviceId: device.id,
+    traccarId: device.traccar_id,
+    alert: {
+      id: alert.id,
+      type: alert.type,
+      message: alert.message,
+      deviceName: device.name,
+      createdAt: alert.created_at,
+      data: alert.data,
+      read: false,
+    },
+  })
+
+  for (const client of frontendClients) {
+    if (client.readyState !== WebSocket.OPEN) continue
+    if (client.isAdmin || client.userId === device.user_id) client.send(message)
+  }
+}
+
+async function createPowerDisconnectedAlert(traccarId) {
+  const key = String(traccarId)
+  const state = powerTelemetry.get(key)
+  const now = Date.now()
+  if (!state || state.alerting || state.disconnected
+    || !state.lastValidAt || !state.missingSince
+    || state.invalidPositionCount < 2
+    || now - state.missingSince < POWER_DISCONNECT_GRACE_MS
+    || now - state.lastPositionAt > POWER_POSITION_MAX_AGE_MS) return
+
+  state.alerting = true
+  try {
+    const { rows } = await db.query(
+      'SELECT id, traccar_id, user_id, name FROM devices WHERE traccar_id=$1 LIMIT 1',
+      [traccarId]
+    )
+    const device = rows[0]
+    if (!device) {
+      state.alerting = false
+      return
+    }
+
+    const latest = powerTelemetry.get(key)
+    if (!latest || latest !== state || latest.disconnected
+      || latest.invalidPositionCount < 2
+      || Date.now() - latest.missingSince < POWER_DISCONNECT_GRACE_MS
+      || Date.now() - latest.lastPositionAt > POWER_POSITION_MAX_AGE_MS) {
+      state.alerting = false
+      return
+    }
+
+    const message = `تم فصل التغذية عن ${device.name} / Alimentation débranchée : ${device.name}`
+    const { rows: alertRows } = await db.query(
+      `INSERT INTO alerts (device_id, user_id, type, message, data)
+       VALUES ($1, $2, 'power_disconnected', $3, $4)
+       RETURNING id, type, message, data, created_at`,
+      [
+        device.id,
+        device.user_id,
+        message,
+        JSON.stringify({
+          reason: 'vehicle_power_missing',
+          traccarId,
+          lastValidVoltage: state.lastValidVoltage,
+          graceSeconds: POWER_DISCONNECT_GRACE_MS / 1000,
+        }),
+      ]
+    )
+
+    state.disconnected = true
+    state.alerting = false
+    sendPowerDisconnectEvent(device, alertRows[0])
+    console.log('[Power] Vehicle power disconnected — device:', device.id)
+  } catch (err) {
+    state.alerting = false
+    console.warn('[Power] Disconnect alert skipped:', err.message)
+  }
+}
+
+function observePowerTelemetry(position) {
+  const traccarId = position?.deviceId
+  if (traccarId == null) return
+
+  const key = String(traccarId)
+  const now = Date.now()
+  const voltage = readVehicleVoltage(position)
+  const current = powerTelemetry.get(key) || {
+    lastValidAt: null,
+    lastValidVoltage: null,
+    missingSince: null,
+    lastPositionAt: null,
+    invalidPositionCount: 0,
+    disconnected: false,
+    alerting: false,
+  }
+  current.lastPositionAt = now
+
+  if (voltage !== null) {
+    current.lastValidAt = now
+    current.lastValidVoltage = voltage
+    current.missingSince = null
+    current.invalidPositionCount = 0
+    current.disconnected = false
+    current.alerting = false
+    clearPowerDisconnectTimer(traccarId)
+    powerTelemetry.set(key, current)
+    return
+  }
+
+  if (!current.lastValidAt || current.disconnected) {
+    powerTelemetry.set(key, current)
+    return
+  }
+
+  current.missingSince ??= now
+  current.invalidPositionCount += 1
+  powerTelemetry.set(key, current)
+
+  if (now - current.missingSince >= POWER_DISCONNECT_GRACE_MS) {
+    void createPowerDisconnectedAlert(traccarId)
+    return
+  }
+
+  if (!powerDisconnectTimers.has(key)) {
+    const remaining = POWER_DISCONNECT_GRACE_MS - (now - current.missingSince)
+    powerDisconnectTimers.set(key, setTimeout(() => {
+      powerDisconnectTimers.delete(key)
+      void createPowerDisconnectedAlert(traccarId)
+    }, Math.max(0, remaining)))
+  }
+}
+
 // Cache: Traccar device ID → local user_id (owner). Refreshed on start + hourly.
 let traccarOwnerCache = new Map()
 async function refreshTraccarOwnerCache() {
@@ -489,6 +634,10 @@ async function connectTraccar() {
     const msg = data.toString()
     let parsed = null
     try { parsed = JSON.parse(msg) } catch {}
+
+    if (parsed && Array.isArray(parsed.positions)) {
+      parsed.positions.forEach(observePowerTelemetry)
+    }
 
     for (const client of frontendClients) {
       if (client.readyState !== WebSocket.OPEN) continue
