@@ -390,7 +390,8 @@ export default function LiveMap() {
         className="absolute z-[500] flex items-center gap-1.5 rounded-2xl p-2.5 text-[11px] font-bold"
         style={{
           top: 116,
-          left: 14,
+           left: 'auto',
+           right: 14,
           background: 'rgba(6,12,26,0.92)',
           border: '1px solid rgba(255,255,255,0.12)',
           backdropFilter: 'blur(18px)',
