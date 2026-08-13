@@ -4,14 +4,14 @@ import { Router } from 'express'
     import * as traccar from '../services/traccar.js'
 import { deviceAccessScope } from '../middleware/deviceAccess.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
-import { extractReportedVoltage, readBatteryLevel } from '../services/vehicleTelemetry.js'
+import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemetry.js'
 import { config } from '../config.js'
 
     export const mapRouter = Router()
 
-function readElectricalTelemetry(position) {
+function readElectricalTelemetry(position, traccarId) {
   return {
-    voltage: extractReportedVoltage(position),
+    voltage: readVehicleVoltage(position, traccarId, { connected: !!position }),
     batteryLevel: readBatteryLevel(position),
   }
 }
@@ -121,7 +121,7 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null
         const electrical = position
-          ? readElectricalTelemetry(position)
+          ? readElectricalTelemetry(position, d.traccar_id)
           : { voltage: null, batteryLevel: null }
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,

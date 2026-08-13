@@ -27,7 +27,11 @@ import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
 import { speedKmh } from './utils/speed.js'
-import { extractReportedVoltage } from './services/vehicleTelemetry.js'
+import {
+  clearVehicleVoltage,
+  observeVehicleVoltage,
+  readVehicleVoltage as readCachedVehicleVoltage,
+} from './services/vehicleTelemetry.js'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -372,7 +376,7 @@ const wss = new WebSocketServer({ server, path: '/api/socket' })
 const frontendClients = new Set()
 
 function readVehicleVoltage(position) {
-  return extractReportedVoltage(position)
+  return readCachedVehicleVoltage(position, position?.deviceId, { connected: true })
 }
 
 const POWER_DISCONNECT_GRACE_MS = 90 * 1000
@@ -459,6 +463,7 @@ async function createPowerDisconnectedAlert(traccarId) {
 
     state.disconnected = true
     state.alerting = false
+    clearVehicleVoltage(traccarId)
     sendPowerDisconnectEvent(device, alertRows[0])
     console.log('[Power] Vehicle power disconnected — device:', device.id)
   } catch (err) {
@@ -473,7 +478,7 @@ function observePowerTelemetry(position) {
 
   const key = String(traccarId)
   const now = Date.now()
-  const voltage = extractReportedVoltage(position)
+  const voltage = observeVehicleVoltage(position)
   const current = powerTelemetry.get(key) || {
     lastValidAt: null,
     lastValidVoltage: null,

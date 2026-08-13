@@ -13,13 +13,13 @@ import {
   syncSubscriptionState,
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
-import { extractReportedVoltage, readBatteryLevel } from '../services/vehicleTelemetry.js'
+import { readBatteryLevel, readVehicleVoltage } from '../services/vehicleTelemetry.js'
 
     export const devicesRouter = Router()
 
-    function readElectricalTelemetry(position) {
+    function readElectricalTelemetry(position, traccarId, options) {
       return {
-        voltage: extractReportedVoltage(position),
+        voltage: readVehicleVoltage(position, traccarId, options),
         batteryLevel: readBatteryLevel(position),
       }
     }
@@ -185,7 +185,7 @@ import { extractReportedVoltage, readBatteryLevel } from '../services/vehicleTel
         const subscription = getSubscriptionSnapshot(d)
         const trackingEnabled = subscription.trackingEnabled
         const electrical = trackingEnabled
-          ? readElectricalTelemetry(p)
+          ? readElectricalTelemetry(p, d.traccar_id ?? td?.id, { connected: status === 'online' })
           : { voltage: null, batteryLevel: null }
         return {
           id:        d.id,
