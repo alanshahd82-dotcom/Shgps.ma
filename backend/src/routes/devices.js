@@ -536,7 +536,12 @@ import { speedKmh } from '../utils/speed.js'
         // The local type describes the vehicle (bike/car/truck), not its tracker.
         const traccarDevice = await traccar.getDevice(dev.traccar_id)
         const protocol = String(traccarDevice?.protocol || '').toLowerCase()
-        const isRelayProtocol = /^(?:gt06|concox|wanway|gs900)/i.test(protocol)
+        // Traccar's /api/devices does NOT return `protocol` (always undefined),
+        // so we cannot detect GT06 from it. All current trackers are GT06/WanWay
+        // and REQUIRE the custom RELAY command. Default to RELAY; only skip it if
+        // a protocol is explicitly known AND is a non-relay family.
+        const knownNonRelay = /^(?:teltonika|t55|h02|tk103|meiligao|suntech|wondex)/i.test(protocol)
+        const isRelayProtocol = protocol ? !knownNonRelay : true
         let traccarType = type
         let attributes = {}
         if (isRelayProtocol) {
