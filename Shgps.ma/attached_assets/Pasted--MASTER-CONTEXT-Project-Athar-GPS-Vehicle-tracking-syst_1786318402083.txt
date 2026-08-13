@@ -1,0 +1,102 @@
+[MASTER CONTEXT]
+Project: Athar GPS (Vehicle tracking system)
+Backend: Node.js + Express on port 3001
+Frontend: React + React Router + Leaflet (react-leaflet)
+Database: PostgreSQL 16
+Tracking: Traccar server (Docker)
+Language: Arabic (RTL) + French
+
+Repository: https://github.com/alanshahd82-dotcom/Shgps.ma
+Production: /opt/shgps
+Development: /root/athar-gps
+
+Current Issue:
+Uncaught ReferenceError: Play is not defined
+  at index-8rskboUa.js:647:61466
+
+The TripReplay component is trying to use lucide-react icons but they are not properly imported.
+
+Technical Constraints:
+- DO NOT modify the Traccar server or database schema
+- DO NOT change the backend server port or main structure
+- DO NOT refactor existing code unless necessary for the fix
+- Always use the existing authentication and authorization middleware
+- Maintain Arabic (RTL) and French language support
+- Use existing dependencies only (react-leaflet, lucide-react, framer-motion)
+
+[/MASTER CONTEXT]
+
+TASK: Fix missing lucide-react icon imports in TripReplay.jsx
+
+ERROR:
+Uncaught ReferenceError: Play is not defined
+  at index-8rskboUa.js:647:61466
+
+CAUSE:
+The TripReplay component uses lucide-react icons but they are not properly imported at the top of the file.
+
+REQUIREMENTS:
+
+1. Open /root/athar-gps/src/components/TripReplay.jsx
+
+2. Check the current import statement for lucide-react icons
+
+3. Add ALL missing icons that are used in the component. Common icons used in TripReplay:
+   - Play (play button)
+   - Pause (pause button)
+   - Square (stop button)
+   - SkipForward (fast forward)
+   - X (close button)
+   - MapPin (location marker)
+   - Clock (time icon)
+   - Gauge (speed icon)
+   - AlertTriangle (warning icon for speeding)
+   - Info (information icon)
+   - ChevronDown (dropdown arrow)
+   - ChevronUp (dropdown arrow)
+
+4. The import statement should look like:
+```javascript
+   import { 
+     Play, Pause, Square, SkipForward, X, 
+     MapPin, Clock, Gauge, AlertTriangle, Info,
+     ChevronDown, ChevronUp
+   } from 'lucide-react'
+```
+
+5. Verify that EVERY icon used in the JSX has a corresponding import
+
+6. Save the file
+
+7. Build the project to verify the fix:
+```bash
+   cd /root/athar-gps
+   npm run build
+```
+
+8. If build succeeds, commit and push:
+```bash
+   git add src/components/TripReplay.jsx
+   git commit -m "Fix missing lucide-react icon imports in TripReplay"
+   git push origin main
+```
+
+VERIFICATION:
+After the fix:
+1. Open the app in browser
+2. Navigate to TripHistory page
+3. Click "Replay" button on a trip
+4. The replay modal should open without errors
+5. All control buttons (Play, Pause, Stop, Speed) should display their icons correctly
+6. No "ReferenceError" in browser console
+
+DO NOT:
+- Change any other functionality
+- Modify other components
+- Add new dependencies
+- Change the backend
+
+DELIVERABLES:
+1. Fixed file: /root/athar-gps/src/components/TripReplay.jsx
+2. Successful build output
+3. Git commit pushed to main

@@ -1,0 +1,146 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js 20 ────────────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 3. Force npm registry to public npmjs.org ────────────────────────────
+      - name: Set npm registry to public npmjs.org
+        run: npm config set registry https://registry.npmjs.org/
+
+      # ── 4. Install all dependencies (frontend + Capacitor) ───────────────────
+      - name: Install dependencies
+        run: |
+          rm -f package-lock.json
+          npm install
+          echo "✔ All dependencies installed"
+          ls node_modules/.bin/cap || (echo "❌ cap not found" && exit 1)
+
+      # ── 5. Build frontend from source ────────────────────────────────────────
+      #   Always rebuild from src/ so any code change appears in the APK.
+      - name: Build Vite app
+        run: |
+          npm run build
+          echo "✔ Vite build complete"
+          ls -lh dist/
+
+      # ── 6. Convert capacitor.config.ts → capacitor.config.json ───────────────
+      - name: Convert capacitor config to JSON
+        run: |
+          node -e "
+          const fs = require('fs');
+          const config = {
+            appId: 'com.athargps.app',
+            appName: 'ATHAR GPS',
+            webDir: 'dist',
+            server: { androidScheme: 'https' },
+            plugins: {
+              SplashScreen: {
+                launchShowDuration: 2000,
+                backgroundColor: '#0F2044',
+                showSpinner: false,
+                splashFullScreen: true,
+                splashImmersive: true
+              },
+              StatusBar: {
+                style: 'Dark',
+                backgroundColor: '#0F2044'
+              }
+            }
+          };
+          fs.writeFileSync('capacitor.config.json', JSON.stringify(config, null, 2));
+          if (fs.existsSync('capacitor.config.ts')) fs.unlinkSync('capacitor.config.ts');
+          console.log('✔ capacitor.config.json written');
+          "
+
+      # ── 7. Add Capacitor Android platform ────────────────────────────────────
+      - name: Add Capacitor Android platform
+        run: ./node_modules/.bin/cap add android
+
+      # ── 8. Copy app icon to all mipmap densities ─────────────────────────────
+      - name: Copy app icon
+        run: |
+          sudo apt-get install -y imagemagick -q
+
+          ICON_SRC="public/icon.png"
+          declare -A SIZES=(
+            ["mipmap-mdpi"]=48
+            ["mipmap-hdpi"]=72
+            ["mipmap-xhdpi"]=96
+            ["mipmap-xxhdpi"]=144
+            ["mipmap-xxxhdpi"]=192
+          )
+
+          for DIR in "${!SIZES[@]}"; do
+            SIZE="${SIZES[$DIR]}"
+            DEST_DIR="android/app/src/main/res/${DIR}"
+            mkdir -p "$DEST_DIR"
+
+            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}" "${DEST_DIR}/ic_launcher.png"
+            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}" \
+              -gravity center -background none \
+              \( +clone -alpha extract \
+                 -draw "fill white circle $((SIZE/2)),$((SIZE/2)) $((SIZE/2)),0" \) \
+              -compose CopyOpacity -composite \
+              "${DEST_DIR}/ic_launcher_round.png"
+            cp "${DEST_DIR}/ic_launcher.png" "${DEST_DIR}/ic_launcher_foreground.png"
+            echo "✔ ${DIR} — ${SIZE}x${SIZE}"
+          done
+
+      # ── 9. Sync Capacitor ─────────────────────────────────────────────────────
+      - name: Capacitor sync
+        run: ./node_modules/.bin/cap sync android
+
+      # ── 10. Java 17 ───────────────────────────────────────────────────────────
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ── 11. Android SDK ──────────────────────────────────────────────────────
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # ── 12. Make gradlew executable ──────────────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # ── 13. Build debug APK ──────────────────────────────────────────────────
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      # ── 14. Upload APK ───────────────────────────────────────────────────────
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATHAR-GPS-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      # ── 15. Report ───────────────────────────────────────────────────────────
+      - name: APK info
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          if [ -f "$APK" ]; then
+            echo "✅ APK built — size: $(du -sh "$APK" | cut -f1)"
+          else
+            echo "❌ APK not found"; exit 1
+          fi

@@ -1,0 +1,44 @@
+[MASTER CONTEXT]
+Project: Athar GPS. Repo: https://github.com/alanshahd82-dotcom/Shgps.ma (main)
+Read FIRST: docs/AI_CONTEXT.md, docs/TASK_LOG.md, src/components/TripReplay.jsx
+Constraints: never touch Traccar/DB schema/unrelated files; keep AR(RTL)+FR; existing deps only.
+[/MASTER CONTEXT]
+
+PROBLEM: The replay screen currently stacks 3 full-width panels that overlap each other and completely hide the map. It looks broken and unprofessional.
+
+TASK: Rewrite the LAYOUT of src/components/TripReplay.jsx (keep ALL existing logic: playback engine, stops/behavior detection, translations). The screen must have EXACTLY 3 layers:
+
+LAYER 1 — MAP: MapContainer fills 100% of viewport height.
+
+LAYER 2 — TOP BAR (absolute, top:12px, inset-x:12px, height:52px, bg #0B1220/90, backdrop-blur, rounded-2xl, flex row):
+  [X close] [device name bold] [time range small muted]
+
+LAYER 3 — BOTTOM SHEET (absolute, bottom:0, inset-x:0, bg #0B1220/95, rounded-t-3xl, backdrop-blur):
+  - drag handle bar
+  - COLLAPSED state (default, ~200px): timeline slider with current time bubble,
+    speed chips [1x][2x][4x][8x], controls row [⏮][▶/⏸][][⏹][⏭],
+    compact stats chips row: distance km · max speed · duration · current speed
+  - EXPANDED state (tap handle or chevron): adds driver-analysis grid (6 tiles:
+    توقفات/تسارع/كبح/انعطاف/سرعة عالية/الكفاءة) + [تصدير الرحلة] button +
+    scrollable behavior events list (tap event = jump to moment)
+  RULES: single flex column inside the sheet; NO absolutely positioned children;
+  panels must NEVER overlap; map center must stay visible at all times.
+
+MARKERS:
+- Car: realistic TOP-VIEW car SVG (red body #E11D48, dark windshield+roof, rounded),
+  L.divIcon 46x24, rotated by bearing (CSS transform rotate, transition 0.3s linear),
+  with soft drop-shadow. Must be clearly visible while moving.
+- Start: small green pin 26px letter "ب"/"S". End: small red pin 26px letter "ن"/"E".
+  REMOVE the big red glow currently surrounding the end marker.
+- Stops: orange pin 24px "P". Hard events: 22px icons (⚡ red=brake, ⚡ green=accel, ↪ yellow=turn).
+
+FIXES:
+- Stats row (2.2 km / 45 km/h / 18 د) must be FULLY visible (currently clipped).
+- Coordinates row: small, muted color, one line.
+- Verify RTL correctness in Arabic.
+
+VERIFY: npm run build passes with zero "is not defined" warnings.
+DELIVER: commit "Redesign replay screen: map-first layout, real rotating car, clean sheets",
+push to main, append entry to docs/TASK_LOG.md.
+ACCEPTANCE: during replay the map occupies most of the screen; car visible and rotating;
+no overlapping panels; dark professional UI consistent with app theme (#0F2044/#1DBF73).

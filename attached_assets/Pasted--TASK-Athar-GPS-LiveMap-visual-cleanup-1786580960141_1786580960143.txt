@@ -1,0 +1,81 @@
+═══════════════════════════════════════════════════════════
+TASK: Athar GPS — LiveMap visual cleanup (SAFE, cosmetic only)
+═══════════════════════════════════════════════════════════
+
+🔴 MANDATORY FIRST: read docs/AI_CONTEXT.md + docs/TASK_LOG.md.
+Work on REAL GitHub repo https://github.com/alanshahd82-dotcom/Shgps.ma
+(branch main). Use GITHUB_TOKEN secret (GIT_ASKPASS, never in URL/logs).
+DO NOT touch backend, Traccar, DB schema, or any working logic.
+
+🚨 GOLDEN RULE — DO NOT REMOVE ANY WORKING FEATURE:
+The live map WORKS (markers, movement, search, engine cut, replay, etc.).
+You are doing COSMETIC CLEANUP ONLY. Never delete logic — only HIDE
+visually (display:none / conditional render) or adjust layout values.
+If unsure, KEEP it. The user explicitly demands ZERO risk of breaking
+anything. A local backup of LiveMap.jsx already exists on the server
+(LiveMap.jsx.bak.*) — keep your edits minimal and reversible.
+
+CONTEXT (already done — DO NOT redo):
+• The status legend strip ("تتحرك/خاملة/متوقفة/في انتظار تحديد الموقع")
+  that was covering the map has ALREADY been hidden with display:none in
+  src/pages/client/LiveMap.jsx (~line 464-465). Leave it as-is.
+
+═══════════════════════════════════════════════════════════
+YOUR JOB — 3 safe cosmetic fixes in LiveMap.jsx (+ marker label):
+═══════════════════════════════════════════════════════════
+
+─── FIX B: declutter the overlapping top-left buttons ───
+Currently "مباشر" (live) and "تتبع تلقائي" (auto-follow) buttons stack
+in the top-left and add visual noise over the map.
+  • Keep their functionality intact, but reduce clutter: either hide the
+    redundant one visually, or move them so they don't overlap the search
+    bar / each other. Prefer hiding "تتبع تلقائي" behind the existing
+    locate control if it duplicates it. Cosmetic only — do not remove
+    the handlers/state.
+
+─── FIX C: bottom sheet must NOT cover the whole map ───
+When the device list sheet is opened, it currently slides up and covers
+almost the entire map (see user screenshot — map disappears).
+  • Cap the sheet's default/expanded height so the map stays visible
+    above it (e.g. max ~45-50vh for the peek/default state). The user
+    can still drag to expand if needed, but the DEFAULT view must show
+    the map. Adjust panelH / translateY / max-h values only — do not
+    touch the sheet's content or device-list logic.
+
+─── FIX D: the mysterious "13.2" under the vehicle marker ───
+In src/components/LiveVehicleMarker.jsx the marker shows a label like
+"متوقف 13.2" with no unit — confusing. This number is the voltage value
+(the backend now sends `voltage` separately; bekane happens to send a
+power reading). 
+  • If the value is a voltage, show it WITH a unit: "13.2 V" (and ideally
+    only when the device is moving or voltage is meaningful). 
+  • If it adds clutter, simply hide the numeric label on the map marker
+    and keep only the status word ("متوقف"/"يتحرك"). 
+  Choose the cleaner option. Do not change how voltage is computed —
+  only its display on the marker.
+
+═══════════════════════════════════════════════════════════
+ABSOLUTELY DO NOT TOUCH:
+═══════════════════════════════════════════════════════════
+• Map instance logic: useMap, flyTo, fitBounds, invalidateSize, PanBy.
+• Marker rendering & rotation/movement smoothing (LiveVehicleMarker core).
+• Tile layers (GeoapifyTileLayer / ResilientTiles / MapLayers).
+• Engine cut/start, replay, subscriptions, ErrorBoundary, settings.
+• The already-hidden status legend (leave display:none as-is).
+• City-name font rendering on tiles (that's a tile-provider issue — skip).
+
+═══════════════════════════════════════════════════════════
+DELIVERY:
+- After EACH fix: npm run build MUST pass. Stop if any fix breaks build.
+- Keep diffs tiny (a few lines each). No mass deletions.
+- Commits (one per fix):
+    "ui: declutter live-map top buttons (cosmetic)"
+    "ui: cap bottom sheet height so map stays visible"
+    "ui: fix/hide ambiguous voltage label on map marker"
+- Push origin/main (fetch+rebase; NEVER force-push).
+- PRINT `git log origin/main --oneline -5` to PROVE push landed.
+- Update docs/TASK_LOG.md: exact lines changed per fix, confirmation
+  that map/markers/movement/engine-cut/replay all still work, and that
+  changes are cosmetic-only + reversible.
+Stop and report if push permission missing. Do NOT save locally only.
+═══════════════════════════════════════════════════════════
