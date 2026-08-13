@@ -320,7 +320,7 @@ export default function LiveMap() {
                       </div>
                       <div className="athar-device-popup-grid">
                         <span><Gauge size={13} />{Math.round(Number(d.speed) || 0)} {t(lang, 'kmh')}</span>
-                        <span><Zap size={13} />{formatVoltage(d.voltage, lang)}</span>
+                        <span><Zap size={13} />{formatVoltage(d.voltage, lang, d.lastUpdate ?? d.last_update)}</span>
                         <span><Wifi size={13} />{popupSignal == null ? '—' : popupSignal}</span>
                       </div>
                       <button

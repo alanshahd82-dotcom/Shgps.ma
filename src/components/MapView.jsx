@@ -301,8 +301,8 @@ export default function MapView({
               {device.status === 'online' && (
                 <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
                   {lang === 'ar'
-                    ? `الفولطاج ${formatVoltage(device.voltage, lang)} · إشارة ${device.signal ?? '—'}/4`
-                    : `Tension ${formatVoltage(device.voltage, lang)} · Signal ${device.signal ?? '—'}/4`}
+                    ? `الفولطاج ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update)} · إشارة ${device.signal ?? '—'}/4`
+                    : `Tension ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update)} · Signal ${device.signal ?? '—'}/4`}
                 </div>
               )}
               {onRouteRequest && (

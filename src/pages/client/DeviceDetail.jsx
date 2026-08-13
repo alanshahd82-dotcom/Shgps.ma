@@ -493,7 +493,7 @@ export default function DeviceDetail() {
   const vehicleType = ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike'
   const voltage = device?.voltage ?? null
   const voltageColor = getVoltageColor(voltage)
-  const voltageLabel = formatVoltage(voltage, lang)
+  const voltageLabel = formatVoltage(voltage, lang, lastUpdate)
 
   if (loading && !device) return (
       <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">

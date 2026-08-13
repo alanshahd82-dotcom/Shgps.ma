@@ -98,7 +98,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
         <span class="athar-live-label">
           <span class="athar-live-label-status" aria-hidden="true"></span>
           <span>${label}</span>
-           <span class="athar-live-label-voltage" aria-hidden="true" style="display:none">${formatVoltage(device?.voltage, lang)}</span>
+           <span class="athar-live-label-voltage" aria-hidden="true" style="display:none">${formatVoltage(device?.voltage, lang, device?.lastUpdate ?? device?.last_update)}</span>
         </span>
       </div>
     `,
