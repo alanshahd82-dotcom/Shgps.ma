@@ -19,6 +19,17 @@ function isFalseLike(raw) {
   return /^(?:false|0|no|off|lost|cut|disconnected?)$/i.test(raw.trim())
 }
 
+function isExplicitFalse(raw) {
+  if (raw === false || raw === 0) return true
+  return typeof raw === 'string' && /^(?:false|0|no)$/i.test(raw.trim())
+}
+
+function isLossLike(raw) {
+  if (raw === true || raw === 1) return true
+  if (typeof raw !== 'string') return false
+  return /^(?:true|1|yes|lost|cut|off|disconnected?)$/i.test(raw.trim())
+}
+
 const POWER_LOSS_ALARM_PATTERN = /^(?:power[_ -]?(?:cut|lost|off|disconnect(?:ed)?|failure)|external[_ -]?power(?:[_ -]?(?:cut|lost|off|disconnect(?:ed)?))?|charge[_ -]?(?:off|lost|disconnect(?:ed)?))$/i
 
 /**
@@ -42,8 +53,8 @@ export function detectExternalPowerLoss(position) {
   ]
 
   for (const key of directKeys) {
-    if (isFalseLike(attributes[key])) return { source: key }
-    if (/lost|cut|off/i.test(key) && attributes[key] === true) return { source: key }
+    if (key === 'externalPower' && isFalseLike(attributes[key])) return { source: key }
+    if (key !== 'externalPower' && isLossLike(attributes[key])) return { source: key }
   }
 
   if (isFalseLike(attributes.charge)) return { source: 'charge:false' }
@@ -81,7 +92,7 @@ export function detectExternalPowerRestored(position) {
     'charge_off',
   ]
   for (const key of lossKeys) {
-    if (isFalseLike(attributes[key])) return { source: `${key}:false` }
+    if (isExplicitFalse(attributes[key])) return { source: `${key}:false` }
   }
 
   const alarm = String(attributes.alarm ?? '').trim()
