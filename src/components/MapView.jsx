@@ -5,6 +5,7 @@ import L from 'leaflet'
 import LiveVehicleMarker from './LiveVehicleMarker'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
+import { formatVoltage } from './ui'
 
 // Professional SVG vehicle icons (no emoji)
 function createDeviceIcon(type, isSelected = false) {
@@ -300,8 +301,8 @@ export default function MapView({
               {device.status === 'online' && (
                 <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
                   {lang === 'ar'
-                    ? `الفولطاج ${Number.isFinite(Number(device.voltage)) && Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : 'مفصول'} · البطارية ${device.batteryLevel != null ? `${Math.round(Number(device.batteryLevel))}%` : '—'} · إشارة ${device.signal ?? '—'}/4`
-                    : `Tension ${Number.isFinite(Number(device.voltage)) && Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : 'Déconnecté'} · Batt. ${device.batteryLevel != null ? `${Math.round(Number(device.batteryLevel))}%` : '—'} · Signal ${device.signal ?? '—'}/4`}
+                    ? `الفولطاج ${formatVoltage(device.voltage, lang)} · إشارة ${device.signal ?? '—'}/4`
+                    : `Tension ${formatVoltage(device.voltage, lang)} · Signal ${device.signal ?? '—'}/4`}
                 </div>
               )}
               {onRouteRequest && (

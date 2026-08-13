@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { Search, X, ChevronRight, Satellite, BatteryMedium, Clock, RefreshCw } from 'lucide-react'
+import { Search, X, ChevronRight, Satellite, Zap, Clock, RefreshCw } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
-import { getBatteryColor, VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
+import { formatVoltage, getVoltageColor, VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
@@ -35,10 +35,8 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const subscription = getSubscriptionSnapshot(device)
   const needsRenewal = ['expiring_soon', 'expired'].includes(subscription.status)
   const reduceMotion = useReducedMotion()
-  const rawBattery = device.batteryLevel
-  const parsedBattery = rawBattery == null || rawBattery === '' ? null : Number(rawBattery)
-  const battery = Number.isFinite(parsedBattery) ? Math.min(100, Math.max(0, parsedBattery)) : null
-  const batteryColor = getBatteryColor(battery)
+  const voltageColor = getVoltageColor(device.voltage)
+  const voltageLabel = formatVoltage(device.voltage, lang)
   const speed = Number(device.speed ?? device.last_speed ?? 0)
 
   return (
@@ -65,15 +63,10 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
             {(device.lastUpdate || device.last_update) && <><Clock size={10} className="ms-1 text-[var(--ath-mut)]" /> <span className="font-normal text-[var(--ath-mut)]">{timeAgo(device.lastUpdate || device.last_update, lang)}</span></>}
           </span>
           <span className="mt-2 block"><SubscriptionBadge device={device} lang={lang} /></span>
-          {battery != null && (
-            <span className="mt-3 flex items-center gap-2" aria-label={isAr ? `البطارية ${Math.round(battery)} بالمئة` : `Batterie ${Math.round(battery)} pour cent`}>
-              <BatteryMedium size={14} style={{ color: batteryColor }} aria-hidden="true" />
-              <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
-                <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${battery}%`, background: batteryColor }} />
-              </span>
-              <span className="w-8 text-end text-[10px] font-bold tabular-nums" style={{ color: batteryColor }}>{Math.round(battery)}%</span>
+          <span className="mt-3 flex items-center gap-2" aria-label={isAr ? `فولطاج المركبة ${voltageLabel}` : `Tension du véhicule ${voltageLabel}`}>
+              <Zap size={14} style={{ color: voltageColor }} aria-hidden="true" />
+              <span className="text-[10px] font-bold tabular-nums" style={{ color: voltageColor }}>{voltageLabel}</span>
             </span>
-          )}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-2 text-[var(--ath-mut)]">
           {statusKey === 'moving' && speed > 0 && (

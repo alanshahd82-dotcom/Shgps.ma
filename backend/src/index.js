@@ -370,6 +370,12 @@ const server = createServer(app)
 const wss = new WebSocketServer({ server, path: '/api/socket' })
 const frontendClients = new Set()
 
+function readVehicleVoltage(position) {
+  const raw = position?.attributes?.voltage ?? position?.attributes?.power
+  const voltage = raw == null || raw === '' ? NaN : Number(raw)
+  return Number.isFinite(voltage) && voltage > 0 ? voltage : null
+}
+
 // Cache: Traccar device ID → local user_id (owner). Refreshed on start + hourly.
 let traccarOwnerCache = new Map()
 async function refreshTraccarOwnerCache() {
@@ -507,7 +513,14 @@ async function connectTraccar() {
       if (allowed) {
         let outMsg = msg
         if (parsed && Array.isArray(parsed.positions)) {
-          const patched = { ...parsed, positions: parsed.positions.map(p => ({ ...p, speed: Math.round(speedKmh(p.speed)) })) }
+          const patched = {
+            ...parsed,
+            positions: parsed.positions.map(p => ({
+              ...p,
+              speed: Math.round(speedKmh(p.speed)),
+              voltage: readVehicleVoltage(p),
+            })),
+          }
           try { outMsg = JSON.stringify(patched) } catch {}
         }
         client.send(outMsg)

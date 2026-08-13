@@ -37,19 +37,19 @@ export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
   )
 }
 
-export function getBatteryColor(value) {
-  const battery = Number(value)
-  if (!Number.isFinite(battery)) return '#94A3B8'
-  return battery > 60 ? '#1DBF73' : battery > 30 ? '#FF9500' : '#FF3B30'
-}
-
 export function getVoltageColor(value) {
   const voltage = Number(value)
   if (!Number.isFinite(voltage) || voltage <= 0) return '#94A3B8'
-  if (voltage >= 13.2) return '#1DBF73'
-  if (voltage >= 12.4) return '#FF9500'
-  if (voltage >= 12) return '#F97316'
+  if (voltage >= 12.4) return '#1DBF73'
+  if (voltage >= 11.8) return '#FF9500'
   return '#FF3B30'
+}
+
+export function formatVoltage(value, lang = 'ar') {
+  const voltage = Number(value)
+  return Number.isFinite(voltage) && voltage > 0
+    ? `${voltage.toFixed(1)} V`
+    : (lang === 'ar' ? 'مفصول' : 'Déconnecté')
 }
 
 export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', className = '' }) {

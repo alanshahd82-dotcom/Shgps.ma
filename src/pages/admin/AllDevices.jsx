@@ -13,7 +13,7 @@ import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
-import { VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import { formatVoltage, VehicleIcon, VehicleTypeControl } from '../../components/ui'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -339,7 +339,7 @@ export default function AllDevices() {
               <thead className="bg-slate-50 border-b border-gray-100">
                 <tr>
                   {[t(lang,'device'), 'IMEI', t(lang,'plate'), lang === 'ar' ? 'العميل' : 'Client',
-                    t(lang,'speed'), t(lang,'battery'), t(lang,'status'), lang === 'ar' ? 'اشتراك الجهاز' : 'Abonnement appareil', t(lang,'lastUpdate'),
+                    t(lang,'speed'), lang === 'ar' ? 'الفولطاج' : 'Tension', t(lang,'status'), lang === 'ar' ? 'اشتراك الجهاز' : 'Abonnement appareil', t(lang,'lastUpdate'),
                     lang === 'ar' ? 'إجراءات' : 'Actions'].map((h, i) => (
                     <th key={i} className="px-4 py-3 text-start text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
@@ -377,8 +377,7 @@ export default function AllDevices() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-xs font-medium text-slate-600">
-                          {Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}
-                          {device.batteryLevel != null && <small className="ms-1 text-slate-400">{Math.round(Number(device.batteryLevel))}%</small>}
+                          {formatVoltage(device.voltage, lang)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -438,8 +437,7 @@ export default function AllDevices() {
                         ● {isOnline ? t(lang, 'online') : t(lang, 'offline')}
                       </span>
                       <span className="text-xs text-slate-400">
-                        {Number(device.voltage) > 0 ? `${Number(device.voltage).toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}
-                        {device.batteryLevel != null && ` · ${Math.round(Number(device.batteryLevel))}%`}
+                        {formatVoltage(device.voltage, lang)}
                       </span>
                       <SubscriptionBadge device={device} lang={lang} />
                     </div>

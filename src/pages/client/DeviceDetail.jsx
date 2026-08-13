@@ -15,7 +15,7 @@ import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import ConfirmModal from '../../components/ConfirmModal'
-import { getDeviceStatusKey, getVoltageColor, hasGpsPosition, timeAgo, VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import { formatVoltage, getDeviceStatusKey, getVoltageColor, hasGpsPosition, timeAgo, VehicleIcon, VehicleTypeControl } from '../../components/ui'
 import SubscriptionBanner from '../../components/SubscriptionBanner'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
@@ -103,9 +103,6 @@ function mergeDeviceDetails(current, next) {
     voltage: Object.prototype.hasOwnProperty.call(next || {}, 'voltage')
       ? next.voltage
       : current.voltage ?? null,
-    batteryLevel: Object.prototype.hasOwnProperty.call(next || {}, 'batteryLevel')
-      ? next.batteryLevel
-      : current.batteryLevel ?? null,
     signal: next?.signal ?? current.signal ?? null,
     fuel: next?.fuel ?? current.fuel ?? null,
   }
@@ -495,10 +492,8 @@ export default function DeviceDetail() {
   const signalStrength = device?.signalStrength ?? device?.signal_strength ?? device?.signal ?? device?.rssi
   const vehicleType = ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike'
   const voltage = device?.voltage ?? null
-  const batteryLevel = device?.batteryLevel ?? null
-  const voltageConnected = device?.status === 'online' && Number.isFinite(Number(voltage)) && Number(voltage) > 0
-  const voltageColor = voltageConnected ? getVoltageColor(voltage) : '#94A3B8'
-  const voltageLabel = voltageConnected ? `${Number(voltage).toFixed(1)} V` : (isAr ? 'مفصول' : 'Déconnecté')
+  const voltageColor = getVoltageColor(voltage)
+  const voltageLabel = formatVoltage(voltage, lang)
 
   if (loading && !device) return (
       <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">
@@ -558,7 +553,7 @@ export default function DeviceDetail() {
         <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
           {[
               { Icon:Gauge, label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? `${Math.round(Number(currentSpeed))} km/h` : '—', color:'#38d39f', always: true },
-              { Icon:Zap, label:isAr?'الفولطاج':'Tension', val: voltageLabel, color: voltageColor, always: true, secondary: batteryLevel != null ? `${isAr ? 'البطارية' : 'Batterie'} ${Math.round(Number(batteryLevel))}%` : null },
+              { Icon:Zap, label:isAr?'الفولطاج':'Tension', val: voltageLabel, color: voltageColor, always: true },
               { Icon:Activity, label:'IMEI', val: device.imei || '—', color:'#d9ad62', always: true },
               { Icon:Radio, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff', always: true },
               { Icon:Clock, label:isAr?'آخر تحديث':'Dernière mise à jour', val: lastUpdate ? timeAgo(lastUpdate, lang) : '—', color:'#b49cff', always: true, className:'col-span-2' },

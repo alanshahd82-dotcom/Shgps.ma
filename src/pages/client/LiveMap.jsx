@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X, Navigation, MapPin, Gauge, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
+import { Search, X, Navigation, MapPin, Gauge, Loader2, Route as RouteIcon, Wifi, Zap } from 'lucide-react'
 import { MapContainer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
@@ -9,7 +9,7 @@ import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
-import { VehicleIcon, timeAgo, getDeviceStatusKey } from '../../components/ui'
+import { VehicleIcon, timeAgo, formatVoltage, getDeviceStatusKey } from '../../components/ui'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import { downsample, simplifyPath } from '../../utils/simplify'
@@ -305,8 +305,6 @@ export default function LiveMap() {
                 {(() => {
                   const popupStatus = getDeviceStatusKey(d)
                   const popupColor = ST_CLR[popupStatus] || ST_CLR.offline
-                  const popupVoltage = Number(d.voltage)
-                  const popupBattery = Number(d.batteryLevel)
                   const popupSignal = d.signal ?? d.signalStrength ?? d.signal_strength ?? d.rssi
                   return (
                     <div className="athar-device-popup" dir={isAr ? 'rtl' : 'ltr'}>
@@ -322,8 +320,7 @@ export default function LiveMap() {
                       </div>
                       <div className="athar-device-popup-grid">
                         <span><Gauge size={13} />{Math.round(Number(d.speed) || 0)} {t(lang, 'kmh')}</span>
-                        <span><Zap size={13} />{Number.isFinite(popupVoltage) && popupVoltage > 0 ? `${popupVoltage.toFixed(1)} V` : (isAr ? 'مفصول' : 'Déconnecté')}</span>
-                        {Number.isFinite(popupBattery) && <span><BatteryMedium size={13} />{Math.round(popupBattery)}%</span>}
+                        <span><Zap size={13} />{formatVoltage(d.voltage, lang)}</span>
                         <span><Wifi size={13} />{popupSignal == null ? '—' : popupSignal}</span>
                       </div>
                       <button

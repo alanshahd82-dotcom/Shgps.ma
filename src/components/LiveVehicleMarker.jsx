@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { getDeviceStatusKey, getVoltageColor } from './ui'
+import { formatVoltage, getDeviceStatusKey, getVoltageColor } from './ui'
 import { markerFor } from '../utils/vehicleAssets'
 
 const ANIMATION_MS = 800
@@ -98,7 +98,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
         <span class="athar-live-label">
           <span class="athar-live-label-status" aria-hidden="true"></span>
           <span>${label}</span>
-           <span class="athar-live-label-voltage" aria-hidden="true" style="display:none">${Number.isFinite(voltageValue) && voltageValue > 0 ? `${voltageValue.toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}</span>
+           <span class="athar-live-label-voltage" aria-hidden="true" style="display:none">${formatVoltage(device?.voltage, lang)}</span>
         </span>
       </div>
     `,

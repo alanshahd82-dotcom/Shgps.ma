@@ -111,13 +111,10 @@ export function AppProvider({ children }) {
             course:     pos.course ?? pos.attributes?.course ?? current.course,
             status:     'online',
             engineOn:   pos.attributes?.ignition   ?? current.engineOn,
-            voltage:   pos.attributes?.power
+            voltage:   pos.voltage
               ?? pos.attributes?.voltage
-              ?? pos.attributes?.externalPower
-              ?? pos.attributes?.adc1
-              ?? pos.attributes?.analog1
-              ?? current.voltage,
-            batteryLevel: pos.attributes?.batteryLevel ?? pos.attributes?.battery ?? current.batteryLevel,
+              ?? pos.attributes?.power
+              ?? null,
             signal:     pos.attributes?.rssi       ?? current.signal,
             fuel:       pos.attributes?.fuel       ?? current.fuel,
           }

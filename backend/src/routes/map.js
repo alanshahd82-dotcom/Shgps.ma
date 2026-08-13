@@ -10,11 +10,7 @@ import { config } from '../config.js'
 
 function readElectricalTelemetry(position) {
   const attributes = position?.attributes || {}
-  const voltageRaw = attributes.power
-    ?? attributes.voltage
-    ?? attributes.externalPower
-    ?? attributes.adc1
-    ?? attributes.analog1
+  const voltageRaw = attributes.voltage ?? attributes.power
   const batteryRaw = attributes.batteryLevel ?? attributes.battery
   const voltageNumber = voltageRaw == null || voltageRaw === '' ? NaN : Number(voltageRaw)
   const batteryNumber = batteryRaw == null || batteryRaw === '' ? NaN : Number(batteryRaw)
