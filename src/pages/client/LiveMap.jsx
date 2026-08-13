@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X, LocateFixed, Navigation, MapPin, Gauge, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
-import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
+import { Search, X, Navigation, MapPin, Gauge, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
+import { MapContainer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
@@ -90,8 +90,7 @@ function FitTodayRoute({ route }) {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const PANEL_PEEK = 132
-const PANEL_OPEN = 380
+const DEVICE_PANEL_MAX_HEIGHT = '45vh'
 
 const ST_LABEL = {
   moving:  { ar: 'يتحرك',    fr: 'En mouvement' },
@@ -121,10 +120,11 @@ function getLiveBearing(device) {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function LiveMap() {
-  const { devices, lang, wsConnected } = useApp()
+  const { devices, lang } = useApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [search,       setSearch]       = useState('')
+  const [searchOpen,   setSearchOpen]   = useState(false)
   const [selected,     setSelected]     = useState(null)
   const [panelOpen,    setPanelOpen]    = useState(false)
   const [userPos,      setUserPos]      = useState(null)
@@ -211,7 +211,6 @@ export default function LiveMap() {
     const requested = devices.find(d => String(d.id) === String(requestedDeviceId))
     if (requested) {
       setSelected(requested.id)
-      setPanelOpen(true)
     }
   }, [devices, requestedDeviceId])
 
@@ -253,18 +252,6 @@ export default function LiveMap() {
     }
   }
 
-  // Status summary counts
-  const counts = useMemo(() => {
-    const all = devices.filter(d => d.trackingEnabled !== false)
-    return {
-      moving:  all.filter(d => getDeviceStatusKey(d) === 'moving').length,
-      idle:    all.filter(d => getDeviceStatusKey(d) === 'idle').length,
-      stopped: all.filter(d => getDeviceStatusKey(d) === 'stopped').length,
-      awaiting_gps: all.filter(d => getDeviceStatusKey(d) === 'awaiting_gps').length,
-      offline: all.filter(d => getDeviceStatusKey(d) === 'offline').length,
-    }
-  }, [devices])
-
   function openMaps(type, device) {
     const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
     const lng = toCoord(device.lng) ?? toCoord(device.last_lng)
@@ -282,9 +269,7 @@ export default function LiveMap() {
     }
   }
 
-  const panelH = panelOpen ? PANEL_OPEN : PANEL_PEEK
   const clientNavOffset = 'calc(5.6rem + env(safe-area-inset-bottom, 0px))'
-  const panelAwareOffset = `calc(${panelH}px + var(--athar-client-nav-offset) + 8px)`
 
   return (
     <div
@@ -295,8 +280,7 @@ export default function LiveMap() {
       {/* ── Map ── */}
       <div
         className="athar-live-map-shell"
-        style={{ '--athar-map-controls-offset': panelAwareOffset }}
-        aria-label={isAr ? 'الخريطة المباشرة' : 'Carte en direct'}
+        aria-label={isAr ? 'الخريطة' : 'Carte'}
       >
         <MapContainer
           preferCanvas
@@ -315,7 +299,7 @@ export default function LiveMap() {
               device={{ ...d, lang }}
               isSelected={selected === d.id}
               autoFollow={autoFollow && selected === d.id}
-              onClick={() => { setSelected(d.id); setPanelOpen(true) }}
+              onClick={() => setSelected(d.id)}
             >
               <Popup>
                 {(() => {
@@ -381,163 +365,106 @@ export default function LiveMap() {
       <ClientHeader overlay />
 
 
-      {/* ── Live indicator ── */}
-      <div className="absolute z-20" style={{ top: 72, left: 14 }}>
-        <div
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold"
-          style={{
-            background: wsConnected ? 'rgba(0,217,126,0.92)' : 'rgba(239,68,68,0.92)',
-            color: 'white',
-            backdropFilter: 'blur(16px)',
-            boxShadow: wsConnected
-              ? '0 2px 16px rgba(0,217,126,0.5)'
-              : '0 2px 16px rgba(239,68,68,0.5)',
-          }}
-        >
-          <span
-            className="rounded-full"
-            style={{ width: 6, height: 6, display: 'inline-block',
-              background: wsConnected ? '#38d39f' : '#e46b68',
-              animation: wsConnected ? 'ping 2s ease-out infinite' : 'none' }}
-          />
-           {wsConnected ? t(lang, 'live') : t(lang, 'reconnecting')}
-        </div>
-      </div>
-
-      {/* ── Search bar ── */}
-      <div
-        className="absolute z-20"
-        style={{
-          top: 68,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 'min(300px, calc(100% - 110px))',
-        }}
-      >
-        <div
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl"
-          style={{
-            background: 'rgba(6,12,26,0.94)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(24px)',
-            boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
-          }}
-        >
-          <Search size={13} style={{ color: 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={isAr ? 'اسم الجهاز أو اللوحة...' : 'Nom ou plaque...'}
-            className="flex-1 bg-transparent outline-none text-white"
-            style={{ fontSize: 13, minWidth: 0 }}
-          />
-          {search && (
-            <button onClick={() => setSearch('')} aria-label={isAr ? 'مسح البحث' : 'Effacer'}>
-              <X size={13} style={{ color: 'rgba(255,255,255,0.35)' }} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Status legend (hidden: was covering the map — kept in code, not deleted) ── */}
-      <div className="athar-map-legend" style={{ display: 'none', bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
-        {[
-          { key: 'moving', color: ST_CLR.moving, label: { ar: 'تتحرك', fr: 'En mouvement' } },
-          { key: 'idle', color: ST_CLR.idle, label: { ar: 'خاملة', fr: 'Ralentie' } },
-          { key: 'stopped', color: ST_CLR.stopped, label: { ar: 'متوقفة', fr: 'Arrêtée' } },
-          { key: 'awaiting_gps', color: ST_CLR.awaiting_gps, label: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' } },
-        ].map(item => (
-          <span key={item.key}><i style={{ background: item.color }} />{item.label[lang] || item.label.fr}</span>
-        ))}
-      </div>
-
+      {/* ── Devices launcher ── */}
       <button
         type="button"
-        onClick={locateMe}
-        aria-label={isAr ? 'إعادة التمركز' : 'Recentrer'}
-        title={isAr ? 'إعادة التمركز' : 'Recentrer'}
-        className="athar-map-recenter"
-        style={{ bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }}
-      >
-        <LocateFixed size={17} />
-      </button>
-
-      {/* ── Bottom Panel ── */}
-      <div
-        className="absolute left-0 right-0 z-20"
+        onClick={() => setPanelOpen(value => !value)}
+        aria-expanded={panelOpen}
+        aria-label={isAr ? 'فتح أجهزتي' : 'Ouvrir mes appareils'}
+        className="absolute z-[500] rounded-2xl px-3.5 py-2.5 text-[11px] font-bold text-white"
         style={{
-          bottom: 'var(--athar-client-nav-offset)',
-          height: panelH,
-          transition: 'height 0.35s cubic-bezier(0.4,0,0.2,1)',
-          borderRadius: '22px 22px 0 0',
-          background: 'rgba(5,10,24,0.98)',
-          backdropFilter: 'blur(32px)',
-          borderTop: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: '0 -12px 48px rgba(0,0,0,0.7)',
+          top: 76,
+          left: 14,
+          background: 'rgba(6,12,26,0.92)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(18px)',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
         }}
       >
-        {/* Drag handle */}
+        {isAr ? 'أجهزتي' : 'Mes appareils'}
+      </button>
+
+      {/* ── Search icon first ── */}
+      {!searchOpen && (
         <button
-          className="w-full flex justify-center pt-3 pb-1"
-          onClick={() => setPanelOpen(p => !p)}
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          aria-label={isAr ? 'فتح البحث' : 'Ouvrir la recherche'}
+          title={isAr ? 'بحث' : 'Rechercher'}
+          className="absolute z-[500] flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+          style={{
+            top: 76,
+            right: 14,
+            background: 'rgba(6,12,26,0.92)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(18px)',
+            boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+          }}
         >
-          <div
-            className="rounded-full transition-all duration-300"
+          <Search size={17} />
+        </button>
+      )}
+
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            className="absolute z-[500] flex items-center gap-2.5 rounded-2xl px-4 py-2.5"
             style={{
-              width: panelOpen ? 32 : 40,
-              height: 4,
-              background: 'rgba(255,255,255,0.15)',
+              top: 68,
+              right: 14,
+              width: 'min(300px, calc(100% - 28px))',
+              background: 'rgba(6,12,26,0.94)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(24px)',
+              boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
             }}
-          />
-        </button>
-
-        {/* Panel header */}
-        <button
-          className="w-full flex items-center justify-between px-4 py-2"
-          onClick={() => setPanelOpen(p => !p)}
-          aria-label={isAr ? (panelOpen ? 'إغلاق القائمة' : 'فتح القائمة') : (panelOpen ? 'Fermer' : 'Ouvrir')}
-          aria-expanded={panelOpen}
-        >
-          {/* Status chips */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {[
-              { key: 'moving',  color: '#00D97E', bg: 'rgba(0,217,126,0.12)',  border: 'rgba(0,217,126,0.25)',  label: { ar: 'يتحرك',    fr: 'Mvt'      } },
-              { key: 'idle',    color: '#FF9500', bg: 'rgba(255,149,0,0.12)',  border: 'rgba(255,149,0,0.25)',  label: { ar: 'خامل',     fr: 'Ralenti'  } },
-              { key: 'stopped', color: '#FF3B30', bg: 'rgba(255,59,48,0.12)',  border: 'rgba(255,59,48,0.25)',  label: { ar: 'متوقف',    fr: 'Arrêté'   } },
-              { key: 'awaiting_gps', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)', label: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' } },
-              { key: 'offline', color: '#9ca3af', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.22)', label: { ar: 'غير متصل', fr: 'Hors ligne' } },
-            ].map(({ key, color, bg, border, label }) =>
-              counts[key] > 0 ? (
-                <span
-                  key={key}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
-                  style={{ background: bg, color, border: `1px solid ${border}` }}
-                >
-                  <span className="rounded-full" style={{ width: 6, height: 6, background: color, display: 'inline-block' }} />
-                  {counts[key]} {label[lang] || label.fr}
-                </span>
-              ) : null
-            )}
-          </div>
-
-          <motion.div animate={{ rotate: panelOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
-            <ChevronUp size={16} style={{ color: 'rgba(255,255,255,0.25)' }} />
-          </motion.div>
-        </button>
-
-        {/* Device list */}
-        <AnimatePresence>
-          {panelOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-y-auto px-3"
-              style={{ maxHeight: PANEL_OPEN - 95, paddingBottom: 74 }}
+          >
+            <Search size={13} style={{ color: 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={isAr ? 'اسم الجهاز أو اللوحة...' : 'Nom ou plaque...'}
+              className="min-w-0 flex-1 bg-transparent text-white outline-none"
+              style={{ fontSize: 13 }}
+            />
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setSearchOpen(false) }}
+              aria-label={isAr ? 'إغلاق البحث' : 'Fermer la recherche'}
             >
-              {filtered.length === 0 && (
+              <X size={14} style={{ color: 'rgba(255,255,255,0.55)' }} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Small bounded devices card ── */}
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="absolute z-[500] overflow-y-auto rounded-3xl px-3 py-3"
+            style={{
+              top: 124,
+              left: 14,
+              width: 'min(360px, calc(100% - 28px))',
+              maxHeight: DEVICE_PANEL_MAX_HEIGHT,
+              background: 'rgba(5,10,24,0.96)',
+              backdropFilter: 'blur(32px)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 18px 48px rgba(0,0,0,0.55)',
+            }}
+          >
+        {/* Device list */}
+        {filtered.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <div
                     className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
@@ -629,7 +556,7 @@ export default function LiveMap() {
                                       animation: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? 'ping 2s ease-out infinite' : 'none',
                                     }}
                                   />
-                                  {getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? t(lang, 'live') : t(lang, 'notConnected')}
+                                  {getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? t(lang, 'online') : t(lang, 'notConnected')}
                                 </span>
                               )}
                               {!hasPos && (
@@ -752,7 +679,6 @@ export default function LiveMap() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
 
       <ClientNav />
     </div>

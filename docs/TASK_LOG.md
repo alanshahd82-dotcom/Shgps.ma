@@ -2,6 +2,21 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## LiveMap — only devices launcher and search icon
+
+- Deleted the rendered green Live/reconnecting indicator, the auto-follow control, the hidden status-legend JSX, the recenter control, the drag handle/status-chip bottom-sheet header, and the full-width bottom-sheet container from `src/pages/client/LiveMap.jsx`.
+- Replaced the removed sheet trigger with one small `أجهزتي` / `Mes appareils` button that is the only control that opens the device list. The existing device filtering, selection, route, Google Maps, Waze, popup, marker, and movement logic remain unchanged inside a bounded floating card with `45vh` maximum height and internal scrolling.
+- Changed search from a permanent bar to one magnifier icon. The icon reveals the existing search input and its X closes the input and clears the query. `MapContainer` keeps `zoomControl={false}` and no `<ZoomControl>` remains.
+- Grep proof after the edit: `ZoomControl` = `0`; `aria-pressed={autoFollow}` = `0`; no `athar-map-legend`, `athar-map-recenter`, `Bottom Panel`, `Live indicator`, or `تتبع تلقائي` remains. `setPanelOpen` appears only on the devices launcher handler, and the Live-text grep is empty.
+- Files changed: `src/pages/client/LiveMap.jsx` and this log. MapContainer, MapLayers, FlyTo, FlyToUser, markers, Polyline, Popups, WebSocket/live position updates, engine commands, replay, subscriptions, and ErrorBoundary were not changed.
+
+### Verification
+
+- [x] `npm run build` passes.
+- [x] Largest generated JavaScript asset is below 500 KB (`383.15 KB`).
+- [x] `git diff --check` passes.
+- [x] LiveMap control-removal grep checks pass.
+
 ## LiveMap visual cleanup — cosmetic only
 
 - Fix B — `src/pages/client/LiveMap.jsx:392-393`: moved the existing auto-follow control from the upper-left stack to the upper-right. Its click handler, state, local-storage preference, and map-follow behavior remain unchanged.
