@@ -4,19 +4,15 @@ import { Router } from 'express'
     import * as traccar from '../services/traccar.js'
 import { deviceAccessScope } from '../middleware/deviceAccess.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
+import { extractReportedVoltage, readBatteryLevel } from '../services/vehicleTelemetry.js'
 import { config } from '../config.js'
 
     export const mapRouter = Router()
 
 function readElectricalTelemetry(position) {
-  const attributes = position?.attributes || {}
-  const voltageRaw = attributes.voltage ?? attributes.power
-  const batteryRaw = attributes.batteryLevel ?? attributes.battery
-  const voltageNumber = voltageRaw == null || voltageRaw === '' ? NaN : Number(voltageRaw)
-  const batteryNumber = batteryRaw == null || batteryRaw === '' ? NaN : Number(batteryRaw)
   return {
-    voltage: Number.isFinite(voltageNumber) && voltageNumber > 0 ? voltageNumber : null,
-    batteryLevel: Number.isFinite(batteryNumber) ? batteryNumber : null,
+    voltage: extractReportedVoltage(position),
+    batteryLevel: readBatteryLevel(position),
   }
 }
 
@@ -124,7 +120,9 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
       res.json(rows.map(d => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null
-        const electrical = position ? readElectricalTelemetry(position) : { voltage: null, batteryLevel: null }
+        const electrical = position
+          ? readElectricalTelemetry(position)
+          : { voltage: null, batteryLevel: null }
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
           lat: position?.latitude ?? null, lng: position?.longitude ?? null,

@@ -27,6 +27,7 @@ import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
 import { speedKmh } from './utils/speed.js'
+import { extractReportedVoltage } from './services/vehicleTelemetry.js'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -371,9 +372,7 @@ const wss = new WebSocketServer({ server, path: '/api/socket' })
 const frontendClients = new Set()
 
 function readVehicleVoltage(position) {
-  const raw = position?.attributes?.voltage ?? position?.attributes?.power
-  const voltage = raw == null || raw === '' ? NaN : Number(raw)
-  return Number.isFinite(voltage) && voltage > 0 ? voltage : null
+  return extractReportedVoltage(position)
 }
 
 const POWER_DISCONNECT_GRACE_MS = 90 * 1000
@@ -474,7 +473,7 @@ function observePowerTelemetry(position) {
 
   const key = String(traccarId)
   const now = Date.now()
-  const voltage = readVehicleVoltage(position)
+  const voltage = extractReportedVoltage(position)
   const current = powerTelemetry.get(key) || {
     lastValidAt: null,
     lastValidVoltage: null,

@@ -13,18 +13,14 @@ import {
   syncSubscriptionState,
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
+import { extractReportedVoltage, readBatteryLevel } from '../services/vehicleTelemetry.js'
 
     export const devicesRouter = Router()
 
     function readElectricalTelemetry(position) {
-      const attributes = position?.attributes || {}
-      const voltageRaw = attributes.voltage ?? attributes.power
-      const batteryRaw = attributes.batteryLevel ?? attributes.battery
-      const voltageNumber = voltageRaw == null || voltageRaw === '' ? NaN : Number(voltageRaw)
-      const batteryNumber = batteryRaw == null || batteryRaw === '' ? NaN : Number(batteryRaw)
       return {
-        voltage: Number.isFinite(voltageNumber) && voltageNumber > 0 ? voltageNumber : null,
-        batteryLevel: Number.isFinite(batteryNumber) ? batteryNumber : null,
+        voltage: extractReportedVoltage(position),
+        batteryLevel: readBatteryLevel(position),
       }
     }
 
@@ -188,7 +184,9 @@ import { speedKmh } from '../utils/speed.js'
         const localGeo = geofenceMap[d.id] || null
         const subscription = getSubscriptionSnapshot(d)
         const trackingEnabled = subscription.trackingEnabled
-        const electrical = trackingEnabled ? readElectricalTelemetry(p) : { voltage: null, batteryLevel: null }
+        const electrical = trackingEnabled
+          ? readElectricalTelemetry(p)
+          : { voltage: null, batteryLevel: null }
         return {
           id:        d.id,
           traccarId: d.traccar_id ?? td?.id ?? null,

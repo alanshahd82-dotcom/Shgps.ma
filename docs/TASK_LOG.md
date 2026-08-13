@@ -2,6 +2,19 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## GT06 vehicle-voltage follow-up — raw audit and last-known cache
+
+- The production raw-data audit already recorded on this branch was checked before this change. Traccar device `37` (`bekane`) exposed position/telemetry keys such as `ignition`, `satellite`, and `distance`; it did not expose `voltage`, `power`, `externalPower`, `adc1`, `adc`, `analog1`, `vbat`, `supply`, or a voltage-like `battery` value.
+- Traccar device `70` (`DACIA`) exposed `batteryLevel` as an internal percentage together with signal/status fields such as `rssi`, `alarm`, `charge`, `blocked`, and `ignition`; it did not expose an external-voltage field. The same absence was recorded for the recent stored positions checked in that audit. `batteryLevel` is never treated as volts.
+- The backend now checks the GT06/WanWay voltage candidates in this order: `voltage`, `power`, `externalPower`, `adc1`, `adc`, `analog1`, `vbat`, `supply`. A raw `battery` field is accepted as volts only when it is in the plausible 9–15 V range; otherwise it remains a percentage candidate. Every accepted value must still be finite and greater than zero.
+- The devices REST route, map REST route, and live WebSocket bridge use the same extraction behavior. Engine-cut/RELAY, map position flow, authentication, subscriptions, replay, and database schema were not changed.
+
+### Verification status
+
+- [x] Raw attribute findings and the absence of external voltage are recorded above from the branch's prior production audit.
+- [x] Backend JavaScript syntax checks and `git diff --check` pass.
+- [ ] Live Traccar re-fetch and authenticated end-to-end API response require the deployed Traccar credentials/device connection; those credentials were not present in this development environment.
+
 ## LiveMap — only devices launcher and search icon
 
 - Deleted the rendered green Live/reconnecting indicator, the auto-follow control, the hidden status-legend JSX, the recenter control, the drag handle/status-chip bottom-sheet header, and the full-width bottom-sheet container from `src/pages/client/LiveMap.jsx`.
