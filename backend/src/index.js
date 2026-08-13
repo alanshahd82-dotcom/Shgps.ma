@@ -30,6 +30,7 @@ import { speedKmh } from './utils/speed.js'
 import {
   markVehicleDisconnected,
   detectExternalPowerLoss,
+  isVehicleDisconnected,
   observeVehicleVoltage,
   POWER_SILENCE_WINDOW_MS,
   readVehicleVoltage as readCachedVehicleVoltage,
@@ -760,12 +761,22 @@ async function connectTraccar() {
         if (parsed && Array.isArray(parsed.positions)) {
           const patched = {
             ...parsed,
-            positions: parsed.positions.map(p => ({
-              ...p,
-              speed: Math.round(speedKmh(p.speed)),
-              voltage: readVehicleVoltage(p),
-              powerDisconnected: false,
-            })),
+            positions: parsed.positions.map(p => {
+              // Forward the same explicit power-loss signal that the observer
+              // uses. The alert insert is asynchronous, so waiting for the
+              // database event would leave the live UI briefly showing a
+              // connected vehicle after the last packet already said power
+              // was lost.
+              const powerDisconnected = Boolean(
+                detectExternalPowerLoss(p) || isVehicleDisconnected(p.deviceId),
+              )
+              return {
+                ...p,
+                speed: Math.round(speedKmh(p.speed)),
+                voltage: readVehicleVoltage(p),
+                powerDisconnected,
+              }
+            }),
           }
           try { outMsg = JSON.stringify(patched) } catch {}
         }

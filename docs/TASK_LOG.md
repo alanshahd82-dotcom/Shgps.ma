@@ -2,6 +2,30 @@
 
 This file records the completed work and the current production verification notes.
 
+## Follow-up — forward immediate power-loss state over the live socket
+
+- The backend already detected explicit tracker power-loss attributes, but the
+  Traccar WebSocket bridge replaced every outgoing position with
+  `powerDisconnected: false`. Because the alert insert is asynchronous, the
+  live client could briefly keep a vehicle looking connected after the
+  last packet had already reported a power loss.
+- The bridge now forwards the same explicit `charge:false` / power-loss
+  detection result used by the alert observer, or the confirmed per-device
+  disconnect state after persistence. The client position merger now uses that
+  state to show the device offline immediately; the existing alert event still
+  handles persistence, banners, and notifications.
+- Engine command payloads, Traccar internals, database schema, authentication,
+  subscriptions, maps, and replay behavior were not changed.
+
+### Verification
+
+- [x] `npm run build` passes after the change.
+- [x] Backend `node --check` passes for the changed backend modules.
+- [x] `git diff --check` passes.
+- [ ] Live Traccar telemetry and physical battery-pull verification remain
+  unavailable in this environment because the deployed Traccar URL and device
+  credentials are not present.
+
 ## Follow-up — real immediate power telemetry and command delivery
 
 - Root causes found on `main`: the engine route made an optional Traccar device lookup a hard prerequisite, so a lookup failure stopped the command before `/api/commands/send`; the disconnect observer only watched silence and treated every received packet as a fresh timer reset, so it ignored explicit GT06 power-loss flags and could stay silent forever on repeated stale packets.

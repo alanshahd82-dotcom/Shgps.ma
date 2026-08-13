@@ -101,6 +101,7 @@ export function AppProvider({ children }) {
           const incomingTime = positionTimestamp(pos)
           const currentTime = positionTimestamp(current)
           if (incomingTime !== null && currentTime !== null && incomingTime < currentTime) continue
+          const powerDisconnected = Boolean(pos.powerDisconnected)
           const latitude = Number(pos.latitude ?? pos.lat)
           const longitude = Number(pos.longitude ?? pos.lng)
           updated[idx] = {
@@ -111,14 +112,14 @@ export function AppProvider({ children }) {
             lastUpdate: pos.fixTime ?? current.lastUpdate,
             fixTime:    pos.fixTime ?? current.fixTime,
             course:     pos.course ?? pos.attributes?.course ?? current.course,
-            status:     'online',
+            status:     powerDisconnected ? 'offline' : 'online',
             engineOn:   pos.attributes?.ignition   ?? current.engineOn,
             voltage:   pos.voltage
               ?? pos.attributes?.voltage
               ?? pos.attributes?.power
               ?? current.voltage
               ?? null,
-            powerDisconnected: pos.powerDisconnected ?? false,
+            powerDisconnected,
             signal:     pos.attributes?.rssi       ?? current.signal,
             fuel:       pos.attributes?.fuel       ?? current.fuel,
           }
