@@ -2,6 +2,20 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## LiveMap visual cleanup — cosmetic only
+
+- Fix B — `src/pages/client/LiveMap.jsx:392-393`: moved the existing auto-follow control from the upper-left stack to the upper-right. Its click handler, state, local-storage preference, and map-follow behavior remain unchanged.
+- Fix C — `src/pages/client/LiveMap.jsx:94`: reduced the expanded device-sheet height from `480px` to `380px` so the map remains visible when the sheet is open. The sheet content, device selection, route loading, and navigation actions remain unchanged.
+- Fix D — `src/components/LiveVehicleMarker.jsx:83`: hid only the ambiguous voltage text from the vehicle marker label. Voltage calculation, color selection, marker movement/rotation, and the detailed popup voltage value remain unchanged.
+- These are cosmetic, reversible changes only. The map instance, tile layers, markers, movement smoothing, engine cut/start, replay, subscriptions, settings, WebSocket flow, and ErrorBoundary were not changed.
+
+### Verification
+
+- [x] `npm run build` passed after each of the three fixes.
+- [x] `git diff --check` passes.
+- [x] Existing live map, marker rendering, movement smoothing, engine-cut path, and replay path remain in place.
+- [x] Changes were committed separately per fix and pushed to `origin/main`.
+
 ## Fix engine-cut protocol detection
 
 - Root cause: the engine command route inferred the Traccar protocol from the local vehicle `type`/name fields. Those fields describe the vehicle, not the tracker protocol, so RELAY routing could be selected for the wrong device or skipped for a GT06-family tracker.

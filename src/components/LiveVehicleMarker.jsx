@@ -80,7 +80,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
         <span class="athar-live-label">
           <span class="athar-live-label-status" aria-hidden="true"></span>
           <span>${label}</span>
-           <span class="athar-live-label-voltage" aria-label="${Number.isFinite(voltageValue) && voltageValue > 0 ? `${voltageValue.toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}">${Number.isFinite(voltageValue) && voltageValue > 0 ? `${voltageValue.toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}</span>
+           <span class="athar-live-label-voltage" aria-hidden="true" style="display:none">${Number.isFinite(voltageValue) && voltageValue > 0 ? `${voltageValue.toFixed(1)} V` : (lang === 'ar' ? 'مفصول' : 'Déconnecté')}</span>
         </span>
       </div>
     `,
