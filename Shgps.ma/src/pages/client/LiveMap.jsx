@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X, LocateFixed, Navigation, MapPin, Gauge, Car, ChevronUp, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
-import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
+import { Search, X, LocateFixed, Navigation, MapPin, Gauge, Car, Loader2, Route as RouteIcon, BatteryMedium, Wifi, Zap } from 'lucide-react'
+import { MapContainer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
@@ -90,7 +90,7 @@ function FitTodayRoute({ route }) {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const PANEL_OPEN = 360
+const PANEL_OPEN = 320
 
 const ST_LABEL = {
   moving:  { ar: 'يتحرك',    fr: 'En mouvement' },
@@ -124,11 +124,11 @@ export default function LiveMap() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [search,       setSearch]       = useState('')
+  const [searchOpen,   setSearchOpen]   = useState(false)
   const [selected,     setSelected]     = useState(null)
   const [panelOpen,    setPanelOpen]    = useState(false)
   const [userPos,      setUserPos]      = useState(null)
   const [locateTarget, setLocateTarget] = useState(null)
-  const [autoFollow, setAutoFollow] = useState(() => localStorage.getItem('athargps_auto_follow') !== 'false')
   const [clock, setClock] = useState(() => Date.now())
   const [todayRoute, setTodayRoute] = useState([])
   const [routeLoading, setRouteLoading] = useState(false)
@@ -136,10 +136,6 @@ export default function LiveMap() {
   const routeRequestRef = useRef(0)
   const isAr = lang === 'ar'
   const requestedDeviceId = searchParams.get('device')
-  useEffect(() => {
-    localStorage.setItem('athargps_auto_follow', String(autoFollow))
-  }, [autoFollow])
-
   useEffect(() => {
     const id = window.setInterval(() => setClock(Date.now()), 1000)
     return () => window.clearInterval(id)
@@ -252,18 +248,6 @@ export default function LiveMap() {
     }
   }
 
-  // Status summary counts
-  const counts = useMemo(() => {
-    const all = devices.filter(d => d.trackingEnabled !== false)
-    return {
-      moving:  all.filter(d => getDeviceStatusKey(d) === 'moving').length,
-      idle:    all.filter(d => getDeviceStatusKey(d) === 'idle').length,
-      stopped: all.filter(d => getDeviceStatusKey(d) === 'stopped').length,
-      awaiting_gps: all.filter(d => getDeviceStatusKey(d) === 'awaiting_gps').length,
-      offline: all.filter(d => getDeviceStatusKey(d) === 'offline').length,
-    }
-  }, [devices])
-
   function openMaps(type, device) {
     const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
     const lng = toCoord(device.lng) ?? toCoord(device.last_lng)
@@ -313,8 +297,7 @@ export default function LiveMap() {
               key={d.id}
               device={{ ...d, lang }}
               isSelected={selected === d.id}
-              autoFollow={autoFollow && selected === d.id}
-              onClick={() => { setSelected(d.id); setPanelOpen(true) }}
+              onClick={() => setSelected(d.id)}
             >
               <Popup>
                 {(() => {
@@ -373,34 +356,11 @@ export default function LiveMap() {
            )}
           {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
           <FlyToUser target={locateTarget} />
-          <ZoomControl position="bottomright" />
         </MapContainer>
         <div className="athar-map-vignette" aria-hidden="true" />
       </div>
 
       <ClientHeader overlay />
-
-      <button
-        type="button"
-        onClick={() => setAutoFollow(value => !value)}
-        aria-pressed={autoFollow}
-        aria-label={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
-        title={isAr ? 'التتبع التلقائي' : 'Suivi automatique'}
-        className="absolute z-[500] flex items-center gap-1.5 rounded-2xl p-2.5 text-[11px] font-bold"
-        style={{
-          top: 116,
-           left: 'auto',
-           right: 14,
-          background: 'rgba(6,12,26,0.92)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          backdropFilter: 'blur(18px)',
-          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
-          color: autoFollow ? '#7ff3bf' : 'rgba(255,255,255,0.62)',
-        }}
-      >
-        <LocateFixed size={14} />
-        <span>{t(lang, 'autoFollow')}</span>
-      </button>
 
       {/* ── Live indicator ── */}
       <div className="absolute z-20" style={{ top: 72, left: 14 }}>
@@ -425,26 +385,31 @@ export default function LiveMap() {
         </div>
       </div>
 
-      {/* ── Search bar ── */}
-      <div
-        className="absolute z-20"
-        style={{
-          top: 68,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 'min(300px, calc(100% - 110px))',
-        }}
-      >
+      {/* ── Search: icon first, field on demand ── */}
+      {!searchOpen ? (
+        <button
+          type="button"
+          className="athar-map-search-trigger"
+          onClick={() => setSearchOpen(true)}
+          aria-label={isAr ? 'فتح البحث' : 'Ouvrir la recherche'}
+          title={isAr ? 'بحث' : 'Rechercher'}
+        >
+          <Search size={18} />
+        </button>
+      ) : (
         <div
-          className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl"
+          className="absolute z-[500] flex items-center gap-2.5 rounded-2xl px-3 py-2.5"
           style={{
-            background: 'rgba(6,12,26,0.94)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(24px)',
-            boxShadow: '0 6px 28px rgba(0,0,0,0.45)',
+            top: 68,
+            left: 14,
+            right: 14,
+            background: 'rgba(14,32,53,0.96)',
+            border: '1px solid rgba(56,211,159,0.35)',
+            boxShadow: '0 8px 28px rgba(0,0,0,0.4)',
+            backdropFilter: 'blur(20px)',
           }}
         >
-          <Search size={13} style={{ color: 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
+          <Search size={16} style={{ color: '#38d39f', flexShrink: 0 }} />
           <input
             type="text"
             value={search}
@@ -452,14 +417,17 @@ export default function LiveMap() {
             placeholder={isAr ? 'اسم الجهاز أو اللوحة...' : 'Nom ou plaque...'}
             className="flex-1 bg-transparent outline-none text-white"
             style={{ fontSize: 13, minWidth: 0 }}
+            autoFocus
           />
-          {search && (
-            <button onClick={() => setSearch('')} aria-label={isAr ? 'مسح البحث' : 'Effacer'}>
-              <X size={13} style={{ color: 'rgba(255,255,255,0.35)' }} />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => { setSearch(''); setSearchOpen(false) }}
+            aria-label={isAr ? 'إغلاق البحث' : 'Fermer la recherche'}
+          >
+            <X size={16} style={{ color: 'rgba(255,255,255,0.58)' }} />
+          </button>
         </div>
-      </div>
+      )}
 
       {/* ── Status legend (hidden: was covering the map — kept in code, not deleted) ── */}
       <div className="athar-map-legend" style={{ display: 'none', bottom: `calc(${panelH}px + var(--athar-client-nav-offset) + 14px)` }} aria-label={isAr ? 'مفتاح الحالات' : 'Légende des statuts'}>
@@ -495,15 +463,9 @@ export default function LiveMap() {
       >
         <Car size={16} aria-hidden="true" />
         <span>{isAr ? 'أجهزتي' : 'Mes appareils'}</span>
-        <span className="athar-devices-count">{filtered.length}</span>
-        <ChevronUp
-          size={14}
-          aria-hidden="true"
-          style={{ transform: panelOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s ease' }}
-        />
       </button>
 
-      {/* ── Floating device panel ── */}
+      {/* ── Devices only: compact popover, never a full-width bottom sheet ── */}
       <div
         className="absolute left-3 right-3 z-40 overflow-hidden"
         role="dialog"
@@ -512,63 +474,28 @@ export default function LiveMap() {
         style={{
           display: panelOpen ? 'block' : 'none',
           bottom: 'calc(var(--athar-client-nav-offset) + 64px)',
-          height: PANEL_OPEN,
-          maxHeight: 'calc(100dvh - 180px)',
+          height: `min(${PANEL_OPEN}px, 42dvh)`,
           borderRadius: 24,
-          background: 'rgba(5,10,24,0.96)',
-          backdropFilter: 'blur(28px)',
+          background: 'rgba(14,32,53,0.94)',
+          backdropFilter: 'blur(22px)',
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 18px 48px rgba(0,0,0,0.42)',
         }}
       >
-        {/* Drag handle */}
-        <button
-          className="w-full flex justify-center pt-3 pb-1"
-          onClick={() => setPanelOpen(p => !p)}
-        >
-          <div
-            className="rounded-full transition-all duration-300"
-            style={{
-              width: panelOpen ? 32 : 40,
-              height: 4,
-              background: 'rgba(255,255,255,0.15)',
-            }}
-          />
-        </button>
-
-        {/* Panel header */}
-        <button
-          className="w-full flex items-center justify-between px-4 py-2"
-          onClick={() => setPanelOpen(p => !p)}
-          aria-label={isAr ? (panelOpen ? 'إغلاق القائمة' : 'فتح القائمة') : (panelOpen ? 'Fermer' : 'Ouvrir')}
-          aria-expanded={panelOpen}
-        >
-          {/* Status chips */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {[
-              { key: 'moving',  color: '#00D97E', bg: 'rgba(0,217,126,0.12)',  border: 'rgba(0,217,126,0.25)',  label: { ar: 'يتحرك',    fr: 'Mvt'      } },
-              { key: 'idle',    color: '#FF9500', bg: 'rgba(255,149,0,0.12)',  border: 'rgba(255,149,0,0.25)',  label: { ar: 'خامل',     fr: 'Ralenti'  } },
-              { key: 'stopped', color: '#FF3B30', bg: 'rgba(255,59,48,0.12)',  border: 'rgba(255,59,48,0.25)',  label: { ar: 'متوقف',    fr: 'Arrêté'   } },
-              { key: 'awaiting_gps', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)', label: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' } },
-              { key: 'offline', color: '#9ca3af', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.22)', label: { ar: 'غير متصل', fr: 'Hors ligne' } },
-            ].map(({ key, color, bg, border, label }) =>
-              counts[key] > 0 ? (
-                <span
-                  key={key}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
-                  style={{ background: bg, color, border: `1px solid ${border}` }}
-                >
-                  <span className="rounded-full" style={{ width: 6, height: 6, background: color, display: 'inline-block' }} />
-                  {counts[key]} {label[lang] || label.fr}
-                </span>
-              ) : null
-            )}
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3" dir={isAr ? 'rtl' : 'ltr'}>
+          <div className="flex items-center gap-2">
+            <Car size={16} style={{ color: '#38d39f' }} />
+            <strong className="text-sm text-white">{isAr ? 'أجهزتي' : 'Mes appareils'}</strong>
           </div>
-
-          <motion.div animate={{ rotate: panelOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
-            <ChevronUp size={16} style={{ color: 'rgba(255,255,255,0.25)' }} />
-          </motion.div>
-        </button>
+          <button
+            type="button"
+            onClick={() => setPanelOpen(false)}
+            aria-label={isAr ? 'إغلاق الأجهزة' : 'Fermer les appareils'}
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
         {/* Device list */}
         <AnimatePresence>
@@ -579,7 +506,7 @@ export default function LiveMap() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="overflow-y-auto px-3"
-              style={{ maxHeight: PANEL_OPEN - 95, paddingBottom: 20 }}
+              style={{ height: 'calc(100% - 58px)', paddingBottom: 12 }}
             >
               {filtered.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-center">

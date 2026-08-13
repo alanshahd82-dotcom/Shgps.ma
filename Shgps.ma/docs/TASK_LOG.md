@@ -2,6 +2,20 @@
 
 This file records the completed replay-related work and the current import audit fix.
 
+## LiveMap controls simplified per mobile review
+
+- Removed the persistent bottom sheet completely from the closed map state. The only device control now visible is the small `أجهزتي` / `Mes appareils` launcher.
+- The launcher opens only a compact devices popover with the device list and close action; status summary chips, drag handle, and full-width sheet treatment were removed.
+- Replaced the always-visible search card with a search icon. The input field appears only after pressing the icon and can be closed with `X`.
+- Removed the auto-follow control and Leaflet plus/minus zoom controls from the live-map overlay. Native map gestures remain available.
+- Marker clicks select a vehicle without unexpectedly opening the device popover. Existing device selection, route actions, live movement, engine commands, replay, subscriptions, and WebSocket behavior remain unchanged.
+
+### Verification
+
+- [x] `npm run build` passes after the control simplification.
+- [x] `git diff --check` passes.
+- [x] No `ZoomControl`, auto-follow control, or persistent search card remains in `LiveMap.jsx`.
+
 ## LiveMap mobile device launcher cleanup
 
 - Removed the persistent full-width black device strip from the default live-map view. The device list is now hidden until requested.
