@@ -1,0 +1,100 @@
+═══════════════════════════════════════════════════════════
+TASK: REVERT UNWANTED COMMIT + SECURITY HARDENING (strict order, surgical)
+═══════════════════════════════════════════════════════════
+
+🔴 MANDATORY FIRST: re-read docs/AI_CONTEXT.md + docs/TASK_LOG.md fully.
+You have lived through every fix on this project (Relay engine commands,
+battery alerts, serverTime unification, Traccar silence verification).
+Work ONLY on the REAL repo: https://github.com/alanshahd82-dotcom/Shgps.ma
+(branch main). Use the GITHUB_TOKEN secret (GIT_ASKPASS). NEVER print it.
+
+🚨 GOLDEN RULE — DO NOT BREAK ANYTHING.
+The admin/owner account LINKS and MANAGES devices across user accounts
+(e.g., devices owned by user "mustapha" are managed by the admin).
+So the ownership guard MUST allow: device owner OR administrator.
+Inspect how auth + roles work BEFORE writing the guard. Do not assume.
+
+💰 BUDGET PROTECTION:
+  • DO NOT run/test Docker locally (impossible here, certs are prod-only).
+  • ONLY: node --check + npm-based build + git diff --check, THEN commit +
+    fetch/rebase + push to origin/main, THEN PRINT `git log origin/main
+    --oneline -4` to PROVE the push. Push EARLY.
+  • The owner deploys & verifies live on the real server.
+
+─────────────────────────────────────────────────────────────
+CONTEXT — WHY THIS TASK EXISTS
+─────────────────────────────────────────────────────────────
+Production currently runs commit b8136a17 and the owner is HAPPY with it.
+Two later commits landed on origin/main that the owner does NOT want deployed:
+  • 5afe685f "fix: stop claiming unverified engine and battery states"
+      → changes UI/API behavior ("غير مؤكد / pending confirmation") AND
+        bundled an ownership fix. REJECTED — must be removed from main.
+  • beb0561f "chore: sync pnpm lockfile overrides"
+      → pnpm-lock.yaml only, ZERO runtime impact. KEEP it (reverting causes
+        tooling churn). The server never reads it (Docker uses npm; frontend
+        builds with --no-frozen-lockfile).
+
+GOAL: make origin/main behaviorally IDENTICAL to b8136a17, plus ONLY a clean
+security guard added on top. Nothing else may differ.
+
+─────────────────────────────────────────────────────────────
+STEP 0 — REVERT THE REJECTED COMMIT (do this FIRST)
+─────────────────────────────────────────────────────────────
+  • git revert --no-edit 5afe685f
+  • This removes the unverified/pending-confirmation behavior AND the
+    ownership fix bundled inside it (we re-add the guard properly in STEP 2).
+  • DO NOT revert beb0561f.
+  • Push the revert commit immediately.
+
+─────────────────────────────────────────────────────────────
+STEP 1 — INSPECT auth/roles BEFORE writing anything
+─────────────────────────────────────────────────────────────
+  • How does login/auth work? Is there an admin role/flag/field?
+  • Confirm how the admin manages devices across accounts.
+  • Decide the exact condition for "is owner or admin".
+
+─────────────────────────────────────────────────────────────
+STEP 2 — SURGICAL SECURITY FIX (guards only, no behavior change)
+─────────────────────────────────────────────────────────────
+  • Add/verify middleware requireDeviceOwner:
+      - load device by req.params.id; if not found → 404 { error: 'Device not found' }
+      - if device.user_id === req.user.id OR req.user is admin → next()
+      - else → 403 { error: 'Forbidden' }
+  • Apply it (after confirming the real route names) to:
+      - PATCH /devices/:id/info (or equivalent update route)
+      - DELETE /devices/:id
+      - POST /devices/:id/commands (engine/relay commands)
+      - any other route that MUTATES a specific device (audit the file, list them)
+  • DO NOT apply to read-only / share-link routes (inspect sharing first).
+  • DO NOT change response shapes for successful requests.
+  • DO NOT touch DB schema, auth login, WebSocket contracts, Traccar
+    integration, power-alert logic, engine cooldown, or Relay format.
+
+─────────────────────────────────────────────────────────────
+STEP 3 — PROOF (paste ALL results — do not claim success without)
+─────────────────────────────────────────────────────────────
+  [ ] owner updates own device → 200
+  [ ] non-admin user updates another user's device → 403
+  [ ] admin updates any device → 200
+  [ ] non-owner sends engine command to another user's device → 403
+  [ ] existing admin device-linking flow still works
+  [ ] sharing/view links (if any) still work
+  [ ] PRINT: git diff b8136a17..HEAD --stat
+        → It MUST show ONLY pnpm-lock.yaml + security files
+          (routes/devices.js and/or the middleware file).
+        → If ANY UI / unverified-state / telemetry file appears → STOP and
+          fix before pushing. This is the owner's safety certificate.
+
+─────────────────────────────────────────────────────────────
+DELIVERY
+─────────────────────────────────────────────────────────────
+  • node --check on changed files + npm-based build (use `npm ci` for the
+    real app; do NOT rely on pnpm --frozen-lockfile) + git diff --check
+  • commit + fetch/rebase + push to origin/main (NEVER force)
+  • PRINT `git log origin/main --oneline -4`
+  • Update docs/TASK_LOG.md: revert of 5afe685f done, routes guarded,
+    admin exception explained, proof results, files changed.
+
+If anything is uncertain or the diff shows unexpected files, STOP and report
+plainly — never fabricate success.
+═══════════════════════════════════════════════════════════
