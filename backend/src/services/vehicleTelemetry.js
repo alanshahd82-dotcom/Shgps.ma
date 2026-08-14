@@ -125,10 +125,10 @@ export function reducePowerTelemetryState(current, {
       : Math.max(next.lastPositionAt, observedAt)
   }
 
-  const wasDisconnectedBySilence = next.disconnectTrigger === 'silence'
   const confirmedRestore = next.disconnected
+    && isNewTelemetry
     && !powerLossSignal
-    && (wasDisconnectedBySilence || Boolean(powerRestoredSignal))
+    && (Boolean(powerRestoredSignal) || next.disconnectTrigger === 'silence' || next.disconnectTrigger === 'telemetry')
 
   if (confirmedRestore) {
     next.disconnected = false

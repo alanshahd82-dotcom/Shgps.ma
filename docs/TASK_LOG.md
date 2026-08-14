@@ -1078,3 +1078,33 @@ disconnected even after the battery was re-connected.
 - Docker is unavailable in this Repl; the external production container was not
   rebuilt or proven to contain this commit. Local backend start is also blocked
   by the clone's absent `backend/node_modules` (`dotenv` unavailable).
+
+## Central telemetry-path audit — generic device coverage
+
+| Surface | Central path | Audit result |
+|---|---|---|
+| Tracker input | Traccar WebSocket bridge plus the existing device-position refresh | PASS — every received position enters the same `observePowerTelemetry()` path |
+| Power-loss detection | `detectExternalPowerLoss()` and `reducePowerTelemetryState()` | PASS — `charge:false` noise is ignored; explicit loss flags and complete silence are the only loss sources |
+| Restore detection | `detectExternalPowerRestored()` plus the reducer transition guard | PASS — one new packet restores a confirmed episode even when the packet omits `charge:true`; duplicate packets do not repeat it |
+| Voltage | `extractReportedVoltage()` → per-device cache → REST/map/WebSocket payloads | PASS — `batteryLevel` remains a percentage and cannot overwrite a real voltage; omitted readings preserve the last value |
+| Device identity | Traccar/device IDs used as runtime map keys | PASS — no hardcoded IMEI, Traccar ID, vehicle name, or customer name was found in `backend/src` or `src`; IMEI handling is limited to generic onboarding and lookup |
+| New-device onboarding | `DeviceSetup` → device routes → shared telemetry/status paths | PASS by source audit — no device-specific registration or alert branch is required |
+| Status | shared `getDeviceStatusKey()` and server position state | PASS — fresh zero-speed positions remain `stopped`; only stale/missing positions become `offline` |
+| Live delivery | WebSocket first, fallback polling every 5 seconds | PASS — polling is bounded and gentle; it is not the primary update path |
+| API freshness | central `/api` no-store headers, with map-tile cache exception | PASS locally — live API responses are marked `no-store`; tile routes retain long-lived public caching |
+
+### Final verification for the current patch
+
+- [x] Dependencies installed from the repository lockfile context; no dependency
+  files were changed.
+- [x] Frontend production build passes.
+- [x] Backend JavaScript syntax checks pass.
+- [x] `git diff --check` passes.
+- [x] Four-part reducer simulation passes: charge jitter stays quiet, explicit
+  loss transitions once, repeated loss stays in one episode, and a packet
+  without `charge:true` restores once.
+- [x] Last-voltage cache simulation passes after an omitted-voltage packet.
+- [x] End-to-end Traccar-to-browser latency: not measured in this environment
+  because no live device/WebSocket production session was available.
+- [x] Physical battery pull/restore and relay movement: not run; requires the
+  real tracker and vehicle.

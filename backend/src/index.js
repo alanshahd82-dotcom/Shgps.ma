@@ -340,6 +340,17 @@ app.use((_req, res, next) => {
   next()
 })
 
+// Live API responses must never be served from a browser or reverse-proxy
+// cache. Map tiles set their own long-lived cache policy in map.js.
+app.use('/api', (req, res, next) => {
+  if (!req.path.startsWith('/map/tiles/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+  }
+  next()
+})
+
 app.use(express.json({ limit: '1mb' }))
 
 app.use('/api/auth',        authRouter)

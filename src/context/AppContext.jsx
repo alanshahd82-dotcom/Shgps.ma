@@ -488,7 +488,9 @@ export function AppProvider({ children }) {
       } catch {}
     }
     poll()
-    wsPollingRef.current = window.setInterval(poll, 15000)
+    // WebSocket is the primary live path; keep the fallback gentle for the
+    // small production server while avoiding a 15-second stale UI window.
+    wsPollingRef.current = window.setInterval(poll, 5000)
   }
 
   function stopFallbackPolling() {
