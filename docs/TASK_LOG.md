@@ -2,6 +2,24 @@
 
 This file records the completed work and the current production verification notes.
 
+## Unified device telemetry logic — idle packets are not power loss
+
+All devices now use the same independent axes:
+
+- **Connection:** a recent `serverTime` means the tracker is online; complete
+  absence of packets beyond the five-minute silence window is offline.
+- **Power:** an explicit loss signal (`externalPower:false`, `powerCut:true`,
+  or `powerLost:true`) or complete silence may create a disconnect episode.
+  Missing or fluctuating `charge` is never a loss signal.
+- **Engine:** ignition and relay commands remain separate from power alerts.
+- **Movement:** speed/ignition status is evaluated independently of power state.
+
+The telemetry observer now records `serverTime` before `deviceTime` and stale
+GPS `fixTime`. This prevents idle devices that send keep-alive packets without
+`charge` or `externalPower` fields from reaching the silence alert timer. Such
+packets remain online, retain the last reported voltage, and render as stopped
+when their speed is zero.
+
 ## Relay echo suppression — explicit engine command cooldown
 
 The real repository now records the timestamp of every successful engine

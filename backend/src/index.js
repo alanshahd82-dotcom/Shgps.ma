@@ -498,14 +498,14 @@ async function loadPersistedPowerStates() {
 }
 
 function positionTimestamp(position, fallback) {
-  // Prefer fixTime for alarm/event correlation.  Fall back to serverTime so
-  // that idle devices with a stale GPS lock still update lastPositionAt when
-  // they send keep-alive packets (prevents false silence timeouts for those
-  // devices, e.g. "bekane" which sends motion/adc1 but no ignition/charge).
+  // serverTime is the receipt time and is the only timestamp that proves the
+  // tracker sent a packet recently. fixTime can remain unchanged for hours on
+  // idle/no-GPS devices such as bekane, so choosing it first creates a false
+  // silence timeout even while keep-alive packets continue to arrive.
   const candidates = [
-    position?.fixTime ?? position?.lastUpdate ?? position?.last_update,
     position?.serverTime,
     position?.deviceTime,
+    position?.fixTime ?? position?.lastUpdate ?? position?.last_update,
   ]
   for (const raw of candidates) {
     if (!raw) continue
