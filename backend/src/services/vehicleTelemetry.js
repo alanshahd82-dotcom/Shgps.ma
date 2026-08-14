@@ -128,7 +128,10 @@ export function reducePowerTelemetryState(current, {
   const confirmedRestore = next.disconnected
     && isNewTelemetry
     && !powerLossSignal
-    && (Boolean(powerRestoredSignal) || next.disconnectTrigger === 'silence' || next.disconnectTrigger === 'telemetry')
+    // A telemetry-triggered episode stays disconnected until the tracker
+    // sends an affirmative restore signal. Missing/fluctuating charge fields
+    // are common on sleeping GT06 devices and must not reopen the episode.
+    && (Boolean(powerRestoredSignal) || next.disconnectTrigger === 'silence')
 
   if (confirmedRestore) {
     next.disconnected = false

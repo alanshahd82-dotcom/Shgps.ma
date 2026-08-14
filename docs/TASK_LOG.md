@@ -1504,8 +1504,9 @@ Added an isolated, namespaced system under `src/design-system/`:
   token while inactive destinations use the design-system muted text token.
 - The More sheet now exposes every client route that is not a primary
   destination: subscriptions, reports, driver behavior, maintenance,
-  geofences, device onboarding, help, settings, and logout. No feature or
-  route was removed.
+  geofences, help, settings, and logout. The legacy device-wizard route
+  remains available for old deep links, but its client navigation entry was
+  intentionally removed in the battery-alert hardening follow-up below.
 - Vehicle detail routes are represented as part of the Vehicles destination, so
   `/client/device/:id` never leaves the user without an active primary tab.
 - The sheet and its action cards now consume the additive Phase-0 design-system
@@ -1519,7 +1520,7 @@ Added an isolated, namespaced system under `src/design-system/`:
 | Vehicle search, filters, status, battery/voltage, last update, and selection | `المركبات` → `/client/devices` | `/client/device/:id` for full details and actions |
 | Vehicle status, speed, bearing, marker, current position, and today's route on demand | `الخريطة` → `/client/map` | Vehicle detail can open the same live-map flow |
 | Alerts, unread count, read state, and power/connection notices | `التنبيهات` → `/client/alerts` | Header notification action remains a shortcut to the same route |
-| Subscription dates, renewal actions, reports, replay, driver behavior, maintenance, geofences, onboarding, help, and settings | `المزيد` sheet | Each item keeps its existing route and existing page-level behavior |
+| Subscription dates, renewal actions, reports, replay, driver behavior, maintenance, geofences, help, and settings | `المزيد` sheet | Each item keeps its existing route and existing page-level behavior |
 | Name, driver, phone, plate, vehicle type, IMEI, signal, speed, voltage, last update, sharing, engine control, trips, and replay | Vehicle detail → `/client/device/:id` | Technical identifiers remain inside the existing detail surface, not the primary bar |
 | IMEI, device ID, SIM, raw coordinates, protocol, and device internals | Existing device detail information surface | These remain secondary/technical information and are not promoted into navigation |
 
@@ -1533,7 +1534,7 @@ Added an isolated, namespaced system under `src/design-system/`:
 | Loading, empty, error, offline, and last-updated behavior | PRESERVED | No page data/state handlers were changed; existing page/shared state helpers remain in place |
 | Login, logout, and password flows | PRESERVED | No auth, guard, session, or logout API code changed |
 | Engine cut/resume and RELAY delivery | PRESERVED | No backend, API, device command, or business-logic file changed |
-| Power alerts, quiet idle, internal-battery label, voltage, speed, live updates, and device isolation | PRESERVED | No telemetry, context, map-data, WebSocket, or backend file changed |
+| Power alerts, quiet idle, internal-battery label, voltage, speed, live updates, and device isolation | PRESERVED at Phase 1 baseline | Battery-alert hardening is documented in the follow-up section below |
 | Arabic map labels, vehicle markers, and RTL/LTR behavior | PRESERVED | Navigation labels use translations; direction and map components remain unchanged |
 
 ### Files changed and verification scope
@@ -1543,3 +1544,56 @@ Added an isolated, namespaced system under `src/design-system/`:
 - Live production checks, physical relay/battery tests, Docker, TLS, and
   nginx tests were not run in this environment. The owner must verify the
   deployed server after the push.
+
+## Battery disconnect alert hardening and client wizard cleanup
+
+### Root cause
+
+`reducePowerTelemetryState` treated any new telemetry packet without a
+`powerLossSignal` as a confirmed restore when the disconnect episode had been
+triggered by telemetry. GT06 devices can omit or fluctuate `charge` while
+remaining on internal battery, so the reducer cleared `disconnected` between
+packets. The next loss packet then looked like a new episode and could create a
+duplicate disconnect alert.
+
+### Fix
+
+- A telemetry-triggered disconnect episode now remains `disconnected` until an
+  affirmative restore signal is present (`charge:true`, `externalPower:true`,
+  an explicit restore alarm, or an explicit loss-field false value already
+  recognized by the detector).
+- Silence-triggered recovery retains its existing behavior: a new telemetry
+  packet after the complete silence window can confirm the restore.
+- The per-device `disconnected` and `alerting` guards remain in the existing
+  in-memory map and `device_power_states` persistence path. A duplicate packet
+  or an async race cannot create a second alert while the episode is active.
+- The client `/client/device-wizard` route and page remain for legacy deep links;
+  only its entry in `MORE_NAV` was removed. The admin device setup route and
+  linking logic were not changed.
+
+### Local reducer simulation
+
+The six requested scenarios were simulated locally with the same reducer and
+state transitions used by the observer. An immediate disconnect transition was
+marked persisted (`disconnected=true`) in the harness to model the async alert
+write before subsequent packets arrive.
+
+| Scenario | Expected | Result |
+|---|---|---|
+| Connected and idle, then explicit disconnect | One disconnect alert | PASS |
+| Repeated idle packets without restore | Zero additional alerts | PASS |
+| `charge` fluctuation or omission while disconnected | Zero additional alerts | PASS |
+| Confirmed restore | One restore alert and clear episode flag | PASS |
+| New disconnect after confirmed restore | One new disconnect alert | PASS |
+| Connected and continuously idle | Zero alerts | PASS |
+
+### Regression verification
+
+| Check | Result |
+|---|---|
+| `npm run build` after reducer change | PASS |
+| `npm run build` after client navigation cleanup | PASS |
+| `node --check backend/src/index.js` | PASS |
+| `node --check backend/src/services/vehicleTelemetry.js` | PASS |
+| `git diff --check` | PASS |
+| Docker, TLS/nginx, physical battery pull/restore, and live GPS/WebSocket device test | NOT RUN — unavailable locally |

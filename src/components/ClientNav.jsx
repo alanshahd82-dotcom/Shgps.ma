@@ -14,7 +14,6 @@ import {
   Wrench,
   MapPinned,
   CircleHelp,
-  Plus,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
@@ -33,7 +32,6 @@ const MORE_NAV = [
   { path: '/client/driver-behavior',  icon: Gauge,      labelKey: 'driver_behavior' },
   { path: '/client/maintenance',      icon: Wrench,     labelKey: 'maintenance' },
   { path: '/client/geofences',        icon: MapPinned,  labelKey: 'geofencesPage' },
-  { path: '/client/device-wizard',    icon: Plus,       labelKey: 'deviceWizard' },
   { path: '/client/help',             icon: CircleHelp, labelKey: 'help' },
   { path: '/client/settings',         icon: Settings,   labelKey: 'settings' },
 ]
