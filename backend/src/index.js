@@ -36,6 +36,7 @@ import {
   isVehicleDisconnected,
   observeVehicleVoltage,
   POWER_SILENCE_WINDOW_MS,
+  isPowerAlertSuppressed,
   readVehicleVoltage as readCachedVehicleVoltage,
 } from './services/vehicleTelemetry.js'
 
@@ -729,8 +730,9 @@ function observePowerTelemetry(position) {
     alerting: false,
   }
   const signature = positionSignature(position)
-  const powerLossSignal = detectExternalPowerLoss(position)
-  const powerRestoredSignal = detectExternalPowerRestored(position)
+  const powerAlertSuppressed = isPowerAlertSuppressed(traccarId, now)
+  const powerLossSignal = powerAlertSuppressed ? null : detectExternalPowerLoss(position)
+  const powerRestoredSignal = powerAlertSuppressed ? null : detectExternalPowerRestored(position)
   const transition = reducePowerTelemetryState(current, {
     signature,
     observedAt: positionTimestamp(position, now),
@@ -747,7 +749,7 @@ function observePowerTelemetry(position) {
     powerTelemetry.set(key, next)
     markVehicleConnected(traccarId)
     void persistPowerConnected(traccarId)
-    void createPowerRestoredAlert(traccarId)
+    if (!powerAlertSuppressed) void createPowerRestoredAlert(traccarId)
     // Fall through to process this healthy position normally (voltage cache, silence timer).
   }
 

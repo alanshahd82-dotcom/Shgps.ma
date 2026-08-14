@@ -12,6 +12,11 @@ const VOLTAGE_ATTRIBUTE_KEYS = [
 // The backend and frontend use the same silence window for a confirmed
 // power-disconnect episode. A missing voltage field by itself never starts it.
 export const POWER_SILENCE_WINDOW_MS = 5 * 60 * 1000
+// Relay commands can make some trackers echo an external-power-low attribute
+// even though the vehicle battery is still connected. Suppress only the
+// resulting power alert briefly; normal telemetry and device state continue.
+export const ENGINE_COMMAND_POWER_SUPPRESSION_MS = 45 * 1000
+const powerAlertSuppressionUntil = new Map()
 
 function isFalseLike(raw) {
   if (raw === false || raw === 0) return true
@@ -28,6 +33,31 @@ function isLossLike(raw) {
   if (raw === true || raw === 1) return true
   if (typeof raw !== 'string') return false
   return /^(?:true|1|yes|lost|cut|off|disconnected?)$/i.test(raw.trim())
+}
+
+function cacheKey(deviceId) {
+  return deviceId == null ? null : String(deviceId)
+}
+
+export function suppressPowerAlerts(deviceId, durationMs = ENGINE_COMMAND_POWER_SUPPRESSION_MS, now = Date.now()) {
+  const key = cacheKey(deviceId)
+  if (!key) return
+  const duration = Number(durationMs)
+  if (!Number.isFinite(duration) || duration <= 0) return
+  const existingUntil = powerAlertSuppressionUntil.get(key) || 0
+  powerAlertSuppressionUntil.set(key, Math.max(existingUntil, now + duration))
+}
+
+export function isPowerAlertSuppressed(deviceId, now = Date.now()) {
+  const key = cacheKey(deviceId)
+  if (!key) return false
+  const suppressedUntil = powerAlertSuppressionUntil.get(key)
+  if (!suppressedUntil) return false
+  if (now >= suppressedUntil) {
+    powerAlertSuppressionUntil.delete(key)
+    return false
+  }
+  return true
 }
 
 const POWER_LOSS_ALARM_PATTERN = /^(?:power[_ -]?(?:cut|lost|off|disconnect(?:ed)?|failure)|external[_ -]?power(?:[_ -]?(?:cut|lost|off|disconnect(?:ed)?))?|charge[_ -]?(?:off|lost|disconnect(?:ed)?))$/i
@@ -207,10 +237,6 @@ export function readBatteryLevel(position) {
   )
   const value = raw == null || raw === '' ? NaN : Number(raw)
   return Number.isFinite(value) && value >= 0 && value <= 100 ? value : null
-}
-
-function cacheKey(deviceId) {
-  return deviceId == null ? null : String(deviceId)
 }
 
 function rememberVoltage(deviceId, voltage, now = Date.now()) {

@@ -1656,3 +1656,49 @@ write before subsequent packets arrive.
 | إزالة زر "معالج الإضافات" | ✅ مكتمل من الجلسة السابقة |
 | حارس التكرار (episode guard) | ✅ موجود من الجلسة السابقة |
 | Docker / TLS / nginx / اختبار حي | غير متاح في هذه البيئة |
+
+## منع تنبيه فصل التغذية الكاذب بعد أمر Relay
+
+### الجذر الدقيق
+
+- التنبيه العربي `تم فصل التغذية عن ...` يُنشأ حصراً داخل
+  `createPowerDisconnectedAlert()` في `backend/src/index.js`، بعد أن يمر
+  position وارد من جسر Traccar عبر `observePowerTelemetry()`.
+- المسار في `backend/src/routes/devices.js` كان يرسل أمر `engineStop` أو
+  `engineResume` ويسجل نتيجة الإرسال فقط؛ لا ينشئ تنبيه طاقة من استجابة الأمر.
+- قبل الإصلاح، كان `observePowerTelemetry()` يستدعي
+  `detectExternalPowerLoss(position)` مباشرة لكل position. لذلك إذا أرسل
+  الجهاز بعد أمر Relay قيمة `externalPower:false` أو `powerCut:true`، كان ذلك
+  يُعامل كفصل بطارية صريح رغم أن البطارية لم تُسحب.
+- لم تتوفر جلسة Traccar/جهاز حية داخل البيئة لالتقاط payload المالك، لذلك
+  تم توثيق السبب القابل لإعادة الإنتاج من الكود دون الادعاء بأن payload
+  الإنتاج نفسه تم التقاطه هنا.
+
+### الإصلاح
+
+- أضيفت نافذة suppression مدتها 45 ثانية لكل `traccar_id` بعد نجاح إرسال أمر
+  المحرك. النافذة تخص تنبيهات الطاقة فقط ولا تغيّر encoder أو صيغة Relay
+  (`Relay,1#` / `Relay,0#`) أو نتيجة الأمر.
+- أثناء النافذة، تستمر positions والجهد وحالة الاتصال في التحديث، لكن إشارات
+  power-loss أو restore الناتجة عن echo الأمر لا تنشئ alert.
+- بعد انتهاء النافذة، تعود إشارات `externalPower`/`powerCut` للعمل بالكامل؛
+  فصل البطارية الحقيقي اللاحق يبقى قابلاً للتنبيه.
+- suppression مركزي ومفتاحه per-device، بلا IMEI أو Traccar ID خاص.
+
+### المحاكاة الإلزامية
+
+| السيناريو | النتيجة |
+|---|---|
+| Engine stop ثم power flag من Relay | PASS — صفر تنبيهات خلال 45 ثانية |
+| Engine resume ثم power flag من Relay | PASS — صفر تنبيهات خلال 45 ثانية |
+| سحب بطارية حقيقي بعد 60 ثانية من الأمر | PASS — مرشح فصل واحد |
+| إعادة توصيل البطارية (`charge:true`) | PASS — انتقال استعادة واحد ومسح الحالة |
+| فصل بعد انتهاء نافذة الأمر | PASS — suppression انتهت عند 45 ثانية، والإشارة أصبحت قابلة للتنبيه |
+
+### التحقق
+
+- `npm run build`: PASS
+- `node --check` لكل ملفات JavaScript في `backend/src`: PASS
+- `git diff --check`: PASS
+- مسار Relay نفسه لم يتغير؛ التغيير يضيف فقط تسجيل نافذة الحماية بعد
+  نجاح `sendCommand()`.

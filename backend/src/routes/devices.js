@@ -21,6 +21,7 @@ import {
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readVehicleVoltage,
+  suppressPowerAlerts,
 } from '../services/vehicleTelemetry.js'
 
     export const devicesRouter = Router()
@@ -619,6 +620,11 @@ import {
           command.type,
           command.attributes,
         )
+        // Some relay-capable trackers echo externalPower:false/powerCut:true
+        // after a successful engine command. That is command telemetry, not a
+        // battery pull; keep the existing command path and suppress only the
+        // resulting power alert for a short, per-device window.
+        suppressPowerAlerts(dev.traccar_id)
         const delivery = traccar.getCommandDeliveryMeta(traccarResponse)
 
         await db.query(
