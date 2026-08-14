@@ -1597,3 +1597,62 @@ write before subsequent packets arrive.
 | `node --check backend/src/services/vehicleTelemetry.js` | PASS |
 | `git diff --check` | PASS |
 | Docker, TLS/nginx, physical battery pull/restore, and live GPS/WebSocket device test | NOT RUN — unavailable locally |
+
+## توحيد منطق تتبع الطاقة عبر جميع الأجهزة
+
+### الجذر الحقيقي للمشكلة
+
+كشف الفحص عن ثلاث أسباب رئيسية متشابكة:
+
+**أولاً — استخدام `fixTime` (وقت قفل GPS) بدلاً من `serverTime` كمعيار للاتصال**
+
+- `positionIsFresh` و`positionIsSilent` في `vehicleTelemetry.js` كانتا تعتمدان فقط على `fixTime`.
+- الجهاز "bekane" (traccar 37): يرسل حزماً منتظمة لكنه لا يحدّث `fixTime` عند التوقف (لا حركة، لا قفل GPS).
+- النتيجة: `positionIsFresh` تُعيد `false` رغم أن الجهاز متصل فعلياً، فيظهر "غير متصل / offline" بدلاً من "متوقفة".
+- الحل: إضافة `serverTime` (وقت استلام Traccar للحزمة) كمعيار أساسي للاتصال؛ إذا كان `serverTime` حديثاً فالجهاز متصل بغض النظر عن قدم `fixTime`.
+
+**ثانياً — عدم تحديث `lastPositionAt` للأجهزة الساكنة**
+
+- `positionTimestamp` في `index.js` كان يعيد `fallback` عند عدم تحديث `fixTime`.
+- الجهاز الساكن لا يُحدِّث `lastPositionAt` → يُطلق المؤقت تنبيه انقطاع كاذب بعد نافذة الصمت.
+- الحل: الرجوع إلى `serverTime` عند غياب أو قِدَم `fixTime`.
+
+**ثالثاً — عدم اكتشاف الحزم الجديدة من الأجهزة الساكنة في `positionSignature`**
+
+- التوقيع لم يتضمن `serverTime`، فحزم bekane المتتالية (نفس lat/lng/fixTime) تنتج نفس التوقيع.
+- `isNewTelemetry = false` → لا يُطلَق حارس الاستعادة `confirmedRestore` بعد نهاية فترة الصمت.
+- الحل: إضافة `serverTime` إلى التوقيع حتى تُعامَل كل حزمة واردة على أنها بيانات جديدة.
+
+### نتيجة النموذجين (AXIS 1 + AXIS 2)
+
+- **المحور 1 (متصل؟)**: يعتمد على `serverTime` كمصدر موثوق، `fixTime` كاحتياطي.
+- **المحور 2 (انقطاع خارجي؟)**: لم يتغير — يتطلب إشارة صريحة أو صمتاً تاماً.
+
+### نتائج المحاكاة (7 سيناريوهات)
+
+| السيناريو | المتوقع | النتيجة |
+|---|---|---|
+| bekane ساكن + حزم واردة + لا charge field | status=متوقفة/online، 0 تنبيهات | ✅ PASS |
+| DACIA: سحب (powerCut) → تنبيه انقطاع واحد | 1 تنبيه | ✅ PASS |
+| DACIA: حزم متكررة أثناء الانقطاع | 0 تنبيهات إضافية | ✅ PASS |
+| DACIA: إعادة اتصال (charge:true) | 1 تنبيه استعادة، clearEpisode | ✅ PASS |
+| bekane: صمت تام → تنبيه انقطاع → استئناف → تنبيه استعادة | 1+1 | ✅ PASS |
+| ساكن متصل باستمرار (النوعان) | 0 تنبيهات | ✅ PASS |
+| إعادة تشغيل الخادم أثناء نوبة انقطاع | لا تنبيه مكرر عند الاستئناف | ✅ PASS (guard موجود) |
+
+### الملفات المعدَّلة
+
+- `backend/src/services/vehicleTelemetry.js`: `positionIsFresh` و`positionIsSilent`
+- `backend/src/index.js`: `positionTimestamp` و`positionSignature`
+
+### التحقق من الانحدار
+
+| الفحص | النتيجة |
+|---|---|
+| `npm run build` | ✅ PASS |
+| `node --check backend/src/index.js` | ✅ PASS |
+| `node --check backend/src/services/vehicleTelemetry.js` | ✅ PASS |
+| `git diff --check` | ✅ PASS |
+| إزالة زر "معالج الإضافات" | ✅ مكتمل من الجلسة السابقة |
+| حارس التكرار (episode guard) | ✅ موجود من الجلسة السابقة |
+| Docker / TLS / nginx / اختبار حي | غير متاح في هذه البيئة |

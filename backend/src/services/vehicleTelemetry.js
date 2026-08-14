@@ -297,16 +297,57 @@ export function isVehicleDisconnected(deviceId) {
   return Boolean(key && disconnectedVehicles.has(key))
 }
 
+/**
+ * Return true when the device has reported recently (within maxAgeMs).
+ *
+ * Traccar exposes three timestamps per position:
+ *   fixTime   — when the GPS lock was obtained (stale on idle/no-GPS devices)
+ *   deviceTime — when the device itself generated the packet
+ *   serverTime — when Traccar received the packet (always fresh if reporting)
+ *
+ * A device like "bekane" (motion-only, no ignition/charge fields) keeps its
+ * GPS fix time unchanged while idle but still sends regular keep-alive packets,
+ * so serverTime will be fresh even when fixTime is hours old.  Using only
+ * fixTime would mark such a device as offline while it is perfectly connected.
+ * We therefore accept ANY recent timestamp as proof of connectivity.
+ */
 export function positionIsFresh(position, maxAgeMs = POWER_SILENCE_WINDOW_MS, now = Date.now()) {
-  const raw = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
-  const timestamp = raw ? new Date(raw).getTime() : NaN
-  if (!Number.isFinite(timestamp)) return false
-  const age = now - timestamp
-  return age >= 0 && age < maxAgeMs
+  // Ordered: serverTime (most reliable for recency), deviceTime, then fixTime.
+  const candidates = [
+    position?.serverTime,
+    position?.deviceTime,
+    position?.fixTime ?? position?.lastUpdate ?? position?.last_update,
+  ]
+  for (const raw of candidates) {
+    if (!raw) continue
+    const ts = new Date(raw).getTime()
+    if (!Number.isFinite(ts)) continue
+    const age = now - ts
+    if (age >= 0 && age < maxAgeMs) return true
+  }
+  return false
 }
 
+/**
+ * Return true only when ALL known timestamps are beyond the silence window.
+ *
+ * A device is truly silent only when the server has not received any packet
+ * recently.  A fresh serverTime means the device IS reporting, even if its
+ * GPS fix is stale.  We take the most recent of the available timestamps so
+ * that an idle device with an old fixTime but a fresh serverTime is NOT
+ * considered silent.
+ */
 export function positionIsSilent(position, maxAgeMs = POWER_SILENCE_WINDOW_MS, now = Date.now()) {
-  const raw = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
-  const timestamp = raw ? new Date(raw).getTime() : NaN
-  return Number.isFinite(timestamp) && now - timestamp >= maxAgeMs
+  const candidates = [
+    position?.serverTime,
+    position?.deviceTime,
+    position?.fixTime ?? position?.lastUpdate ?? position?.last_update,
+  ]
+  let latestTs = NaN
+  for (const raw of candidates) {
+    if (!raw) continue
+    const ts = new Date(raw).getTime()
+    if (Number.isFinite(ts) && (isNaN(latestTs) || ts > latestTs)) latestTs = ts
+  }
+  return Number.isFinite(latestTs) && now - latestTs >= maxAgeMs
 }

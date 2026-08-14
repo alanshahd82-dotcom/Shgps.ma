@@ -497,17 +497,33 @@ async function loadPersistedPowerStates() {
 }
 
 function positionTimestamp(position, fallback) {
-  const raw = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
-  const timestamp = raw ? new Date(raw).getTime() : NaN
-  if (!Number.isFinite(timestamp)) return fallback
-  return Math.min(timestamp, fallback)
+  // Prefer fixTime for alarm/event correlation.  Fall back to serverTime so
+  // that idle devices with a stale GPS lock still update lastPositionAt when
+  // they send keep-alive packets (prevents false silence timeouts for those
+  // devices, e.g. "bekane" which sends motion/adc1 but no ignition/charge).
+  const candidates = [
+    position?.fixTime ?? position?.lastUpdate ?? position?.last_update,
+    position?.serverTime,
+    position?.deviceTime,
+  ]
+  for (const raw of candidates) {
+    if (!raw) continue
+    const ts = new Date(raw).getTime()
+    if (Number.isFinite(ts)) return Math.min(ts, fallback)
+  }
+  return fallback
 }
 
 function positionSignature(position) {
+  // serverTime changes every time Traccar receives a packet, even when
+  // fixTime and coordinates are identical (common on idle no-GPS devices).
+  // Including it ensures each new packet is detected as new telemetry so
+  // that the restore guard fires correctly after a silence episode ends.
   const attributes = position?.attributes || {}
   return [
     position?.id ?? '',
     position?.fixTime ?? position?.lastUpdate ?? position?.last_update ?? '',
+    position?.serverTime ?? '',
     position?.latitude ?? '',
     position?.longitude ?? '',
     attributes.charge ?? '',
