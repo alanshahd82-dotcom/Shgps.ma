@@ -1,0 +1,58 @@
+🚨 CRITICAL: The owner is ANGRY — each device behaves differently! This is UNACCEPTABLE.
+
+CURRENT CHAOS:
+- bekane (traccar 37): no charge/externalPower fields → system confused
+- DACIA (traccar 70): has charge fields → works differently
+- Owner's demand: "UNIFIED LOGIC for ALL devices"
+
+THE CORRECT UNIFIED LOGIC (apply to EVERY device, regardless of fields):
+
+AXIS 1 — CONNECTION (online vs offline):
+  • ONLINE = serverTime within silence window (device is sending packets)
+  • OFFLINE = NO packets for 5 minutes (complete silence)
+  • CRITICAL: A device that sends packets (even without charge field) is ONLINE
+
+AXIS 2 — POWER STATE (connected vs disconnected):
+  • POWER CONNECTED = device sends ANY packet (has external power OR internal battery)
+  • POWER DISCONNECTED = ONLY if:
+    1. Explicit signal: externalPower:false / powerCut:true / powerLost:true
+    2. OR complete silence beyond 5 minutes
+  • CRITICAL: Missing charge field ≠ power disconnected!
+
+AXIS 3 — ENGINE STATE (separate from power):
+  • Engine ON/OFF = ignition field (if present)
+  • MUST NEVER trigger power alerts
+  • Already fixed with cooldown (working correctly)
+
+AXIS 4 — MOVEMENT STATE:
+  • MOVING = speed > 35 km/h OR motion=true
+  • IDLE/STOPPED = speed = 0 AND no motion
+  • IDLE device that sends packets = "متوقفة" (NOT "مفصول"!)
+
+REQUIRED FIXES:
+1. In vehicleTelemetry.js and index.js, review ALL power detection logic
+2. Ensure that a device sending packets (even without charge field) is:
+   - ONLINE
+   - Shows last known voltage
+   - Status = "متوقفة" if idle (NOT "مفصول")
+3. Only trigger power disconnect alert for:
+   - Explicit externalPower:false/powerCut:true signals
+   - OR complete silence (5 minutes with NO packets)
+4. The cooldown for engine commands is working — KEEP it
+5. Test with BOTH device types (bekane-like and DACIA-like) to ensure identical behavior
+
+MANDATORY SIMULATION:
+  [ ] bekane-like (no charge field, sends idle packets) → ONLINE + "متوقفة" + voltage visible + 0 alerts
+  [ ] DACIA-like (has charge field, idle) → ONLINE + "متوقفة" + voltage visible + 0 alerts
+  [ ] Both devices: real battery pull → 1 disconnect alert
+  [ ] Both devices: reconnect → 1 restore alert
+  [ ] Both devices: engine stop → 0 power alerts (cooldown working)
+  [ ] Both devices: 5min silence → 1 offline alert
+
+DELIVERY:
+- Build + syntax check + git diff --check
+- Commit + push to origin/main
+- PRINT `git log origin/main --oneline -3`
+- Update TASK_LOG.md with the unified logic
+
+DO NOT run Docker tests. Owner will test on production.
