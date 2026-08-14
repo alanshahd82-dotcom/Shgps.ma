@@ -1,23 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Marker, Polyline, useMap } from 'react-leaflet'
+import { Marker, Polyline, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { formatVoltage, getDeviceStatusKey, getVoltageColor } from './ui'
+import { getDeviceStatusKey } from './ui'
 import { markerFor } from '../utils/vehicleAssets'
 
 const ANIMATION_MS = 800
 const TRAIL_LIMIT = 20
 const STATUS_COLORS = {
-  moving: '#1DBF73',
-  idle: '#FF9500',
-  stopped: '#FF3B30',
-  offline: '#94A3B8',
+  moving: 'var(--ds-color-primary)',
+  idle: 'var(--ds-color-warning)',
+  stopped: 'var(--ds-color-cool-gray)',
+  offline: 'var(--ds-color-danger)',
 }
 
 const STATUS_LABELS = {
-  moving: { ar: 'يتحرك', fr: 'En mouvement' },
+  moving: { ar: 'متصل', fr: 'En ligne' },
   idle: { ar: 'خامل', fr: 'Ralenti' },
-  stopped: { ar: 'متوقف', fr: 'Arrêté' },
-  offline: { ar: 'غير متصل', fr: 'Hors ligne' },
+  stopped: { ar: 'متوقفة', fr: 'À l’arrêt' },
+  offline: { ar: 'مفصول', fr: 'Déconnecté' },
 }
 
 // Keep these values together so mobile marker sizing is a one-line tune per type.
@@ -66,7 +66,7 @@ function getBearing(device, from, to) {
 }
 
 function getRenderedBearing(device, from, to) {
-  const speed = Number(device?.speed ?? device?.last_speed ?? 0)
+  const speed = Number(device?.speedKmh ?? device?.speed ?? device?.last_speed ?? 0)
   return getDeviceStatusKey(device) === 'stopped' || speed === 0
     ? 0
     : getBearing(device, from, to)
@@ -74,31 +74,20 @@ function getRenderedBearing(device, from, to) {
 
 function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar') {
   const marker = markerFor(device?.type)
-  const status = getDeviceStatusKey(device)
+  const status = device?.powerDisconnected ? 'offline' : getDeviceStatusKey(device)
   const color = STATUS_COLORS[status] || STATUS_COLORS.offline
-  const statusLabel = STATUS_LABELS[status]?.[lang] || STATUS_LABELS[status]?.fr || status
-  const speed = Number(device?.speed ?? device?.last_speed ?? 0)
-  const label = status === 'moving' && speed > 0 ? `${Math.round(speed)} km/h` : statusLabel
-  const voltageValue = Number(device?.voltage)
-  const voltageColor = getVoltageColor(voltageValue)
   const vehicleType = device?.type || 'bike'
   const markerWidth = (MARKER_SIZE[vehicleType] || MARKER_SIZE.bike) + (isSelected ? SELECTED_BOOST : 0)
   const markerHeight = Math.round(markerWidth * (MARKER_ASPECT_RATIO[vehicleType] || MARKER_ASPECT_RATIO.bike))
-  const iconWidth = Math.max(136, markerWidth)
-  const iconHeight = Math.max(92, markerHeight + 30)
+  const iconWidth = markerWidth + 20
+  const iconHeight = markerHeight + 20
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
-      <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color};--athar-voltage-color:${voltageColor}">
+      <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color}">
         <span class="athar-live-marker-visual" style="width:${markerWidth}px;height:${markerHeight}px">
-          <span class="athar-live-marker-pulse"></span>
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
-          <span class="athar-live-marker-ring"></span>
-        </span>
-        <span class="athar-live-label">
-          <span class="athar-live-label-status" aria-hidden="true"></span>
-          <span>${label}</span>
-           <span class="athar-live-label-voltage" aria-hidden="true" style="display:none">${formatVoltage(device?.voltage, lang, device?.lastUpdate ?? device?.last_update, device?.powerDisconnected)}</span>
+          <span class="athar-live-marker-ring" style="${isSelected ? 'border:2px solid var(--ds-color-primary);' : ''}"></span>
         </span>
       </div>
     `,
@@ -124,6 +113,7 @@ export default function LiveVehicleMarker({
   isSelected = false,
   autoFollow = false,
   onClick,
+  now = Date.now(),
   children = null,
 }) {
   const map = useMap()
@@ -139,7 +129,7 @@ export default function LiveVehicleMarker({
   const status = getDeviceStatusKey(device)
   const icon = useMemo(
     () => createLiveVehicleIcon(device, isSelected, initialBearingRef.current, device?.lang || 'ar'),
-    [device?.type, device?.lang, isSelected, status, device?.speed, device?.last_speed, device?.voltage]
+    [device?.type, device?.lang, isSelected, status, device?.speed, device?.last_speed, device?.powerDisconnected]
   )
 
   useEffect(() => () => {
@@ -151,7 +141,7 @@ export default function LiveVehicleMarker({
     const marker = markerRef.current
     const from = marker.getLatLng()
     const start = [from.lat, from.lng]
-    const speed = Number(device?.speed ?? device?.last_speed ?? 0)
+    const speed = Number(device?.speedKmh ?? device?.speed ?? device?.last_speed ?? 0)
     const isStopped = status === 'stopped' || speed === 0
     const bearing = getRenderedBearing(device, previousPointRef.current, point)
     const distance = distanceBetween(start, point)
@@ -183,7 +173,7 @@ export default function LiveVehicleMarker({
       else frameRef.current = null
     }
     frameRef.current = requestAnimationFrame(animate)
-  }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type, device?.speed, device?.last_speed, status])
+  }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type, device?.speedKmh, device?.speed, device?.last_speed, status])
 
   useEffect(() => {
     if (!point) return
@@ -210,7 +200,7 @@ export default function LiveVehicleMarker({
             key={`${device.id}-trail-${index}`}
             positions={segment}
             pathOptions={{
-              color: '#1DBF73',
+              color: 'var(--ds-color-primary-strong)',
               opacity: 0.12 + ((index + 1) / trail.length) * 0.68,
               weight: 3,
               lineCap: 'round',
@@ -225,10 +215,29 @@ export default function LiveVehicleMarker({
         icon={icon}
         eventHandlers={{ click: () => onClick?.(device) }}
       >
+        {isSelected && (
+          <Tooltip permanent direction="top" offset={[0, -20]} opacity={1} className="athar-map-status-tooltip">
+            <span className="athar-map-status-bubble" dir={device?.lang === 'ar' ? 'rtl' : 'ltr'}>
+              <i style={{ background: device?.powerDisconnected || status === 'offline' ? 'var(--ds-color-danger)' : STATUS_COLORS[status] }} />
+              <strong>{STATUS_LABELS[device?.powerDisconnected ? 'offline' : status]?.[device?.lang || 'ar']}</strong>
+              <small>{device?.serverTime || device?.server_time || device?.fixTime || device?.lastUpdate
+                ? formatAge(device?.serverTime || device?.server_time || device?.fixTime || device?.lastUpdate, device?.lang || 'ar', now)
+                : (device?.lang === 'ar' ? 'غير متاح' : 'Indisponible')}</small>
+            </span>
+          </Tooltip>
+        )}
         {children}
       </Marker>
     </>
   )
+}
+
+function formatAge(value, lang, now) {
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) return lang === 'ar' ? 'غير متاح' : 'Indisponible'
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000))
+  if (seconds < 60) return lang === 'ar' ? `${seconds} ث` : `${seconds} s`
+  return lang === 'ar' ? `${Math.floor(seconds / 60)} د` : `${Math.floor(seconds / 60)} min`
 }
 
 export { toPoint, calculateBearing }

@@ -1,14 +1,35 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X, Navigation, MapPin, Gauge, Loader2, Route as RouteIcon, Wifi, Zap } from 'lucide-react'
+import {
+  Bell,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Crosshair,
+  Gauge,
+  Loader2,
+  MapPin,
+  Minus,
+  Navigation,
+  Plus,
+  Route as RouteIcon,
+  Search,
+  Settings2,
+  UserRound,
+  Wifi,
+  WifiOff,
+  X,
+  Zap,
+} from 'lucide-react'
 import { MapContainer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import { useApp } from '../../context/AppContext'
 import ClientNav from '../../components/ClientNav'
-import ClientHeader from '../../components/ClientHeader'
+import Logo from '../../components/Logo'
+import { Button, Card, IconButton, OfflineState, Skeleton, StateMessage } from '../../design-system'
 import { VehicleIcon, timeAgo, formatVoltage, getDeviceStatusKey } from '../../components/ui'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
@@ -24,24 +45,13 @@ const userLocIcon = L.divIcon({
   iconSize: [22, 22], iconAnchor: [11, 11],
 })
 
-const ST_CLR = { moving: '#00D97E', idle: '#FF9500', stopped: '#FF3B30', awaiting_gps: '#F59E0B', offline: '#6b7280' }
-
-function makeVehicleIcon(device, isSelected) {
-  const st  = getDeviceStatusKey(device)
-  const c   = ST_CLR[st] || '#6b7280'
-  const sz  = isSelected ? 24 : 18
-  const glow = isSelected ? `0 0 0 4px ${c}44,` : ''
-  const pulse = st === 'moving'
-    ? `<div style="position:absolute;inset:-7px;border-radius:50%;background:${c}22;animation:ping 2s ease-out infinite"></div>`
-    : ''
-  return L.divIcon({
-    className: '',
-    html: `<div style="position:relative;width:${sz}px;height:${sz}px">
-      ${pulse}
-      <div style="position:absolute;inset:0;border-radius:50%;background:${c};border:${isSelected ? 3 : 2}px solid white;box-shadow:${glow}0 2px 12px rgba(0,0,0,0.5)"></div>
-    </div>`,
-    iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
-  })
+const ST_CLR = {
+  moving: 'var(--ds-color-primary)',
+  idle: 'var(--ds-color-warning)',
+  stopped: 'var(--ds-color-cool-gray)',
+  awaiting_gps: 'var(--ds-color-warning)',
+  offline: 'var(--ds-color-danger)',
+  power: 'var(--ds-color-danger)',
 }
 
 // ── Map helpers ────────────────────────────────────────────────────────────────
@@ -93,23 +103,27 @@ function FitTodayRoute({ route }) {
 const DEVICE_PANEL_MAX_HEIGHT = '45vh'
 
 const ST_LABEL = {
-  moving:  { ar: 'يتحرك',    fr: 'En mouvement' },
-  idle:    { ar: 'خامل',     fr: 'Ralenti'       },
-  stopped: { ar: 'متوقف',    fr: 'Arrêté'        },
-  awaiting_gps: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation' },
-  offline: { ar: 'غير متصل', fr: 'Hors ligne'    },
+  moving:  { ar: 'متصل',    fr: 'En ligne' },
+  idle:    { ar: 'خامل',     fr: 'Ralenti' },
+  stopped: { ar: 'متوقفة',  fr: 'À l’arrêt' },
+  awaiting_gps: { ar: 'في انتظار GPS', fr: 'GPS en attente' },
+  offline: { ar: 'مفصول', fr: 'Déconnecté' },
+  power: { ar: 'مفصول', fr: 'Déconnecté' },
 }
 
 function formatLiveAge(iso, lang, now) {
   if (!iso) return lang === 'ar' ? 'غير متاح' : 'Indisponible'
-  const seconds = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000))
+  const timestamp = new Date(iso).getTime()
+  if (!Number.isFinite(timestamp)) return lang === 'ar' ? 'غير متاح' : 'Indisponible'
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000))
   if (seconds < 60) return lang === 'ar' ? `${seconds} ث` : `${seconds} s`
   const minutes = Math.floor(seconds / 60)
   return lang === 'ar' ? `${minutes} د` : `${minutes} min`
 }
 
 function getFixTime(device) {
-  return device?.fixTime || device?.lastUpdate || device?.last_update
+  return device?.serverTime || device?.server_time ||
+    device?.fixTime || device?.lastUpdate || device?.last_update
 }
 
 function getLiveBearing(device) {
@@ -117,24 +131,161 @@ function getLiveBearing(device) {
   return Number.isFinite(course) ? Math.round(course) : null
 }
 
+function getMapStatus(device) {
+  const statusKey = getDeviceStatusKey(device)
+  if (device?.powerDisconnected || statusKey === 'offline') return 'offline'
+  return statusKey
+}
+
+function getDeviceMetric(device, keys) {
+  for (const key of keys) {
+    const value = key.split('.').reduce((current, segment) => current?.[segment], device)
+    if (value == null || value === '' || typeof value === 'boolean') continue
+    const number = Number(value)
+    if (Number.isFinite(number)) return number
+  }
+  return null
+}
+
+function formatMetricNumber(value) {
+  if (value == null) return null
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function getSheetMetrics(device, lang) {
+  if (!device) return []
+  const speed = Number(device.speedKmh ?? device.speed ?? device.last_speed)
+  const metrics = [{
+    key: 'speed',
+    Icon: Gauge,
+    value: Number.isFinite(speed) ? String(Math.round(speed)) : '—',
+    label: lang === 'ar' ? 'السرعة' : 'Vitesse',
+    suffix: 'km/h',
+  }, {
+    key: 'voltage',
+    Icon: Zap,
+    value: formatVoltage(device.voltage, lang, getFixTime(device), device.powerDisconnected),
+    label: lang === 'ar' ? 'الجهد' : 'Tension',
+  }]
+
+  const satellites = getDeviceMetric(device, [
+    'satellites',
+    'satellite',
+    'attributes.satellites',
+    'attributes.satellite',
+  ])
+  if (satellites != null) {
+    metrics.push({
+      key: 'satellites',
+      Icon: Wifi,
+      value: formatMetricNumber(satellites),
+      label: lang === 'ar' ? 'الأقمار' : 'Satellites',
+    })
+  }
+
+  const temperature = getDeviceMetric(device, [
+    'temperature',
+    'temp',
+    'attributes.temperature',
+    'attributes.temp',
+  ])
+  if (temperature != null) {
+    metrics.push({
+      key: 'temperature',
+      Icon: Gauge,
+      value: `${formatMetricNumber(temperature)}°`,
+      label: lang === 'ar' ? 'الحرارة' : 'Température',
+    })
+  } else {
+    const odometer = getDeviceMetric(device, [
+      'odometer',
+      'attributes.odometer',
+    ])
+    const hours = getDeviceMetric(device, [
+      'hours',
+      'engineHours',
+      'totalHours',
+      'attributes.hours',
+      'attributes.engineHours',
+    ])
+    if (odometer != null) {
+      metrics.push({
+        key: 'odometer',
+        Icon: Navigation,
+        value: formatMetricNumber(odometer),
+        label: lang === 'ar' ? 'عداد المسافة' : 'Odomètre',
+      })
+    } else if (hours != null) {
+      metrics.push({
+        key: 'hours',
+        Icon: Gauge,
+        value: formatMetricNumber(hours),
+        label: lang === 'ar' ? 'ساعات التشغيل' : 'Heures moteur',
+      })
+    }
+  }
+
+  return metrics
+}
+
+function MapZoomControls({ open, onToggle, onLocate, lang }) {
+  const map = useMap()
+  const isAr = lang === 'ar'
+  return (
+    <div className="athar-premium-map-controls" dir="ltr">
+      <IconButton
+        label={isAr ? 'إظهار أدوات الخريطة' : 'Afficher les outils de carte'}
+        onClick={onToggle}
+        className={open ? 'athar-premium-map-controls__toggle is-active' : 'athar-premium-map-controls__toggle'}
+      >
+        <Settings2 size={17} aria-hidden="true" />
+      </IconButton>
+      {open && (
+        <>
+          <IconButton label={isAr ? 'تكبير الخريطة' : 'Zoom avant'} onClick={() => map.zoomIn()}>
+            <Plus size={17} aria-hidden="true" />
+          </IconButton>
+          <IconButton label={isAr ? 'تصغير الخريطة' : 'Zoom arrière'} onClick={() => map.zoomOut()}>
+            <Minus size={17} aria-hidden="true" />
+          </IconButton>
+          <IconButton label={isAr ? 'تحديد موقعي' : 'Me localiser'} onClick={onLocate}>
+            <Crosshair size={17} aria-hidden="true" />
+          </IconButton>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function LiveMap() {
-  const { devices, lang } = useApp()
+  const {
+    devices,
+    lang,
+    authReady,
+    networkError,
+    unreadCount,
+    refreshDevices,
+  } = useApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [search,       setSearch]       = useState('')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [selected,     setSelected]     = useState(null)
   const [panelOpen,    setPanelOpen]    = useState(false)
+  const [sheetExpanded, setSheetExpanded] = useState(false)
+  const [mapControlsOpen, setMapControlsOpen] = useState(false)
   const [userPos,      setUserPos]      = useState(null)
   const [locateTarget, setLocateTarget] = useState(null)
   const [autoFollow, setAutoFollow] = useState(() => localStorage.getItem('athargps_auto_follow') !== 'false')
   const [clock, setClock] = useState(() => Date.now())
+  const [initialEmptyWindow, setInitialEmptyWindow] = useState(true)
   const [todayRoute, setTodayRoute] = useState([])
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState('')
   const routeRequestRef = useRef(0)
+  const sheetPointerRef = useRef(null)
   const isAr = lang === 'ar'
   const requestedDeviceId = searchParams.get('device')
   useEffect(() => {
@@ -145,6 +296,12 @@ export default function LiveMap() {
     const id = window.setInterval(() => setClock(Date.now()), 1000)
     return () => window.clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    if (!authReady) return undefined
+    const timeout = window.setTimeout(() => setInitialEmptyWindow(false), 900)
+    return () => window.clearTimeout(timeout)
+  }, [authReady])
 
   // Continuous position watch (updates blue dot only)
   useEffect(() => {
@@ -186,7 +343,7 @@ export default function LiveMap() {
     !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
 
   const filtered = useMemo(() => {
-    const trackable = devices.filter(d => d.trackingEnabled !== false)
+    const trackable = (Array.isArray(devices) ? devices : []).filter(d => d.trackingEnabled !== false)
     if (!search.trim()) return trackable
     const q = search.toLowerCase()
     return trackable.filter(d =>
@@ -205,6 +362,24 @@ export default function LiveMap() {
   [filtered])
 
   const sel = selected ? devices.find(d => d.id === selected) : null
+  const positionedSelection = positioned.find(d => d.id === selected)
+  const selectedDevice = sel || positionedSelection || positioned[0] || filtered[0] || null
+  const selectedStatus = getMapStatus(selectedDevice)
+  const selectedStatusColor = ST_CLR[selectedStatus] || ST_CLR.offline
+  const selectedMetrics = getSheetMetrics(selectedDevice, lang)
+  const selectedHasPosition = Boolean(
+    selectedDevice &&
+    hasValidMapPoint(
+      toCoord(selectedDevice.lat) ?? toCoord(selectedDevice.last_lat),
+      toCoord(selectedDevice.lng) ?? toCoord(selectedDevice.last_lng),
+    )
+  )
+
+  useEffect(() => {
+    if (selected && !devices.some(device => device.id === selected)) {
+      setSelected(null)
+    }
+  }, [devices, selected])
 
   useEffect(() => {
     if (!requestedDeviceId) return
@@ -213,6 +388,11 @@ export default function LiveMap() {
       setSelected(requested.id)
     }
   }, [devices, requestedDeviceId])
+
+  useEffect(() => {
+    if (selected || requestedDeviceId || positioned.length === 0) return
+    setSelected(positioned[0].id)
+  }, [positioned, requestedDeviceId, selected])
 
   useEffect(() => {
     setTodayRoute([])
@@ -297,8 +477,9 @@ export default function LiveMap() {
             <LiveVehicleMarker
               key={d.id}
               device={{ ...d, lang }}
-              isSelected={selected === d.id}
-              autoFollow={autoFollow && selected === d.id}
+               isSelected={selectedDevice?.id === d.id}
+               now={clock}
+               autoFollow={autoFollow && selectedDevice?.id === d.id}
               onClick={() => setSelected(d.id)}
             >
               <Popup>
@@ -340,27 +521,30 @@ export default function LiveMap() {
               </Popup>
             </LiveVehicleMarker>
           ))}
-           {todayRoute.length > 1 && (
-             <Polyline
-               positions={todayRoute}
-               pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }}
-             />
-           )}
            <FitTodayRoute route={todayRoute} />
            {todayRoute.length > 1 && (
              <Polyline
                positions={todayRoute}
-               pathOptions={{ color: '#1DBF73', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }}
+               pathOptions={{
+                 color: 'var(--ds-color-primary)',
+                 weight: 3,
+                 opacity: 0.7,
+                 lineCap: 'round',
+                 lineJoin: 'round',
+               }}
              />
            )}
-          {sel && <FlyTo lat={toCoord(sel.lat) ?? toCoord(sel.last_lat)} lng={toCoord(sel.lng) ?? toCoord(sel.last_lng)} />}
+           {selectedDevice && <FlyTo lat={toCoord(selectedDevice.lat) ?? toCoord(selectedDevice.last_lat)} lng={toCoord(selectedDevice.lng) ?? toCoord(selectedDevice.last_lng)} />}
           <FlyToUser target={locateTarget} />
+           <MapZoomControls
+             open={mapControlsOpen}
+             onToggle={() => setMapControlsOpen(value => !value)}
+             onLocate={locateMe}
+             lang={lang}
+           />
         </MapContainer>
         <div className="athar-map-vignette" aria-hidden="true" />
       </div>
-
-      <ClientHeader overlay />
-
 
       {/* ── Devices launcher ── */}
       <button
@@ -370,6 +554,7 @@ export default function LiveMap() {
         aria-label={isAr ? 'فتح أجهزتي' : 'Ouvrir mes appareils'}
         className="absolute z-[500] rounded-2xl px-3.5 py-2.5 text-[11px] font-bold text-white"
         style={{
+           display: 'none',
           top: 76,
           left: 14,
           background: 'rgba(6,12,26,0.92)',
@@ -390,6 +575,7 @@ export default function LiveMap() {
           title={isAr ? 'بحث' : 'Rechercher'}
           className="absolute z-[500] flex h-10 w-10 items-center justify-center rounded-2xl text-white"
           style={{
+             display: 'none',
             top: 76,
             right: 14,
             background: 'rgba(6,12,26,0.92)',
@@ -410,6 +596,7 @@ export default function LiveMap() {
             exit={{ opacity: 0, scale: 0.96 }}
             className="absolute z-[500] flex items-center gap-2.5 rounded-2xl px-4 py-2.5"
             style={{
+               display: searchOpen ? 'flex' : 'none',
               top: 68,
               right: 14,
               width: 'min(300px, calc(100% - 28px))',
@@ -442,7 +629,7 @@ export default function LiveMap() {
 
       {/* ── Small bounded devices card ── */}
       <AnimatePresence>
-        {panelOpen && (
+         {false && panelOpen && (
           <motion.div
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -676,6 +863,245 @@ export default function LiveMap() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── Premium selected-device sheet ── */}
+        {selectedDevice ? (
+          <motion.section
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={sheetExpanded
+              ? 'athar-premium-sheet athar-premium-sheet--expanded'
+              : 'athar-premium-sheet'}
+            aria-label={isAr ? 'تفاصيل المركبة' : 'Détails du véhicule'}
+          >
+            <div className="athar-premium-sheet__body">
+              <button
+                type="button"
+                className="athar-premium-sheet__handle"
+                aria-label={sheetExpanded ? (isAr ? 'طي التفاصيل' : 'Réduire les détails') : (isAr ? 'توسيع التفاصيل' : 'Développer les détails')}
+                aria-expanded={sheetExpanded}
+                onPointerDown={event => {
+                  sheetPointerRef.current = { pointerId: event.pointerId, clientY: event.clientY }
+                  event.currentTarget.setPointerCapture?.(event.pointerId)
+                }}
+                onPointerUp={toggleSheetDrag}
+                onPointerCancel={() => { sheetPointerRef.current = null }}
+              >
+                <span />
+              </button>
+
+              {networkError && (
+                <div className="athar-premium-sheet__offline" dir={isAr ? 'rtl' : 'ltr'}>
+                  <WifiOff size={15} aria-hidden="true" />
+                  <span>
+                    {isAr ? 'تعذر تحديث البيانات' : 'Mise à jour indisponible'}
+                    <small>
+                      {isAr ? 'آخر تحديث' : 'Dernière mise à jour'}: {formatLiveAge(getFixTime(selectedDevice), lang, clock)}
+                    </small>
+                  </span>
+                  <button type="button" onClick={() => refreshDevices?.()}>
+                    {isAr ? 'إعادة المحاولة' : 'Réessayer'}
+                  </button>
+                </div>
+              )}
+
+              <div className="athar-premium-sheet__summary" dir={isAr ? 'rtl' : 'ltr'}>
+                <div className="athar-premium-sheet__vehicle">
+                  <div className="athar-premium-sheet__vehicle-thumb" aria-hidden="true">
+                    <VehicleIcon type={selectedDevice.type} iconSize={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2>{selectedDevice.name || (isAr ? 'جهاز بدون اسم' : 'Appareil sans nom')}</h2>
+                    <div className="athar-premium-sheet__status">
+                      <i style={{ background: selectedStatusColor }} />
+                      <span>{ST_LABEL[selectedStatus]?.[lang] || ST_LABEL.offline[lang]}</span>
+                      <small>{formatLiveAge(getFixTime(selectedDevice), lang, clock)}</small>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="athar-premium-sheet__devices-button"
+                  onClick={() => {
+                    setPanelOpen(value => !value)
+                    setSheetExpanded(true)
+                  }}
+                >
+                  <span>{isAr ? 'أجهزتي' : 'Mes appareils'}</span>
+                  {panelOpen ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronUp size={15} aria-hidden="true" />}
+                </button>
+              </div>
+
+              <div className="athar-premium-metrics" dir={isAr ? 'rtl' : 'ltr'}>
+                {selectedMetrics.map((metric, index) => {
+                  const MetricIcon = metric.Icon
+                  return (
+                    <div key={metric.key} className="athar-premium-metric" style={{ borderInlineStart: index === 0 ? '0' : undefined }}>
+                      <MetricIcon size={15} aria-hidden="true" />
+                      <strong>{metric.value}</strong>
+                      <span>{metric.label}{metric.suffix ? ` · ${metric.suffix}` : ''}</span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <AnimatePresence initial={false}>
+                {sheetExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.22 }}
+                    className="athar-premium-sheet__expanded"
+                  >
+                    {panelOpen && (
+                      <Card className="athar-premium-device-list" dir={isAr ? 'rtl' : 'ltr'}>
+                        <div className="athar-premium-device-list__heading">
+                          <strong>{isAr ? 'الأجهزة' : 'Appareils'}</strong>
+                          <span>{filtered.length}</span>
+                        </div>
+                        {filtered.length === 0 ? (
+                          <StateMessage
+                            icon={<Search size={18} />}
+                            title={isAr ? 'لا توجد نتائج' : 'Aucun résultat'}
+                            description={isAr ? 'جرّب اسمًا أو لوحة مختلفة.' : 'Essayez un autre nom ou une autre plaque.'}
+                          />
+                        ) : (
+                          <div className="athar-premium-device-list__items">
+                            {filtered.map(d => {
+                              const deviceStatus = getMapStatus(d)
+                              const color = ST_CLR[deviceStatus] || ST_CLR.offline
+                              const isSelected = selectedDevice?.id === d.id
+                              return (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  className={isSelected ? 'athar-premium-device-row is-selected' : 'athar-premium-device-row'}
+                                  onClick={() => {
+                                    setSelected(d.id)
+                                    setPanelOpen(false)
+                                  }}
+                                >
+                                  <span className="athar-premium-device-row__icon">
+                                    <VehicleIcon type={d.type} iconSize={17} />
+                                    <i style={{ background: color }} />
+                                  </span>
+                                  <span className="min-w-0 flex-1">
+                                    <strong>{d.name}</strong>
+                                    <small>{d.plate || timeAgo(getFixTime(d), lang)}</small>
+                                  </span>
+                                  <span className="athar-premium-device-row__status">
+                                    {deviceStatus === 'moving'
+                                      ? `${Math.round(Number(d.speedKmh ?? d.speed) || 0)} km/h`
+                                      : ST_LABEL[deviceStatus]?.[lang]}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </Card>
+                    )}
+
+                    <details className="athar-premium-device-details" dir={isAr ? 'rtl' : 'ltr'}>
+                      <summary>
+                        <span>{isAr ? 'معلومات الجهاز' : 'Informations de l’appareil'}</span>
+                        <ChevronRight size={15} aria-hidden="true" />
+                      </summary>
+                      <div className="athar-premium-device-details__grid">
+                        <span><small>IMEI</small><strong>{selectedDevice.imei || '—'}</strong></span>
+                        <span>
+                          <small>{isAr ? 'الإحداثيات' : 'Coordonnées'}</small>
+                          <strong>
+                            {selectedHasPosition
+                              ? `${toCoord(selectedDevice.lat) ?? toCoord(selectedDevice.last_lat)}, ${toCoord(selectedDevice.lng) ?? toCoord(selectedDevice.last_lng)}`
+                              : '—'}
+                          </strong>
+                        </span>
+                        <span><small>{isAr ? 'البروتوكول' : 'Protocole'}</small><strong>{selectedDevice.protocol || '—'}</strong></span>
+                      </div>
+                    </details>
+
+                    {selectedHasPosition && (
+                      <div className="athar-premium-sheet__actions" dir={isAr ? 'rtl' : 'ltr'}>
+                        <Button variant="secondary" size="sm" disabled={routeLoading} onClick={() => showTodayRoute(selectedDevice)}>
+                          {routeLoading ? <Loader2 size={14} className="animate-spin" /> : <RouteIcon size={14} />}
+                          {t(lang, 'showRoute')}
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => openMaps('google', selectedDevice)}>
+                          <Navigation size={14} /> Google
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => openMaps('waze', selectedDevice)}>
+                          <MapPin size={14} /> Waze
+                        </Button>
+                      </div>
+                    )}
+                    {routeError && <p className="athar-premium-sheet__route-error">{routeError}</p>}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.section>
+        ) : (
+          <section className="athar-premium-sheet athar-premium-sheet--empty" aria-label={isAr ? 'حالة المركبات' : 'État des véhicules'}>
+            <div className="athar-premium-sheet__body">
+              <span className="athar-premium-sheet__handle" aria-hidden="true"><span /></span>
+              {(!authReady || (initialEmptyWindow && !networkError)) ? (
+                <div className="athar-premium-sheet__skeleton">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <div className="flex-1 space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-48" /></div>
+                </div>
+              ) : networkError ? (
+                <OfflineState>
+                  <span>
+                    <strong>{isAr ? 'تعذر تحميل المركبات' : 'Impossible de charger les véhicules'}</strong>
+                    <small>{isAr ? 'تحقق من الاتصال ثم أعد المحاولة.' : 'Vérifiez la connexion puis réessayez.'}</small>
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={() => refreshDevices?.()}>
+                    {isAr ? 'إعادة المحاولة' : 'Réessayer'}
+                  </Button>
+                </OfflineState>
+              ) : (
+                <StateMessage
+                  icon={<MapPin size={20} />}
+                  title={isAr ? 'لا توجد مركبات بعد' : 'Aucun véhicule pour le moment'}
+                  description={isAr ? 'أضف جهازًا لبدء التتبع المباشر.' : 'Ajoutez un appareil pour commencer le suivi.'}
+                  action={<Button size="sm" onClick={() => navigate('/client/device-wizard')}>{isAr ? 'إضافة جهاز' : 'Ajouter un appareil'}</Button>}
+                />
+              )}
+            </div>
+          </section>
+        )}
+
+        <header className="athar-premium-map-topbar" aria-label={isAr ? 'شريط الخريطة' : 'Barre de carte'}>
+          <div className="athar-premium-map-topbar__actions">
+            <IconButton label={isAr ? 'التنبيهات' : 'Alertes'} onClick={() => navigate('/client/alerts')} className="athar-premium-map-icon">
+              <span className="relative inline-flex">
+                <Bell size={18} aria-hidden="true" />
+                {unreadCount > 0 && <span className="athar-premium-map-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+              </span>
+            </IconButton>
+            <IconButton label={isAr ? 'الحساب' : 'Compte'} onClick={() => navigate('/client/settings')} className="athar-premium-map-icon">
+              <UserRound size={18} aria-hidden="true" />
+            </IconButton>
+          </div>
+          <Logo size="sm" white />
+          <span aria-hidden="true" />
+        </header>
+
+        {!searchOpen && (
+          <IconButton
+            label={isAr ? 'البحث في الأجهزة' : 'Rechercher un appareil'}
+            onClick={() => {
+              setSearchOpen(true)
+              setPanelOpen(true)
+              setSheetExpanded(true)
+            }}
+            className="athar-premium-map-search"
+          >
+            <Search size={17} aria-hidden="true" />
+          </IconButton>
+        )}
 
       <ClientNav />
     </div>
