@@ -10,6 +10,11 @@ command in `engineCommandCooldowns`, keyed by Traccar device ID. For 60 seconds,
 similar telemetry, including the WebSocket projection path. Normal positions,
 voltage readings, and device state continue to update during this window.
 
+When a telemetry payload uses a local device ID instead of the Traccar ID, the
+successful command registers an in-memory local-to-Traccar alias. The lookup
+then logs both values and uses the same canonical Traccar key for the map
+access, preventing a `devices.id`/`devices.traccar_id` mismatch.
+
 This cooldown is separate from the persisted battery-disconnect episode state:
 it prevents only the short-lived false signal after a relay command and does
 not create, clear, or persist a battery disconnect.

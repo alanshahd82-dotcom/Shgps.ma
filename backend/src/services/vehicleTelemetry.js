@@ -21,6 +21,8 @@ export const ENGINE_COMMAND_POWER_SUPPRESSION_MS = 60 * 1000
 // window and must not become a persisted battery-disconnect state.
 export const engineCommandCooldowns = new Map()
 const powerAlertSuppressionDurations = new Map()
+const engineCommandDeviceAliases = new Map()
+const loggedCooldownLookups = new Set()
 
 function isFalseLike(raw) {
   if (raw === false || raw === 0) return true
@@ -52,16 +54,42 @@ export function suppressPowerAlerts(deviceId, durationMs = ENGINE_COMMAND_POWER_
   powerAlertSuppressionDurations.set(key, duration)
 }
 
+export function registerEngineCommandCooldown(traccarId, localDeviceId, now = Date.now()) {
+  const traccarKey = cacheKey(traccarId)
+  if (!traccarKey) return
+  engineCommandCooldowns.set(traccarKey, now)
+  powerAlertSuppressionDurations.set(traccarKey, ENGINE_COMMAND_POWER_SUPPRESSION_MS)
+
+  const localKey = cacheKey(localDeviceId)
+  if (localKey) engineCommandDeviceAliases.set(localKey, traccarKey)
+
+  console.log('[engine-cooldown] set', JSON.stringify({
+    cooldownKey: traccarKey,
+    localDeviceId: localKey,
+    traccarId: traccarKey,
+  }))
+}
+
 export function isPowerAlertSuppressed(deviceId, now = Date.now()) {
-  const key = cacheKey(deviceId)
-  if (!key) return false
+  const positionKey = cacheKey(deviceId)
+  if (!positionKey) return false
+  const key = engineCommandDeviceAliases.get(positionKey) || positionKey
   const lastCommandTime = engineCommandCooldowns.get(key)
   if (!Number.isFinite(lastCommandTime)) return false
   const duration = powerAlertSuppressionDurations.get(key) ?? ENGINE_COMMAND_POWER_SUPPRESSION_MS
   if (now - lastCommandTime >= duration) {
     engineCommandCooldowns.delete(key)
     powerAlertSuppressionDurations.delete(key)
+    loggedCooldownLookups.delete(positionKey)
     return false
+  }
+  if (!loggedCooldownLookups.has(positionKey)) {
+    console.log('[power-cooldown] lookup', JSON.stringify({
+      positionDeviceId: positionKey,
+      cooldownKey: key,
+      matched: true,
+    }))
+    loggedCooldownLookups.add(positionKey)
   }
   return true
 }

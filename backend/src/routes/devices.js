@@ -21,7 +21,7 @@ import {
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readVehicleVoltage,
-  engineCommandCooldowns,
+  registerEngineCommandCooldown,
 } from '../services/vehicleTelemetry.js'
 
     export const devicesRouter = Router()
@@ -623,7 +623,7 @@ import {
         // Some relay-capable trackers echo externalPower:false/powerCut:true
         // after a successful engine command. That is command telemetry, not a
         // battery pull; suppress only the resulting power alert for 60 seconds.
-        engineCommandCooldowns.set(String(dev.traccar_id), Date.now())
+        registerEngineCommandCooldown(dev.traccar_id, dev.id)
         const delivery = traccar.getCommandDeliveryMeta(traccarResponse)
 
         await db.query(
