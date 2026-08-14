@@ -164,6 +164,72 @@ export async function getHistory(deviceId, from, to) {
   return [...unique.values()].sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
 }
 
+// Traccar's GT06 encoder sends these exact standard commands when the
+// protocol's alternative mode is disabled. GS900 documentation uses the same
+// one-argument relay shape (case-insensitive on the device, but we match
+// Traccar's canonical casing here). A device-specific override can be stored in
+// Traccar attributes without changing the application database schema.
+export function resolveEngineCommand({ type, protocol = '', deviceAttributes = {} }) {
+  const isStop = type === 'engineStop'
+  const explicitKey = isStop ? 'engineStopCommand' : 'engineResumeCommand'
+  const explicit = deviceAttributes?.[explicitKey]
+  if (typeof explicit === 'string' && explicit.trim()) {
+    return {
+      type: 'custom',
+      attributes: { data: explicit.trim() },
+      profile: 'traccar-attribute',
+    }
+  }
+
+  const profile = String(
+    deviceAttributes?.engineCommandProfile
+      ?? deviceAttributes?.engine_command_profile
+      ?? deviceAttributes?.relayCommandProfile
+      ?? deviceAttributes?.relay_command_profile
+      ?? '',
+  ).trim().toLowerCase()
+
+  if (profile === 'standard' || profile === 'traccar' || profile === 'gt06-standard') {
+    return { type, attributes: {}, profile: 'traccar-standard' }
+  }
+
+  if (profile === 'legacy' || profile === 'relay-3' || profile === 'gt06-relay-3') {
+    return {
+      type: 'custom',
+      attributes: { data: isStop ? 'RELAY,1,0#' : 'RELAY,1,1#' },
+      profile: 'legacy-relay-3',
+    }
+  }
+
+  const normalizedProtocol = String(protocol).trim().toLowerCase()
+  if (normalizedProtocol === 'gt06' && !profile) {
+    // Let Traccar apply its protocol-specific encoder and any device-level
+    // gt06.alternative setting instead of bypassing it with Custom.
+    return { type, attributes: {}, profile: 'traccar-standard' }
+  }
+
+  // WanWay/GS900 devices and unknown GT06-compatible devices use the
+  // documented one-argument relay command. This is also the safe fallback
+  // when the Traccar device lookup omits protocol.
+  return {
+    type: 'custom',
+    attributes: { data: isStop ? 'Relay,1#' : 'Relay,0#' },
+    profile: profile || 'gs900-relay-1',
+  }
+}
+
+export function getCommandDeliveryMeta(response) {
+  const commandId = response && typeof response === 'object'
+    ? response.id ?? response.commandId ?? null
+    : null
+  const queueState = commandId !== null
+    ? 'queued'
+    : response === null
+      ? 'accepted-no-body'
+      : 'accepted-response-without-id'
+  return { commandId, queueState }
+}
+
 // ─── Engine commands ─────────────────────────────────────────────────────────
 export async function sendCommand(deviceId, type, attributes = {}) {
   const request = { deviceId, type, attributes }
@@ -173,6 +239,7 @@ export async function sendCommand(deviceId, type, attributes = {}) {
     body: JSON.stringify(request),
   })
   console.log('[Traccar] command response', JSON.stringify(response ?? null))
+  console.log('[Traccar] command delivery', JSON.stringify(getCommandDeliveryMeta(response)))
   return response
 }
 

@@ -586,27 +586,40 @@ import {
         }
 
         // Resolve the protocol when Traccar exposes it, but never let an
-        // optional lookup prevent the command from being sent. Traccar's
-        // /api/devices response often omits protocol; current GT06/WanWay
-        // trackers must use the custom RELAY payload, so RELAY is the safe
-        // fallback for an unknown protocol.
+        // optional lookup prevent the command from being sent. Known GT06
+        // devices use Traccar's standard encoder; an unknown protocol falls
+        // back to the documented one-argument GS900 relay command.
         let protocol = ''
+        let traccarDevice = null
         try {
-          const traccarDevice = await traccar.getDevice(dev.traccar_id)
+          traccarDevice = await traccar.getDevice(dev.traccar_id)
           protocol = String(traccarDevice?.protocol || '').toLowerCase()
         } catch (lookupError) {
           console.warn('[engine] protocol lookup failed; defaulting to RELAY:', lookupError.message)
         }
         const knownNonRelay = /^(?:teltonika|t55|h02|tk103|meiligao|suntech|wondex)/i.test(protocol)
         const isRelayProtocol = protocol ? !knownNonRelay : true
-        let traccarType = type
-        let attributes = {}
-        if (isRelayProtocol) {
-          traccarType = 'custom'
-          attributes = { data: type === 'engineStop' ? 'RELAY,1,0#' : 'RELAY,1,1#' }
-        }
+        const command = isRelayProtocol
+          ? traccar.resolveEngineCommand({
+              type,
+              protocol,
+              deviceAttributes: traccarDevice?.attributes || {},
+            })
+          : { type, attributes: {}, profile: 'traccar-standard' }
 
-        const traccarResponse = await traccar.sendCommand(dev.traccar_id, traccarType, attributes)
+        console.log('[engine] dispatch', JSON.stringify({
+          deviceId: dev.traccar_id,
+          protocol: protocol || null,
+          profile: command.profile,
+          type: command.type,
+          attributes: command.attributes,
+        }))
+        const traccarResponse = await traccar.sendCommand(
+          dev.traccar_id,
+          command.type,
+          command.attributes,
+        )
+        const delivery = traccar.getCommandDeliveryMeta(traccarResponse)
 
         await db.query(
           `INSERT INTO device_commands (device_id, user_id, command, traccar_id, result, ip_address)
@@ -614,8 +627,21 @@ import {
           [dev.id, req.user.id, type, dev.traccar_id, req.ip]
         ).catch(e => console.error('[device_commands insert]', e.message))
 
-        await logAudit(req.user.id, `engine_${type}`, 'device', dev.id, { imei: dev.imei, command: type, relay: isRelayProtocol }).catch(()=>{})
-        res.json({ ok: true, type, relay: isRelayProtocol, traccarResponse: traccarResponse ?? null })
+        await logAudit(req.user.id, `engine_${type}`, 'device', dev.id, {
+          imei: dev.imei,
+          command: type,
+          relay: isRelayProtocol,
+          commandProfile: command.profile,
+        }).catch(()=>{})
+        res.json({
+          ok: true,
+          type,
+          relay: isRelayProtocol,
+          commandProfile: command.profile,
+          commandId: delivery.commandId,
+          queueState: delivery.queueState,
+          traccarResponse: traccarResponse ?? null,
+        })
       } catch (err) {
         console.error('[command error]', err.message)
         await db.query(

@@ -2,6 +2,67 @@
 
 This file records the completed work and the current production verification notes.
 
+## Engine delivery fix — use the Traccar GT06 encoder and the GS900 relay shape
+
+### Root cause
+
+- The production application returned HTTP 200 after sending a Traccar
+  `custom` command with `attributes.data: "RELAY,1,0#"` or
+  `"RELAY,1,1#"`, but HTTP 200 only proved that Traccar accepted the API
+  request. It did not prove that the device received a valid relay command.
+- The current upstream Traccar `Gt06ProtocolEncoder` was checked directly.
+  With `gt06.alternative` disabled, its standard commands are
+  `Relay,1#` for `engineStop` and `Relay,0#` for `engineResume`. The previous
+  application payload had the wrong argument shape and bypassed that encoder.
+- The WanWay GS900 command guide independently documents the same one-argument
+  relay format: `RELAY,1#` cuts fuel/electricity and `RELAY,0#` restores it.
+  The repository's own setup comments identify the deployed GS900 firmware as
+  GT06-compatible on port 5023, which explains why the previous command could
+  be accepted by Traccar without moving the relay.
+
+### Fix
+
+- A device whose Traccar protocol is `gt06` now sends the standard
+  `engineStop` / `engineResume` command types with an empty attributes object.
+  Traccar therefore owns the final wire encoding and respects its
+  device-level `gt06.alternative` setting.
+- WanWay/GS900 and unknown-protocol fallback dispatches use Custom with the
+  exact one-argument payload `Relay,1#` / `Relay,0#`.
+- Per-device overrides are supported through Traccar device attributes without
+  a database migration:
+  - `engineStopCommand` and `engineResumeCommand` send exact Custom strings.
+  - `engineCommandProfile: "standard"` uses Traccar's standard command.
+  - `engineCommandProfile: "legacy"` preserves the old three-argument format
+    only for a device whose firmware is proven to require it.
+- The route logs the Traccar device ID, detected protocol, selected profile,
+  command type, and exact non-secret attributes. `sendCommand()` continues to
+  log the Traccar response. The API response now includes `commandProfile` and
+  the raw non-secret Traccar response for diagnosis.
+
+### Verification and limits
+
+| Requirement | Result | Evidence |
+|---|---|---|
+| Correct GT06 request shape | PASS locally/source audit | GT06 uses `engineStop` / `engineResume` with `{}`; upstream encoder emits `Relay,1#` / `Relay,0#` |
+| GS900 fallback shape | PASS locally/source audit | `Relay,1#` / `Relay,0#`; seven profile smoke cases pass |
+| Per-device command override | PASS locally | exact stop/resume attributes and `standard`/`legacy` profiles tested |
+| Application → Traccar path | PASS previously live | production returned HTTP 200 and Traccar response for DACIA/70 |
+| Traccar UI vs application decisive test | NOT RUN | no public Traccar UI endpoint or Traccar credentials are available in this Repl |
+| Physical relay movement | NOT PROVEN | safe live hardware test was not available; no false success claim |
+| Build/syntax/diff | PASS | `npm run build`, backend `node --check`, and `git diff --check` |
+| New Docker container | NOT PROVEN HERE | Docker is unavailable in this Repl; `backend/Dockerfile` copies the changed `src` on a fresh build |
+
+The external `athargps.com` runtime and its Docker host are not connected to
+this Repl. The source fix is ready for a fresh Docker build with cache disabled,
+but the running production image must be rebuilt and its backend logs checked
+before the physical cut/resume result can be certified.
+
+The backend start smoke test could not run in this clone because
+`backend/node_modules` is absent (`dotenv` is not installed). This is an
+environment/dependency limitation, not a syntax failure; the changed modules
+passed `node --check`, the pure command/profile smoke tests, and the frontend
+build.
+
 ## Three live bugs — real root causes and precise state separation
 
 ### Bug 1: repeated disconnect/restore alerts
