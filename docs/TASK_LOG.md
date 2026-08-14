@@ -1007,3 +1007,74 @@ disconnected even after the battery was re-connected.
 - [ ] Live battery-pull + restore test on a real device not yet performed;
       logic verified by code trace. The spam guard and markVehicleConnected
       fix are the minimal changes required.
+
+## Sleeping-device power-alert fix — charge noise is not disconnection
+
+### Root cause
+
+- `detectExternalPowerLoss()` treated every `charge:false`/false-like value as
+  authoritative external-power loss. GT06 sleep packets can omit or fluctuate
+  `charge` while GPS packets continue, so this created false disconnect episodes.
+- The power episode state did not retain whether a confirmed disconnect came
+  from an explicit telemetry signal or from total silence. A late explicit
+  flag after a silence episode could therefore incorrectly require an explicit
+  restore signal.
+
+### Fix
+
+- Removed `charge:false` from the loss detector. Loss now requires an explicit
+  external-power/loss attribute (`externalPower:false`, `powerCut:true`,
+  `powerLost:true`, equivalent named fields, or a recognized power-cut alarm),
+  or the existing complete-silence timer.
+- Added the pure `reducePowerTelemetryState()` reducer used by the real
+  observer. It keeps per-device transition guards, requires an affirmative
+  restore for telemetry-triggered episodes, and allows a reporting packet to
+  restore a silence-triggered episode.
+- Kept voltage observation independent from power state, so a sleeping device
+  that continues reporting keeps its last real voltage even when a packet omits
+  voltage.
+- Map popups now use the shared status key: a fresh position with zero speed
+  renders `متوقفة` / `Arrêté`, not `غير متصل` / `Hors ligne`. Power events no
+  longer stack a browser push over the in-app power notification.
+- Engine cut/resume code was not touched.
+
+### Local state-machine simulation
+
+| Scenario | Result |
+|---|---|
+| Idle device; `charge` true/absent/false-ish/true/absent while packets arrive | PASS — 0 disconnect, 0 restore alerts |
+| Explicit `powerCut:true` packet | PASS — exactly 1 disconnect transition |
+| More flagged packets in the same episode | PASS — no additional transition |
+| Explicit positive restore (`charge:true`) | PASS — exactly 1 restore transition |
+| Complete silence at the configured window | PASS — silence condition produces exactly 1 disconnect candidate |
+| Voltage `12.6` followed by a packet without voltage | PASS — last real voltage remains `12.6 V` |
+
+### Regression verification
+
+| Requirement | Result | Evidence |
+|---|---|---|
+| Engine cut/resume | PASS by preservation/source audit | engine path untouched |
+| Internal-battery state | PASS by preservation/source audit | `powerDisconnected` remains per device |
+| 35 km/h remains moving | PASS by preservation/source audit | shared `speedKmh` and `>2` km/h status rule untouched |
+| Arabic map labels | PASS by build/source audit | existing translations and map layers preserved |
+| Per-device state isolation | PASS | reducer/telemetry maps remain keyed by Traccar ID |
+| Last real voltage while reporting/sleeping | PASS locally | cache simulation returned `12.6` after omission |
+| Sleeping stopped status | PASS by build/source audit | MapView uses `getDeviceStatusKey()` and `stopped` translation |
+
+### Files changed
+
+- `backend/src/services/vehicleTelemetry.js`
+- `backend/src/index.js`
+- `src/context/AppContext.jsx`
+- `src/components/MapView.jsx`
+- `docs/TASK_LOG.md`
+
+### Verification limits
+
+- `npm run build`, backend `node --check`, and `git diff --check` pass.
+- Public `https://athargps.com/api/health` returned HTTP 200 with database
+  connected and Traccar reachable during this session.
+- The real device battery-pull/restore and Traccar UI comparison were not run.
+- Docker is unavailable in this Repl; the external production container was not
+  rebuilt or proven to contain this commit. Local backend start is also blocked
+  by the clone's absent `backend/node_modules` (`dotenv` unavailable).

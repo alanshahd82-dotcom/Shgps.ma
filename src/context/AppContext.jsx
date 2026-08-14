@@ -408,14 +408,8 @@ export function AppProvider({ children }) {
               : item
           )))
           setPowerDisconnectNotice(alert)
-          if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
-            try {
-              new Notification('ATHAR GPS', {
-                body: alert.message || 'تم فصل تغذية المركبة / Alimentation véhicule débranchée',
-                icon: '/athar-gps-mark.svg',
-              })
-            } catch { /* ignore */ }
-          }
+          // The in-app banner is the single immediate notification for this
+          // event. Do not stack a browser push on top of the same alert.
         }
 
         if (data.type === 'device:power-restored') {
@@ -450,14 +444,7 @@ export function AppProvider({ children }) {
           setPowerDisconnectNotice(prev =>
             prev && (String(prev.deviceId) === String(data.deviceId)) ? null : prev
           )
-          if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
-            try {
-              new Notification('ATHAR GPS', {
-                body: alert.message || 'تم استعادة البطارية / Batterie rebranchée',
-                icon: '/athar-gps-mark.svg',
-              })
-            } catch { /* ignore */ }
-          }
+          // The alert list remains the single notification record for restore.
         }
       } catch {}
     }

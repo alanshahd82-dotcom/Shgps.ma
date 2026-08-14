@@ -32,6 +32,7 @@ import {
   markVehicleConnected,
   detectExternalPowerLoss,
   detectExternalPowerRestored,
+  reducePowerTelemetryState,
   isVehicleDisconnected,
   observeVehicleVoltage,
   POWER_SILENCE_WINDOW_MS,
@@ -558,6 +559,7 @@ async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {
     )
 
     state.disconnected = true
+    state.disconnectTrigger = latestSignalConfirmed ? 'telemetry' : 'silence'
     state.alerting = false
     clearPowerDisconnectRetryTimer(traccarId)
     markVehicleDisconnected(traccarId)
@@ -617,35 +619,28 @@ function observePowerTelemetry(position) {
     lastPositionAt: null,
     lastPositionKey: null,
     powerLossSignal: null,
+    disconnectTrigger: null,
     invalidPositionCount: 0,
     disconnected: false,
     alerting: false,
   }
   const signature = positionSignature(position)
-  const isNewTelemetry = current.lastPositionKey !== signature
   const powerLossSignal = detectExternalPowerLoss(position)
   const powerRestoredSignal = detectExternalPowerRestored(position)
-  if (isNewTelemetry) {
-    current.lastPositionKey = signature
-    const observedAt = positionTimestamp(position, now)
-    current.lastPositionAt = current.lastPositionAt === null
-      ? observedAt
-      : Math.max(current.lastPositionAt, observedAt)
-  }
+  const transition = reducePowerTelemetryState(current, {
+    signature,
+    observedAt: positionTimestamp(position, now),
+    now,
+    powerLossSignal,
+    powerRestoredSignal,
+  })
+  const next = transition.state
 
   // A healthy position after a confirmed disconnect episode: transition back to connected.
   // Fire ONE restore alert, clear the in-memory disconnect state, and remove the device
   // from the disconnectedVehicles Set so the WebSocket bridge stops marking it disconnected.
-  const explicitLossEpisode = Boolean(current.powerLossSignal)
-  const confirmedRestore = current.disconnected
-    && !powerLossSignal
-    && (!explicitLossEpisode || Boolean(powerRestoredSignal))
-  if (confirmedRestore) {
-    current.disconnected = false
-    current.powerLossSignal = null
-    current.missingSince = null
-    current.alerting = false
-    powerTelemetry.set(key, current)
+  if (transition.restored) {
+    powerTelemetry.set(key, next)
     markVehicleConnected(traccarId)
     void createPowerRestoredAlert(traccarId)
     // Fall through to process this healthy position normally (voltage cache, silence timer).
@@ -653,20 +648,13 @@ function observePowerTelemetry(position) {
 
   if (voltage !== null) {
     // A real voltage reading (not a guess) — store it as the last known good value.
-    current.lastValidAt = now
-    current.lastValidVoltage = voltage
+    next.lastValidAt = now
+    next.lastValidVoltage = voltage
   }
 
   if (powerLossSignal) {
-    current.powerLossSignal = powerLossSignal
-    current.missingSince = now
-    current.invalidPositionCount = 0
-    // Guard: only alert on the TRANSITION into disconnected (first packet with power loss
-    // signal). Do NOT reset current.disconnected here — that would bypass the guard on
-    // every subsequent packet and cause repeated alerts (the spam bug).
-    const alreadyHandled = current.disconnected || current.alerting
-    powerTelemetry.set(key, current)
-    if (!alreadyHandled) {
+    powerTelemetry.set(key, next)
+    if (transition.shouldAlertImmediately) {
       clearPowerDisconnectTimer(traccarId)
       void createPowerDisconnectedAlert(traccarId, { immediate: true })
     }
@@ -676,11 +664,9 @@ function observePowerTelemetry(position) {
   // A position without voltage is still connected. Keep the last real
   // voltage and wait for actual silence. Keep a pending explicit power-loss
   // signal until its alert has been persisted, even if another packet races in.
-  if (!current.powerLossSignal) current.missingSince = null
-  current.invalidPositionCount = 0
-  powerTelemetry.set(key, current)
-  if (isNewTelemetry && !current.powerLossSignal) {
-    schedulePowerDisconnectCheck(traccarId, current.lastPositionAt)
+  powerTelemetry.set(key, next)
+  if (transition.shouldScheduleSilence) {
+    schedulePowerDisconnectCheck(traccarId, next.lastPositionAt)
   }
 }
 

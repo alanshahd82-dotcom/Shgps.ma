@@ -57,8 +57,6 @@ export function detectExternalPowerLoss(position) {
     if (key !== 'externalPower' && isLossLike(attributes[key])) return { source: key }
   }
 
-  if (isFalseLike(attributes.charge)) return { source: 'charge:false' }
-
   const alarm = String(attributes.alarm ?? '').trim()
   if (alarm && POWER_LOSS_ALARM_PATTERN.test(alarm)) {
     return { source: `alarm:${alarm}` }
@@ -101,6 +99,67 @@ export function detectExternalPowerRestored(position) {
   }
 
   return null
+}
+
+/**
+ * Apply one position to the power episode state.
+ *
+ * `charge` is intentionally absent from the loss detector above: it can
+ * fluctuate or disappear on sleeping GT06 devices. Only explicit loss
+ * attributes and total silence may create a disconnect episode.
+ */
+export function reducePowerTelemetryState(current, {
+  signature,
+  observedAt,
+  now,
+  powerLossSignal,
+  powerRestoredSignal,
+}) {
+  const next = { ...current }
+  const isNewTelemetry = next.lastPositionKey !== signature
+
+  if (isNewTelemetry) {
+    next.lastPositionKey = signature
+    next.lastPositionAt = next.lastPositionAt === null
+      ? observedAt
+      : Math.max(next.lastPositionAt, observedAt)
+  }
+
+  const wasDisconnectedBySilence = next.disconnectTrigger === 'silence'
+  const confirmedRestore = next.disconnected
+    && !powerLossSignal
+    && (wasDisconnectedBySilence || Boolean(powerRestoredSignal))
+
+  if (confirmedRestore) {
+    next.disconnected = false
+    next.disconnectTrigger = null
+    next.powerLossSignal = null
+    next.missingSince = null
+    next.alerting = false
+  }
+
+  if (powerLossSignal) {
+    next.powerLossSignal = powerLossSignal
+    next.missingSince = now
+    next.invalidPositionCount = 0
+    return {
+      state: next,
+      isNewTelemetry,
+      restored: confirmedRestore,
+      shouldAlertImmediately: !next.disconnected && !next.alerting,
+      shouldScheduleSilence: false,
+    }
+  }
+
+  if (!next.powerLossSignal) next.missingSince = null
+  next.invalidPositionCount = 0
+  return {
+    state: next,
+    isNewTelemetry,
+    restored: confirmedRestore,
+    shouldAlertImmediately: false,
+    shouldScheduleSilence: isNewTelemetry && !next.disconnected && !next.powerLossSignal,
+  }
 }
 
 function toFinitePositiveNumber(raw) {

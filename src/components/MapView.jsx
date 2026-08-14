@@ -5,7 +5,7 @@ import L from 'leaflet'
 import LiveVehicleMarker from './LiveVehicleMarker'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
-import { formatVoltage } from './ui'
+import { formatVoltage, getDeviceStatusKey } from './ui'
 
 // Professional SVG vehicle icons (no emoji)
 function createDeviceIcon(type, isSelected = false) {
@@ -148,6 +148,66 @@ function createClusterIcon(count, onlineCount) {
   })
 }
 
+function DevicePopupContent({ device, lang, onRouteRequest, routeLoadingDeviceId }) {
+  const statusKey = getDeviceStatusKey(device)
+  const isOffline = statusKey === 'offline'
+  const isStopped = statusKey === 'stopped'
+
+  return (
+    <div style={{ minWidth: 160, fontFamily: 'Cairo, Inter, sans-serif', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#0F2044' }}>{device.name}</div>
+      <div style={{ fontSize: 11, color: '#64748B', marginBottom: 3 }}>{device.plate}</div>
+      <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
+        <span style={{ color: isOffline ? '#94A3B8' : isStopped ? '#DC2626' : '#00D97E', fontWeight: 600 }}>
+          ● {isOffline ? t(lang, 'offline') : isStopped ? t(lang, 'stopped') : t(lang, 'online')}
+        </span>
+        {!isOffline && (
+          <span style={{ color: '#0F2044', fontWeight: 600 }}>{device.speed} {t(lang, 'kmh')}</span>
+        )}
+      </div>
+      {!isOffline && device.powerDisconnected && (
+        <div style={{ fontSize: 10, color: '#B45309', fontWeight: 600, marginTop: 3 }}>
+          {lang === 'ar' ? 'على البطارية الداخلية' : 'Sur batterie interne'}
+        </div>
+      )}
+      {!isOffline && (
+        <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
+          {lang === 'ar'
+            ? `الفولطاج ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)} · إشارة ${device.signal ?? '—'}/4`
+            : `Tension ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)} · Signal ${device.signal ?? '—'}/4`}
+        </div>
+      )}
+      {onRouteRequest && (
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation()
+            onRouteRequest(device)
+          }}
+          disabled={routeLoadingDeviceId === device.id}
+          style={{
+            width: '100%',
+            marginTop: 8,
+            padding: '7px 9px',
+            border: '1px solid rgba(15,32,68,.16)',
+            borderRadius: 9,
+            background: '#0F2044',
+            color: 'white',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: routeLoadingDeviceId === device.id ? 'wait' : 'pointer',
+            opacity: routeLoadingDeviceId === device.id ? 0.65 : 1,
+          }}
+        >
+          {routeLoadingDeviceId === device.id
+            ? (lang === 'ar' ? 'جاري التحميل…' : 'Chargement…')
+            : (lang === 'ar' ? 'عرض مسار اليوم' : 'Voir trajet du jour')}
+        </button>
+      )}
+    </div>
+  )
+}
+
 
 export default function MapView({
   deviceId = null,
@@ -287,57 +347,12 @@ export default function MapView({
           onClick={() => onDeviceClick?.(device)}
         >
           <Popup>
-            <div style={{ minWidth: 160, fontFamily: 'Cairo, Inter, sans-serif', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#0F2044' }}>{device.name}</div>
-              <div style={{ fontSize: 11, color: '#64748B', marginBottom: 3 }}>{device.plate}</div>
-              <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
-                <span style={{ color: device.status === 'online' ? '#00D97E' : '#94A3B8', fontWeight: 600 }}>
-                  ● {device.status === 'online' ? t(lang, 'online') : t(lang, 'offline')}
-                </span>
-                {device.status === 'online' && (
-                  <span style={{ color: '#0F2044', fontWeight: 600 }}>{device.speed} {t(lang, 'kmh')}</span>
-                )}
-              </div>
-              {device.status === 'online' && device.powerDisconnected && (
-                <div style={{ fontSize: 10, color: '#B45309', fontWeight: 600, marginTop: 3 }}>
-                  {lang === 'ar' ? 'على البطارية الداخلية' : 'Sur batterie interne'}
-                </div>
-              )}
-              {device.status === 'online' && (
-                <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
-                  {lang === 'ar'
-                    ? `الفولطاج ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)} · إشارة ${device.signal ?? '—'}/4`
-                    : `Tension ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)} · Signal ${device.signal ?? '—'}/4`}
-                </div>
-              )}
-              {onRouteRequest && (
-                <button
-                  type="button"
-                  onClick={event => {
-                    event.stopPropagation()
-                    onRouteRequest(device)
-                  }}
-                  disabled={routeLoadingDeviceId === device.id}
-                  style={{
-                    width: '100%',
-                    marginTop: 8,
-                    padding: '7px 9px',
-                    border: '1px solid rgba(15,32,68,.16)',
-                    borderRadius: 9,
-                    background: '#0F2044',
-                    color: 'white',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: routeLoadingDeviceId === device.id ? 'wait' : 'pointer',
-                    opacity: routeLoadingDeviceId === device.id ? 0.65 : 1,
-                  }}
-                >
-                  {routeLoadingDeviceId === device.id
-                    ? (lang === 'ar' ? 'جاري التحميل…' : 'Chargement…')
-                    : (lang === 'ar' ? 'عرض مسار اليوم' : 'Voir trajet du jour')}
-                </button>
-              )}
-            </div>
+            <DevicePopupContent
+              device={device}
+              lang={lang}
+              onRouteRequest={onRouteRequest}
+              routeLoadingDeviceId={routeLoadingDeviceId}
+            />
           </Popup>
         </LiveVehicleMarker>
       ))}
