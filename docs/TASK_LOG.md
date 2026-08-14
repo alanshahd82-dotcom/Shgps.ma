@@ -1173,3 +1173,321 @@ CREATE TABLE IF NOT EXISTS device_power_states (
 - [x] No existing alert paths, voltage logic, or WebSocket broadcast code was modified.
 - [ ] Live test with a real device restart mid-disconnect was not performed;
   requires the production environment and a physical tracker.
+
+## Phase 0 — audit, protection baseline, and additive design system
+
+### Audit scope and provenance
+
+- Audited the real `origin/main` checkout at commit `2f924ef` before changing
+  source. The checkout was clean and matched `origin/main`.
+- Created a pre-change archive outside the repository before editing. No
+  production database, Traccar service, Docker configuration, or backend source
+  was changed in this phase.
+- Read `docs/AI_CONTEXT.md` and this task log in full before the audit.
+- The audit below describes the current source of truth, not a redesign.
+
+### Current route and screen map
+
+#### Public and recovery routes
+
+| Route | Screen | Purpose |
+|---|---|---|
+| `/` | `LandingPage` | Public product landing page; native Capacitor entry redirects to `/client` |
+| `/login` | redirect | Compatibility redirect to `/client/login` |
+| `/share/:token` | `PublicShare` → `PublicMap` | Public device share experience |
+| `/terms` | `Terms` | Terms page |
+| `/privacy` | `Privacy` | Privacy page |
+| `*` | `NotFound` | Catch-all |
+
+#### Client routes
+
+| Route | Screen | Purpose |
+|---|---|---|
+| `/client` | `ClientEntry` | Chooses onboarding, login, or authenticated home |
+| `/client/start` | `ClientWelcome` | First-use onboarding |
+| `/client/login` | `Login` | Client authentication |
+| `/client/forgot-password` | `ForgotPassword` | Password-reset request |
+| `/client/reset-password` | `ResetPassword` | Password reset with token |
+| `/client/home` | `Home` | Authenticated fleet overview |
+| `/subscriptions` | `Subscriptions` | Subscription status and renewal actions |
+| `/client/devices` | `DeviceList` | Search, filter, and choose owned devices |
+| `/client/device/:id` | `DeviceDetail` | Device details, edit, replay, sharing, and engine control |
+| `/client/alerts` | `Alerts` | Client alert feed and read state |
+| `/client/settings` | `Settings` | Profile, password, language, display, push, and sub-user settings |
+| `/client/reports` | `Reports` | Trip reports, speed chart, and replay entry |
+| `/client/driver-behavior` | `DriverBehavior` | Driver safety scores and events |
+| `/client/maintenance` | `Maintenance` | Device maintenance records |
+| `/client/geofences` | `Geofences` | Geofence list, map editor, and deletion |
+| `/client/device-wizard` | `DeviceWizard` | Client device onboarding |
+| `/client/map` | `LiveMap` | Authenticated live map and device launcher |
+| `/client/help` | `Help` | Support/help entry point |
+
+All protected client routes pass through `ClientRoute`, which waits for
+session hydration, verifies the persisted client identity, and renders the
+force-password modal when required. `ClientHeader` and `ClientNav` are reused
+across the client screens; the More sheet links subscriptions, reports, driver
+behavior, settings, and logout.
+
+#### Admin routes
+
+| Route | Screen | Purpose |
+|---|---|---|
+| `/admin` | redirect | Redirect to the admin dashboard |
+| `/admin/login` | `AdminLogin` | Admin authentication |
+| `/admin/dashboard` | `Dashboard` | Fleet/client/alert overview |
+| `/admin/clients` | `Clients` | Client administration |
+| `/admin/clients/:id` | `ClientDetail` | Client detail and assigned devices |
+| `/admin/devices` | `AllDevices` | Fleet-wide device management |
+| `/admin/map` | `GlobalMap` | Fleet-wide map |
+| `/admin/alerts` | `AdminAlerts` | Fleet-wide alert feed |
+| `/admin/setup` | `DeviceSetup` | Device creation and connection testing |
+| `/admin/support` | `SupportSettings` | Support and renewal contacts |
+| `/admin/leads` | `Leads` | Public lead/contact requests |
+| `/admin/sub-admins` | `SubAdmins` | Main-admin sub-admin and client assignments |
+
+All protected admin routes pass through `AdminRoute`. `AdminLayout` owns the
+admin shell, sidebar, permission-filtered navigation, quick-add flow, language
+control, alerts entry, and logout. Sub-admin permissions hide navigation items,
+while backend authorization remains the source of truth.
+
+### Components and reuse map
+
+- **Application shell:** `AppProvider`, `ErrorBoundary`, `ClientHeader`,
+  `ClientNav`, `AdminLayout`, `Logo`, `Toast`, and `ForcePasswordModal`.
+- **Shared visual primitives:** `src/components/ui.jsx` contains the existing
+  vehicle icon, voltage/status helpers, card, section, empty, error, page
+  header, offline, and time-ago helpers. `src/components/ui/Button.jsx` is an
+  older standalone button primitive and currently duplicates part of the
+  button contract.
+- **Map system:** `MapView`, `MapLayers`, `GeoapifyTileLayer`,
+  `ResilientTiles`, `MapStyleToggle`, and `LiveVehicleMarker` are reused by
+  live/admin map surfaces. `TripReplay` owns the stable replay map and is
+  consumed by `DeviceDetail` and `Reports`.
+- **Subscription system:** `SubscriptionBadge`, `SubscriptionBanner`,
+  `SubscriptionPlans`, and `SubscriptionRenewalModal` are shared by client
+  device/subscription surfaces and admin device flows.
+- **Feedback and confirmation:** `ConfirmModal` is used by settings,
+  maintenance, device detail, and admin device flows. `Toast` is used for
+  device save, engine command, copy, IMEI, and share feedback.
+- **Other reusable utilities:** `Carousel`, `NativeAreaChart`, and the shared
+  vehicle asset registry support home, reports, and vehicle/map surfaces.
+- **Known duplication to address only in later phases:** pages still mix
+  inline styles, Tailwind utility classes, legacy light-theme primitives,
+  `ui.jsx` primitives, and newer `ath-*` classes. Status/color configuration is
+  partly shared and partly repeated in client/admin alert screens. This is an
+  audit finding; no existing screen was rewritten in Phase 0.
+
+### API client and backend contract map
+
+The browser uses `src/api/index.js` as the central authenticated JSON client,
+which adds the persisted bearer token and throws errors with status/code. The
+one intentional public direct fetch is `PublicMap` loading a share token.
+Backend routers are mounted under `/api` in `backend/src/index.js`; live API
+responses are marked `no-store`, with tile routes retaining their own cache
+policy.
+
+| Mount | Endpoints currently exposed |
+|---|---|
+| `/api/health` | `GET /api/health` |
+| `/api/auth` | `POST /login`, `POST /change-password`, `PUT /profile`, `GET /me`, `POST /forgot-password`, `POST /reset-password`, `POST /logout` |
+| `/api/devices` | `GET /`, `GET /:id`, `POST /`, `POST /quick-add`, `PATCH /:id/info`, `PATCH /:id/subscription`, `DELETE /:id`, `POST /:id/command`, `POST /:id/geofence`, `DELETE /:id/geofence`, `GET /test-connection` |
+| `/api/clients` | `GET /`, `POST /`, `PUT /:id`, `DELETE /:id`, `POST /:id/reset-password`, `PATCH /:id/subscription`, `POST /:id/devices` |
+| `/api/alerts` | `GET /`, `PATCH /read-all`, `PATCH /:id/read` |
+| `/api/map` | public tile proxy routes; authenticated `GET /positions`; satellite/street tile fallback routes |
+| `/api/geofences` | `GET /`, `GET /:id`, `POST /`, `DELETE /:id` |
+| `/api/reports` | authenticated `GET /` and `/trips`, `GET /daily-summary` |
+| `/api/stats` | authenticated `GET /positions` with date range and `maxPoints` |
+| `/api/admin` | `GET /stats`, `GET /monthly-stats`, `POST /traccar-sync` |
+| `/api/maintenance` | `GET /`, `POST /`, `DELETE /:id` |
+| `/api/sharing` | authenticated `POST /`; public `GET /:token` |
+| `/api/leads` | public rate-limited `POST /`; authenticated `GET /` |
+| `/api/driver-behavior` | `POST /scores`, `GET /scores`, `GET /summary` |
+| `/api/sub-users` | `GET /`, `POST /`, `PATCH /:id`, `DELETE /:id` |
+| `/api/sub-admins` | `GET /`, `POST /`, `PATCH /:id`, `DELETE /:id`, `GET /:id/clients`, `PUT /:id/clients` |
+| `/api/settings` | public `GET /support`, public `GET /renewal-contacts`, admin `PUT` for each |
+
+### Authentication and authorization flow
+
+1. Client or admin login calls the shared `/api/auth/login` endpoint.
+2. The returned bearer token and the role-specific user record are persisted
+   in `localStorage` under the existing `athargps_*` keys.
+3. On reload, `/api/auth/me` revalidates the session. A confirmed 401 clears
+   the token and scoped user data; temporary network errors preserve the
+   session while the live connection retries.
+4. Client and admin identities are mutually cleared before loading their
+   role-specific data, preventing an admin request from accidentally using a
+   client identity.
+5. Logout calls the server where possible, then always clears local session
+   state and closes live connections.
+6. The frontend WebSocket sends the same token as a query parameter. The
+   backend verifies the JWT, checks the token blacklist, records the user scope,
+   and filters non-admin device messages through the ownership cache.
+7. Backend middleware retains the existing role/device ownership checks. No
+   authentication, authorization, token, or session behavior was changed.
+
+### Device and vehicle management
+
+- Client device list and detail use `/api/devices`; the client can edit
+  permitted device/driver fields, view telemetry, create share links, renew
+  subscriptions, manage geofences, and send only the existing
+  `engineStop`/`engineResume` commands.
+- Client onboarding uses `DeviceWizard`; admin onboarding uses `DeviceSetup`,
+  `quick-add`, connection testing, and fleet assignment flows.
+- Admin client screens create/update/delete clients, reset passwords, update
+  subscriptions, and add devices. Main admins additionally manage sub-admins
+  and sub-users/assignments through their existing screens.
+- Vehicle type is centralized through `vehicleAssets.js` and shared vehicle
+  icon consumers; supported types are `car`, `bike`, and `truck`.
+- Existing per-device state is keyed by local device ID or Traccar device ID.
+  No hardcoded vehicle, IMEI, customer, or account identity was found in the
+  telemetry path.
+
+### Map, telemetry, and realtime flow
+
+- Traccar positions enter the backend WebSocket bridge and the central power
+  telemetry observer. The bridge forwards admin data fleet-wide and filters
+  client messages by device ownership.
+- The frontend `AppContext` batches valid position messages by device and
+  flushes them at most twice per second, rejecting invalid coordinates and
+  older fixes. It preserves last-known telemetry fields when a stale response
+  omits them.
+- The frontend WebSocket uses heartbeat ping/pong, a watchdog, exponential
+  reconnect backoff, and a five-second authenticated map-position polling
+  fallback while disconnected.
+- `LiveMap` uses the existing Leaflet/MapLayers/LiveVehicleMarker path with
+  route loading on demand, style fallback, vehicle bearing interpolation, and
+  per-device selection. `GlobalMap` keeps admin fleet visibility and its
+  existing low-zoom behavior.
+- `TripReplay` keeps one mounted Leaflet map, loads bounded/sampled position
+  data on demand, filters GPS outliers, and renders playback controls and route
+  analysis without changing the backend contract.
+- The shared speed helper converts Traccar knots to km/h in REST, WebSocket,
+  reports, sharing, and map fallback paths. The existing `speed > 2` rule
+  remains the source for moving vs stopped display.
+
+### Alerts and power state
+
+- Client and admin alert screens read `/api/alerts`; read actions remain
+  scoped through the existing handlers.
+- The backend distinguishes fresh reporting, external-power loss, and true
+  silence. Explicit power-loss episodes are transition-only and are persisted
+  in `device_power_states` so a backend restart cannot re-fire an alert.
+- `device:power-disconnected` and `device:power-restored` are delivered over
+  the existing WebSocket. `AppContext` updates only the matching device,
+  alert list, voltage/power flag, and in-app notice.
+- Missing voltage is not treated as a disconnect. A valid voltage stays cached
+  per device until the existing disconnect state is confirmed.
+- Browser push is optional and follows the existing notification preference;
+  the in-app power notice remains the single immediate surface for a power
+  event.
+
+### Trips and replay
+
+- `DeviceDetail` and `Reports` both lazy-load the shared `TripReplay` component.
+- The flow is bounded range selection → lightweight trip list → on-demand
+  route/position load → replay overlay. Date-range presets, custom range
+  validation, stop classification, route sampling, speed charting, and
+  printable export are already present.
+- Replay uses the existing vehicle artwork registry, Leaflet map layers,
+  bearing interpolation, follow/recenter behavior, playback speed, and
+  driver-event analysis. No replay or report backend code was touched.
+
+### Settings, overlays, and connection states
+
+- Client settings covers profile, password, language/direction, dark mode,
+  push permission, speed limit, and sub-user CRUD. Admin support settings
+  manages support and renewal contacts.
+- Existing overlays are `ConfirmModal`, `ForcePasswordModal`,
+  `SubscriptionRenewalModal`, `TripReplay`, the ClientNav More bottom sheet,
+  and the global `ErrorBoundary` fallback. Toast is the shared transient
+  feedback surface.
+- Loading/empty/error/offline behavior is present in several shared helpers
+  and pages, but the audit found inconsistent styling and duplicated inline
+  implementations. The new Phase 0 state primitives define the future
+  common contract without replacing existing behavior.
+- Client screens already handle safe-area top/bottom padding in the header,
+  bottom navigation, maps, and sheets. Direction is synchronized globally
+  through `document.documentElement.dir` for Arabic RTL and French LTR.
+
+### Screen-to-screen relationships
+
+- Public landing → client entry → onboarding/login → authenticated home.
+- Client bottom navigation reaches home, devices, live map, and alerts; More
+  reaches subscriptions, reports, driver behavior, settings, and logout.
+- Home/device list → device detail; device detail → live map, replay, share,
+  engine command, driver call, and subscription renewal.
+- Reports and device detail both open the same replay component; live maps
+  share map layers, markers, route handling, and realtime state.
+- Admin login → permission-filtered `AdminLayout` → dashboard, clients/client
+  detail, devices, map, alerts, setup, support, leads, and sub-admins.
+
+### Phase 0 UX and consistency findings (audit only)
+
+- The visual language is mixed: old light-theme utility classes and the
+  existing `ath-*` dark surface coexist, with some page-specific inline color
+  values.
+- `src/components/ui.jsx` and `src/components/ui/Button.jsx` overlap but do
+  not share one token/variant contract.
+- Modal, sheet, button, card, loading, and status patterns are repeated across
+  pages with different radius, padding, color, and focus behavior.
+- Admin and client alert surfaces use separate status configuration and
+  presentation rules.
+- Some public/support surfaces use a direct fetch instead of the shared API
+  client, which is appropriate for their public token flow but should stay
+  documented and isolated.
+- The current product is bilingual, but future additions must keep every new
+  label paired in Arabic/French and use logical RTL-safe layout properties.
+- These findings are intentionally not fixed by screen redesign in this phase.
+  They are the reorganization plan for later bounded navigation/home/devices/
+  map/alerts/trips/settings phases.
+
+### Regression baseline — must remain unchanged
+
+| Baseline requirement | Required evidence for later phases | Phase 0 result |
+|---|---|---|
+| Client/admin login, session hydration, logout, and password flows | Existing auth routes, guards, local session behavior, and `/auth/me` path remain intact | PASS by source audit; no auth files changed |
+| Engine cut/resume through RELAY | `engineStop`/`engineResume` remain the only client command types; RELAY payload and Traccar dispatch remain unchanged | PASS by source audit; no backend files changed |
+| One disconnect alert and one restore alert per real episode | `powerTelemetry`, durable DB state, transition reducer, and matching WebSocket events remain intact | PASS by source audit; no telemetry files changed |
+| Idle is quiet and stopped is `متوقفة` / `Arrêté` | Fresh zero-speed positions remain stopped; no alert is inferred from ordinary charge omission | PASS by source audit; no status/telemetry files changed |
+| Internal-battery label is separate from offline | `powerDisconnected` remains per device; fresh telemetry remains online unless true silence is confirmed | PASS by source audit; no map/device state files changed |
+| Last real voltage and honest missing-voltage state | Voltage stays distinct from percentage battery and is never fabricated | PASS by source audit; no voltage files changed |
+| 35 km/h is moving | Shared km/h conversion and `speed > 2` rule remain unchanged | PASS by source audit; no speed files changed |
+| Fast live updates and recovery | WebSocket batching, heartbeat, reconnect, no-store responses, and five-second fallback remain intact | PASS by source audit; no realtime files changed |
+| Per-device isolation | Frontend state, backend ownership filtering, and power state remain keyed by device identity | PASS by source audit; no data-flow files changed |
+| Arabic map labels and vehicle markers | Geoapify/Leaflet layer path, vehicle asset registry, and RTL direction remain intact | PASS by source audit; no map files changed |
+| All existing routes, API contracts, and WebSocket messages | Route map and endpoint list above remain unchanged | PASS by source audit; no route/API/backend files changed |
+
+### Phase 0 design system delivery
+
+Added an isolated, namespaced system under `src/design-system/`:
+
+- `tokens.css` — semantic dark palette, emerald-only semantic usage, navy and
+  surfaces, text/muted/cool-gray/white/danger/warning/success colors, fixed
+  spacing and radius scales, typography roles, tabular-number treatment,
+  borders, shadows, focus ring, motion, safe-area sheet spacing, and reduced
+  motion handling.
+- `components.jsx` — additive `Button` variants (primary, secondary, ghost,
+  danger), `IconButton`, standard/compact/interactive `Card`, accessible
+  `Sheet`, accessible `Modal`, `StateMessage`, `Skeleton`, `OfflineState`, and
+  `LastUpdated`.
+- `index.js` — one import path for future screens and the token stylesheet.
+- `README.md` — usage rules for semantic green, fixed scales, Lucide icons,
+  Arabic RTL, touch targets, async states, safe areas, and motion.
+- `src/index.css` imports the token stylesheet globally. No existing page
+  consumes the new `ds-*` classes in Phase 0, so current screens remain
+  visually unchanged.
+
+### Phase 0 verification
+
+- [x] Pre-change archive created before source edits.
+- [x] `npm ci --ignore-scripts` completed from the repository's existing
+  `package-lock.json`. No dependency or lockfile change was made.
+- [x] `npm run build` passes after the design-system source change.
+- [x] All backend JavaScript files pass `node --check`.
+- [x] `git diff --check` passes.
+- [x] Backend, database schema, authentication, device IDs, Traccar,
+  WebSocket contracts, and business logic remain untouched.
+- [ ] Fresh Docker rebuild and live production container proof are not
+  available in this environment; Docker/production host access is absent.
+- [ ] Physical relay, battery pull/restore, and live GPS/WebSocket device tests
+  are not claimed here and still require the real deployed fleet.

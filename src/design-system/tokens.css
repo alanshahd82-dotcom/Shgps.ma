@@ -1,0 +1,372 @@
+/*
+ * ATHAR GPS Design System
+ *
+ * This file is the visual contract for future screen work. The existing
+ * product styles stay intact; these tokens and primitives are additive and
+ * deliberately namespaced so Phase 0 cannot restyle an existing screen.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Semantic colors: use emerald only for an active, connected, successful,
+     current-location, or important-action state. */
+  --ds-color-primary: #00d97e;
+  --ds-color-primary-strong: #1dbf73;
+  --ds-color-primary-soft: rgba(0, 217, 126, 0.12);
+  --ds-color-navy: #0b1b33;
+  --ds-color-navy-deep: #07111f;
+  --ds-color-surface: #0e2035;
+  --ds-color-surface-raised: #101b2e;
+  --ds-color-surface-sunken: #0a192c;
+  --ds-color-text: #edf4f2;
+  --ds-color-text-muted: #8ca3b8;
+  --ds-color-cool-gray: #94a3b8;
+  --ds-color-white: #ffffff;
+  --ds-color-success: #22c55e;
+  --ds-color-warning: #ffb020;
+  --ds-color-danger: #ff5a5f;
+
+  /* Fixed spacing scale. */
+  --ds-space-0: 0;
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.25rem;
+  --ds-space-6: 1.5rem;
+  --ds-space-7: 2rem;
+  --ds-space-8: 2.5rem;
+
+  /* Fixed radius scale. */
+  --ds-radius-sm: 0.625rem;
+  --ds-radius-md: 0.8125rem;
+  --ds-radius-lg: 1.125rem;
+  --ds-radius-xl: 1.5rem;
+  --ds-radius-pill: 999px;
+
+  /* Typography roles. */
+  --ds-font-display: 'Cairo', system-ui, sans-serif;
+  --ds-font-body: 'IBM Plex Sans Arabic', 'Cairo', system-ui, sans-serif;
+  --ds-font-number: 'DM Mono', ui-monospace, monospace;
+  --ds-text-heading: 1.25rem;
+  --ds-text-body: 0.875rem;
+  --ds-text-caption: 0.6875rem;
+  --ds-text-number: 1.125rem;
+  --ds-leading-tight: 1.25;
+  --ds-leading-body: 1.6;
+
+  --ds-border: rgba(148, 180, 215, 0.12);
+  --ds-border-strong: rgba(148, 180, 215, 0.22);
+  --ds-shadow-card: 0 0.375rem 1.375rem rgba(0, 0, 0, 0.25);
+  --ds-shadow-overlay: 0 -1.125rem 3.75rem rgba(0, 0, 0, 0.46);
+  --ds-focus-ring: 0 0 0 3px rgba(0, 217, 126, 0.32);
+  --ds-motion-fast: 160ms;
+  --ds-motion-normal: 240ms;
+}
+
+.ds-focus-ring:focus-visible,
+.ds-button:focus-visible,
+.ds-icon-button:focus-visible,
+.ds-card--interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-card {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  background: linear-gradient(180deg, var(--ds-color-surface-raised), var(--ds-color-surface));
+  box-shadow: var(--ds-shadow-card);
+}
+
+.ds-card--compact {
+  padding: var(--ds-space-3);
+}
+
+.ds-card--standard {
+  padding: var(--ds-space-4);
+}
+
+.ds-card--interactive {
+  display: block;
+  width: 100%;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--ds-motion-fast) ease,
+    background var(--ds-motion-fast) ease,
+    transform var(--ds-motion-fast) ease;
+}
+
+.ds-card--interactive:hover {
+  border-color: var(--ds-border-strong);
+  background: linear-gradient(180deg, #12243c, var(--ds-color-surface));
+}
+
+.ds-card--interactive:active {
+  transform: scale(0.99);
+}
+
+.ds-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  padding-inline: var(--ds-space-4);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-body);
+  font-weight: 800;
+  line-height: 1;
+  transition:
+    background var(--ds-motion-fast) ease,
+    border-color var(--ds-motion-fast) ease,
+    color var(--ds-motion-fast) ease,
+    transform var(--ds-motion-fast) ease,
+    opacity var(--ds-motion-fast) ease;
+}
+
+.ds-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ds-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ds-button--primary {
+  background: var(--ds-color-primary);
+  color: #04120b;
+}
+
+.ds-button--primary:hover:not(:disabled) {
+  background: var(--ds-color-primary-strong);
+}
+
+.ds-button--secondary {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text);
+}
+
+.ds-button--secondary:hover:not(:disabled) {
+  border-color: var(--ds-color-primary-strong);
+  background: var(--ds-color-primary-soft);
+}
+
+.ds-button--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ds-color-text-muted);
+}
+
+.ds-button--ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ds-color-text);
+}
+
+.ds-button--danger {
+  background: var(--ds-color-danger);
+  color: var(--ds-color-white);
+}
+
+.ds-button--danger:hover:not(:disabled) {
+  background: #e5484d;
+}
+
+.ds-button--sm {
+  min-height: 38px;
+  padding-inline: var(--ds-space-3);
+  font-size: var(--ds-text-caption);
+}
+
+.ds-button--lg {
+  min-height: 50px;
+  padding-inline: var(--ds-space-5);
+}
+
+.ds-icon-button {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text);
+  transition:
+    background var(--ds-motion-fast) ease,
+    border-color var(--ds-motion-fast) ease,
+    transform var(--ds-motion-fast) ease;
+}
+
+.ds-icon-button:hover {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-color-primary-soft);
+}
+
+.ds-icon-button:active {
+  transform: scale(0.94);
+}
+
+.ds-sheet-backdrop,
+.ds-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.ds-sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1001;
+  max-height: min(82dvh, 720px);
+  overflow-y: auto;
+  padding:
+    var(--ds-space-3)
+    var(--ds-space-4)
+    max(var(--ds-space-4), env(safe-area-inset-bottom));
+  border: 1px solid var(--ds-border);
+  border-bottom: 0;
+  border-radius: var(--ds-radius-xl) var(--ds-radius-xl) 0 0;
+  background: rgba(14, 32, 53, 0.98);
+  box-shadow: var(--ds-shadow-overlay);
+  color: var(--ds-color-text);
+  animation: ds-sheet-in var(--ds-motion-normal) ease-out both;
+}
+
+.ds-sheet__handle {
+  width: 3rem;
+  height: 0.25rem;
+  margin: 0 auto var(--ds-space-4);
+  border-radius: var(--ds-radius-pill);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.ds-modal {
+  position: fixed;
+  inset-inline: var(--ds-space-4);
+  top: 50%;
+  z-index: 1001;
+  max-height: calc(100dvh - 2 * var(--ds-space-4));
+  overflow-y: auto;
+  transform: translateY(-50%);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-color-surface);
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.48);
+  color: var(--ds-color-text);
+  animation: ds-modal-in var(--ds-motion-normal) ease-out both;
+}
+
+.ds-state {
+  display: flex;
+  min-height: 9rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-7) var(--ds-space-5);
+  color: var(--ds-color-text-muted);
+  text-align: center;
+}
+
+.ds-state__title {
+  color: var(--ds-color-text);
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-body);
+  font-weight: 800;
+}
+
+.ds-state__description {
+  max-width: 34rem;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-caption);
+  line-height: var(--ds-leading-body);
+}
+
+.ds-skeleton {
+  min-height: 1rem;
+  border-radius: var(--ds-radius-sm);
+  background: linear-gradient(
+    110deg,
+    rgba(148, 180, 215, 0.08) 25%,
+    rgba(148, 180, 215, 0.18) 37%,
+    rgba(148, 180, 215, 0.08) 63%
+  );
+  background-size: 400% 100%;
+  animation: ds-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.ds-offline {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  border: 1px solid rgba(255, 176, 32, 0.28);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-3);
+  background: rgba(255, 176, 32, 0.1);
+  color: #ffd27a;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-caption);
+  font-weight: 700;
+}
+
+.ds-last-updated {
+  color: var(--ds-color-text-muted);
+  font-family: var(--ds-font-number);
+  font-size: var(--ds-text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes ds-sheet-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ds-modal-in {
+  from { opacity: 0; transform: translateY(-50%) scale(0.98); }
+  to { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+@keyframes ds-skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+@media (min-width: 640px) {
+  .ds-modal {
+    inset-inline: auto;
+    left: 50%;
+    width: min(32rem, calc(100vw - 2 * var(--ds-space-4)));
+    transform: translate(-50%, -50%);
+  }
+
+  @keyframes ds-modal-in {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-button,
+  .ds-card--interactive,
+  .ds-icon-button {
+    transition: none;
+  }
+
+  .ds-sheet,
+  .ds-modal,
+  .ds-skeleton {
+    animation: none;
+  }
+}
