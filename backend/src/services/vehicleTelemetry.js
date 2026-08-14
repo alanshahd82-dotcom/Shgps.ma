@@ -94,8 +94,6 @@ export function isPowerAlertSuppressed(deviceId, now = Date.now()) {
   return true
 }
 
-const POWER_LOSS_ALARM_PATTERN = /^(?:power[_ -]?(?:cut|lost|off|disconnect(?:ed)?|failure)|external[_ -]?power(?:[_ -]?(?:cut|lost|off|disconnect(?:ed)?))?|charge[_ -]?(?:off|lost|disconnect(?:ed)?))$/i
-
 /**
  * Return an explicit tracker signal that external power was lost.
  *
@@ -127,11 +125,9 @@ export function detectExternalPowerLoss(position) {
     if (key !== 'externalPower' && isLossLike(attributes[key])) return { source: key }
   }
 
-  const alarm = String(attributes.alarm ?? '').trim()
-  if (alarm && POWER_LOSS_ALARM_PATTERN.test(alarm)) {
-    return { source: `alarm:${alarm}` }
-  }
-
+  // Generic Traccar alarm names are not electrical feedback. Production
+  // devices have emitted alarm:powerCut while the tracker remained online,
+  // so an alarm alone must never create a battery-disconnect alert.
   return null
 }
 

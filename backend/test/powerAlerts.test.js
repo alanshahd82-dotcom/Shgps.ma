@@ -138,8 +138,8 @@ test.beforeEach(() => {
   markVehicleConnected(DEVICE_TRACCAR_ID)
 })
 
-// 1. Two concurrent silence checks for one device → exactly one alert inserted.
-test('concurrent silence checks insert exactly one alert', async () => {
+// 1. Silence alone is never a battery-disconnect alert.
+test('silence alone does not insert a battery alert', async () => {
   let traccarCalls = 0
   const h = createHarness({
     getAllPositions: async () => {
@@ -154,18 +154,16 @@ test('concurrent silence checks insert exactly one alert', async () => {
     h.engine.createPowerDisconnectedAlert(DEVICE_TRACCAR_ID),
   ])
 
-  assert.equal(powerAlerts(h.db).length, 1, 'exactly one disconnect alert inserted')
-  assert.equal(h.disconnectEvents.length, 1, 'exactly one WS event sent')
-  assert.equal(traccarCalls, 1, 'second concurrent check bailed before verification')
-  assert.equal(h.db.powerStates.get(String(DEVICE_TRACCAR_ID))?.disconnected, true)
-
-  // A later re-check while the episode persists must also stay silent.
+  assert.equal(powerAlerts(h.db).length, 0, 'silence does not create a battery alert')
+  assert.equal(h.disconnectEvents.length, 0, 'silence does not emit a battery event')
+  assert.equal(traccarCalls, 0, 'silence does not query Traccar for battery proof')
   await h.engine.createPowerDisconnectedAlert(DEVICE_TRACCAR_ID)
-  assert.equal(powerAlerts(h.db).length, 1, 'no duplicate alert while disconnected')
+  assert.equal(powerAlerts(h.db).length, 0, 'repeated silence stays quiet')
 })
 
-// 2. Traccar returns a fresh position → alert cancelled, device stays online.
-test('fresh Traccar position cancels the silence alert', async () => {
+// 2. A fresh Traccar position still refreshes the state when explicitly fed
+// through the observer; it is not needed as battery-alert proof anymore.
+test('fresh Traccar position keeps the device online', async () => {
   const h = createHarness({
     getAllPositions: async () => [{
       deviceId: DEVICE_TRACCAR_ID,
@@ -178,7 +176,13 @@ test('fresh Traccar position cancels the silence alert', async () => {
   })
   seedSilentDevice(h)
 
-  await h.engine.createPowerDisconnectedAlert(DEVICE_TRACCAR_ID)
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID,
+    serverTime: isoAt(h.clock.nowMs),
+    latitude: 1,
+    longitude: 2,
+    attributes: {},
+  })
 
   // The reducer replaces the state object, so re-read it from the engine.
   const state = h.engine.powerTelemetry.get(String(DEVICE_TRACCAR_ID))
@@ -195,108 +199,53 @@ test('fresh Traccar position cancels the silence alert', async () => {
   assert.equal(h.db.powerStates.size, 0, 'no disconnect state persisted')
 })
 
-// 3. Traccar request hangs → verification times out and a 60s retry is
-//    scheduled; no blind alert is fired.
-test('hung Traccar verification times out and schedules a retry, no blind alert', async () => {
-  const h = createHarness({
-    getAllPositions: () => new Promise(() => {}), // hangs forever
+// 3. Explicit power telemetry still produces exactly one alert and one restore.
+test('explicit power telemetry creates one alert and one restore', async () => {
+  const h = createHarness({ getAllPositions: async () => [] })
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID,
+    serverTime: isoAt(h.clock.nowMs),
+    latitude: 1,
+    longitude: 2,
+    attributes: { powerCut: true },
   })
-  const state = seedSilentDevice(h)
-
-  const alertPromise = h.engine.createPowerDisconnectedAlert(DEVICE_TRACCAR_ID)
-  // The only short timer pending is the verification timeout ceiling.
-  const verifyTimers = [...h.timers.pending.values()].filter((t) => t.delay === POWER_VERIFY_TIMEOUT_MS)
-  assert.equal(verifyTimers.length, 1, 'verification guarded by POWER_VERIFY_TIMEOUT_MS')
-  await h.timers.runPending(POWER_VERIFY_TIMEOUT_MS) // fire the timeout
-  await alertPromise
-
-  assert.equal(h.db.alerts.length, 0, 'no alert fired blindly')
-  assert.equal(state.alerting, false, 'alerting flag released for the retry')
-  assert.equal(state.disconnected, false)
-  const retry = h.timers.pending.get(h.engine.powerDisconnectRetryTimers.get(String(DEVICE_TRACCAR_ID)))
-  assert.ok(retry, 'a retry timer is registered for the device')
-  assert.equal(retry.delay, 60_000, 'retry scheduled in 60s')
-})
-
-// 3b. The scheduled retry itself re-verifies and may then fire (regression
-//     guard: deferral must not drop the episode entirely).
-test('deferred alert fires after retry once Traccar is reachable and silent', async () => {
-  let hang = true
-  const h = createHarness({
-    verifyTimeoutMs: 50,
-    getAllPositions: () => (hang ? new Promise(() => {}) : Promise.resolve([])),
-  })
-  seedSilentDevice(h)
-
-  const p = h.engine.createPowerDisconnectedAlert(DEVICE_TRACCAR_ID)
-  await h.timers.runPending(50)
-  await p
-  assert.equal(h.db.alerts.length, 0)
-
-  hang = false
-  h.clock.nowMs += 60_000
-  await h.timers.runPending(60_000) // run the scheduled retry
-  // Let the retried createPowerDisconnectedAlert finish its awaited queries.
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(powerAlerts(h.db).length, 1, 'retry fired exactly one verified alert')
-})
-
-// 4. Traccar confirms silence → exactly one alert; restore packet → one
-//    restore alert.
-test('confirmed silence fires one alert; restore packet fires one restore alert', async () => {
-  const h = createHarness({
-    getAllPositions: async () => [{
-      deviceId: DEVICE_TRACCAR_ID,
-      // Traccar's last position is as stale as ours — device truly silent.
-      serverTime: isoAt(h.clock.nowMs - POWER_SILENCE_WINDOW_MS - 1000),
-      latitude: 1,
-      longitude: 2,
-      attributes: {},
-    }],
-  })
-  const state = seedSilentDevice(h)
-
-  await h.engine.createPowerDisconnectedAlert(DEVICE_TRACCAR_ID)
-
-  const disconnects = powerAlerts(h.db)
-  assert.equal(disconnects.length, 1, 'exactly one disconnect alert')
-  assert.equal(disconnects[0].data.trigger, 'silence')
-  assert.equal(state.disconnected, true)
+  assert.equal(powerAlerts(h.db).length, 1, 'one explicit-loss alert')
+  assert.equal(h.disconnectEvents.length, 1, 'one explicit-loss event')
+  assert.equal(h.db.alerts[0].data.trigger, 'telemetry')
   assert.equal(isVehicleDisconnected(DEVICE_TRACCAR_ID), true)
-  assert.equal(h.db.powerStates.get(String(DEVICE_TRACCAR_ID))?.trigger, 'silence')
 
-  // Device comes back: a new packet arrives.
-  h.clock.nowMs += 60_000
+  h.clock.nowMs += 1_000
   h.engine.observePowerTelemetry({
     deviceId: DEVICE_TRACCAR_ID,
     serverTime: isoAt(h.clock.nowMs),
     latitude: 1,
     longitude: 2,
-    attributes: { charge: true },
-  })
-  await new Promise((resolve) => setImmediate(resolve)) // let restore alert insert settle
-
-  const restoredState = h.engine.powerTelemetry.get(String(DEVICE_TRACCAR_ID))
-  const restores = h.db.alerts.filter((a) => a.type === 'power_restored')
-  assert.equal(restores.length, 1, 'exactly one restore alert')
-  assert.equal(h.restoreEvents.length, 1)
-  assert.equal(restoredState.disconnected, false)
-  assert.equal(isVehicleDisconnected(DEVICE_TRACCAR_ID), false)
-  assert.equal(h.db.powerStates.size, 0, 'persisted disconnect state cleared')
-
-  // Another healthy packet must NOT fire a second restore alert.
-  h.clock.nowMs += 30_000
-  h.engine.observePowerTelemetry({
-    deviceId: DEVICE_TRACCAR_ID,
-    serverTime: isoAt(h.clock.nowMs),
-    latitude: 1,
-    longitude: 2,
-    attributes: { charge: true },
+    attributes: { powerCut: false },
   })
   await new Promise((resolve) => setImmediate(resolve))
+
   assert.equal(h.db.alerts.filter((a) => a.type === 'power_restored').length, 1)
-  assert.equal(powerAlerts(h.db).length, 1, 'still exactly one disconnect alert overall')
+  assert.equal(h.restoreEvents.length, 1)
+  assert.equal(isVehicleDisconnected(DEVICE_TRACCAR_ID), false)
+})
+
+// Generic alarm labels are not electrical feedback.
+test('alarm:powerCut alone stays quiet', async () => {
+  const h = createHarness({ getAllPositions: async () => [] })
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID,
+    serverTime: isoAt(h.clock.nowMs),
+    latitude: 1,
+    longitude: 2,
+    attributes: { alarm: 'powerCut' },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(powerAlerts(h.db).length, 0)
+  assert.equal(h.disconnectEvents.length, 0)
+  assert.equal(isVehicleDisconnected(DEVICE_TRACCAR_ID), false)
 })
 
 // withTimeout unit guard: resolves normally, rejects on timeout.

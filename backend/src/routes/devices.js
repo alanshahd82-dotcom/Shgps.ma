@@ -4,7 +4,7 @@ import { logAudit }    from '../services/auditLog.js'
 import { validateBody, schemas } from '../validation/schemas.js'
     import { db }          from '../db.js'
     import * as traccar    from '../services/traccar.js'
-import { deviceAccessScope, getAccessibleDevice } from '../middleware/deviceAccess.js'
+import { deviceAccessScope, getAccessibleDevice, requireDeviceOwner } from '../middleware/deviceAccess.js'
 import {
   addMonths,
   dateOnly,
@@ -32,21 +32,6 @@ import {
         voltage: readVehicleVoltage(position, traccarId, { ...options, connected }),
         batteryLevel: readBatteryLevel(position),
         powerDisconnected: Boolean(options.powerDisconnected || isVehicleDisconnected(traccarId)),
-      }
-    }
-
-    // Device-level authorization for reads and remote engine commands.
-    // Admins and managers can operate across the fleet; regular clients can
-    // only access devices assigned directly to their own account.
-    async function requireDeviceOwner(req, res, next) {
-      try {
-        const device = await getAccessibleDevice(db, req.user, req.params.id)
-        if (!device) return res.status(404).json({ error: 'Device not found or access denied' })
-        req.device = device
-        next()
-      } catch (err) {
-        console.error('[device-access]', err.message)
-        res.status(500).json({ error: 'Server error' })
       }
     }
 
@@ -431,7 +416,7 @@ import {
     })
 
     // PATCH /:id/info — device owner (or admin) can edit name / driver / phone / plate
-    devicesRouter.patch('/:id/info', requireAuth, async (req, res) => {
+    devicesRouter.patch('/:id/info', requireAuth, requireDeviceOwner, async (req, res) => {
       const { name, driver, phone, plate, type } = req.body
       if (name === undefined && driver === undefined && phone === undefined && plate === undefined && type === undefined)
         return res.status(400).json({ error: 'Nothing to update' })
@@ -443,8 +428,7 @@ import {
         // Older installations may have created devices before the driver phone field existed.
         // Keep the existing update API backward-compatible without changing the schema file.
         await db.query('ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone VARCHAR(20)')
-        const device = await getAccessibleDevice(db, req.user, req.params.id)
-        if (!device) return res.status(404).json({ error: 'Device not found or access denied' })
+        const device = req.device
         const sets = []; const vals = []; let i = 1
         if (name   !== undefined) { sets.push(`name=$${i++}`);   vals.push(String(name).trim())   }
         if (driver !== undefined) { sets.push(`driver=$${i++}`); vals.push(String(driver).trim()) }
@@ -464,13 +448,12 @@ import {
     // PATCH /:id/subscription — admin or the device owner can renew by plan.
     // Renewal starts at the later of today or the current end date so active
     // time is never lost. This endpoint never changes user-level subscriptions.
-    devicesRouter.patch('/:id/subscription', requireAuth, async (req, res) => {
+    devicesRouter.patch('/:id/subscription', requireAuth, requireDeviceOwner, async (req, res) => {
       const { subscriptionPlanId } = req.body
       const plan = getSubscriptionPlan(subscriptionPlanId)
       if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
       try {
-        const device = await getAccessibleDevice(db, req.user, req.params.id)
-        if (!device) return res.status(404).json({ error: 'Device not found or access denied' })
+        const device = req.device
          if (plan.trial && !req.user.is_admin) {
            return res.status(403).json({
              code: 'FREE_TRIAL_REQUIRES_APPROVAL',
@@ -659,10 +642,9 @@ import {
     })
 
     // POST /:id/geofence — ينشئ سياجاً جغرافياً ويخزّنه محلياً وفي Traccar (إن أمكن)
-    devicesRouter.post('/:id/geofence', requireAuth, async (req, res) => {
+    devicesRouter.post('/:id/geofence', requireAuth, requireDeviceOwner, async (req, res) => {
       try {
-        const dev = await getAccessibleDevice(db, req.user, req.params.id)
-        if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
+        const dev = req.device
 
         const { name, latitude, longitude, radius } = req.body
         if (!latitude || !longitude || !radius) {
@@ -707,11 +689,10 @@ import {
     })
 
     // DELETE /:id — admin only — حذف الجهاز نهائياً
-    devicesRouter.delete('/:id', requireAuth, async (req, res) => {
+    devicesRouter.delete('/:id', requireAuth, requireDeviceOwner, async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       try {
-        const dev = await getAccessibleDevice(db, req.user, req.params.id)
-        if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
+        const dev = req.device
         // حذف من Traccar (اختياري — لا يُفشل الطلب)
         if (dev.traccar_id) {
           try { await traccar.deleteDevice(dev.traccar_id) } catch (e) {
@@ -728,11 +709,9 @@ import {
     })
 
     // DELETE /:id/geofence — يحذف السياج الجغرافي من المحلي ومن Traccar (إن أمكن)
-    devicesRouter.delete('/:id/geofence', requireAuth, async (req, res) => {
+    devicesRouter.delete('/:id/geofence', requireAuth, requireDeviceOwner, async (req, res) => {
       try {
-        const { rows } = await db.query('SELECT * FROM devices WHERE id=$1', [req.params.id])
-        const dev = rows[0]
-        if (!dev) return res.status(404).json({ error: 'Device not found' })
+        const dev = req.device
 
         // حذف من قاعدة البيانات المحلية
         await db.query('DELETE FROM local_geofences WHERE device_id=$1', [dev.id])

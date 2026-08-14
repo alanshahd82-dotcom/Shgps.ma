@@ -3,5 +3,5 @@
 - [Trip replay timing](trip-replay-timing.md) — preserve equal-timestamp GPS fixes and use a monotonic internal clock for playback
 - [Replay map fallback](replay-map-fallback.md) — replay basemaps must survive missing optional keys and tile-provider failures
 - [Duplicate artifact workflow ports](workflow-port-collision.md) — nested and root artifact workflows can compete for one managed port
-- [Silence alert verification](silence-alert-verification.md) — absence-of-data alerts must be verified against Traccar REST (with reservation + timeout) before firing; never alert blindly.
+- [Silence alert policy](silence-alert-verification.md) — silence or generic alarm labels never prove a vehicle-battery disconnect; require explicit electrical telemetry.
 - [Power episode restoration](power-episode-restoration.md) — missing or fluctuating tracker charge fields are not restore evidence during telemetry-triggered disconnects

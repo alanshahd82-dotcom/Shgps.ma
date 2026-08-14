@@ -1769,3 +1769,21 @@ write before subsequent packets arrive.
 - بعد مراجعة الكود: حُجزت حالة `alerting` قبل استعلام التحقق لمنع تنبيه
   مزدوج عند تحققين متزامنين، وأضيفت مهلة 10 ثوانٍ لاستعلام Traccar حتى
   لا يبقى التحقق معلقًا؛ فشل المهلة يمر عبر مسار إعادة المحاولة (60 ث).
+
+## 2026-08-14 — Security guard and false battery-alert hardening
+
+- تم عكس `5afe685f` في commit `d5978c87` مع إبقاء تغيير `pnpm-lock.yaml`
+  في `beb0561f` كما هو.
+- أضيف `requireDeviceOwner` مركزي: الجهاز غير الموجود يعيد `404
+  { error: "Device not found" }`، والطلب من غير المالك/المدير يعيد `403
+  { error: "Forbidden" }`. طُبق على تعديل معلومات الجهاز والاشتراك، أوامر
+  المحرك، إضافة/حذف السياج، وحذف الجهاز.
+- فحص الإنتاج أظهر أن `alarm:powerCut` كان يولد `power_disconnected` رغم وصول
+  packets حديثة، وأن `silence` كان يتبعه أحيانًا `power_restored` بعد ثوانٍ.
+- السياسة الحالية: الصمت وحده لا يولد تنبيه بطارية ولا يُعتبر feedback كهربائيًا؛
+  أسماء `alarm:*` العامة لا تكفي، بينما تبقى حقول telemetry الكهربائية الصريحة
+  مثل `powerCut:true` و`externalPower:false` مسار التنبيه المسموح.
+- تم تحديث اختبارات `backend/test/powerAlerts.test.js` لتثبت عدم تنبيه الصمت
+  أو `alarm:powerCut`، واستمرار تنبيه/استعادة telemetry الصريح.
+- التحقق: `node --check`، `git diff --check`، `npm run build`، واختبارات الطاقة
+  كلها نجحت. لم يتم تشغيل Docker حسب نطاق المهمة.

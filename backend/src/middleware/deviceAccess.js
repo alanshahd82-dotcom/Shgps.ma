@@ -5,6 +5,8 @@
  * assigned to them. Client account owners can access their own devices, and
  * sub-users stay inside their parent account (with optional per-device rows).
  */
+import { db } from '../db.js'
+
 export function deviceAccessScope(user, alias = 'd', startIndex = 1) {
   if (user?.is_admin && !user?.is_sub_admin) {
     return { text: `${alias}.id IS NOT NULL`, values: [] }
@@ -49,4 +51,34 @@ export async function getAccessibleDevice(db, user, deviceId) {
     [deviceId, ...scope.values]
   )
   return rows[0] || null
+}
+
+/**
+ * Authorize mutations on one concrete device.
+ *
+ * Reads and scoped sub-user access continue to use getAccessibleDevice().
+ * Mutating a device is narrower: only the row owner or an administrator may
+ * perform the operation. The full row is attached for downstream handlers.
+ */
+export async function requireDeviceOwner(req, res, next) {
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM devices WHERE id=$1 LIMIT 1',
+      [req.params.id],
+    )
+    const device = rows[0]
+    if (!device) return res.status(404).json({ error: 'Device not found' })
+
+    const isOwner = String(device.user_id) === String(req.user?.id)
+    const isAdministrator = Boolean(req.user?.is_admin)
+    if (!isOwner && !isAdministrator) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+
+    req.device = device
+    return next()
+  } catch (err) {
+    console.error('[device-owner]', err.message)
+    return res.status(500).json({ error: 'Server error' })
+  }
 }

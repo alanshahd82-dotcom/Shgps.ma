@@ -1,14 +1,12 @@
 // ── Power disconnect/restore alert engine ────────────────────────────────────
 //
-// Extracted from index.js so the silence-verification logic can be tested
+// Extracted from index.js so the telemetry alert logic can be tested
 // deterministically with a mocked Traccar client, db, and clock.
 //
-// Core safety rule (system-wide, every device on every account):
-// a silence-triggered alert is only a *suspicion* — it must be independently
-// verified against Traccar's REST API before it may fire. If Traccar has a
-// fresh position, the tracker is still reporting and no alert is created.
-// If verification itself fails (Traccar unreachable / hung), the alert is
-// deferred and retried instead of being fired blindly.
+// Core safety rule (system-wide, every device on every account): silence is
+// not electrical feedback. It may update connectivity state, but it must never
+// create a vehicle-battery alert. Only an explicit tracker power signal may
+// create that alert.
 
 import {
   markVehicleDisconnected,
@@ -19,7 +17,6 @@ import {
   observeVehicleVoltage,
   POWER_SILENCE_WINDOW_MS,
   isPowerAlertSuppressed,
-  positionIsFresh,
 } from './vehicleTelemetry.js'
 
 // Hard ceiling for the Traccar REST verification call so a hung request can
@@ -211,64 +208,21 @@ export function createPowerAlertEngine({
 
   async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {}) {
     if (isPowerAlertSuppressed(traccarId, now())) return
+    // Silence proves only that this bridge did not receive a packet. It cannot
+    // distinguish a GSM gap, tracker sleep, device fault, or cut wiring from a
+    // vehicle-battery removal. Only an explicit electrical tracker signal may
+    // create a battery notification.
+    if (!immediate) return
     const key = String(traccarId)
     const state = powerTelemetry.get(key)
-    const nowMs = now()
     if (!state || state.alerting || state.disconnected || !state.lastPositionAt) return
 
-    const silenceConfirmed = Boolean(
-      state.missingSince
-        && nowMs - state.missingSince >= POWER_DISCONNECT_GRACE_MS
-        && nowMs - state.lastPositionAt >= POWER_POSITION_MAX_AGE_MS,
-    )
     const signalConfirmed = Boolean(immediate && state.powerLossSignal)
-    if (!silenceConfirmed && !signalConfirmed) return
+    if (!signalConfirmed) return
 
-    // A silence-triggered alert is only a *suspicion*: the WebSocket bridge may
-    // simply have missed packets. Every silence alert must be independently
-    // verified against Traccar's REST API before it may fire — if Traccar has a
-    // fresh position for this device, the tracker is still reporting and no
-    // alert is created. If verification itself fails (Traccar unreachable), the
-    // alert is deferred and retried instead of being fired blindly. This rule is
-    // system-wide: it applies to every device on every account.
-    // `alerting` is reserved BEFORE the awaited verification so concurrent
-    // silence checks for the same device cannot both proceed to insert.
+    // Reserve the state before the awaited database write so concurrent
+    // explicit power-loss packets cannot both proceed to insert.
     state.alerting = true
-    if (!signalConfirmed) {
-      let traccarSilent = false
-      try {
-        const positions = await withTimeout(
-          getAllPositions(),
-          verifyTimeoutMs,
-          'traccar positions verification timed out',
-          setTimeoutFn,
-          clearTimeoutFn,
-        )
-        const live = Array.isArray(positions)
-          ? positions.find((p) => String(p?.deviceId) === key)
-          : null
-        if (live && positionIsFresh(live, POWER_POSITION_MAX_AGE_MS, now())) {
-          console.log('[Power] Silence alert cancelled — Traccar still receiving packets:', key)
-          state.alerting = false
-          observePowerTelemetry(live)
-          return
-        }
-        traccarSilent = true
-      } catch (err) {
-        console.warn('[Power] Silence verification unavailable, alert deferred:', err.message)
-      }
-      if (!traccarSilent) {
-        state.alerting = false
-        clearPowerDisconnectRetryTimer(traccarId)
-        powerDisconnectRetryTimers.set(key, setTimeoutFn(() => {
-          powerDisconnectRetryTimers.delete(key)
-          if (isPowerAlertSuppressed(traccarId, now())) return
-          void createPowerDisconnectedAlert(traccarId)
-        }, verifyRetryDelayMs))
-        return
-      }
-    }
-
     try {
       const { rows } = await db.query(
         'SELECT id, traccar_id, user_id, name FROM devices WHERE traccar_id=$1 LIMIT 1',
@@ -281,14 +235,9 @@ export function createPowerAlertEngine({
       }
 
       const latest = powerTelemetry.get(key)
-      const latestSilenceConfirmed = Boolean(
-        latest?.missingSince
-          && now() - latest.missingSince >= POWER_DISCONNECT_GRACE_MS
-          && now() - latest.lastPositionAt >= POWER_POSITION_MAX_AGE_MS,
-      )
-      const latestSignalConfirmed = Boolean(immediate && latest?.powerLossSignal)
+      const latestSignalConfirmed = Boolean(latest?.powerLossSignal)
       if (!latest || latest !== state || latest.disconnected
-        || (!latestSilenceConfirmed && !latestSignalConfirmed)) {
+        || !latestSignalConfirmed) {
         state.alerting = false
         return
       }
@@ -357,8 +306,7 @@ export function createPowerAlertEngine({
       // omission in an otherwise connected position.
       state.missingSince = state.lastPositionAt
       powerTelemetry.set(key, state)
-      if (isPowerAlertSuppressed(traccarId, now())) return
-      void createPowerDisconnectedAlert(traccarId)
+      console.log('[Power] Silence observed without electrical confirmation; battery alert suppressed:', key)
     }, delay))
   }
 
