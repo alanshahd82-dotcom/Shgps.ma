@@ -578,6 +578,7 @@ function sendPowerRestoredEvent(device, alert) {
 }
 
 async function createPowerRestoredAlert(traccarId) {
+  if (isPowerAlertSuppressed(traccarId)) return
   try {
     const { rows } = await db.query(
       'SELECT id, traccar_id, user_id, name FROM devices WHERE traccar_id=$1 LIMIT 1',
@@ -605,6 +606,7 @@ async function createPowerRestoredAlert(traccarId) {
 }
 
 async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {}) {
+  if (isPowerAlertSuppressed(traccarId)) return
   const key = String(traccarId)
   const state = powerTelemetry.get(key)
   const now = Date.now()
@@ -677,6 +679,7 @@ async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {
       clearPowerDisconnectRetryTimer(traccarId)
       powerDisconnectRetryTimers.set(key, setTimeout(() => {
         powerDisconnectRetryTimers.delete(key)
+        if (isPowerAlertSuppressed(traccarId)) return
         void createPowerDisconnectedAlert(traccarId, { immediate: true })
       }, 5000))
     }
@@ -706,6 +709,7 @@ function schedulePowerDisconnectCheck(traccarId, lastPositionAt) {
     // omission in an otherwise connected position.
     state.missingSince = state.lastPositionAt
     powerTelemetry.set(key, state)
+    if (isPowerAlertSuppressed(traccarId)) return
     void createPowerDisconnectedAlert(traccarId)
   }, delay))
 }
@@ -763,7 +767,9 @@ function observePowerTelemetry(position) {
     powerTelemetry.set(key, next)
     if (transition.shouldAlertImmediately) {
       clearPowerDisconnectTimer(traccarId)
-      void createPowerDisconnectedAlert(traccarId, { immediate: true })
+      if (!isPowerAlertSuppressed(traccarId)) {
+        void createPowerDisconnectedAlert(traccarId, { immediate: true })
+      }
     }
     return
   }
