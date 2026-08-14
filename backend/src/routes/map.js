@@ -5,9 +5,10 @@ import { Router } from 'express'
 import { deviceAccessScope } from '../middleware/deviceAccess.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
 import {
-  detectExternalPowerLoss,
+  hasKnownVehicleVoltage,
   isVehicleDisconnected,
   positionIsFresh,
+  positionIsSilent,
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readVehicleVoltage,
@@ -130,23 +131,22 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null
         const freshPosition = positionIsFresh(position, POWER_SILENCE_WINDOW_MS)
-        const explicitPowerLoss = freshPosition
-          ? detectExternalPowerLoss(position)
-          : null
+        const inferredDisconnect = !freshPosition
+          && positionIsSilent(position, POWER_SILENCE_WINDOW_MS)
+          && hasKnownVehicleVoltage(d.traccar_id)
         const electrical = readElectricalTelemetry(
           freshPosition ? position : null,
           d.traccar_id,
           freshPosition,
         )
-        electrical.powerDisconnected = electrical.powerDisconnected
-          || Boolean(explicitPowerLoss)
+        electrical.powerDisconnected = electrical.powerDisconnected || inferredDisconnect
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
           lat: position?.latitude ?? null, lng: position?.longitude ?? null,
           speed: Math.round(speedKmh(position?.speed)),
           status: freshPosition ? 'online' : 'offline',
           lastUpdate: position?.fixTime ?? null,
-          engineOn: freshPosition ? (position?.attributes?.ignition ?? null) : null,
+          engineOn: position?.attributes?.ignition ?? false,
           voltage: electrical.voltage,
           batteryLevel: electrical.batteryLevel,
           powerDisconnected: electrical.powerDisconnected,

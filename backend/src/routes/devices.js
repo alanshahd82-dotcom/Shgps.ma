@@ -14,9 +14,10 @@ import {
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
 import {
-  detectExternalPowerLoss,
+  hasKnownVehicleVoltage,
   isVehicleDisconnected,
   positionIsFresh,
+  positionIsSilent,
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readVehicleVoltage,
@@ -188,17 +189,10 @@ import {
         const p = livePosition ?? (td?.status === 'online' ? storedPosition : null)
         const freshLivePosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
         const telemetryId = d.traccar_id ?? td?.id
-        const telemetrySilent = !freshLivePosition
-        // Silence is not proof of a battery cut: it can be GSM loss, a
-        // sleeping tracker, or a missed bridge packet. Only an explicit,
-        // fresh tracker signal or a previously verified alert may expose
-        // powerDisconnected to clients.
-        const explicitPowerLoss = freshLivePosition
-          ? detectExternalPowerLoss(livePosition)
-          : null
-        const confirmedPowerDisconnected = Boolean(
-          explicitPowerLoss || isVehicleDisconnected(telemetryId),
-        )
+        const telemetrySilent = positionIsSilent(livePosition ?? storedPosition, POWER_SILENCE_WINDOW_MS)
+        const inferredDisconnect = !freshLivePosition
+          && telemetrySilent
+          && hasKnownVehicleVoltage(telemetryId)
         // Stored coordinates keep the map useful, but must never count as
         // current telemetry for voltage or disconnect decisions.
         const telemetryPosition = freshLivePosition ? livePosition : null
@@ -217,7 +211,7 @@ import {
         const electrical = trackingEnabled
           ? readElectricalTelemetry(telemetryPosition, telemetryId, {
               connected: freshLivePosition,
-              powerDisconnected: confirmedPowerDisconnected,
+              powerDisconnected: inferredDisconnect,
             })
           : { voltage: null, batteryLevel: null, powerDisconnected: false }
         return {
@@ -234,9 +228,7 @@ import {
           lng:       trackingEnabled && p != null ? p.longitude : null,
           speed:     trackingEnabled ? Math.round(speedKmh(p?.speed)) : null,
           lastUpdate:trackingEnabled ? (p?.fixTime   ?? null) : null,
-          engineOn:  trackingEnabled && freshLivePosition
-            ? (livePosition?.attributes?.ignition ?? null)
-            : null,
+          engineOn:  trackingEnabled ? (p?.attributes?.ignition ?? false) : false,
           voltage:   electrical.voltage,
           batteryLevel: electrical.batteryLevel,
           powerDisconnected: electrical.powerDisconnected,
@@ -529,20 +521,14 @@ import {
         livePosition = positions.find(position => position.deviceId === dev.traccar_id) || null
       } catch {}
       const freshPosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
-      // Do not turn an old cached voltage plus silence into a battery-cut
-      // claim. A silence-based disconnect is exposed only after the central
-      // Traccar verification path has confirmed and persisted it.
-      const explicitPowerLoss = freshPosition
-        ? detectExternalPowerLoss(livePosition)
-        : null
-      const confirmedPowerDisconnected = Boolean(
-        explicitPowerLoss || isVehicleDisconnected(dev.traccar_id),
-      )
+      const inferredDisconnect = !freshPosition
+        && positionIsSilent(livePosition ?? { lastUpdate: dev.last_update }, POWER_SILENCE_WINDOW_MS)
+        && hasKnownVehicleVoltage(dev.traccar_id)
       const electrical = subscription.trackingEnabled
         ? readElectricalTelemetry(
             freshPosition ? livePosition : null,
             dev.traccar_id,
-            { connected: freshPosition, powerDisconnected: confirmedPowerDisconnected },
+            { connected: freshPosition, powerDisconnected: inferredDisconnect },
           )
         : { voltage: null, batteryLevel: null, powerDisconnected: false }
       // Load geofence state from local DB
@@ -565,8 +551,8 @@ import {
           ? (livePosition?.fixTime ?? dev.last_update ?? null)
           : null,
         engineOn: subscription.trackingEnabled && freshPosition
-          ? (livePosition.attributes?.ignition ?? null)
-          : null,
+          ? (livePosition.attributes?.ignition ?? false)
+          : false,
         voltage: electrical.voltage,
         batteryLevel: electrical.batteryLevel,
         powerDisconnected: electrical.powerDisconnected,
@@ -659,8 +645,6 @@ import {
           commandProfile: command.profile,
           commandId: delivery.commandId,
           queueState: delivery.queueState,
-          executionConfirmed: false,
-          confirmationState: 'pending_telemetry',
           traccarResponse: traccarResponse ?? null,
         })
       } catch (err) {
