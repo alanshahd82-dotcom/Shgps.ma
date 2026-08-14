@@ -37,6 +37,7 @@ import {
   observeVehicleVoltage,
   POWER_SILENCE_WINDOW_MS,
   isPowerAlertSuppressed,
+  positionIsFresh,
   readVehicleVoltage as readCachedVehicleVoltage,
 } from './services/vehicleTelemetry.js'
 
@@ -416,6 +417,17 @@ const POWER_DISCONNECT_GRACE_MS = POWER_SILENCE_WINDOW_MS
 // Must be >= POWER_DISCONNECT_GRACE_MS so a slowly-reporting but connected
 // device is never mistaken for disconnected.
 const POWER_POSITION_MAX_AGE_MS = POWER_SILENCE_WINDOW_MS
+// Hard ceiling for the Traccar REST verification call so a hung request can
+// never leave a silence alert stuck in "pending verification" forever.
+const POWER_VERIFY_TIMEOUT_MS = 10_000
+
+function withTimeout(promise, ms, message) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
 const powerTelemetry = new Map()
 const powerDisconnectTimers = new Map()
 const powerDisconnectRetryTimers = new Map()
@@ -620,7 +632,49 @@ async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {
   const signalConfirmed = Boolean(immediate && state.powerLossSignal)
   if (!silenceConfirmed && !signalConfirmed) return
 
+  // A silence-triggered alert is only a *suspicion*: the WebSocket bridge may
+  // simply have missed packets. Every silence alert must be independently
+  // verified against Traccar's REST API before it may fire — if Traccar has a
+  // fresh position for this device, the tracker is still reporting and no
+  // alert is created. If verification itself fails (Traccar unreachable), the
+  // alert is deferred and retried instead of being fired blindly. This rule is
+  // system-wide: it applies to every device on every account.
+  // `alerting` is reserved BEFORE the awaited verification so concurrent
+  // silence checks for the same device cannot both proceed to insert.
   state.alerting = true
+  if (!signalConfirmed) {
+    let traccarSilent = false
+    try {
+      const positions = await withTimeout(
+        getAllPositions(),
+        POWER_VERIFY_TIMEOUT_MS,
+        'traccar positions verification timed out',
+      )
+      const live = Array.isArray(positions)
+        ? positions.find((p) => String(p?.deviceId) === key)
+        : null
+      if (live && positionIsFresh(live, POWER_POSITION_MAX_AGE_MS)) {
+        console.log('[Power] Silence alert cancelled — Traccar still receiving packets:', key)
+        state.alerting = false
+        observePowerTelemetry(live)
+        return
+      }
+      traccarSilent = true
+    } catch (err) {
+      console.warn('[Power] Silence verification unavailable, alert deferred:', err.message)
+    }
+    if (!traccarSilent) {
+      state.alerting = false
+      clearPowerDisconnectRetryTimer(traccarId)
+      powerDisconnectRetryTimers.set(key, setTimeout(() => {
+        powerDisconnectRetryTimers.delete(key)
+        if (isPowerAlertSuppressed(traccarId)) return
+        void createPowerDisconnectedAlert(traccarId)
+      }, 60_000))
+      return
+    }
+  }
+
   try {
     const { rows } = await db.query(
       'SELECT id, traccar_id, user_id, name FROM devices WHERE traccar_id=$1 LIMIT 1',
