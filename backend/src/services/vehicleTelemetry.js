@@ -15,8 +15,12 @@ export const POWER_SILENCE_WINDOW_MS = 5 * 60 * 1000
 // Relay commands can make some trackers echo an external-power-low attribute
 // even though the vehicle battery is still connected. Suppress only the
 // resulting power alert briefly; normal telemetry and device state continue.
-export const ENGINE_COMMAND_POWER_SUPPRESSION_MS = 45 * 1000
-const powerAlertSuppressionUntil = new Map()
+export const ENGINE_COMMAND_POWER_SUPPRESSION_MS = 60 * 1000
+// Timestamp of the last successful engine command, keyed by Traccar device ID.
+// This is intentionally in-memory: it protects only the short-lived relay echo
+// window and must not become a persisted battery-disconnect state.
+export const engineCommandCooldowns = new Map()
+const powerAlertSuppressionDurations = new Map()
 
 function isFalseLike(raw) {
   if (raw === false || raw === 0) return true
@@ -44,17 +48,19 @@ export function suppressPowerAlerts(deviceId, durationMs = ENGINE_COMMAND_POWER_
   if (!key) return
   const duration = Number(durationMs)
   if (!Number.isFinite(duration) || duration <= 0) return
-  const existingUntil = powerAlertSuppressionUntil.get(key) || 0
-  powerAlertSuppressionUntil.set(key, Math.max(existingUntil, now + duration))
+  engineCommandCooldowns.set(key, now)
+  powerAlertSuppressionDurations.set(key, duration)
 }
 
 export function isPowerAlertSuppressed(deviceId, now = Date.now()) {
   const key = cacheKey(deviceId)
   if (!key) return false
-  const suppressedUntil = powerAlertSuppressionUntil.get(key)
-  if (!suppressedUntil) return false
-  if (now >= suppressedUntil) {
-    powerAlertSuppressionUntil.delete(key)
+  const lastCommandTime = engineCommandCooldowns.get(key)
+  if (!Number.isFinite(lastCommandTime)) return false
+  const duration = powerAlertSuppressionDurations.get(key) ?? ENGINE_COMMAND_POWER_SUPPRESSION_MS
+  if (now - lastCommandTime >= duration) {
+    engineCommandCooldowns.delete(key)
+    powerAlertSuppressionDurations.delete(key)
     return false
   }
   return true
@@ -69,6 +75,12 @@ const POWER_LOSS_ALARM_PATTERN = /^(?:power[_ -]?(?:cut|lost|off|disconnect(?:ed
  * commonly omit that field while still sending valid positions.
  */
 export function detectExternalPowerLoss(position) {
+  // Suppress a relay echo if an engine command was sent to this device
+  // recently; this protects every caller, including the WebSocket bridge.
+  if (position?.deviceId != null && isPowerAlertSuppressed(position.deviceId)) {
+    return null
+  }
+
   const attributes = position?.attributes || {}
   const directKeys = [
     'externalPower',

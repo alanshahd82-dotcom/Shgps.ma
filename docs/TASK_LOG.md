@@ -2,6 +2,18 @@
 
 This file records the completed work and the current production verification notes.
 
+## Relay echo suppression — explicit engine command cooldown
+
+The real repository now records the timestamp of every successful engine
+command in `engineCommandCooldowns`, keyed by Traccar device ID. For 60 seconds,
+`detectExternalPowerLoss()` ignores relay-induced `externalPower:false` and
+similar telemetry, including the WebSocket projection path. Normal positions,
+voltage readings, and device state continue to update during this window.
+
+This cooldown is separate from the persisted battery-disconnect episode state:
+it prevents only the short-lived false signal after a relay command and does
+not create, clear, or persist a battery disconnect.
+
 ## Engine delivery fix — use the Traccar GT06 encoder and the GS900 relay shape
 
 ### Root cause
