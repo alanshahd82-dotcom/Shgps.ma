@@ -316,6 +316,17 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `)
+    // Durable per-device disconnect state so a backend restart does not
+    // forget which devices are already in a disconnect episode and re-fire
+    // the alert on the next silence check.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS device_power_states (
+        traccar_id        INTEGER PRIMARY KEY,
+        disconnected      BOOLEAN NOT NULL DEFAULT FALSE,
+        disconnect_trigger VARCHAR(20),
+        updated_at        TIMESTAMP DEFAULT NOW()
+      )
+    `)
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)
@@ -418,6 +429,71 @@ function clearPowerDisconnectRetryTimer(traccarId) {
   const timer = powerDisconnectRetryTimers.get(String(traccarId))
   if (timer) clearTimeout(timer)
   powerDisconnectRetryTimers.delete(String(traccarId))
+}
+
+// ── Durable power-state persistence ──────────────────────────────────────────
+// Persist which devices are in a confirmed disconnect episode so that a
+// backend restart does not forget the state and re-fire the alert on the next
+// silence check (preventing duplicate alerts across restarts).
+
+async function persistPowerDisconnected(traccarId, trigger) {
+  try {
+    await db.query(
+      `INSERT INTO device_power_states (traccar_id, disconnected, disconnect_trigger, updated_at)
+       VALUES ($1, TRUE, $2, NOW())
+       ON CONFLICT (traccar_id) DO UPDATE
+         SET disconnected = TRUE, disconnect_trigger = $2, updated_at = NOW()`,
+      [traccarId, trigger || 'silence']
+    )
+  } catch (err) {
+    console.warn('[Power] Failed to persist disconnect state:', err.message)
+  }
+}
+
+async function persistPowerConnected(traccarId) {
+  try {
+    await db.query(
+      `DELETE FROM device_power_states WHERE traccar_id = $1`,
+      [traccarId]
+    )
+  } catch (err) {
+    console.warn('[Power] Failed to clear disconnect state:', err.message)
+  }
+}
+
+// Called once at startup. Restores in-memory disconnect state from the DB so
+// that a restart mid-disconnect episode does not fire a second alert.
+async function loadPersistedPowerStates() {
+  try {
+    const { rows } = await db.query(
+      `SELECT traccar_id, disconnect_trigger FROM device_power_states WHERE disconnected = TRUE`
+    )
+    for (const row of rows) {
+      const key = String(row.traccar_id)
+      const existing = powerTelemetry.get(key)
+      if (existing) {
+        existing.disconnected = true
+        if (row.disconnect_trigger) existing.disconnectTrigger = row.disconnect_trigger
+      } else {
+        powerTelemetry.set(key, {
+          lastValidAt: null,
+          lastValidVoltage: null,
+          missingSince: null,
+          lastPositionAt: null,
+          lastPositionKey: null,
+          powerLossSignal: null,
+          disconnectTrigger: row.disconnect_trigger || 'silence',
+          invalidPositionCount: 0,
+          disconnected: true,
+          alerting: false,
+        })
+      }
+      markVehicleDisconnected(row.traccar_id)
+    }
+    console.log('[Power] Loaded', rows.length, 'persisted disconnect state(s) from DB')
+  } catch (err) {
+    console.warn('[Power] Failed to load persisted power states:', err.message)
+  }
 }
 
 function positionTimestamp(position, fallback) {
@@ -574,6 +650,7 @@ async function createPowerDisconnectedAlert(traccarId, { immediate = false } = {
     state.alerting = false
     clearPowerDisconnectRetryTimer(traccarId)
     markVehicleDisconnected(traccarId)
+    void persistPowerDisconnected(traccarId, state.disconnectTrigger)
     sendPowerDisconnectEvent(device, alertRows[0])
     console.log('[Power] Vehicle power disconnected — device:', device.id)
   } catch (err) {
@@ -653,6 +730,7 @@ function observePowerTelemetry(position) {
   if (transition.restored) {
     powerTelemetry.set(key, next)
     markVehicleConnected(traccarId)
+    void persistPowerConnected(traccarId)
     void createPowerRestoredAlert(traccarId)
     // Fall through to process this healthy position normally (voltage cache, silence timer).
   }
@@ -877,6 +955,7 @@ async function runSubscriptionCheck() {
 server.listen(PORT, async () => {
   console.log('ATHAR GPS Backend running on port ' + PORT)
   await runMigrations()
+  await loadPersistedPowerStates()
   await runSubscriptionCheck()
   setInterval(runSubscriptionCheck, 6 * 60 * 60 * 1000)
   await refreshTraccarOwnerCache()

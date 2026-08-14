@@ -1108,3 +1108,68 @@ disconnected even after the battery was re-connected.
   because no live device/WebSocket production session was available.
 - [x] Physical battery pull/restore and relay movement: not run; requires the
   real tracker and vehicle.
+
+## Restart-safe disconnect state — duplicate alert prevention
+
+### Problem
+
+The one-alert-per-transition guarantee relied entirely on in-memory state
+(`powerTelemetry` Map, `disconnectedVehicles` Set). If the backend process
+restarted while a device was already in a confirmed disconnect episode, both
+structures reset to empty. The next silence check would then fire a second
+`power_disconnected` alert for an event that had already been persisted before
+the restart.
+
+### Fix
+
+Added a durable `device_power_states` table to the database. The backend now:
+
+1. **Persists** `disconnected = TRUE` (and the trigger type: `telemetry` or
+   `silence`) immediately after writing the `power_disconnected` alert row.
+2. **Clears** the row immediately after writing the `power_restored` alert row.
+3. **Reloads** all persisted disconnect rows into `powerTelemetry` and
+   `disconnectedVehicles` at startup (after migrations, before the Traccar
+   bridge connects), so the state machine already knows which devices are
+   in a disconnect episode before processing any new positions.
+
+The guard that prevents a duplicate alert is unchanged — `state.disconnected`
+is now correctly `true` after a restart, so `createPowerDisconnectedAlert`
+skips the alert as intended. No new position data is required for the guard
+to take effect.
+
+### Schema addition (self-healing migration)
+
+```sql
+CREATE TABLE IF NOT EXISTS device_power_states (
+  traccar_id         INTEGER PRIMARY KEY,
+  disconnected       BOOLEAN NOT NULL DEFAULT FALSE,
+  disconnect_trigger VARCHAR(20),
+  updated_at         TIMESTAMP DEFAULT NOW()
+)
+```
+
+### Files changed
+
+- `backend/src/index.js` — migration, `persistPowerDisconnected()`,
+  `persistPowerConnected()`, `loadPersistedPowerStates()`, and wiring into
+  `createPowerDisconnectedAlert`, `observePowerTelemetry`, and server startup.
+- `docs/TASK_LOG.md`
+
+### Restart-dedup simulation
+
+| Scenario | Expected | Result |
+|---|---|---|
+| Device disconnects; state `disconnected=true` in memory and DB | 1 alert fired | PASS (existing guard + persist call) |
+| Backend restarts; `loadPersistedPowerStates()` runs | `disconnected=true` restored from DB into `powerTelemetry` + `disconnectedVehicles` | PASS by code inspection |
+| Silence check fires for already-disconnected device after restart | `createPowerDisconnectedAlert` checks `state.disconnected`, returns early | PASS — 0 duplicate alerts |
+| Device power restored after restart | `persistPowerConnected()` deletes DB row; `markVehicleConnected()` clears Set | PASS by code inspection |
+| Fresh device (no prior disconnect) starts reporting | No DB row; state initialized normally | PASS — no change in behavior |
+
+### Verification
+
+- [x] Backend `node --check` passes on modified `backend/src/index.js`.
+- [x] `git diff --check` passes.
+- [x] Restart-dedup simulation scenarios above all pass by code inspection.
+- [x] No existing alert paths, voltage logic, or WebSocket broadcast code was modified.
+- [ ] Live test with a real device restart mid-disconnect was not performed;
+  requires the production environment and a physical tracker.
