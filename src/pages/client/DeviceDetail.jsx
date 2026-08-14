@@ -381,9 +381,21 @@ export default function DeviceDetail() {
     if (sending) return
     setSending(true)
     try {
-      await toggleEngine(id, turnOff)
-      setDevice(current => ({ ...current, engineOn: !turnOff, ignition: !turnOff }))
-      setToast({ type: 'success', message: t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess') })
+      const result = await toggleEngine(id, turnOff)
+      // Traccar accepting/queueing a command is not proof that the relay
+      // physically switched. Keep the displayed telemetry unchanged until a
+      // fresh tracker packet confirms the ignition state.
+      setToast({
+        type: 'success',
+        message: isAr
+          ? (turnOff
+              ? 'تم إرسال أمر قطع المحرك. ننتظر تأكيد الجهاز.'
+              : 'تم إرسال أمر تشغيل المحرك. ننتظر تأكيد الجهاز.')
+          : (turnOff
+              ? 'Commande d’arrêt envoyée. En attente de confirmation du boîtier.'
+              : 'Commande de démarrage envoyée. En attente de confirmation du boîtier.'),
+        commandQueued: result?.queueState || 'queued',
+      })
     } catch (e) {
       setToast({ type: 'error', message: e?.status === 403
           ? (isAr ? 'ليس لديك صلاحية للتحكم بهذا الجهاز.' : 'Vous n’êtes pas autorisé à contrôler cet appareil.')
@@ -1024,25 +1036,28 @@ export default function DeviceDetail() {
 
           {/* COMMANDS — single dynamic engine button */}
           {tab === 'commands' && (() => {
-            const engineOn = !!ignition
-            const cmdColor = engineOn ? '#FF3B30' : '#00D97E'
+            const engineKnown = ignition === true || ignition === false
+            const engineOn = ignition === true
+            const cmdColor = !engineKnown ? '#6b7280' : (engineOn ? '#FF3B30' : '#00D97E')
             const CmdIcon  = engineOn ? ZapOff : Zap
-            const cmdLabel = engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')
-            const turnOff  = engineOn
+            const cmdLabel = !engineKnown
+              ? (isAr ? 'حالة المحرك غير معروفة' : 'État du moteur inconnu')
+              : (engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine'))
+            const turnOff  = engineKnown && engineOn
             return (
               <motion.div key="cmds" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
                 {/* Engine status indicator */}
                 <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl"
-                  style={{ background: (engineOn ? '#00D97E' : '#6b7280') + '14', border: '1px solid ' + (engineOn ? '#00D97E' : '#6b7280') + '30' }}>
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: engineOn ? '#00D97E' : '#6b7280' }}/>
-                  <p className="text-sm font-bold" style={{ color: engineOn ? '#16866d' : '#6b7280' }}>
-                     {t(lang, engineOn ? 'engineOn' : 'engineOff')}
+                  style={{ background: (engineKnown && engineOn ? '#00D97E' : '#6b7280') + '14', border: '1px solid ' + (engineKnown && engineOn ? '#00D97E' : '#6b7280') + '30' }}>
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: engineKnown && engineOn ? '#00D97E' : '#6b7280' }}/>
+                  <p className="text-sm font-bold" style={{ color: engineKnown && engineOn ? '#16866d' : '#6b7280' }}>
+                     {!engineKnown ? cmdLabel : t(lang, engineOn ? 'engineOn' : 'engineOff')}
                    </p>
                 </div>
                 {/* Single action button */}
                 <motion.button whileTap={{ scale:0.97 }}
                   onClick={() => setConfirm({ label: cmdLabel, turnOff })}
-                  disabled={sending}
+                  disabled={sending || !engineKnown}
                   aria-label={cmdLabel}
                   className="w-full min-h-[88px] flex items-center gap-4 p-4 rounded-2xl disabled:opacity-50 transition-all"
                   style={{ background: cmdColor+'18', border:'1.5px solid '+cmdColor+'44' }}>
