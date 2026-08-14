@@ -1491,3 +1491,55 @@ Added an isolated, namespaced system under `src/design-system/`:
   available in this environment; Docker/production host access is absent.
 - [ ] Physical relay, battery pull/restore, and live GPS/WebSocket device tests
   are not claimed here and still require the real deployed fleet.
+
+## Phase 1 — navigation and information architecture
+
+### Delivery
+
+- Replaced the client shell navigation with one fixed, five-item bottom bar:
+  `الرئيسية` / `Accueil`, `المركبات` / `Véhicules`, `الخريطة` / `Carte`,
+  `التنبيهات` / `Alertes`, and `المزيد` / `Plus`.
+- Kept the bar equal-width, mobile-first, safe-area aware, keyboard accessible,
+  and visually unambiguous: the current destination uses the semantic emerald
+  token while inactive destinations use the design-system muted text token.
+- The More sheet now exposes every client route that is not a primary
+  destination: subscriptions, reports, driver behavior, maintenance,
+  geofences, device onboarding, help, settings, and logout. No feature or
+  route was removed.
+- Vehicle detail routes are represented as part of the Vehicles destination, so
+  `/client/device/:id` never leaves the user without an active primary tab.
+- The sheet and its action cards now consume the additive Phase-0 design-system
+  `Sheet`, `Card`, `Button`, and `IconButton` primitives and semantic tokens.
+
+### Information architecture map
+
+| Information or action | Primary location | Secondary / advanced location |
+|---|---|---|
+| Fleet overview, live status counts, current speed, subscription summary, recent vehicles | `الرئيسية` → `/client/home` | Each vehicle opens its detail page |
+| Vehicle search, filters, status, battery/voltage, last update, and selection | `المركبات` → `/client/devices` | `/client/device/:id` for full details and actions |
+| Vehicle status, speed, bearing, marker, current position, and today's route on demand | `الخريطة` → `/client/map` | Vehicle detail can open the same live-map flow |
+| Alerts, unread count, read state, and power/connection notices | `التنبيهات` → `/client/alerts` | Header notification action remains a shortcut to the same route |
+| Subscription dates, renewal actions, reports, replay, driver behavior, maintenance, geofences, onboarding, help, and settings | `المزيد` sheet | Each item keeps its existing route and existing page-level behavior |
+| Name, driver, phone, plate, vehicle type, IMEI, signal, speed, voltage, last update, sharing, engine control, trips, and replay | Vehicle detail → `/client/device/:id` | Technical identifiers remain inside the existing detail surface, not the primary bar |
+| IMEI, device ID, SIM, raw coordinates, protocol, and device internals | Existing device detail information surface | These remain secondary/technical information and are not promoted into navigation |
+
+### State and regression contract
+
+| Requirement | Result | Evidence / limit |
+|---|---|---|
+| One consistent five-item bottom navigation | PASS by source audit | `ClientNav` owns the only client bottom bar |
+| Emerald active state and safe-area spacing | PASS by source audit | Design-system semantic tokens plus `env(safe-area-inset-bottom)` |
+| Every existing client route remains reachable | PASS by route map/source audit | Primary tabs, More sheet, vehicle detail, and existing deep links preserved |
+| Loading, empty, error, offline, and last-updated behavior | PRESERVED | No page data/state handlers were changed; existing page/shared state helpers remain in place |
+| Login, logout, and password flows | PRESERVED | No auth, guard, session, or logout API code changed |
+| Engine cut/resume and RELAY delivery | PRESERVED | No backend, API, device command, or business-logic file changed |
+| Power alerts, quiet idle, internal-battery label, voltage, speed, live updates, and device isolation | PRESERVED | No telemetry, context, map-data, WebSocket, or backend file changed |
+| Arabic map labels, vehicle markers, and RTL/LTR behavior | PRESERVED | Navigation labels use translations; direction and map components remain unchanged |
+
+### Files changed and verification scope
+
+- Changed only `src/components/ClientNav.jsx`, `src/i18n/translations.js`, and
+  this log for this phase.
+- Live production checks, physical relay/battery tests, Docker, TLS, and
+  nginx tests were not run in this environment. The owner must verify the
+  deployed server after the push.

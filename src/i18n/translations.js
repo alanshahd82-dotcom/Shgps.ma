@@ -59,8 +59,12 @@ export const translations = {
     // Navigation
     home: 'الرئيسية',
     devices: 'أجهزتي',
+    vehicles: 'المركبات',
+    mapNav: 'الخريطة',
     alerts: 'التنبيهات',
+    more: 'المزيد',
     reports: 'التقارير',
+    subscriptions: 'الاشتراكات',
     help: 'المساعدة',
 
     // Home
@@ -503,8 +507,12 @@ export const translations = {
     // Navigation
     home: 'Accueil',
     devices: 'Mes appareils',
+    vehicles: 'Véhicules',
+    mapNav: 'Carte',
     alerts: 'Alertes',
+    more: 'Plus',
     reports: 'Rapports',
+    subscriptions: 'Abonnements',
     help: 'Aide',
 
     // Home
