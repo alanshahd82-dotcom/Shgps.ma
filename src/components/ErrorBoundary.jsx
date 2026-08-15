@@ -8,6 +8,14 @@ function isFrench() {
   }
 }
 
+function currentRoute() {
+  try {
+    return window.location.pathname || '/'
+  } catch {
+    return '/'
+  }
+}
+
 const CHUNK_RELOAD_KEY = 'athargps_chunk_reload_attempt'
 
 function isChunkLoadError(error) {
@@ -19,14 +27,14 @@ function isChunkLoadError(error) {
 }
 
 export default class ErrorBoundary extends React.Component {
-  state = { hasError: false }
+  state = { hasError: false, route: '/' }
 
   componentDidMount() {
     try { window.sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch {}
   }
 
   static getDerivedStateFromError() {
-    return { hasError: true }
+    return { hasError: true, route: currentRoute() }
   }
 
   componentDidCatch(error, errorInfo) {
@@ -41,14 +49,18 @@ export default class ErrorBoundary extends React.Component {
     }
   }
 
-  handleReload = () => {
-    window.location.reload()
+  handleRetry = () => {
+    this.setState(state => ({
+      hasError: false,
+      route: currentRoute(),
+    }))
   }
 
   render() {
     if (!this.state.hasError) return this.props.children
 
     const fr = isFrench()
+    const route = this.state.route || currentRoute()
     return (
       <main
         dir={fr ? 'ltr' : 'rtl'}
@@ -70,12 +82,23 @@ export default class ErrorBoundary extends React.Component {
           </h1>
           <p style={{ margin: '0 0 22px', color: 'rgba(237,244,242,.66)', lineHeight: 1.8 }}>
             {fr
-              ? 'Rechargez la page pour reprendre votre session.'
-              : 'أعد تحميل الصفحة للمتابعة.'}
+              ? 'Réessayez pour reprendre votre session.'
+              : 'أعد المحاولة للمتابعة.'}
+          </p>
+          <p
+            dir="ltr"
+            style={{
+              margin: '0 0 22px',
+              color: 'rgba(237,244,242,.48)',
+              fontSize: 12,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            }}
+          >
+            {fr ? 'Route' : 'المسار'}: {route}
           </p>
           <button
             type="button"
-            onClick={this.handleReload}
+            onClick={this.handleRetry}
             style={{
               border: 0,
               borderRadius: 12,
@@ -86,7 +109,7 @@ export default class ErrorBoundary extends React.Component {
               cursor: 'pointer',
             }}
           >
-            {fr ? 'Recharger' : 'إعادة تحميل'}
+            {fr ? 'Réessayer' : 'إعادة المحاولة'}
           </button>
         </section>
       </main>

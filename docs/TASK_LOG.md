@@ -2,6 +2,43 @@
 
 This file records the completed work and the current production verification notes.
 
+## 2026-08-15 — Client map crash hardening
+
+### Root cause
+
+- The client map render path had no local error boundary, so any Leaflet
+  initialization or marker-render failure propagated to the full-screen global
+  boundary.
+- `src/pages/client/LiveMap.jsx` accessed the device collection directly at the
+  selection effects (`devices.find` / `devices.some`, previously around lines
+  364, 378, and 386) instead of normalizing a malformed or temporarily absent
+  snapshot first. The map also accepted location values from upstream data
+  without one shared finite-range guard at every Leaflet entry point.
+- The Phase 1 CartoDB Voyager URL was valid and was not the crash source. Its
+  existing CartoDB → Geoapify → OSM fallback remains in place.
+
+### Fix
+
+- Normalized the device list before filtering, selecting, and reacting to
+  selection changes. Devices without a valid GPS fix are excluded from marker
+  rendering, and malformed user locations/routes are ignored.
+- Added a local `MapErrorBoundary` with an inline bilingual retry state, so a
+  map-only failure cannot replace the entire client page.
+- Kept the map explicitly sized, changed the empty-map view to Morocco at zoom
+  5, and retained the CartoDB Voyager layer with `abcd` subdomains and OSM
+  attribution/fallbacks.
+- Hardened the global boundary with the current route, bilingual retry copy,
+  and a reset-and-retry action.
+- No backend, database, authentication, WebSocket, or API contract files were
+  changed.
+
+### Verification
+
+- `npm run build`: PASS
+- `git diff --check`: PASS
+- Changed files are limited to the client map, global error boundary, map
+  styles, and this task log.
+
 ## PWA boot resilience — bounded auth and background live updates
 
 - The boot session check at `/api/auth/me` now has an 8-second abort timeout.

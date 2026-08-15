@@ -312,6 +312,42 @@
   border-radius: inherit;
 }
 
+.athar-map-error-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 450;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  color: #edf4f2;
+  text-align: center;
+  background: linear-gradient(145deg, rgba(10, 24, 48, .98), rgba(6, 14, 29, .98));
+}
+
+.athar-map-error-fallback strong {
+  font-size: 15px;
+}
+
+.athar-map-error-fallback span {
+  max-width: 260px;
+  color: rgba(237, 244, 242, .62);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.athar-map-error-fallback button {
+  border: 1px solid rgba(0, 217, 126, .45);
+  border-radius: 12px;
+  padding: 9px 16px;
+  color: #07111f;
+  background: #38d39f;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .athar-live-map-shell .leaflet-bottom {
   bottom: var(--athar-map-controls-offset, 140px);
   transition: bottom .35s cubic-bezier(.4,0,.2,1);

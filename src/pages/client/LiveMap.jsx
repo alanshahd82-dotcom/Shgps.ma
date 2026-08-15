@@ -54,15 +54,34 @@ const ST_CLR = {
   power: 'var(--ds-color-danger)',
 }
 
+const DEFAULT_MAP_CENTER = [31.7917, -7.0926]
+
+function isValidMapPoint(lat, lng) {
+  const latitude = Number(lat)
+  const longitude = Number(lng)
+  return Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 && latitude <= 90 &&
+    longitude >= -180 && longitude <= 180 &&
+    !(Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01)
+}
+
 // ── Map helpers ────────────────────────────────────────────────────────────────
 function FlyToUser({ target }) {
   const map  = useMap()
   const prev = useRef(null)
   useEffect(() => {
     if (!target) return
+    const lat = Number(target.lat)
+    const lng = Number(target.lng)
+    if (!isValidMapPoint(lat, lng)) return
     if (prev.current === target.ts) return
     prev.current = target.ts
-    map.flyTo([target.lat, target.lng], 16, { duration: 1.2 })
+    try {
+      map.flyTo([lat, lng], 16, { duration: 1.2 })
+    } catch {
+      // A location update must never take down the live map.
+    }
   }, [target])
   return null
 }
@@ -85,7 +104,7 @@ function FlyTo({ lat, lng, zoom = 15 }) {
 function FitTodayRoute({ route }) {
   const map = useMap()
   useEffect(() => {
-    if (route.length < 2) return
+    if (!Array.isArray(route) || route.length < 2) return
     try {
       const bounds = L.latLngBounds(route)
       if (bounds.isValid()) {
@@ -97,6 +116,46 @@ function FitTodayRoute({ route }) {
     }
   }, [map, route])
   return null
+}
+
+function MapErrorFallback({ lang, onRetry }) {
+  const isAr = lang !== 'fr'
+  return (
+    <div className="athar-map-error-fallback" role="alert" dir={isAr ? 'rtl' : 'ltr'}>
+      <MapPin size={22} aria-hidden="true" />
+      <strong>{isAr ? 'تعذر عرض الخريطة' : 'La carte ne peut pas être affichée'}</strong>
+      <span>
+        {isAr
+          ? 'يمكنك إعادة المحاولة دون مغادرة الصفحة.'
+          : 'Vous pouvez réessayer sans quitter cette page.'}
+      </span>
+      <button type="button" onClick={onRetry}>
+        {isAr ? 'إعادة المحاولة' : 'Réessayer'}
+      </button>
+    </div>
+  )
+}
+
+class MapErrorBoundary extends React.Component {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Athar GPS map render error', error, errorInfo)
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false })
+  }
+
+  render() {
+    return this.state.hasError
+      ? <MapErrorFallback lang={this.props.lang} onRetry={this.handleRetry} />
+      : this.props.children
+  }
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -288,6 +347,10 @@ export default function LiveMap() {
   const sheetPointerRef = useRef(null)
   const isAr = lang === 'ar'
   const requestedDeviceId = searchParams.get('device')
+  const deviceList = useMemo(
+    () => (Array.isArray(devices) ? devices.filter(Boolean) : []),
+    [devices],
+  )
   useEffect(() => {
     localStorage.setItem('athargps_auto_follow', String(autoFollow))
   }, [autoFollow])
@@ -343,13 +406,13 @@ export default function LiveMap() {
     !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
 
   const filtered = useMemo(() => {
-    const trackable = (Array.isArray(devices) ? devices : []).filter(d => d.trackingEnabled !== false)
+    const trackable = deviceList.filter(d => d.trackingEnabled !== false)
     if (!search.trim()) return trackable
     const q = search.toLowerCase()
     return trackable.filter(d =>
       d.name?.toLowerCase().includes(q) || d.plate?.toLowerCase().includes(q)
     )
-  }, [devices, search])
+  }, [deviceList, search])
 
   const positioned = useMemo(() =>
     filtered
@@ -361,7 +424,7 @@ export default function LiveMap() {
       .filter(d => hasValidMapPoint(d.lat, d.lng)),
   [filtered])
 
-  const sel = selected ? devices.find(d => d.id === selected) : null
+  const sel = selected ? deviceList.find(d => d.id === selected) : null
   const positionedSelection = positioned.find(d => d.id === selected)
   const selectedDevice = sel || positionedSelection || positioned[0] || filtered[0] || null
   const selectedStatus = getMapStatus(selectedDevice)
@@ -376,18 +439,18 @@ export default function LiveMap() {
   )
 
   useEffect(() => {
-    if (selected && !devices.some(device => device.id === selected)) {
+    if (selected && !deviceList.some(device => device.id === selected)) {
       setSelected(null)
     }
-  }, [devices, selected])
+  }, [deviceList, selected])
 
   useEffect(() => {
     if (!requestedDeviceId) return
-    const requested = devices.find(d => String(d.id) === String(requestedDeviceId))
+    const requested = deviceList.find(d => String(d.id) === String(requestedDeviceId))
     if (requested) {
       setSelected(requested.id)
     }
-  }, [devices, requestedDeviceId])
+  }, [deviceList, requestedDeviceId])
 
   useEffect(() => {
     if (selected || requestedDeviceId || positioned.length === 0) return
@@ -400,7 +463,7 @@ export default function LiveMap() {
   }, [selected])
 
   async function showTodayRoute(device) {
-    if (routeLoading) return
+    if (routeLoading || !device?.id) return
     const requestId = ++routeRequestRef.current
     const from = new Date()
     from.setHours(0, 0, 0, 0)
@@ -433,9 +496,10 @@ export default function LiveMap() {
   }
 
   function openMaps(type, device) {
+    if (!device) return
     const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
     const lng = toCoord(device.lng) ?? toCoord(device.last_lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    if (!isValidMapPoint(lat, lng)) return
     const origin = userPos ? `${userPos.lat},${userPos.lng}` : ''
     if (type === 'google') {
       window.open(
@@ -462,17 +526,20 @@ export default function LiveMap() {
         className="athar-live-map-shell"
         aria-label={isAr ? 'الخريطة' : 'Carte'}
       >
-        <MapContainer
-          preferCanvas
-          center={[31.7917, -7.0926]}
-          zoom={6}
-          minZoom={3}
-          maxZoom={19}
-          style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
-          zoomControl={false}
-        >
+        <MapErrorBoundary lang={lang}>
+          <MapContainer
+            preferCanvas
+            center={DEFAULT_MAP_CENTER}
+            zoom={5}
+            minZoom={3}
+            maxZoom={19}
+            style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
+            zoomControl={false}
+          >
            <MapLayers />
-          {userPos && <Marker position={[userPos.lat, userPos.lng]} icon={userLocIcon} />}
+          {isValidMapPoint(userPos?.lat, userPos?.lng) && (
+            <Marker position={[Number(userPos.lat), Number(userPos.lng)]} icon={userLocIcon} />
+          )}
           {positioned.map(d => (
             <LiveVehicleMarker
               key={d.id}
@@ -542,7 +609,8 @@ export default function LiveMap() {
              onLocate={locateMe}
              lang={lang}
            />
-        </MapContainer>
+          </MapContainer>
+        </MapErrorBoundary>
         <div className="athar-map-vignette" aria-hidden="true" />
       </div>
 
