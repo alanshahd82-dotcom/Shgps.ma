@@ -184,7 +184,39 @@ function MapSizeSync() {
   return null
 }
 
-function MapErrorFallback({ lang, onRetry }) {
+function currentMapRoute() {
+  try {
+    return window.location.pathname || '/'
+  } catch {
+    return '/client/map'
+  }
+}
+
+function formatMapError(error, errorInfo) {
+  const name = error?.name || 'Error'
+  const message = error?.message || String(error || 'Unknown error')
+  const stack = String(error?.stack || `${name}: ${message}`)
+    .split('\n')
+    .slice(0, 8)
+    .join('\n')
+  const componentStack = String(errorInfo?.componentStack || '')
+    .split('\n')
+    .filter(Boolean)
+    .slice(0, 8)
+    .join('\n')
+
+  return [
+    `route: ${currentMapRoute()}`,
+    `name: ${name}`,
+    `message: ${message}`,
+    '',
+    'stack:',
+    stack,
+    componentStack ? `\ncomponent stack:\n${componentStack}` : '',
+  ].filter(Boolean).join('\n')
+}
+
+function MapErrorFallback({ lang, onRetry, error, errorInfo }) {
   const isAr = lang !== 'fr'
   return (
     <div className="athar-map-error-fallback" role="alert" dir={isAr ? 'rtl' : 'ltr'}>
@@ -195,6 +227,28 @@ function MapErrorFallback({ lang, onRetry }) {
           ? 'يمكنك إعادة المحاولة دون مغادرة الصفحة.'
           : 'Vous pouvez réessayer sans quitter cette page.'}
       </span>
+      <details open dir="ltr" style={{ width: 'min(720px, 94vw)', textAlign: 'left' }}>
+        <summary style={{ cursor: 'pointer', marginBottom: 8 }}>
+          {isAr ? 'تفاصيل الخطأ للمساعدة في الإصلاح' : 'Détails de l’erreur pour le diagnostic'}
+        </summary>
+        <pre
+          style={{
+            maxHeight: 220,
+            overflow: 'auto',
+            margin: 0,
+            padding: 12,
+            borderRadius: 10,
+            color: '#ffd7d7',
+            background: 'rgba(0,0,0,.35)',
+            fontSize: 10,
+            lineHeight: 1.5,
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {formatMapError(error, errorInfo)}
+        </pre>
+      </details>
       <button type="button" onClick={onRetry}>
         {isAr ? 'إعادة المحاولة' : 'Réessayer'}
       </button>
@@ -203,23 +257,37 @@ function MapErrorFallback({ lang, onRetry }) {
 }
 
 class MapErrorBoundary extends React.Component {
-  state = { hasError: false }
+  state = { hasError: false, error: null, errorInfo: null }
 
-  static getDerivedStateFromError() {
-    return { hasError: true }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Athar GPS map render error', error, errorInfo)
+    console.error('Athar GPS map render error', {
+      route: currentMapRoute(),
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+      componentStack: errorInfo?.componentStack,
+    })
+    this.setState({ error, errorInfo })
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false })
+    this.setState({ hasError: false, error: null, errorInfo: null })
   }
 
   render() {
     return this.state.hasError
-      ? <MapErrorFallback lang={this.props.lang} onRetry={this.handleRetry} />
+      ? (
+        <MapErrorFallback
+          lang={this.props.lang}
+          onRetry={this.handleRetry}
+          error={this.state.error}
+          errorInfo={this.state.errorInfo}
+        />
+      )
       : this.props.children
   }
 }

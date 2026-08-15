@@ -16,6 +16,30 @@ function currentRoute() {
   }
 }
 
+function formatErrorDetails(error, errorInfo, route) {
+  const name = error?.name || 'Error'
+  const message = error?.message || String(error || 'Unknown error')
+  const stack = String(error?.stack || `${name}: ${message}`)
+    .split('\n')
+    .slice(0, 8)
+    .join('\n')
+  const componentStack = String(errorInfo?.componentStack || '')
+    .split('\n')
+    .filter(Boolean)
+    .slice(0, 8)
+    .join('\n')
+
+  return [
+    `route: ${route}`,
+    `name: ${name}`,
+    `message: ${message}`,
+    '',
+    'stack:',
+    stack,
+    componentStack ? `\ncomponent stack:\n${componentStack}` : '',
+  ].filter(Boolean).join('\n')
+}
+
 const CHUNK_RELOAD_KEY = 'athargps_chunk_reload_attempt'
 
 function isChunkLoadError(error) {
@@ -27,18 +51,25 @@ function isChunkLoadError(error) {
 }
 
 export default class ErrorBoundary extends React.Component {
-  state = { hasError: false, route: '/' }
+  state = { hasError: false, route: '/', error: null, errorInfo: null }
 
   componentDidMount() {
     try { window.sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch {}
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true, route: currentRoute() }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, route: currentRoute(), error }
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Athar GPS render error', error, errorInfo)
+    console.error('Athar GPS render error', {
+      route: currentRoute(),
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+      componentStack: errorInfo?.componentStack,
+    })
+    this.setState({ error, errorInfo })
     if (isChunkLoadError(error)) {
       try {
         if (!window.sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
@@ -53,6 +84,8 @@ export default class ErrorBoundary extends React.Component {
     this.setState(state => ({
       hasError: false,
       route: currentRoute(),
+      error: null,
+      errorInfo: null,
     }))
   }
 
@@ -96,6 +129,28 @@ export default class ErrorBoundary extends React.Component {
           >
             {fr ? 'Route' : 'المسار'}: {route}
           </p>
+          <details open dir="ltr" style={{ margin: '0 auto 22px', textAlign: 'left' }}>
+            <summary style={{ cursor: 'pointer', marginBottom: 8 }}>
+              {fr ? 'Error details for diagnosis' : 'تفاصيل الخطأ للتشخيص'}
+            </summary>
+            <pre
+              style={{
+                maxHeight: 260,
+                overflow: 'auto',
+                margin: 0,
+                padding: 12,
+                borderRadius: 10,
+                color: '#ffd7d7',
+                background: 'rgba(0,0,0,.35)',
+                fontSize: 10,
+                lineHeight: 1.5,
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {formatErrorDetails(this.state.error, this.state.errorInfo, route)}
+            </pre>
+          </details>
           <button
             type="button"
             onClick={this.handleRetry}
