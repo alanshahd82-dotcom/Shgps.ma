@@ -1,0 +1,102 @@
+═══════════════════════════════════════════════════════════
+TASK: DIAGNOSE & FIX — PWA hangs on splash screen (server is NOT the problem)
+═══════════════════════════════════════════════════════════
+
+🔴 MANDATORY FIRST: re-read docs/AI_CONTEXT.md + docs/TASK_LOG.md fully.
+
+🚨 CRITICAL CONTEXT — READ CAREFULLY:
+The production server is PROVEN healthy:
+  • curl https://athargps.com/api/health → {"status":"ok"} ✅
+  • curl https://athargps.com/client/login → HTTP 200 in ~70ms ✅
+  • curl https://athargps.com/ (external) → HTTP 200 ✅
+  • nginx, backend, postgres, traccar all running ✅
+  • Phase 1 (f50b039c) built and deployed successfully ✅
+SO THE SERVER IS NOT THE PROBLEM. Do NOT waste time checking backend/nginx.
+
+THE ACTUAL SYMPTOM (from real device video):
+  • User opens the ATHAR GPS PWA/Capacitor app on Android.
+  • The SPLASH screen (logo "A" with location pin on navy background) appears.
+  • Then it HANGS FOREVER on the splash — never advances to onboarding or login.
+  • User already cleared app data (461MB→392MB) — still hangs.
+  • Edge browser on desktop also showed ERR_CONNECTION_TIMED_OUT earlier
+    (but curl from server works fine → suggests a client-side blocking issue).
+
+YOUR JOB: find WHY the client app blocks on startup and FIX it so the app
+ALWAYS progresses past splash (to onboarding/login) even if a network call
+is slow or fails. The app must NEVER hang forever on splash.
+
+─────────────────────────────────────────────────────────────
+STEP 1 — AUDIT the startup/boot path (report BEFORE any fix)
+─────────────────────────────────────────────────────────────
+Inspect and report precisely:
+  • The splash/boot component (likely src/pages/client/Onboarding or App boot
+    logic — the component that renders the navy "A" logo screen).
+  • EVERY network call made during boot BEFORE the first screen renders:
+      - /api/auth/me ?
+      - WebSocket connection (wss://.../api/socket) ?
+      - any other fetch ?
+  • For EACH such call: does it have a TIMEOUT? what happens on failure?
+    Does a failed/slow call BLOCK rendering the next screen, or fail gracefully?
+  • The WebSocket connect logic: does the app wait for `ws.onopen` before
+    showing login? Is there a timeout/retry that could loop forever silently?
+  • Any `await` in a useEffect/initializer that has no catch/timeout and could
+    leave the UI stuck on splash.
+Paste a concise root-cause hypothesis with file:line references.
+
+─────────────────────────────────────────────────────────────
+STEP 2 — FIX: make boot resilient (app must never hang on splash)
+─────────────────────────────────────────────────────────────
+Apply minimal, surgical frontend-only fixes so the app ALWAYS advances:
+  • Add a hard TIMEOUT (e.g., 8s) to the boot/auth-me call: if it doesn't
+    resolve in time, proceed to the login/onboarding screen anyway (do not
+    stay on splash). Show a subtle "تعذر الاتصال — إعادة المحاولة" retry
+    affordance on the login screen instead of blocking.
+  • WebSocket: connecting must be NON-BLOCKING for the first paint. The app
+    must render login/onboarding immediately; WS connects in the background
+    with exponential backoff. A pending/failed WS must NEVER keep the user
+    on the splash screen.
+  • Wrap every boot `await` in try/catch with a fallback path to the next
+    screen. No uncaught promise may leave the UI frozen on splash.
+  • Keep the splash visible only for its intended short duration (e.g., the
+    existing ~1.4s), then transition regardless of network state.
+  • DO NOT change backend, API contracts, WebSocket message format, auth
+    logic, or any working feature. Only make the boot path fault-tolerant.
+
+─────────────────────────────────────────────────────────────
+STEP 3 — ALSO CHECK: service worker / PWA caching stale shell
+─────────────────────────────────────────────────────────────
+  • Is there a service worker (public/sw.js, vite PWA plugin, workbox)?
+    Could it be serving a STALE cached app shell that references old/missing
+    JS chunks (which would white-screen/hang after a new build)?
+  • If yes: ensure the SW updates on new deploy (skipWaiting + clients.claim)
+    and that chunk filenames are hashed (they are: index-DzhlCJbJ.js) so a
+    stale SW can't reference deleted assets. Add a safeguard: if a dynamic
+    import/chunk fails to load, reload once or show the retry screen — never
+    hang.
+
+─────────────────────────────────────────────────────────────
+STEP 4 — VERIFICATION (paste ALL — do not claim success without)
+─────────────────────────────────────────────────────────────
+  [ ] Boot path has explicit timeouts on every network call
+  [ ] Failed/slow auth-me → proceeds to login screen (not stuck on splash)
+  [ ] WebSocket connect is non-blocking for first paint; retries in background
+  [ ] Every boot await is wrapped; no uncaught promise can freeze splash
+  [ ] Service worker (if any) updates on deploy + handles missing chunks
+  [ ] git diff touches ONLY frontend files (src/, public/sw if any) — nothing
+      in backend/
+  [ ] pnpm build succeeds with zero errors
+  [ ] Simulate offline/slow: app still reaches login screen within ~8s
+
+─────────────────────────────────────────────────────────────
+DELIVERY
+─────────────────────────────────────────────────────────────
+  • pnpm build clean + git diff --check
+  • single commit: "fix(ui): prevent splash hang — resilient boot + non-blocking WS"
+  • fetch/rebase + push origin/main (NEVER force); PRINT git log --oneline -3
+  • Update docs/TASK_LOG.md: root cause found, files changed, timeout values,
+    WS behavior, verification results.
+
+If the root cause is unclear after the audit, STOP and report your hypothesis
+plainly — never fabricate success. The owner will redeploy and test on a real
+device.
+═══════════════════════════════════════════════════════════
