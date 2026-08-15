@@ -3,6 +3,7 @@ import { Bell } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Logo from './Logo'
+import { IconButton } from '../design-system'
 
 export default function ClientHeader({ overlay = false, fixed = false, showUser = false }) {
   const navigate = useNavigate()
@@ -13,7 +14,7 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
 
   return (
     <header
-      className={`${fixed ? 'fixed' : overlay ? 'absolute' : 'sticky'} inset-x-0 top-0 z-40 border-b border-white/10 bg-[#07111f]/85 shadow-[0_8px_30px_rgba(0,0,0,.18)] backdrop-blur-xl`}
+      className={`ath-client-header ${fixed ? 'fixed' : overlay ? 'absolute' : 'sticky'} inset-x-0 top-0 z-40 border-b border-white/10 bg-[#07111f]/85 shadow-[0_8px_30px_rgba(0,0,0,.18)] backdrop-blur-xl`}
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         background: overlay
@@ -31,16 +32,15 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
               </p>
             </div>
           )}
-          <button
-            type="button"
+          <IconButton
             onClick={() => navigate('/client/alerts')}
-            aria-label={isAr ? 'التنبيهات' : 'Notifications'}
+            label={isAr ? 'التنبيهات' : 'Notifications'}
             aria-current={location.pathname === '/client/alerts' ? 'page' : undefined}
-            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-[#0e2035] text-[#d9ad62] shadow-sm transition-all hover:border-[#38d39f]/60 active:scale-95 focus-visible:outline-none"
+            className="relative shrink-0 border-white/10 bg-[#0e2035] text-[#d9ad62] shadow-sm hover:border-[#38d39f]/60 focus-visible:outline-none"
           >
             <Bell size={18} strokeWidth={2} />
             {unreadCount > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#FF5A5F] ring-2 ring-[#0e2035]" aria-label={isAr ? 'تنبيهات غير مقروءة' : 'Unread notifications'} />}
-          </button>
+          </IconButton>
         </div>
       </div>
     </header>

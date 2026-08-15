@@ -7,32 +7,32 @@
 
 @layer base {
   :root {
-    --primary: #0b1b33;
-    --accent: #38d39f;
-    --warning: #d9ad62;
-    --danger: #e46b68;
-    --bg: #07111f;
-    --color-foreground: #edf4f2;
-    --color-surface: #0e2035;
-    --color-muted-foreground: #8da2b5;
-    --ath-bg: #0A1120;
-    --ath-bg2: #070D18;
-    --ath-card: #101B2E;
-    --ath-card2: #0C1626;
-    --ath-line: rgba(148,180,215,.10);
-    --ath-txt: #EDF4F2;
-    --ath-mut: #8CA3B8;
-    --ath-green: #00D97E;
-    --ath-green2: #3EE6A0;
-    --ath-teal: #1DBF73;
-    --ath-gold: #E0B36F;
-    --ath-red: #FF5A5F;
-    --ath-amber: #FFB020;
-    --ath-r: 18px;
-    --ath-rs: 24px;
-    --ath-rb: 13px;
-    --ath-disp: 'Cairo', sans-serif;
-    --ath-body: 'IBM Plex Sans Arabic', 'Cairo', sans-serif;
+    --primary: var(--ds-color-navy);
+    --accent: var(--ds-color-primary);
+    --warning: var(--ds-color-warning);
+    --danger: var(--ds-color-danger);
+    --bg: var(--ds-color-page);
+    --color-foreground: var(--ds-color-text);
+    --color-surface: var(--ds-color-surface);
+    --color-muted-foreground: var(--ds-color-text-muted);
+    --ath-bg: var(--ds-color-page);
+    --ath-bg2: var(--ds-color-navy-deep);
+    --ath-card: var(--ds-color-surface-raised);
+    --ath-card2: var(--ds-color-surface);
+    --ath-line: var(--ds-border);
+    --ath-txt: var(--ds-color-text);
+    --ath-mut: var(--ds-color-text-muted);
+    --ath-green: var(--ds-color-primary);
+    --ath-green2: var(--ds-color-primary);
+    --ath-teal: var(--ds-color-primary-strong);
+    --ath-gold: #e0b36f;
+    --ath-red: var(--ds-color-danger);
+    --ath-amber: var(--ds-color-warning);
+    --ath-r: var(--ds-radius-lg);
+    --ath-rs: var(--ds-radius-xl);
+    --ath-rb: var(--ds-radius-md);
+    --ath-disp: var(--ds-font-display);
+    --ath-body: var(--ds-font-body);
   }
 
   * {
@@ -990,11 +990,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .ath-card {
-  background: linear-gradient(180deg, var(--ath-card), var(--ath-card2));
-  border: 1px solid var(--ath-line);
-  border-radius: var(--ath-r);
-  padding: 16px;
-  box-shadow: 0 6px 22px rgba(0,0,0,.25);
+  background: linear-gradient(180deg, var(--ds-color-surface-raised), var(--ds-color-surface));
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-4);
+  box-shadow: var(--ds-shadow-card);
 }
 
 .ath-promo {
@@ -1017,30 +1017,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .ath-btn-solid {
   width: 100%;
-  background: var(--ath-green);
+  background: var(--ds-color-primary);
   color: #04120B;
-  border-radius: var(--ath-rb);
-  padding: 14px;
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-4);
   font-weight: 800;
   font-family: var(--ath-disp);
 }
 
 .ath-btn-g {
-  background: rgba(0,217,126,.12);
-  color: var(--ath-green2);
+  background: var(--ds-color-primary-soft);
+  color: var(--ds-color-primary);
   border: 1px solid rgba(0,217,126,.25);
-  border-radius: var(--ath-rb);
-  padding: 13px;
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-3);
   font-weight: 700;
   font-family: var(--ath-disp);
 }
 
 .ath-btn-p {
   width: 100%;
-  background: linear-gradient(135deg, #12233C, #0B1830);
+  background: linear-gradient(135deg, var(--ds-color-surface-soft), var(--ds-color-navy-deep));
   color: #fff;
-  border-radius: var(--ath-rb);
-  padding: 14px;
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-4);
   font-weight: 700;
   font-family: var(--ath-disp);
 }
@@ -1669,6 +1669,82 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (prefers-reduced-motion: reduce) {
   .athar-premium-sheet {
+    transition: none;
+  }
+}
+
+/* Phase 1 shared client surface: all screens use the same shell geometry,
+   focus treatment, compact rows, and state spacing without touching data flow. */
+.ath-client-header {
+  min-height: var(--ds-header-height);
+  border-color: var(--ds-border);
+}
+
+.ath-client-header > div {
+  min-height: var(--ds-header-height);
+}
+
+.ath-client-nav {
+  min-height: var(--ds-nav-height);
+  border-color: var(--ds-border);
+  background: rgba(14, 32, 53, 0.96) !important;
+  box-shadow: var(--ds-shadow-overlay) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.ath-client-nav button {
+  color: var(--ds-color-text-muted);
+}
+
+.ath-client-nav button:hover {
+  background: var(--ds-color-primary-soft);
+}
+
+.ath-page-header {
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.ath-section-title {
+  color: var(--ds-color-text);
+}
+
+.client-app .ath-card {
+  transition: border-color var(--ds-motion-fast) ease, box-shadow var(--ds-motion-fast) ease;
+}
+
+.client-app .ath-card:hover {
+  border-color: var(--ds-border-strong);
+}
+
+.client-app .ds-empty-state,
+.client-app .ds-error-state,
+.client-app .ds-state {
+  border-radius: var(--ds-radius-lg);
+}
+
+.client-app .ds-skeleton {
+  background-color: var(--ds-color-surface-soft);
+}
+
+.client-app [data-technical-details],
+.client-app .technical-details {
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+@media (max-width: 640px) {
+  .ath-client-header > div {
+    padding-inline: var(--ds-space-4);
+  }
+
+  .ath-client-nav {
+    min-height: calc(var(--ds-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-app .ath-card,
+  .ath-client-nav button {
     transition: none;
   }
 }

@@ -123,7 +123,7 @@ export default function ClientNav() {
 
       {/* Bottom bar */}
       <div
-        className="athar-bottom-nav fixed inset-x-0 bottom-0 z-30 w-full border-t"
+        className="ath-client-nav athar-bottom-nav fixed inset-x-0 bottom-0 z-30 w-full border-t"
         style={{
           paddingBottom: 'max(var(--ds-space-2), env(safe-area-inset-bottom))',
           background: 'var(--ds-color-surface)',

@@ -557,7 +557,6 @@ export default function DeviceDetail() {
           {[
               { Icon:Gauge, label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? `${Math.round(Number(currentSpeed))} km/h` : '—', color:'#38d39f', always: true },
               { Icon:Zap, label:isAr?'الفولطاج':'Tension', val: voltageLabel, color: voltageColor, always: true },
-              { Icon:Activity, label:'IMEI', val: device.imei || '—', color:'#d9ad62', always: true },
               { Icon:Radio, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff', always: true },
               { Icon:Clock, label:isAr?'آخر تحديث':'Dernière mise à jour', val: lastUpdate ? timeAgo(lastUpdate, lang) : '—', color:'#b49cff', always: true, className:'col-span-2' },
                     ].filter(m => m.always || m.val != null).map(({ Icon, label, val, color, bar, secondary, className },i) => (
@@ -649,7 +648,7 @@ export default function DeviceDetail() {
               <div className="rounded-2xl overflow-hidden" style={cardStyle}>
                 {/* Edit header */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isAr ? 'معلومات الجهاز' : 'Appareil'}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isAr ? 'بيانات المركبة' : 'Véhicule'}</span>
                   {!editing
                     ? <button onClick={openEdit} className="flex items-center gap-1 text-[11px] font-bold text-primary-500 hover:opacity-70 transition-opacity">
                         <Pencil size={11}/>{isAr ? 'تعديل' : 'Modifier'}
@@ -703,8 +702,6 @@ export default function DeviceDetail() {
                     { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
                     { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
                     { label: isAr?'هاتف السائق':'Téléphone', val: device.phone || '—', phone: device.phone },
-                     { label: isAr?'الموقع':'Position', val: validPosition(latitude, longitude) ? latitude.toFixed(5)+', '+longitude.toFixed(5) : '—', copyCoordinates: validPosition(latitude, longitude) },
-                    { label: isAr?'IMEI':'IMEI', val: device.imei ? (device.imei.slice(0,6)+'✦✦✦✦✦✦'+device.imei.slice(-4)) : '—', copy: device.imei },
                     { label: isAr?'آخر تحديث':'Dernier signal', val: lastUpdate ? timeAgo(lastUpdate, lang) : (isAr?'لا توجد بيانات':'Aucune donnée') },
                   ].map((row,i,arr) => (
                      <div key={i} onClick={row.copyCoordinates ? copyCoordinates : undefined} onKeyDown={event => {
@@ -753,6 +750,65 @@ export default function DeviceDetail() {
                        </div>
                     </div>
                   ))
+                )}
+                {!editing && (
+                  <details className="technical-details border-t border-slate-100" dir={isAr ? 'rtl' : 'ltr'}>
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold text-slate-500">
+                      <span>{isAr ? 'معلومات الجهاز' : 'Informations de l’appareil'}</span>
+                      <ChevronRight size={14} aria-hidden="true" />
+                    </summary>
+                    <div className="divide-y divide-slate-100">
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <span className="text-xs text-slate-500">{isAr ? 'الموقع' : 'Position'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="max-w-40 truncate text-right font-mono text-xs font-semibold text-slate-800">
+                            {validPosition(latitude, longitude) ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` : '—'}
+                          </span>
+                          {validPosition(latitude, longitude) && (
+                            <button
+                              onClick={copyCoordinates}
+                              aria-label={isAr ? 'نسخ الإحداثيات' : 'Copier les coordonnées'}
+                              title={isAr ? 'نسخ الإحداثيات' : 'Copier les coordonnées'}
+                              className="flex-shrink-0 rounded-lg p-1 text-slate-400 transition-colors"
+                            >
+                              {coordinatesCopied ? <CheckCheck size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <span className="text-xs text-slate-500">IMEI</span>
+                        <div className="flex items-center gap-2">
+                          <span className="max-w-40 truncate text-right font-mono text-xs font-semibold text-slate-800">
+                            {device.imei ? `${device.imei.slice(0, 6)}✦✦✦✦✦✦${device.imei.slice(-4)}` : '—'}
+                          </span>
+                          {device.imei && (
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(device.imei).then(() => {
+                                  setImeiCopied(true)
+                                  setToast({ type: 'success', message: isAr ? 'تم نسخ IMEI' : 'IMEI copié' })
+                                  setTimeout(() => setImeiCopied(false), 2000)
+                                }).catch(() => setToast({ type: 'error', message: isAr ? 'تعذّر النسخ' : 'Copie impossible' }))
+                              }}
+                              aria-label={isAr ? 'نسخ IMEI' : 'Copier IMEI'}
+                              className="flex-shrink-0 rounded-lg p-1 text-slate-400 transition-colors"
+                            >
+                              {imeiCopied ? <CheckCheck size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <span className="text-xs text-slate-500">{isAr ? 'المعرّف' : 'Identifiant'}</span>
+                        <span className="max-w-40 truncate text-right font-mono text-xs font-semibold text-slate-800">{id || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <span className="text-xs text-slate-500">{isAr ? 'البروتوكول' : 'Protocole'}</span>
+                        <span className="max-w-40 truncate text-right font-mono text-xs font-semibold text-slate-800">{device.protocol || '—'}</span>
+                      </div>
+                    </div>
+                  </details>
                 )}
               </div>
             </motion.div>

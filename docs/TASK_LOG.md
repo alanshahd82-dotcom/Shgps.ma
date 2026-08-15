@@ -1787,3 +1787,28 @@ write before subsequent packets arrive.
   أو `alarm:powerCut`، واستمرار تنبيه/استعادة telemetry الصريح.
 - التحقق: `node --check`، `git diff --check`، `npm run build`، واختبارات الطاقة
   كلها نجحت. لم يتم تشغيل Docker حسب نطاق المهمة.
+## 2026-08-15 — Phase 1 unified design system and clean map base
+
+- أضيفت tokens مشتركة additive في `src/design-system/tokens.css` للصفحة
+  والسطوح والحدود والظلال وارتفاعات الـ header/nav، مع primitives جديدة:
+  `CompactRow`, `InlineMetric`, `StatusDot`, `BottomSheet`, `EmptyState`,
+  و`ErrorState`. بقيت `Card`, `Button`, `Skeleton`, و`OfflineState` متوافقة
+  مع API السابق.
+- أصبحت primitives القديمة في `src/components/ui.jsx` وواجهة
+  `ClientHeader` مرتبطة بنفس السطح والـ focus/spacing tokens، وأضيفت طبقة
+  مشتركة للـ client header، bottom navigation، cards، وحالات empty/error.
+  لم تتغير مصادر البيانات أو سلوك التنقل.
+- في `DeviceDetail` لم يعد IMEI جزءًا من الإحصاءات الأساسية. نُقلت الإحداثيات
+  وIMEI ومعرّف الجهاز والبروتوكول إلى قسم قابل للتوسيع بعنوان «معلومات الجهاز»،
+  مع إبقاء النسخ والتعديل وآخر تحديث وبيانات السرعة/الجهد/الإشارة ظاهرة.
+  `LiveMap` كان يملك القسم نفسه مسبقًا؛ لم تتغير marker أو WebSocket أو
+  coordinate handling.
+- تستخدم الخريطة العادية الآن CartoDB Voyager المجانية مع attribution واضح،
+  ثم Geoapify ثم OSM كـ fallback. بقي satellite fallback (Esri/Geoapify/OSM)
+  وحارس timeout/error كما هو، ولم تُستخدم مفاتيح مدفوعة.
+- التكرار البصري الذي عولج هو مصدر بطاقة/زر التنبيه وشكل الـ header والـ bottom
+  nav وحالات العرض؛ بقيت entry points الوظيفية (Map tab، فتح الخريطة من الجهاز،
+  البحث، وMore) والـ routes كما هي لتجنب تغيير السلوك.
+- التحقق: `npm run build` و`git diff --check` نجحا. التغيير frontend-only
+  بالإضافة إلى هذا السجل؛ لم يتغير `backend/` أو API أو DB أو WebSocket أو auth
+  أو Traccar.

@@ -3,6 +3,7 @@ import { TileLayer } from 'react-leaflet'
 import GeoapifyTileLayer from './GeoapifyTileLayer'
 
 const SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const CARTO_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ERROR_LIMIT = 5
 const TILE_ERROR_WINDOW_MS = 4000
@@ -20,6 +21,18 @@ function OpenStreetMapLayer({ onTileError, onTileLoad }) {
   )
 }
 
+function CartoLayer({ onTileError, onTileLoad }) {
+  return (
+    <TileLayer
+      url={CARTO_URL}
+      subdomains="abcd"
+      maxZoom={20}
+      eventHandlers={{ tileerror: onTileError, tileload: onTileLoad }}
+      attribution="© OpenStreetMap contributors © CARTO"
+    />
+  )
+}
+
 export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
   const [sourceIndex, setSourceIndex] = useState(0)
   const [tileLoaded, setTileLoaded] = useState(false)
@@ -29,7 +42,7 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
 
   const sources = satellite
     ? ['esri', 'geoapify-hybrid', 'osm']
-    : ['geoapify', 'osm']
+    : ['carto', 'geoapify', 'osm']
 
   useEffect(() => {
     sourceIndexRef.current = 0
@@ -104,6 +117,9 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
   }
   if (source === 'geoapify') {
     return (<>{loadingSurface}<GeoapifyTileLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
+  }
+  if (source === 'carto') {
+    return (<>{loadingSurface}<CartoLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
   }
   return (<>{loadingSurface}<OpenStreetMapLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
 }

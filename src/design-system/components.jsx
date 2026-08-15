@@ -56,6 +56,62 @@ export function Card({
   )
 }
 
+export function CompactRow({ title, description, leading, trailing, children, className = '', ...props }) {
+  return (
+    <div className={cx('ds-compact-row', className)} {...props}>
+      {leading}
+      <div className="ds-compact-row__content">
+        {title && <p className="ds-compact-row__title">{title}</p>}
+        {description && <p className="ds-compact-row__description">{description}</p>}
+        {children}
+      </div>
+      {trailing}
+    </div>
+  )
+}
+
+export function InlineMetric({ value, label, className = '' }) {
+  return (
+    <span className={cx('ds-inline-metric', className)}>
+      <strong className="ds-inline-metric__value">{value ?? '—'}</strong>
+      {label && <span className="ds-inline-metric__label">{label}</span>}
+    </span>
+  )
+}
+
+export function StatusDot({ status = 'offline', className = '' }) {
+  const normalizedStatus = String(status).toLowerCase().replace(/\s+/g, '-')
+  return <span className={cx('ds-status-dot', `ds-status-dot--${normalizedStatus}`, className)} aria-hidden="true" />
+}
+
+export function BottomSheet(props) {
+  return <Sheet {...props} className={cx('ds-bottom-sheet', props.className)} />
+}
+
+export function EmptyState({ title, description, action, className = '' }) {
+  return (
+    <StateMessage
+      kind="empty"
+      title={title}
+      description={description}
+      action={action}
+      className={cx('ds-empty-state', className)}
+    />
+  )
+}
+
+export function ErrorState({ title, description, action, className = '' }) {
+  return (
+    <StateMessage
+      kind="error"
+      title={title}
+      description={description}
+      action={action}
+      className={cx('ds-error-state', className)}
+    />
+  )
+}
+
 function useEscape(onClose, enabled) {
   useEffect(() => {
     if (!enabled || !onClose) return undefined

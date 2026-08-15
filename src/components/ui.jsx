@@ -126,8 +126,10 @@ export function StatusDot({ status = 'offline', size = 8, className = '' }) {
   const { dot } = STATUS_CFG[status] || STATUS_CFG.offline
   return (
     <span
-      className={`rounded-full flex-shrink-0 inline-block ${className}`}
+      className={`ds-status-dot ds-status-dot--${status} flex-shrink-0 ${className}`}
       style={{ width: size, height: size, background: dot }}
+      role="img"
+      aria-label={STATUS_LABEL[status]?.ar || status}
     />
   )
 }
@@ -153,7 +155,7 @@ export function Spinner({ size = 24, className = '' }) {
 
 // ── Card ──────────────────────────────────────────────────────────────────────
 export function Card({ children, className = '', onClick, padding = 'p-4' }) {
-  const base = `bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm ${padding}`
+  const base = `ath-card ${padding}`
   if (onClick) {
     return (
       <button
@@ -171,7 +173,7 @@ export function Card({ children, className = '', onClick, padding = 'p-4' }) {
 // ── Section title row ─────────────────────────────────────────────────────────
 export function SectionTitle({ children, action }) {
   return (
-    <div className="flex items-center justify-between mb-2.5 px-1">
+    <div className="ath-section-title flex items-center justify-between mb-2.5 px-1">
       <p className="font-bold text-primary-500 dark:text-white text-sm">{children}</p>
       {action && <div>{action}</div>}
     </div>
@@ -186,7 +188,7 @@ export function Section({ children, className = '' }) {
 // ── Empty state ───────────────────────────────────────────────────────────────
 export function EmptyState({ icon: Icon, title, subtitle, action, className = '' }) {
   return (
-    <div className={`flex flex-col items-center justify-center py-14 px-6 text-center ${className}`}>
+    <div className={`ds-empty-state flex flex-col items-center justify-center py-14 px-6 text-center ${className}`}>
       {Icon && (
         <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
           <Icon size={26} className="text-slate-400" strokeWidth={1.5} />
@@ -204,7 +206,7 @@ export function EmptyState({ icon: Icon, title, subtitle, action, className = ''
 // ── Error state ───────────────────────────────────────────────────────────────
 export function ErrorState({ message, onRetry, lang = 'ar' }) {
   return (
-    <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
+    <div className="ds-error-state flex flex-col items-center justify-center py-14 px-6 text-center">
       <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4">
         <AlertCircle size={26} className="text-red-400" strokeWidth={1.5} />
       </div>
@@ -215,7 +217,7 @@ export function ErrorState({ message, onRetry, lang = 'ar' }) {
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-4 px-5 py-2.5 bg-accent text-slate-900 rounded-xl text-sm font-bold active:scale-95 transition-transform"
+          className="ds-button ds-button--primary mt-4 px-5 py-2.5 rounded-xl text-sm font-bold active:scale-95 transition-transform"
         >
           {lang === 'ar' ? 'إعادة المحاولة' : 'Réessayer'}
         </button>
@@ -228,10 +230,10 @@ export function ErrorState({ message, onRetry, lang = 'ar' }) {
 export function PageHeader({ children, className = '' }) {
   return (
     <div
-      className={`flex-shrink-0 pb-4 px-4 ${className}`}
+      className={`ath-page-header flex-shrink-0 pb-4 px-4 ${className}`}
       style={{
         paddingTop: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
-        background: 'linear-gradient(160deg, #0F2044 0%, #162d5e 100%)',
+        background: 'linear-gradient(160deg, var(--ds-color-navy) 0%, var(--ds-color-surface-soft) 100%)',
       }}
     >
       {children}
@@ -242,7 +244,7 @@ export function PageHeader({ children, className = '' }) {
 // ── Offline banner ────────────────────────────────────────────────────────────
 export function OfflineBanner({ lang = 'ar' }) {
   return (
-    <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-3 py-2.5 mx-4 mb-3">
+    <div className="ds-offline flex items-center gap-2 rounded-xl px-3 py-2.5 mx-4 mb-3">
       <WifiOff size={14} className="text-amber-500 flex-shrink-0" />
       <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
         {lang === 'ar' ? 'تعذّر الاتصال بالخادم' : 'Impossible de joindre le serveur'}
