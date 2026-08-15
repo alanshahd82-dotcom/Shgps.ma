@@ -1,0 +1,121 @@
+═══════════════════════════════════════════════════════════
+PHASE 1 — VISUAL DISCIPLINE: Unified Design System + Clean Map Base
+(FRONTEND-ONLY. DO NOT BREAK ANY FUNCTIONALITY.)
+═══════════════════════════════════════════════════════════
+
+🔴 MANDATORY FIRST: re-read docs/AI_CONTEXT.md + docs/TASK_LOG.md fully.
+Production is stable. The app WORKS functionally (tracking, alerts, engine
+commands, replay, subscriptions, geofences, help — all verified). The problem
+is purely VISUAL INCONSISTENCY: every screen looks designed by a different
+person, too many heavy Cards, technical data (IMEI/coordinates) exposed to
+the end user, and a bright cluttered map that clashes with the dark theme.
+
+🚨 GOLDEN RULES — NON-NEGOTIABLE:
+  • FRONTEND-ONLY. DO NOT touch backend/, APIs, DB, WebSocket contracts,
+    auth, Traccar integration, power-alert logic, device-ownership guard,
+    or any route behavior.
+  • DO NOT delete any feature. Relocate logically if needed.
+  • Use ONLY real data already fetched. NEVER mock.
+  • Keep ALL existing routes working. Keep bottom navigation intact.
+  • ONE self-contained commit at the end, message:
+      "feat(ui): phase 1 unified design system + clean map base"
+    so the owner can `git revert` it cleanly if unhappy.
+
+💰 BUDGET PROTECTION:
+  • DO NOT run Docker locally. ONLY: pnpm/npm build + node --check where
+    relevant + git diff --check → commit → fetch/rebase → push origin/main
+    → PRINT `git log origin/main --oneline -3`. Push EARLY.
+
+─────────────────────────────────────────────────────────────
+STEP 1 — AUDIT (report BEFORE writing any UI)
+─────────────────────────────────────────────────────────────
+Inspect and report:
+  • the existing design system (src/design-system/) — what tokens/components exist
+  • every client screen file under src/pages/client/ (list them)
+  • the current map component (which Leaflet tile layer is used)
+  • where IMEI / coordinates / protocol are currently rendered
+  • any DUPLICATED entry points (e.g., "عرض على الخريطة" button vs the
+    Map tab vs map search — list overlaps)
+Paste a concise summary first.
+
+─────────────────────────────────────────────────────────────
+STEP 2 — UNIFY THE DESIGN SYSTEM (extend, don't replace)
+─────────────────────────────────────────────────────────────
+Extend src/design-system/ with a single source of truth (add missing tokens;
+do not break existing ones):
+  • Colors: Deep Navy surfaces (surface-0/1/2), Emerald GREEN used SEMANTICALLY
+    ONLY (active/connected/success/current-location/primary action),
+    cool-gray text scale, danger=red, warning=amber. NO neon. Not everything green.
+  • Spacing scale (4/8/12/16/24/32), one radius scale, one typography scale
+    (heading/body/caption/numbers with tabular nums for metrics).
+  • Reusable components: Card (standard + compact), CompactRow, InlineMetric,
+    BottomSheet (draggable handle), Button (primary/secondary/ghost/danger),
+    StatusDot, Skeleton, EmptyState, ErrorState.
+  • One consistent motion spec: 150–250ms ease transitions, sheet slide,
+    button press feedback. No gratuitous animation.
+
+─────────────────────────────────────────────────────────────
+STEP 3 — APPLY CONSISTENCY ACROSS ALL CLIENT SCREENS
+─────────────────────────────────────────────────────────────
+Re-skin every client screen to use the unified tokens/components so the whole
+app feels like ONE product:
+  • Same header, same spacing, same card style, same bottom nav active state
+    (Emerald), same Safe Area handling everywhere.
+  • Progressive disclosure: move IMEI / GPS coordinates / protocol / device-id
+    OUT of primary view into a collapsible "معلومات الجهاز" section
+    (tap to expand). Primary view shows only: name, status, speed, voltage,
+    satellites, last-update.
+  • Replace walls of heavy Cards with CompactRows / InlineMetrics where a
+    full card adds no meaning (especially the Vehicle Details metrics block).
+  • Skeleton loading on lists/map/dashboard; proper EmptyState and ErrorState
+    ("تعذر التحديث — آخر تحديث منذ X — إعادة المحاولة") keeping last safe data.
+  • Correct Arabic RTL (don't mirror icons that shouldn't mirror).
+
+─────────────────────────────────────────────────────────────
+STEP 4 — CLEAN PREMIUM MAP BASE (free, no key, immediate win)
+─────────────────────────────────────────────────────────────
+In the map component, switch the Leaflet tile layer from the default bright
+OSM (cluttered bilingual labels) to a clean premium-feel FREE layer that
+matches the dark Navy theme — prefer CartoDB Voyager or CartoDB Positron,
+fallback gracefully. Keep attribution. This alone removes the label clutter.
+  • Keep the existing realistic top-down vehicle marker + green ring.
+  • Soften the status bubble into a dark-glass backdrop-blur pill
+    ("🟢 متصل • آخر تحديث 12ث").
+  • DO NOT change marker logic, WebSocket updates, or coordinates handling.
+  (A paid 3D/terrain tile upgrade + motion trail is a SEPARATE later phase —
+   do NOT add paid keys here.)
+
+─────────────────────────────────────────────────────────────
+STEP 5 — REMOVE OBVIOUS DUPLICATION (logic-preserving)
+─────────────────────────────────────────────────────────────
+Where you found duplicated entry points in STEP 1, unify the journey so each
+capability has ONE logical home (e.g., the vehicle's "open on map" should
+deep-link to the existing Map tab focused on that vehicle, not a parallel
+screen). Do NOT remove the underlying routes — just make the navigation
+coherent. If unsure whether something is duplication, LEAVE it and note it.
+
+─────────────────────────────────────────────────────────────
+STEP 6 — VERIFICATION (paste ALL — do not claim success without)
+─────────────────────────────────────────────────────────────
+  [ ] Every client screen uses unified tokens (no rogue colors/radii/spacing)
+  [ ] IMEI/coordinates/protocol hidden behind collapsible "معلومات الجهاز"
+  [ ] Vehicle Details no longer a wall of 5 heavy cards
+  [ ] Map uses clean tile layer; status bubble is dark-glass; marker unchanged
+  [ ] Bottom nav identical across screens; active = Emerald
+  [ ] Skeleton/Empty/Error states present on lists/map/dashboard
+  [ ] RTL correct; no overflow on small screens
+  [ ] ALL existing routes still resolve; no feature removed
+  [ ] git diff touches ONLY frontend files (src/...), nothing in backend/
+  [ ] pnpm/npm build succeeds with zero errors
+
+─────────────────────────────────────────────────────────────
+DELIVERY
+─────────────────────────────────────────────────────────────
+  • build + git diff --check clean
+  • single commit: "feat(ui): phase 1 unified design system + clean map base"
+  • fetch/rebase + push origin/main (NEVER force); PRINT git log --oneline -3
+  • Update docs/TASK_LOG.md: files changed, tokens added, map layer used,
+    duplications resolved, verification results.
+
+If anything is uncertain, STOP and report plainly — never fabricate success.
+═══════════════════════════════════════════════════════════
