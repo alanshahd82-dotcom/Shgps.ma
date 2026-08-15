@@ -275,6 +275,33 @@
       // إخفاء تلقائي بعد 3 ثوانٍ كأمان أقصى
       setTimeout(window.__hideSplash, 3000)
 
+      // A stale/missing Vite chunk can otherwise leave a blank shell after
+      // deployment. Retry once, then let React's error boundary remain visible.
+      ;(function () {
+        var key = 'athargps_chunk_reload_attempt'
+        var looksLikeChunkError = function (message, source) {
+          var text = String(message || '').toLowerCase()
+          var file = String(source || '').toLowerCase()
+          return file.indexOf('/assets/') !== -1
+            || text.indexOf('dynamically imported module') !== -1
+            || text.indexOf('importing a module script failed') !== -1
+            || text.indexOf('loading chunk') !== -1
+        }
+        var retryOnce = function () {
+          try {
+            if (sessionStorage.getItem(key)) return
+            sessionStorage.setItem(key, '1')
+            window.location.reload()
+          } catch (_) {}
+        }
+        window.addEventListener('error', function (event) {
+          if (looksLikeChunkError(event.message, event.filename || event.target?.src)) retryOnce()
+        })
+        window.addEventListener('unhandledrejection', function (event) {
+          if (looksLikeChunkError(event.reason?.message || event.reason)) retryOnce()
+        })
+      }())
+
       // Service Worker
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {

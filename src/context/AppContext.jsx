@@ -60,6 +60,7 @@ export function AppProvider({ children }) {
   const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
   const [adminAuth,  setAdminAuth]          = useState(() => loadFromStorage('athargps_admin'))
   const [authReady,  setAuthReady]          = useState(false)
+  const [authBootstrapError, setAuthBootstrapError] = useState(false)
   const [mustChangePassword, setMustChange] = useState(false)
   const [devices,      setDevices]          = useState([])
   const [alertsList,   setAlertsList]       = useState([])
@@ -75,6 +76,7 @@ export function AppProvider({ children }) {
   const wsRetryRef = useRef(0) // exponential backoff counter
   const wsHeartbeatRef = useRef(null)
   const wsWatchdogRef = useRef(null)
+  const wsConnectTimeoutRef = useRef(null)
   const wsPingSentAtRef = useRef(0)
   const wsReconnectRef = useRef(null)
   const wsLastActivityRef = useRef(0)
@@ -224,13 +226,24 @@ export function AppProvider({ children }) {
         setMustChange(!!currentUser.mustChangePassword)
         // Let protected pages render as soon as the session itself is valid.
         // Device/client/alert loading is secondary and must not blank the app.
-        if (!cancelled) setAuthReady(true)
-        await Promise.all([loadDevices(), loadAlerts(), currentUser.isAdmin ? loadClients() : Promise.resolve()])
-        if (!cancelled) openWebSocket()
+        if (!cancelled) {
+          setAuthReady(true)
+          // Live updates must never wait for the initial REST collections.
+          openWebSocket()
+        }
+        void Promise.all([
+          loadDevices(),
+          loadAlerts(),
+          currentUser.isAdmin ? loadClients() : Promise.resolve(),
+        ])
       } catch (error) {
         if (cancelled) return
         closeWebSocket()
         if (localStorage.getItem('athargps_token')) { window.setTimeout(() => { openWebSocket() }, 5000) }
+        const isNetworkFailure = error?.code === 'BOOT_TIMEOUT'
+          || error?.name === 'AbortError'
+          || error?.name === 'TypeError'
+        if (isNetworkFailure) setAuthBootstrapError(true)
         // Keep the persisted session during temporary network/server errors.
         // Only a confirmed 401 means that the token is no longer usable.
         if (error?.status === 401) {
@@ -303,8 +316,15 @@ export function AppProvider({ children }) {
     const ws = new WebSocket(url)
     wsRef.current = ws
     wsLastActivityRef.current = Date.now()
+    wsConnectTimeoutRef.current = window.setTimeout(() => {
+      if (ws.readyState === WebSocket.CONNECTING) ws.close()
+    }, 8000)
 
     ws.onopen = () => {
+      if (wsConnectTimeoutRef.current) {
+        window.clearTimeout(wsConnectTimeoutRef.current)
+        wsConnectTimeoutRef.current = null
+      }
       setWsConnected(true)
       wsRetryRef.current = 0 // reset backoff on success
       stopFallbackPolling()
@@ -450,6 +470,10 @@ export function AppProvider({ children }) {
     }
 
     ws.onclose = () => {
+      if (wsConnectTimeoutRef.current) {
+        window.clearTimeout(wsConnectTimeoutRef.current)
+        wsConnectTimeoutRef.current = null
+      }
       if (wsRef.current === ws) wsRef.current = null
       setWsConnected(false)
       if (wsHeartbeatRef.current) {
@@ -513,6 +537,10 @@ export function AppProvider({ children }) {
       window.clearInterval(wsWatchdogRef.current)
       wsWatchdogRef.current = null
     }
+    if (wsConnectTimeoutRef.current) {
+      window.clearTimeout(wsConnectTimeoutRef.current)
+      wsConnectTimeoutRef.current = null
+    }
     if (wsReconnectRef.current) {
       window.clearTimeout(wsReconnectRef.current)
       wsReconnectRef.current = null
@@ -549,6 +577,7 @@ export function AppProvider({ children }) {
     localStorage.setItem('athargps_token',  data.token)
     localStorage.setItem('athargps_client', JSON.stringify(data.user))
     setClientAuth(data.user)
+    setAuthBootstrapError(false)
     setMustChange(!!data.user.mustChangePassword)
     loadDevices(); loadAlerts(); openWebSocket()
     return data
@@ -564,6 +593,7 @@ export function AppProvider({ children }) {
     localStorage.setItem('athargps_token', data.token)
     localStorage.setItem('athargps_admin', JSON.stringify(data.user))
     setAdminAuth(data.user)
+    setAuthBootstrapError(false)
     setMustChange(!!data.user.mustChangePassword)
     loadDevices(); loadAlerts(); loadClients(); openWebSocket()
     return data
@@ -704,6 +734,7 @@ export function AppProvider({ children }) {
       <AppContext.Provider value={{
         lang, setLang,
         clientAuth, adminAuth, authReady,
+         authBootstrapError,
          setClientAuth,
         mustChangePassword, clearMustChange,
         devices, alertsList, clientList,

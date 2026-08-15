@@ -2,6 +2,20 @@
 
 This file records the completed work and the current production verification notes.
 
+## PWA boot resilience — bounded auth and background live updates
+
+- The boot session check at `/api/auth/me` now has an 8-second abort timeout.
+  A timeout or browser network failure releases `authReady`, sends a persisted
+  session to the login/onboarding recovery path, and exposes a small retry
+  affordance without changing the authentication API contract.
+- Device, alert, and admin-client hydration no longer delays the first protected
+  render or WebSocket startup. The WebSocket gets its own 8-second connection
+  timeout and continues using the existing exponential retry/fallback polling.
+- Rendered lazy-route chunk failures now retry once per browser session. The
+  static shell has a matching one-time stale-chunk reload guard, while the
+  existing error boundary remains available if the retry cannot recover.
+- Verification: `npm run build` and `git diff --check` pass after the change.
+
 ## Unified device telemetry logic — idle packets are not power loss
 
 All devices now use the same independent axes:

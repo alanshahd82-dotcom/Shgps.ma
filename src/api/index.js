@@ -1,26 +1,42 @@
 // ATHAR GPS API Client
 const API_URL = import.meta.env.VITE_API_URL || '/api'
+export const BOOT_TIMEOUT_MS = 8000
 
 function getToken() { return localStorage.getItem('athargps_token') }
 
-async function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}, timeoutMs = 0) {
   const token = getToken()
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    const error = new Error(data.error || `HTTP ${res.status}`)
-    error.code = data.code
-    error.status = res.status
+  const controller = timeoutMs > 0 && typeof AbortController !== 'undefined'
+    ? new AbortController()
+    : null
+  const timeoutId = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null
+
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      ...(controller && !options.signal ? { signal: controller.signal } : {}),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      const error = new Error(data.error || `HTTP ${res.status}`)
+      error.code = data.code
+      error.status = res.status
+      throw error
+    }
+    return res.json()
+  } catch (error) {
+    if (controller?.signal.aborted && !options.signal?.aborted) {
+      error.code = 'BOOT_TIMEOUT'
+    }
     throw error
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId)
   }
-  return res.json()
 }
 
 export const api = {
@@ -34,7 +50,7 @@ export const api = {
   },
   auth: {
     login:          (email, password) => apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-    me:             ()                => apiFetch('/auth/me'),
+    me:             ()                => apiFetch('/auth/me', {}, BOOT_TIMEOUT_MS),
     logout:         ()                => apiFetch('/auth/logout', { method: 'POST' }),
     changePassword: (currentPassword, newPassword) =>
       apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),

@@ -9,7 +9,7 @@ import { DEFAULT_SUPPORT } from '../../config/support.js'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { loginClient, lang, setLang } = useApp()
+  const { loginClient, lang, setLang, authBootstrapError } = useApp()
   const [email, setEmail] = useState(() => localStorage.getItem('athargps_last_email') || '')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -99,6 +99,26 @@ export default function Login() {
             <h2 className="mb-5 text-center text-sm font-extrabold tracking-wide text-primary-500">
               {t(lang, 'clientLogin')}
             </h2>
+
+            {authBootstrapError && (
+              <div
+                className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800"
+                role="status"
+              >
+                <span>
+                  {isAr
+                    ? 'تعذر الاتصال مؤقتاً. يمكنك المحاولة مرة أخرى.'
+                    : 'Connexion temporairement indisponible. Réessayez.'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="shrink-0 font-extrabold underline underline-offset-2"
+                >
+                  {isAr ? 'إعادة المحاولة' : 'Réessayer'}
+                </button>
+              </div>
+            )}
 
             <AnimatePresence>
               {error && (

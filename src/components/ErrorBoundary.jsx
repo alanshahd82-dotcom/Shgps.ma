@@ -8,8 +8,22 @@ function isFrench() {
   }
 }
 
+const CHUNK_RELOAD_KEY = 'athargps_chunk_reload_attempt'
+
+function isChunkLoadError(error) {
+  const text = String(error?.message || error || '').toLowerCase()
+  return error?.name === 'ChunkLoadError'
+    || text.includes('failed to fetch dynamically imported module')
+    || text.includes('importing a module script failed')
+    || text.includes('loading chunk')
+}
+
 export default class ErrorBoundary extends React.Component {
   state = { hasError: false }
+
+  componentDidMount() {
+    try { window.sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch {}
+  }
 
   static getDerivedStateFromError() {
     return { hasError: true }
@@ -17,6 +31,14 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Athar GPS render error', error, errorInfo)
+    if (isChunkLoadError(error)) {
+      try {
+        if (!window.sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+          window.sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
+          window.location.reload()
+        }
+      } catch {}
+    }
   }
 
   handleReload = () => {
