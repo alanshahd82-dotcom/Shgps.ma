@@ -34,6 +34,7 @@ import { VehicleIcon, timeAgo, formatVoltage, getDeviceStatusKey } from '../../c
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
 import { downsample, simplifyPath } from '../../utils/simplify'
+import { isMapReadyAndSized, safelyUseMap, toValidLatLng } from '../../utils/mapSafety'
 
 // ── Map icons ──────────────────────────────────────────────────────────────────
 const userLocIcon = L.divIcon({
@@ -56,14 +57,38 @@ const ST_CLR = {
 
 const DEFAULT_MAP_CENTER = [31.7917, -7.0926]
 
-function isValidMapPoint(lat, lng) {
-  const latitude = Number(lat)
-  const longitude = Number(lng)
-  return Number.isFinite(latitude) &&
-    Number.isFinite(longitude) &&
-    latitude >= -90 && latitude <= 90 &&
-    longitude >= -180 && longitude <= 180 &&
-    !(Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01)
+function useNonZeroElementSize(elementRef) {
+  const [hasSize, setHasSize] = useState(false)
+
+  useEffect(() => {
+    const element = elementRef.current
+    if (!element) return undefined
+
+    let frameId = null
+    const measure = () => {
+      const rect = element.getBoundingClientRect()
+      const next = rect.width > 0 && rect.height > 0
+      setHasSize(previous => previous === next ? previous : next)
+    }
+    const measureOnFrame = () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(measure)
+    }
+
+    measure()
+    measureOnFrame()
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(measureOnFrame)
+    observer?.observe(element)
+
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      observer?.disconnect()
+    }
+  }, [elementRef])
+
+  return hasSize
 }
 
 // ── Map helpers ────────────────────────────────────────────────────────────────
@@ -71,18 +96,14 @@ function FlyToUser({ target }) {
   const map  = useMap()
   const prev = useRef(null)
   useEffect(() => {
-    if (!target) return
-    const lat = Number(target.lat)
-    const lng = Number(target.lng)
-    if (!isValidMapPoint(lat, lng)) return
+    const point = toValidLatLng(target)
+    if (!point || !isMapReadyAndSized(map)) return
     if (prev.current === target.ts) return
     prev.current = target.ts
-    try {
-      map.flyTo([lat, lng], 16, { duration: 1.2 })
-    } catch {
-      // A location update must never take down the live map.
-    }
-  }, [target])
+    safelyUseMap(map, currentMap => {
+      currentMap.flyTo(point, 16, { duration: 1.2 })
+    })
+  }, [map, target])
   return null
 }
 
@@ -90,14 +111,15 @@ function FlyTo({ lat, lng, zoom = 15 }) {
   const map  = useMap()
   const prev = useRef(null)
   useEffect(() => {
-    const la = Number(lat), ln = Number(lng)
-    if (!Number.isFinite(la) || !Number.isFinite(ln)) return
-    if (la < -90 || la > 90 || ln < -180 || ln > 180) return
-    const key = la + ',' + ln
+    const point = toValidLatLng([lat, lng])
+    if (!point || !isMapReadyAndSized(map)) return
+    const key = point.join(',')
     if (prev.current === key) return
     prev.current = key
-    map.flyTo([la, ln], zoom, { duration: 1.2 })
-  }, [lat, lng, zoom])
+    safelyUseMap(map, currentMap => {
+      currentMap.flyTo(point, zoom, { duration: 1.2 })
+    })
+  }, [lat, lng, map, zoom])
   return null
 }
 
@@ -105,16 +127,60 @@ function FitTodayRoute({ route }) {
   const map = useMap()
   useEffect(() => {
     if (!Array.isArray(route) || route.length < 2) return
+    const validRoute = route
+      .map(point => toValidLatLng(point))
+      .filter(Boolean)
+    if (validRoute.length < 2 || !isMapReadyAndSized(map)) return
+    let bounds
     try {
-      const bounds = L.latLngBounds(route)
-      if (bounds.isValid()) {
-        map.invalidateSize({ pan: false })
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
-      }
+      bounds = L.latLngBounds(validRoute)
+      if (!bounds.isValid()) return
     } catch {
-      // Keep the current map view if a malformed upstream route slips through.
+      return
+    }
+
+    let frameId = null
+    const fit = () => {
+      if (!isMapReadyAndSized(map)) return
+      safelyUseMap(map, currentMap => {
+        currentMap.invalidateSize({ pan: false })
+        currentMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false })
+      })
+    }
+    frameId = window.requestAnimationFrame(fit)
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
     }
   }, [map, route])
+  return null
+}
+
+function MapSizeSync() {
+  const map = useMap()
+
+  useEffect(() => {
+    let frameId = null
+    const sync = () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(() => {
+        safelyUseMap(map, currentMap => currentMap.invalidateSize({ pan: false }))
+      })
+    }
+
+    sync()
+    const container = map.getContainer?.()
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(sync)
+    if (container) observer?.observe(container)
+    map.whenReady?.(sync)
+
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      observer?.disconnect()
+    }
+  }, [map])
+
   return null
 }
 
@@ -301,10 +367,10 @@ function MapZoomControls({ open, onToggle, onLocate, lang }) {
       </IconButton>
       {open && (
         <>
-          <IconButton label={isAr ? 'تكبير الخريطة' : 'Zoom avant'} onClick={() => map.zoomIn()}>
+           <IconButton label={isAr ? 'تكبير الخريطة' : 'Zoom avant'} onClick={() => safelyUseMap(map, currentMap => currentMap.zoomIn())}>
             <Plus size={17} aria-hidden="true" />
           </IconButton>
-          <IconButton label={isAr ? 'تصغير الخريطة' : 'Zoom arrière'} onClick={() => map.zoomOut()}>
+           <IconButton label={isAr ? 'تصغير الخريطة' : 'Zoom arrière'} onClick={() => safelyUseMap(map, currentMap => currentMap.zoomOut())}>
             <Minus size={17} aria-hidden="true" />
           </IconButton>
           <IconButton label={isAr ? 'تحديد موقعي' : 'Me localiser'} onClick={onLocate}>
@@ -345,6 +411,8 @@ export default function LiveMap() {
   const [routeError, setRouteError] = useState('')
   const routeRequestRef = useRef(0)
   const sheetPointerRef = useRef(null)
+  const mapShellRef = useRef(null)
+  const mapHasSize = useNonZeroElementSize(mapShellRef)
   const isAr = lang === 'ar'
   const requestedDeviceId = searchParams.get('device')
   const deviceList = useMemo(
@@ -393,18 +461,6 @@ export default function LiveMap() {
     }, () => {})
   }
 
-  const toCoord = v => {
-    if (v == null || v === '') return null
-    const number = Number(v)
-    return Number.isFinite(number) ? number : null
-  }
-
-  const hasValidMapPoint = (lat, lng) =>
-    lat !== null && lng !== null &&
-    lat >= -90 && lat <= 90 &&
-    lng >= -180 && lng <= 180 &&
-    !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
-
   const filtered = useMemo(() => {
     const trackable = deviceList.filter(d => d.trackingEnabled !== false)
     if (!search.trim()) return trackable
@@ -418,10 +474,9 @@ export default function LiveMap() {
     filtered
       .map(d => ({
         ...d,
-        lat: toCoord(d.lat) ?? toCoord(d.last_lat),
-        lng: toCoord(d.lng) ?? toCoord(d.last_lng),
+        point: toValidLatLng(d),
       }))
-      .filter(d => hasValidMapPoint(d.lat, d.lng)),
+      .filter(d => d.point),
   [filtered])
 
   const sel = selected ? deviceList.find(d => d.id === selected) : null
@@ -432,10 +487,7 @@ export default function LiveMap() {
   const selectedMetrics = getSheetMetrics(selectedDevice, lang)
   const selectedHasPosition = Boolean(
     selectedDevice &&
-    hasValidMapPoint(
-      toCoord(selectedDevice.lat) ?? toCoord(selectedDevice.last_lat),
-      toCoord(selectedDevice.lng) ?? toCoord(selectedDevice.last_lng),
-    )
+    toValidLatLng(selectedDevice)
   )
 
   useEffect(() => {
@@ -472,13 +524,8 @@ export default function LiveMap() {
     try {
       const points = await api.stats.getPositions(device.id, from.toISOString(), new Date().toISOString(), 1500)
       const rawRoute = (Array.isArray(points) ? points : [])
-        .map(point => [toCoord(point?.latitude ?? point?.lat), toCoord(point?.longitude ?? point?.lng)])
-        .filter(([lat, lng]) =>
-          Number.isFinite(lat) && Number.isFinite(lng)
-          && lat >= -90 && lat <= 90
-          && lng >= -180 && lng <= 180
-          && !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
-        )
+        .map(point => toValidLatLng(point))
+        .filter(Boolean)
       const route = downsample(simplifyPath(rawRoute, 0.00005), 600)
       if (requestId !== routeRequestRef.current) return
       if (route.length < 2) {
@@ -497,9 +544,9 @@ export default function LiveMap() {
 
   function openMaps(type, device) {
     if (!device) return
-    const lat = toCoord(device.lat) ?? toCoord(device.last_lat)
-    const lng = toCoord(device.lng) ?? toCoord(device.last_lng)
-    if (!isValidMapPoint(lat, lng)) return
+    const point = toValidLatLng(device)
+    if (!point) return
+    const [lat, lng] = point
     const origin = userPos ? `${userPos.lat},${userPos.lng}` : ''
     if (type === 'google') {
       window.open(
@@ -514,6 +561,8 @@ export default function LiveMap() {
   }
 
   const clientNavOffset = 'calc(5.6rem + env(safe-area-inset-bottom, 0px))'
+  const userPoint = toValidLatLng(userPos)
+  const selectedPoint = toValidLatLng(selectedDevice)
 
   return (
     <div
@@ -523,22 +572,29 @@ export default function LiveMap() {
 
       {/* ── Map ── */}
       <div
+        ref={mapShellRef}
         className="athar-live-map-shell"
         aria-label={isAr ? 'الخريطة' : 'Carte'}
       >
-        <MapErrorBoundary lang={lang}>
+        {!mapHasSize && (
+          <div className="athar-map-loading" role="status">
+            <span className="athar-map-spinner" />
+          </div>
+        )}
+        {mapHasSize && <MapErrorBoundary lang={lang}>
           <MapContainer
             preferCanvas
             center={DEFAULT_MAP_CENTER}
             zoom={5}
             minZoom={3}
             maxZoom={19}
-            style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
+            style={{ width: '100%', height: '100%', minHeight: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
             zoomControl={false}
           >
+           <MapSizeSync />
            <MapLayers />
-          {isValidMapPoint(userPos?.lat, userPos?.lng) && (
-            <Marker position={[Number(userPos.lat), Number(userPos.lng)]} icon={userLocIcon} />
+          {userPoint && (
+            <Marker position={userPoint} icon={userLocIcon} />
           )}
           {positioned.map(d => (
             <LiveVehicleMarker
@@ -601,7 +657,10 @@ export default function LiveMap() {
                }}
              />
            )}
-           {selectedDevice && <FlyTo lat={toCoord(selectedDevice.lat) ?? toCoord(selectedDevice.last_lat)} lng={toCoord(selectedDevice.lng) ?? toCoord(selectedDevice.last_lng)} />}
+            {selectedDevice && <FlyTo
+              lat={toValidLatLng(selectedDevice)?.[0]}
+              lng={toValidLatLng(selectedDevice)?.[1]}
+            />}
           <FlyToUser target={locateTarget} />
            <MapZoomControls
              open={mapControlsOpen}
@@ -610,7 +669,7 @@ export default function LiveMap() {
              lang={lang}
            />
           </MapContainer>
-        </MapErrorBoundary>
+         </MapErrorBoundary>}
         <div className="athar-map-vignette" aria-hidden="true" />
       </div>
 
@@ -735,8 +794,7 @@ export default function LiveMap() {
                   const st         = getDeviceStatusKey(d)
                   const c          = ST_CLR[st] || '#6b7280'
                   const isSelected = selected === d.id
-                  const hasPos     = (Number.isFinite(toCoord(d.lat)) || Number.isFinite(toCoord(d.last_lat))) &&
-                                     (Number.isFinite(toCoord(d.lng)) || Number.isFinite(toCoord(d.last_lng)))
+                  const hasPos = Boolean(toValidLatLng(d))
 
                   return (
                     <motion.div
@@ -1082,7 +1140,7 @@ export default function LiveMap() {
                           <small>{isAr ? 'الإحداثيات' : 'Coordonnées'}</small>
                           <strong>
                             {selectedHasPosition
-                              ? `${toCoord(selectedDevice.lat) ?? toCoord(selectedDevice.last_lat)}, ${toCoord(selectedDevice.lng) ?? toCoord(selectedDevice.last_lng)}`
+                              ? `${selectedPoint[0]}, ${selectedPoint[1]}`
                               : '—'}
                           </strong>
                         </span>

@@ -3,6 +3,7 @@ import { Marker, Polyline, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { getDeviceStatusKey } from './ui'
 import { markerFor } from '../utils/vehicleAssets'
+import { isMapReadyAndSized, safelyUseMap, safelyUseMarker, toValidLatLng } from '../utils/mapSafety'
 
 const ANIMATION_MS = 800
 const TRAIL_LIMIT = 20
@@ -30,18 +31,7 @@ const MARKER_ASPECT_RATIO = {
 }
 
 function toPoint(device) {
-  const parseCoordinate = value => value == null || value === '' ? null : Number(value)
-  const primaryLat = parseCoordinate(device?.lat)
-  const fallbackLat = parseCoordinate(device?.last_lat)
-  const primaryLng = parseCoordinate(device?.lng)
-  const fallbackLng = parseCoordinate(device?.last_lng)
-  const lat = Number.isFinite(primaryLat) ? primaryLat : fallbackLat
-  const lng = Number.isFinite(primaryLng) ? primaryLng : fallbackLng
-  return Number.isFinite(lat) && Number.isFinite(lng) &&
-    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 &&
-    !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)
-    ? [lat, lng]
-    : null
+  return toValidLatLng(device)
 }
 
 function distanceBetween(a, b) {
@@ -101,11 +91,13 @@ function shortestTurn(from, to) {
 }
 
 function updateMarkerRotation(marker, bearing, type, rotationRef) {
-  const image = marker?.getElement()?.querySelector('[data-live-vehicle]')
-  if (!image) return
-  const nextBearing = rotationRef.current + shortestTurn(rotationRef.current, bearing)
-  rotationRef.current = nextBearing
-  image.style.transform = `rotate(${nextBearing + markerFor(type).offset}deg)`
+  safelyUseMarker(marker, currentMarker => {
+    const image = currentMarker.getElement()?.querySelector('[data-live-vehicle]')
+    if (!image) return
+    const nextBearing = rotationRef.current + shortestTurn(rotationRef.current, bearing)
+    rotationRef.current = nextBearing
+    image.style.transform = `rotate(${nextBearing + markerFor(type).offset}deg)`
+  })
 }
 
 export default function LiveVehicleMarker({
@@ -139,8 +131,14 @@ export default function LiveVehicleMarker({
   useEffect(() => {
     if (!point || !markerRef.current) return
     const marker = markerRef.current
-    const from = marker.getLatLng()
-    const start = [from.lat, from.lng]
+    let from
+    try {
+      from = marker.getLatLng()
+    } catch {
+      return
+    }
+    const start = toValidLatLng([from?.lat, from?.lng])
+    if (!start) return
     const speed = Number(device?.speedKmh ?? device?.speed ?? device?.last_speed ?? 0)
     const isStopped = status === 'stopped' || speed === 0
     const bearing = getRenderedBearing(device, previousPointRef.current, point)
@@ -150,13 +148,15 @@ export default function LiveVehicleMarker({
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
     if (isStopped) {
       rotationRef.current = 0
-      const image = marker.getElement()?.querySelector('[data-live-vehicle]')
-      if (image) image.style.transform = `rotate(${markerFor(device?.type).offset}deg)`
+      safelyUseMarker(marker, currentMarker => {
+        const image = currentMarker.getElement()?.querySelector('[data-live-vehicle]')
+        if (image) image.style.transform = `rotate(${markerFor(device?.type).offset}deg)`
+      })
     } else {
       updateMarkerRotation(marker, bearing, device?.type, rotationRef)
     }
     if (distance < 0.0000001) {
-      marker.setLatLng(point)
+      safelyUseMarker(marker, currentMarker => currentMarker.setLatLng(point))
       return
     }
 
@@ -168,7 +168,7 @@ export default function LiveVehicleMarker({
         start[0] + (point[0] - start[0]) * eased,
         start[1] + (point[1] - start[1]) * eased,
       ]
-      marker.setLatLng(next)
+      safelyUseMarker(marker, currentMarker => currentMarker.setLatLng(next))
       if (progress < 1) frameRef.current = requestAnimationFrame(animate)
       else frameRef.current = null
     }
@@ -185,8 +185,10 @@ export default function LiveVehicleMarker({
   }, [point?.[0], point?.[1]])
 
   useEffect(() => {
-    if (!autoFollow || !point) return
-    map.panTo(point, { animate: true, duration: 0.45, noMoveStart: true })
+    if (!autoFollow || !point || !isMapReadyAndSized(map)) return
+    safelyUseMap(map, currentMap => {
+      currentMap.panTo(point, { animate: true, duration: 0.45, noMoveStart: true })
+    })
   }, [autoFollow, point?.[0], point?.[1], map])
 
   if (!point) return null

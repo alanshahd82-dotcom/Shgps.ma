@@ -2,7 +2,50 @@
 
 This file records the completed work and the current production verification notes.
 
-## 2026-08-15 — Client map crash hardening
+## 2026-08-15 — Client map error-boundary hardening
+
+## 2026-08-15 — Client map deterministic Leaflet initialization
+
+### Root cause
+
+- Before this fix, `src/pages/client/LiveMap.jsx:530` mounted
+  `MapContainer` immediately when `/client/map` entered, before the absolute
+  map shell was guaranteed to have a non-zero width and height. Route
+  transitions and the bottom-sheet layout could therefore initialize Leaflet
+  against a zero-sized container.
+- The same page called `flyTo` and `fitBounds` from effects without checking
+  the Leaflet instance size. `src/components/LiveVehicleMarker.jsx:189`
+  also called `panTo` during live marker updates, while its animation loop
+  could call `setLatLng` after a rapid unmount/remount.
+- Coordinates were validated in several local forms, leaving multiple
+  Leaflet entry points exposed to string, null, NaN, or stale positions during
+  an update race.
+
+### Fix
+
+- Added `src/utils/mapSafety.js` with the shared `toValidLatLng()` converter
+  and safe map/marker action guards. Invalid, out-of-range, and 0,0 points are
+  skipped everywhere in the client live-map path.
+- `LiveMap` now waits for a `ResizeObserver`-measured non-zero shell before
+  mounting `MapContainer`, declares a minimum shell height, and runs
+  `invalidateSize()` after mount and resize through `MapSizeSync`.
+- `flyTo`, `fitBounds`, `zoomIn`, `zoomOut`, `panTo`, and marker animation
+  updates now require a ready, sized Leaflet instance and are protected from
+  teardown races. The existing local `MapErrorBoundary` remains in place.
+- The change is limited to the live-map page, its marker/helper code, map
+  safety utility, map CSS, and this task log. Backend, API, database,
+  authentication, and unrelated pages were not changed.
+
+### Verification
+
+- [x] `pnpm run build` passes.
+- [x] `git diff --check` passes.
+- [x] Source audit confirms no legacy coordinate helper remains in the live-map
+  page or marker helper.
+- [x] Empty device lists use the Morocco default center without rendering
+  invalid markers.
+- [x] Null, string, NaN, out-of-range, and 0,0 coordinates are skipped.
+- [x] Rapid route changes and resize/teardown calls are guarded.
 
 ### Root cause
 
