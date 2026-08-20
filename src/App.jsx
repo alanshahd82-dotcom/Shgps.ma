@@ -39,6 +39,7 @@ import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import ForcePasswordModal from './components/ForcePasswordModal'
+
 // ── New Design System Screens (Phase 6) ─────────────────────────────────────
 import MapScreen from './design-system/screens/MapScreen'
 import VehiclesScreen from './design-system/screens/VehiclesScreen'
@@ -46,9 +47,9 @@ import AlertsScreen from './design-system/screens/AlertsScreen'
 import TripsScreen from './design-system/screens/TripsScreen'
 import MoreScreen from './design-system/screens/MoreScreen'
 
-/* ────────────────────────────────────────────────────────────────�[...]
+/* ─────────────────────────────────────────────────────────────────────────────
    ROUTE GUARDS
-────────────────────────────────────────────────────────────────�[...]
+───────────────────────────────────────────────────────────────────────────── */
 
 function isClientAuthenticated(clientAuth) {
   if (!clientAuth || !localStorage.getItem('athargps_token')) return false
@@ -82,10 +83,10 @@ function AuthLoading() {
 }
 
 function ClientRoute({ children }) {
-  const { clientAuth, authReady, mustChangePassword, clearMustChange, lang } = useApp()
+  const { clientAuth, authReady, authBootstrapError, mustChangePassword, clearMustChange, lang } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
-  if (!isClientAuthenticated(clientAuth)) {
+  if (authBootstrapError || !isClientAuthenticated(clientAuth)) {
     return <Navigate to="/client/login" state={{ from: location }} replace />
   }
   return (
@@ -99,22 +100,22 @@ function ClientRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { adminAuth, authReady } = useApp()
+  const { adminAuth, authReady, authBootstrapError } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
-  if (!isAdminAuthenticated(adminAuth)) {
+  if (authBootstrapError || !isAdminAuthenticated(adminAuth)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
   return children
 }
 
 function ClientEntry() {
-  const { clientAuth, authReady } = useApp()
+  const { clientAuth, authReady, authBootstrapError } = useApp()
   const hasSeenOnboarding = localStorage.getItem('athargps_onboarding_seen') === 'true'
   if (!authReady) return <AuthLoading />
   return (
     <Navigate
-      to={isClientAuthenticated(clientAuth)
+      to={!authBootstrapError && isClientAuthenticated(clientAuth)
         ? '/client/home'
         : hasSeenOnboarding ? '/client/login' : '/client/start'}
       replace
@@ -122,9 +123,9 @@ function ClientEntry() {
   )
 }
 
-/* ────────────────────────────────────────────────────────────────[...]
+/* ─────────────────────────────────────────────────────────────────────────────
    ROUTER
-────────────────────────────────────────────────────────────────[...]
+───────────────────────────────────────────────────────────────────────────── */
 export default function App() {
   return (
     <AppProvider>
