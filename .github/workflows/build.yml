@@ -26,8 +26,13 @@ jobs:
         with:
           node-version: 20
 
+      - name: Normalize npm environment
+        run: |
+          rm -f .npmrc
+          npm config set registry https://registry.npmjs.org/
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --include=dev --no-audit --no-fund
 
       - name: Build
         run: npm run build
