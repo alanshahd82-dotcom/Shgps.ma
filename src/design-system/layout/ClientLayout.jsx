@@ -1,7 +1,16 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { BottomNav } from './BottomNav'
 import { Fab } from './Fab'
 import { TopBar } from './TopBar'
+
+const TAB_ROUTES = {
+  map: '/client/home',
+  vehicles: '/client/devices',
+  alerts: '/client/alerts',
+  trips: '/client/trips',
+  more: '/client/more',
+}
 
 export function ClientLayout({
   children,
@@ -17,6 +26,12 @@ export function ClientLayout({
   topBarTransparent = false,
   fab,
 }) {
+  const navigate = useNavigate()
+  const handleTabChange = (tab) => {
+    onTabChange?.(tab)
+    navigate(TAB_ROUTES[tab] || '/client/home')
+  }
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-slate-50" dir="rtl">
       {showTopBar && (
@@ -33,7 +48,7 @@ export function ClientLayout({
       </main>
       {fab && <Fab {...fab} />}
       {sheet && <div className="absolute inset-0 z-40">{sheet}</div>}
-      <BottomNav activeTab={activeTab} onTabChange={onTabChange} alertCount={alertCount} />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} alertCount={alertCount} />
     </div>
   )
 }
