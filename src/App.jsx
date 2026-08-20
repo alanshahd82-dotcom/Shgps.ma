@@ -39,10 +39,16 @@ import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import ForcePasswordModal from './components/ForcePasswordModal'
+// ── New Design System Screens (Phase 6) ─────────────────────────────────────
+import MapScreen from './design-system/screens/MapScreen'
+import VehiclesScreen from './design-system/screens/VehiclesScreen'
+import AlertsScreen from './design-system/screens/AlertsScreen'
+import TripsScreen from './design-system/screens/TripsScreen'
+import MoreScreen from './design-system/screens/MoreScreen'
 
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────�[...]
    ROUTE GUARDS
-───────────────────────────────────────────────────────────────────────────── */
+────────────────────────────────────────────────────────────────�[...]
 
 function isClientAuthenticated(clientAuth) {
   if (!clientAuth || !localStorage.getItem('athargps_token')) return false
@@ -76,10 +82,10 @@ function AuthLoading() {
 }
 
 function ClientRoute({ children }) {
-  const { clientAuth, authReady, authBootstrapError, mustChangePassword, clearMustChange, lang } = useApp()
+  const { clientAuth, authReady, mustChangePassword, clearMustChange, lang } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
-  if (authBootstrapError || !isClientAuthenticated(clientAuth)) {
+  if (!isClientAuthenticated(clientAuth)) {
     return <Navigate to="/client/login" state={{ from: location }} replace />
   }
   return (
@@ -93,22 +99,22 @@ function ClientRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { adminAuth, authReady, authBootstrapError } = useApp()
+  const { adminAuth, authReady } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
-  if (authBootstrapError || !isAdminAuthenticated(adminAuth)) {
+  if (!isAdminAuthenticated(adminAuth)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
   return children
 }
 
 function ClientEntry() {
-  const { clientAuth, authReady, authBootstrapError } = useApp()
+  const { clientAuth, authReady } = useApp()
   const hasSeenOnboarding = localStorage.getItem('athargps_onboarding_seen') === 'true'
   if (!authReady) return <AuthLoading />
   return (
     <Navigate
-      to={!authBootstrapError && isClientAuthenticated(clientAuth)
+      to={isClientAuthenticated(clientAuth)
         ? '/client/home'
         : hasSeenOnboarding ? '/client/login' : '/client/start'}
       replace
@@ -116,9 +122,9 @@ function ClientEntry() {
   )
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────[...]
    ROUTER
-───────────────────────────────────────────────────────────────────────────── */
+────────────────────────────────────────────────────────────────[...]
 export default function App() {
   return (
     <AppProvider>
@@ -144,7 +150,7 @@ export default function App() {
           <Route path="/client/forgot-password" element={<ForgotPassword />} />
           <Route path="/client/reset-password"  element={<ResetPassword />} />
 
-          <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />
+          <Route path="/client/home"            element={<ClientRoute><MapScreen /></ClientRoute>} />
           <Route path="/subscriptions"          element={<ClientRoute><Subscriptions /></ClientRoute>} />
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
@@ -156,6 +162,8 @@ export default function App() {
           <Route path="/client/geofences"       element={<ClientRoute><Geofences /></ClientRoute>} />
           <Route path="/client/device-wizard"   element={<ClientRoute><DeviceWizard /></ClientRoute>} />
           <Route path="/client/map"             element={<ClientRoute><LiveMap /></ClientRoute>} />
+          <Route path="/client/trips"           element={<ClientRoute><TripsScreen /></ClientRoute>} />
+          <Route path="/client/more"            element={<ClientRoute><MoreScreen /></ClientRoute>} />
           <Route path="/client/help"            element={<ClientRoute><Help /></ClientRoute>} />
 
           {/* ── Admin app ──────────────────────────────────────────────── */}
