@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Activity, BarChart3, ChevronLeft, CreditCard, HelpCircle, Info, LogOut, MapPin, Settings, User, Wrench } from 'lucide-react'
 import { Avatar } from '../components/Avatar'
 import { Badge } from '../components/Badge'
@@ -6,6 +7,17 @@ import { Card } from '../components/Card'
 import { ClientLayout } from '../layout'
 
 const defaultUser = { name: 'أمين بن علي', email: 'amin@shgps.ma', subscription: 'pro' }
+
+const MENU_ROUTES = {
+  'المناطق الجغرافية': '/client/geofences',
+  'التقارير': '/client/reports',
+  'سلوك السائق': '/client/driver-behavior',
+  'الصيانة': '/client/maintenance',
+  'الاشتراكات': '/subscriptions',
+  'الملف الشخصي': '/client/settings',
+  'الإعدادات': '/client/settings',
+  'المساعدة': '/client/help',
+}
 
 function MenuItem({ Icon, label, badge, variant = 'default', onClick }) {
   return (
@@ -23,6 +35,33 @@ function Section({ title, children }) {
 }
 
 export function MoreScreen({ user = defaultUser, alertCount = 0, onTabChange, onMenuItemClick }) {
+  const navigate = useNavigate()
+
+  const handleMenuItemClick = (label) => {
+    onMenuItemClick?.(label)
+
+    if (label === 'تسجيل الخروج') {
+      localStorage.removeItem('token')
+      localStorage.removeItem('clientToken')
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('user')
+      localStorage.removeItem('clientUser')
+      sessionStorage.clear()
+      navigate('/client/login', { replace: true })
+      return
+    }
+
+    if (label === 'حول التطبيق') {
+      window.alert('ATHAR GPS\nمنصة تتبع وإدارة المركبات')
+      return
+    }
+
+    const route = MENU_ROUTES[label]
+    if (route) {
+      navigate(route)
+    }
+  }
+
   const groups = [
     { title: 'إدارة', items: [[MapPin, 'المناطق الجغرافية'], [BarChart3, 'التقارير'], [Activity, 'سلوك السائق'], [Wrench, 'الصيانة']] },
     { title: 'الحساب', items: [[CreditCard, 'الاشتراكات', 'Pro'], [User, 'الملف الشخصي'], [Settings, 'الإعدادات']] },
@@ -36,7 +75,7 @@ export function MoreScreen({ user = defaultUser, alertCount = 0, onTabChange, on
           <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-primary">{user.name}</h2><p className="mt-1 truncate text-xs text-slate-500">{user.email}</p><Badge variant="default" size="sm" className="mt-2">{String(user.subscription || 'free').toUpperCase()}</Badge></div>
         </div>
         <div className="space-y-6 p-4">
-          {groups.map(group => <Section key={group.title} title={group.title}>{group.items.map(([Icon, label, badge, variant]) => <MenuItem key={label} Icon={Icon} label={label} badge={badge} variant={variant} onClick={() => onMenuItemClick?.(label)} />)}</Section>)}
+          {groups.map(group => <Section key={group.title} title={group.title}>{group.items.map(([Icon, label, badge, variant]) => <MenuItem key={label} Icon={Icon} label={label} badge={badge} variant={variant} onClick={() => handleMenuItemClick(label)} />)}</Section>)}
         </div>
       </div>
     </ClientLayout>
