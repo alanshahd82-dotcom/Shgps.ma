@@ -32,7 +32,9 @@ jobs:
           npm config set registry https://registry.npmjs.org/
 
       - name: Install dependencies
-        run: npm ci --include=dev --no-audit --no-fund
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund
 
       - name: Build
         run: npm run build

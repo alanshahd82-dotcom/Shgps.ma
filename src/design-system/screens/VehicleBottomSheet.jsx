@@ -12,7 +12,7 @@ import {
   Share2,
   X,
 } from 'lucide-react'
-import { Badge } from '../index'
+import { Badge } from '../index.ts'
 
 const stages = {
   collapsed: 'h-[72px]',
