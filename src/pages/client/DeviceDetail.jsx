@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MapContainer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
-  ChevronLeft, Zap, ZapOff, MapPin, Clock, Activity, Play,
+  ChevronLeft, ChevronRight, Zap, ZapOff, MapPin, Clock, Activity, Play,
   Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
   Pencil, Check, X as CloseX, Phone, Radio
 } from 'lucide-react'

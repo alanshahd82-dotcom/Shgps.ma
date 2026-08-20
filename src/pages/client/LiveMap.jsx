@@ -1078,7 +1078,7 @@ export default function LiveMap() {
                   sheetPointerRef.current = { pointerId: event.pointerId, clientY: event.clientY }
                   event.currentTarget.setPointerCapture?.(event.pointerId)
                 }}
-                onPointerUp={toggleSheetDrag}
+                /* onPointerUp={toggleSheetDrag} */
                 onPointerCancel={() => { sheetPointerRef.current = null }}
               >
                 <span />
