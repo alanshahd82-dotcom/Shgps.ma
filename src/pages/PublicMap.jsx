@@ -17,6 +17,11 @@ L.Icon.Default.mergeOptions({
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
+function formatSpeed(value) {
+  const speed = Number(value)
+  return Number.isFinite(speed) ? `${Math.round(speed)} km/h` : 'السرعة غير متاحة / Vitesse indisponible'
+}
+
 export default function PublicMap() {
   const { token } = useParams()
   const [data, setData] = useState(null)
@@ -102,7 +107,7 @@ export default function PublicMap() {
         <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800/80 border-b border-slate-700/50 text-xs text-slate-400 gap-3">
           <div className="flex items-center gap-1.5">
             <Navigation size={12} className="text-accent" />
-            <span>{pos.speed.toFixed(0)} km/h</span>
+            <span>{formatSpeed(pos.speed)}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock size={12} />
@@ -128,7 +133,7 @@ export default function PublicMap() {
             })}>
               <Popup>
                 <div className="text-sm font-semibold">{data.deviceName}</div>
-                <div className="text-xs text-gray-500">{pos.speed.toFixed(0)} km/h</div>
+                <div className="text-xs text-gray-500">{formatSpeed(pos.speed)}</div>
               </Popup>
             </Marker>
           </MapContainer>

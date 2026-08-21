@@ -768,7 +768,7 @@ export function AppProvider({ children }) {
 
   const addDevice = async (clientId, data) => {
     const created = await api.clients.addDevice(clientId, data)
-    setDevices(prev => [...prev, { ...created, status:'offline', lat:0, lng:0, speed:0 }])
+    setDevices(prev => [...prev, { ...created, status:'offline', lat:null, lng:null, speed:null, engineOn:null }])
     setClientList(prev => prev.map(c => c.id === clientId ? { ...c, devicesCount: c.devicesCount + 1 } : c))
     return created
   }

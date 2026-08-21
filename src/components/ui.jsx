@@ -96,11 +96,12 @@ export function getDeviceStatusKey(device) {
   if (!device) return 'offline'
   if (device.status !== 'online') return 'offline'
   if (!hasGpsPosition(device)) return 'awaiting_gps'
-  const speed = device.speed ?? device.last_speed ?? 0
+  const speed = device.speed ?? device.last_speed
   if (speed > 2) return 'moving'
-  const eng = device.engineOn ?? device.ignition ?? false
-  if (eng) return 'idle'
-  return 'stopped'
+  const eng = device.engineOn ?? device.ignition
+  if (eng === true) return 'idle'
+  if (speed === 0 || eng === false) return 'stopped'
+  return 'online'
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────

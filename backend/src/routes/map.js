@@ -142,11 +142,11 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
         electrical.powerDisconnected = electrical.powerDisconnected || inferredDisconnect
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
-          lat: position?.latitude ?? null, lng: position?.longitude ?? null,
-          speed: Math.round(speedKmh(position?.speed)),
+          lat: freshPosition ? position.latitude : null, lng: freshPosition ? position.longitude : null,
+          speed: freshPosition ? Math.round(speedKmh(position.speed)) : null,
           status: freshPosition ? 'online' : 'offline',
           lastUpdate: position?.fixTime ?? null,
-          engineOn: position?.attributes?.ignition ?? false,
+          engineOn: freshPosition ? (position.attributes?.ignition ?? null) : null,
           voltage: electrical.voltage,
           batteryLevel: electrical.batteryLevel,
           powerDisconnected: electrical.powerDisconnected,

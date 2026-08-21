@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
-import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { requireAuth, requireAdmin, requireMainAdmin } from '../middleware/auth.js'
 import { db }       from '../db.js'
 import * as traccar from '../services/traccar.js'
 import { addMonths, dateOnly, getSubscriptionPlan } from '../services/subscriptions.js'
+import { getAccessibleClient } from '../middleware/deviceAccess.js'
 
 export const clientsRouter = Router()
 
@@ -55,7 +56,7 @@ clientsRouter.get('/', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
-clientsRouter.post('/', requireAuth, requireAdmin, async (req, res) => {
+clientsRouter.post('/', requireAuth, requireMainAdmin, async (req, res) => {
   const { name, email, phone, subscription, maxDevices, expiryDate } = req.body
   let { password } = req.body
   if (!name || !email) return res.status(400).json({ error: 'Name and email are required' })
@@ -100,6 +101,8 @@ clientsRouter.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'maxDevices must be a positive integer' })
   }
   try {
+    const client = await getAccessibleClient(db, req.user, req.params.id)
+    if (!client) return res.status(404).json({ error:'Client not found' })
     const { rows } = await db.query(`
       UPDATE users SET name=COALESCE($1,name), phone=COALESCE($2,phone),
         city=COALESCE($3,city), subscription=COALESCE($4,subscription),
@@ -123,9 +126,9 @@ clientsRouter.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 
 clientsRouter.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT traccar_id FROM users WHERE id=$1 AND is_admin=false', [req.params.id])
-    if (!rows[0]) return res.status(404).json({ error:'Client not found' })
-    if (rows[0].traccar_id) try { await traccar.deleteUser(rows[0].traccar_id) } catch {}
+    const client = await getAccessibleClient(db, req.user, req.params.id)
+    if (!client) return res.status(404).json({ error:'Client not found' })
+    if (client.traccar_id) try { await traccar.deleteUser(client.traccar_id) } catch {}
     await db.query('DELETE FROM users WHERE id=$1 AND is_admin=false', [req.params.id])
     res.json({ success:true })
   } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
@@ -136,6 +139,8 @@ clientsRouter.post('/:id/reset-password', requireAuth, requireAdmin, async (req,
   const { password } = req.body
   if (!password) return res.status(400).json({ error: 'Password required' })
   try {
+    const client = await getAccessibleClient(db, req.user, req.params.id)
+    if (!client) return res.status(404).json({ error: 'Client not found' })
     const hash = await bcrypt.hash(password, 10)
     const { rows } = await db.query(
       `UPDATE users SET password_hash=$1, must_change_password=true, updated_at=NOW()
@@ -168,6 +173,8 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
   sets.push(`updated_at=NOW()`)
   params.push(req.params.id)
   try {
+    const client = await getAccessibleClient(db, req.user, req.params.id)
+    if (!client) return res.status(404).json({ error: 'Client not found' })
     const { rows } = await db.query(
       `UPDATE users SET ${sets.join(',')} WHERE id=$${idx} AND is_admin=false
        RETURNING id,name,email,subscription,is_active,max_devices,expiry_date`,
@@ -190,6 +197,8 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
   if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
   const clientId = req.params.id
   try {
+    const clientScope = await getAccessibleClient(db, req.user, clientId)
+    if (!clientScope) return res.status(404).json({ error:'Client not found' })
     const { rows: clientRows } = await db.query(
       `SELECT id,max_devices,is_active,expiry_date,
               (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
@@ -225,8 +234,8 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
     const d = rows[0]
     res.status(201).json({
       id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
-      clientId: d.user_id, status: 'offline', lat: 0, lng: 0, speed: 0,
-      lastUpdate: null, engineOn: false, voltage: null, batteryLevel: null, signal: null, fuel: null,
+      clientId: d.user_id, status: 'offline', lat: null, lng: null, speed: null,
+      lastUpdate: null, engineOn: null, voltage: null, batteryLevel: null, signal: null, fuel: null,
       subscriptionPlanId: d.subscription_plan_id,
       subscriptionStartDate: d.subscription_start_date,
       subscriptionEndDate: d.subscription_end_date,

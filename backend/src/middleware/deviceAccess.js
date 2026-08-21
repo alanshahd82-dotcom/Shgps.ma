@@ -53,6 +53,22 @@ export async function getAccessibleDevice(db, user, deviceId) {
   return rows[0] || null
 }
 
+export async function getAccessibleClient(db, user, clientId) {
+  const clientFilter = user?.is_sub_admin
+    ? `u.id=$1 AND u.is_admin=false
+       AND EXISTS (
+         SELECT 1 FROM sub_admin_client_access sac
+         WHERE sac.sub_admin_id=$2 AND sac.client_id=u.id
+       )`
+    : `u.id=$1 AND u.is_admin=false`
+  const values = user?.is_sub_admin ? [clientId, user.id] : [clientId]
+  const { rows } = await db.query(
+    `SELECT u.* FROM users u WHERE ${clientFilter} LIMIT 1`,
+    values,
+  )
+  return rows[0] || null
+}
+
 /**
  * Authorize mutations on one concrete device.
  *
@@ -62,18 +78,8 @@ export async function getAccessibleDevice(db, user, deviceId) {
  */
 export async function requireDeviceOwner(req, res, next) {
   try {
-    const { rows } = await db.query(
-      'SELECT * FROM devices WHERE id=$1 LIMIT 1',
-      [req.params.id],
-    )
-    const device = rows[0]
+    const device = await getAccessibleDevice(db, req.user, req.params.id)
     if (!device) return res.status(404).json({ error: 'Device not found' })
-
-    const isOwner = String(device.user_id) === String(req.user?.id)
-    const isAdministrator = Boolean(req.user?.is_admin)
-    if (!isOwner && !isAdministrator) {
-      return res.status(403).json({ error: 'Forbidden' })
-    }
 
     req.device = device
     return next()

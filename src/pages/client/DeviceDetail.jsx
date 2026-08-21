@@ -1080,7 +1080,8 @@ export default function DeviceDetail() {
 
           {/* COMMANDS — single dynamic engine button */}
           {tab === 'commands' && (() => {
-            const engineOn = !!ignition
+            const engineKnown = typeof ignition === 'boolean'
+            const engineOn = engineKnown && ignition
             const cmdColor = engineOn ? '#FF3B30' : '#00D97E'
             const CmdIcon  = engineOn ? ZapOff : Zap
             const cmdLabel = engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')
@@ -1092,13 +1093,13 @@ export default function DeviceDetail() {
                   style={{ background: (engineOn ? '#00D97E' : '#6b7280') + '14', border: '1px solid ' + (engineOn ? '#00D97E' : '#6b7280') + '30' }}>
                   <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: engineOn ? '#00D97E' : '#6b7280' }}/>
                   <p className="text-sm font-bold" style={{ color: engineOn ? '#16866d' : '#6b7280' }}>
-                     {t(lang, engineOn ? 'engineOn' : 'engineOff')}
+                     {t(lang, engineKnown ? (engineOn ? 'engineOn' : 'engineOff') : 'engineUnavailable')}
                    </p>
                 </div>
                 {/* Single action button */}
                 <motion.button whileTap={{ scale:0.97 }}
                   onClick={() => setConfirm({ label: cmdLabel, turnOff })}
-                  disabled={sending}
+                   disabled={sending || !engineKnown}
                   aria-label={cmdLabel}
                   className="w-full min-h-[88px] flex items-center gap-4 p-4 rounded-2xl disabled:opacity-50 transition-all"
                   style={{ background: cmdColor+'18', border:'1.5px solid '+cmdColor+'44' }}>
@@ -1108,7 +1109,9 @@ export default function DeviceDetail() {
                       : <CmdIcon size={22} style={{ color: cmdColor }}/>}
                   </div>
                   <div className={isAr ? 'text-right' : 'text-left'}>
-                     <p className="font-bold text-sm" style={{ color: cmdColor }}>{cmdLabel}</p>
+                     <p className="font-bold text-sm" style={{ color: engineKnown ? cmdColor : '#6b7280' }}>
+                       {engineKnown ? cmdLabel : t(lang, 'engineUnavailable')}
+                     </p>
                   </div>
                 </motion.button>
               </motion.div>

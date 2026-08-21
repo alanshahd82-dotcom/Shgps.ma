@@ -4,7 +4,7 @@ import { logAudit }    from '../services/auditLog.js'
 import { validateBody, schemas } from '../validation/schemas.js'
     import { db }          from '../db.js'
     import * as traccar    from '../services/traccar.js'
-import { deviceAccessScope, getAccessibleDevice, requireDeviceOwner } from '../middleware/deviceAccess.js'
+import { deviceAccessScope, getAccessibleClient, getAccessibleDevice, requireDeviceOwner } from '../middleware/deviceAccess.js'
 import {
   addMonths,
   dateOnly,
@@ -211,9 +211,9 @@ import {
           status,
           lat:       trackingEnabled && p != null ? p.latitude  : null,
           lng:       trackingEnabled && p != null ? p.longitude : null,
-          speed:     trackingEnabled ? Math.round(speedKmh(p?.speed)) : null,
+           speed:     trackingEnabled && p ? Math.round(speedKmh(p.speed)) : null,
           lastUpdate:trackingEnabled ? (p?.fixTime   ?? null) : null,
-          engineOn:  trackingEnabled ? (p?.attributes?.ignition ?? false) : false,
+           engineOn:  trackingEnabled && p ? (p.attributes?.ignition ?? null) : null,
           voltage:   electrical.voltage,
           batteryLevel: electrical.batteryLevel,
           powerDisconnected: electrical.powerDisconnected,
@@ -237,12 +237,17 @@ import {
     devicesRouter.post('/', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       const { name, imei, type, plate, clientId, subscriptionPlanId } = req.body
+      if (req.user.is_sub_admin && !clientId) {
+        return res.status(400).json({ error: 'A client is required for sub-admin device creation' })
+      }
       if (!name || !imei) return res.status(400).json({ error: 'Name and IMEI required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
       const plan = getSubscriptionPlan(subscriptionPlanId)
       if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
       try {
         if (clientId) {
+          const clientScope = await getAccessibleClient(db, req.user, clientId)
+          if (!clientScope) return res.status(404).json({ error: 'Client not found' })
           const { rows: clientRows } = await db.query(
             `SELECT max_devices,
                     (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
@@ -295,8 +300,8 @@ import {
         const d = rows[0]
         res.status(201).json({
           id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
-          clientId: d.user_id, status: 'offline', lat: null, lng: null, speed: 0,
-          lastUpdate: null, engineOn: false, voltage: null, batteryLevel: null, signal: null, fuel: null,
+           clientId: d.user_id, status: 'offline', lat: null, lng: null, speed: null,
+           lastUpdate: null, engineOn: null, voltage: null, batteryLevel: null, signal: null, fuel: null,
           subscriptionPlanId: d.subscription_plan_id,
           subscriptionStartDate: d.subscription_start_date,
           subscriptionEndDate: d.subscription_end_date,
@@ -315,6 +320,9 @@ import {
     devicesRouter.post('/quick-add', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       const { imei, phone, clientId, maxDevices, subscriptionPlanId } = req.body
+      if (req.user.is_sub_admin && !clientId) {
+        return res.status(400).json({ error: 'A client is required for sub-admin device creation' })
+      }
       if (!imei)  return res.status(400).json({ error: 'IMEI required' })
       if (!phone) return res.status(400).json({ error: 'Phone required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
@@ -333,6 +341,8 @@ import {
           return res.status(400).json({ error: 'maxDevices must be a positive integer' })
         }
         if (finalClientId) {
+          const clientScope = await getAccessibleClient(db, req.user, finalClientId)
+          if (!clientScope) return res.status(404).json({ error: 'Client not found' })
           const { rows: clientRows } = await db.query(
             `SELECT id, name, max_devices,
                     (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
@@ -397,8 +407,8 @@ import {
           res.status(201).json({
              id: d.id, name: d.name, imei: d.imei, type: d.type, phone: d.phone,
             clientId: d.user_id, status: 'offline',
-            lat: null, lng: null, speed: 0, lastUpdate: null,
-            engineOn: false, voltage: null, batteryLevel: null, signal: null, fuel: null,
+             lat: null, lng: null, speed: null, lastUpdate: null,
+             engineOn: null, voltage: null, batteryLevel: null, signal: null, fuel: null,
             subscriptionPlanId: d.subscription_plan_id,
             subscriptionStartDate: d.subscription_start_date,
             subscriptionEndDate: d.subscription_end_date,
@@ -534,8 +544,8 @@ import {
           ? (livePosition?.fixTime ?? dev.last_update ?? null)
           : null,
         engineOn: subscription.trackingEnabled && freshPosition
-          ? (livePosition.attributes?.ignition ?? false)
-          : false,
+          ? (livePosition.attributes?.ignition ?? null)
+          : null,
         voltage: electrical.voltage,
         batteryLevel: electrical.batteryLevel,
         powerDisconnected: electrical.powerDisconnected,

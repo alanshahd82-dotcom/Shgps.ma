@@ -22,7 +22,7 @@ geofencesRouter.get('/', requireAuth, async (req, res) => {
     }
 
     // المشرف يرى كل السياجات، العميل يرى سياجات أجهزته فقط
-    if (req.user.is_admin) {
+    if (req.user.is_admin && !req.user.is_sub_admin) {
       const geofences = await traccar.getGeofencesByDevice('')
       return res.json(geofences)
     }
@@ -65,7 +65,7 @@ geofencesRouter.get('/:id', requireAuth, async (req, res) => {
     )
     const localGeofence = rows[0]
     if (localGeofence) {
-      const allowed = req.user.is_admin ||
+       const allowed = (req.user.is_admin && !req.user.is_sub_admin) ||
         (localGeofence.device_id
           ? await getAccessibleDevice(db, req.user, localGeofence.device_id)
           : String(localGeofence.user_id) === String(req.user.id))
@@ -73,7 +73,7 @@ geofencesRouter.get('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Geofence not found' })
     }
     // Fallback to Traccar
-    if (!req.user.is_admin) return res.status(404).json({ error: 'Geofence not found' })
+    if (!req.user.is_admin || req.user.is_sub_admin) return res.status(404).json({ error: 'Geofence not found' })
     const geofences = await traccar.getGeofencesByDevice('').catch(() => [])
     const geofence  = geofences.find(g => String(g.id) === String(req.params.id))
     if (!geofence) return res.status(404).json({ error: 'Geofence not found' })
@@ -95,9 +95,8 @@ geofencesRouter.post('/', requireAuth, requireRole('manager'), validateBody(sche
     let dbDeviceId = null
     if (deviceId) {
       const dev = await getAccessibleDevice(db, req.user, deviceId)
-      if (dev) {
-        dbDeviceId = dev.id
-      }
+      if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
+      dbDeviceId = dev.id
     }
 
     // Save locally

@@ -27,6 +27,7 @@ import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
 import { speedKmh } from './utils/speed.js'
+import { deviceAccessScope } from './middleware/deviceAccess.js'
 import {
   detectExternalPowerLoss,
   isVehicleDisconnected,
@@ -420,7 +421,7 @@ function sendPowerDisconnectEvent(device, alert) {
 
   for (const client of frontendClients) {
     if (client.readyState !== WebSocket.OPEN) continue
-    if (client.isAdmin || client.userId === device.user_id) client.send(message)
+    if (client.isAdmin || client.allowedTraccarIds?.has(device.traccar_id)) client.send(message)
   }
 }
 
@@ -441,7 +442,7 @@ function sendPowerRestoredEvent(device, alert) {
   })
   for (const client of frontendClients) {
     if (client.readyState !== WebSocket.OPEN) continue
-    if (client.isAdmin || client.userId === device.user_id) client.send(message)
+    if (client.isAdmin || client.allowedTraccarIds?.has(device.traccar_id)) client.send(message)
   }
 }
 
@@ -478,6 +479,23 @@ wss.on('connection', (ws, req) => {
     if (isRevoked(token)) { ws.close(1008, 'Token revoked'); return }
     ws.userId  = decoded.userId
     ws.isAdmin = decoded.isAdmin || false
+    ws.isSubAdmin = decoded.isSubAdmin || false
+    ws.parentClientId = decoded.parentClientId || null
+    ws.allowedTraccarIds = new Set()
+    ws.refreshAccess = async () => {
+      const scope = deviceAccessScope({
+        id: ws.userId,
+        is_admin: ws.isAdmin,
+        is_sub_admin: ws.isSubAdmin,
+        parent_client_id: ws.parentClientId,
+      }, 'd')
+      const { rows } = await db.query(
+        `SELECT d.traccar_id FROM devices d WHERE ${scope.text} AND d.traccar_id IS NOT NULL`,
+        scope.values,
+      )
+      ws.allowedTraccarIds = new Set(rows.map(row => row.traccar_id))
+    }
+    ws.refreshAccess().catch(error => console.warn('[WS] Access scope refresh skipped:', error.message))
   } catch {
     ws.close(1008, 'Invalid token')
     return
@@ -564,7 +582,7 @@ async function connectTraccar() {
 
   traccarWs.on('open', () => console.log('[Traccar WS] Connected to', wsBase))
 
-  traccarWs.on('message', (data) => {
+  traccarWs.on('message', async (data) => {
     const msg = data.toString()
     let parsed = null
     try { parsed = JSON.parse(msg) } catch {}
@@ -576,11 +594,15 @@ async function connectTraccar() {
     for (const client of frontendClients) {
       if (client.readyState !== WebSocket.OPEN) continue
 
-      // Admins receive all device data
-      if (client.isAdmin) { client.send(msg); continue }
-
       // Non-JSON messages (e.g. pings) — forward as-is
       if (!parsed) { client.send(msg); continue }
+
+      if (!client.isAdmin) {
+        try { await client.refreshAccess?.() } catch (error) {
+          console.warn('[WS] Client access refresh skipped:', error.message)
+          continue
+        }
+      }
 
       // Collect Traccar device IDs referenced in this message
       const deviceIds = new Set()
@@ -591,14 +613,16 @@ async function connectTraccar() {
       // No device IDs in message (e.g. heartbeat) — forward as-is
       if (deviceIds.size === 0) { client.send(msg); continue }
 
-      // Send only if at least one device in the message belongs to this client
-      const allowed = [...deviceIds].some(tid => traccarOwnerCache.get(tid) === client.userId)
-      if (allowed) {
+      const allowedIds = client.isAdmin
+        ? deviceIds
+        : new Set([...deviceIds].filter(tid => client.allowedTraccarIds?.has(tid)))
+      if (allowedIds.size > 0) {
         let outMsg = msg
-        if (parsed && Array.isArray(parsed.positions)) {
+        if (!client.isAdmin && (Array.isArray(parsed.positions) || Array.isArray(parsed.devices) || Array.isArray(parsed.events))) {
           const patched = {
             ...parsed,
-            positions: parsed.positions.map(p => {
+            ...(Array.isArray(parsed.positions) ? {
+              positions: parsed.positions.filter(p => allowedIds.has(p.deviceId)).map(p => {
               // Forward the same explicit power-loss signal that the observer
               // uses. The alert insert is asynchronous, so waiting for the
               // database event would leave the live UI briefly showing a
@@ -613,7 +637,14 @@ async function connectTraccar() {
                 voltage: readVehicleVoltage(p),
                 powerDisconnected,
               }
-            }),
+              }),
+            } : {}),
+            ...(Array.isArray(parsed.devices) ? {
+              devices: parsed.devices.filter(d => allowedIds.has(d.id)),
+            } : {}),
+            ...(Array.isArray(parsed.events) ? {
+              events: parsed.events.filter(e => allowedIds.has(e.deviceId)),
+            } : {}),
           }
           try { outMsg = JSON.stringify(patched) } catch {}
         }

@@ -977,7 +977,7 @@ export default function LiveMap() {
                             style={{ borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.48)' }}
                           >
                             <span>{t(lang, 'lastUpdate')}: {t(lang, 'before')} {formatLiveAge(getFixTime(d), lang, clock)}</span>
-                            <span>{t(lang, 'speed')}: {Math.round(Number(d.speed) || 0)} {t(lang, 'kmh')}</span>
+                            <span>{t(lang, 'speed')}: {Number.isFinite(Number(d.speed)) ? `${Math.round(Number(d.speed))} ${t(lang, 'kmh')}` : (isAr ? 'السرعة غير متاحة' : 'Vitesse indisponible')}</span>
                             {getLiveBearing(d) !== null && <span>{t(lang, 'bearing')}: {getLiveBearing(d)}°</span>}
                           </div>
                         )}
