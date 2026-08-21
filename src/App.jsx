@@ -40,16 +40,16 @@ import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import ForcePasswordModal from './components/ForcePasswordModal'
 
-// ── New Design System Screens (Phase 6) ─────────────────────────────────────
+// ── New Design System Screens (Phase 6+) ─────────────────────────────────────
 import MapScreen from './design-system/screens/MapScreen'
 import VehiclesScreen from './design-system/screens/VehiclesScreen'
 import AlertsScreen from './design-system/screens/AlertsScreen'
 import TripsScreen from './design-system/screens/TripsScreen'
 import MoreScreen from './design-system/screens/MoreScreen'
 
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────[...]
    ROUTE GUARDS
-───────────────────────────────────────────────────────────────────────────── */
+─────────────────────────────────────────────────────────────────[...]
 
 function isClientAuthenticated(clientAuth) {
   if (!clientAuth || !localStorage.getItem('athargps_token')) return false
@@ -123,9 +123,9 @@ function ClientEntry() {
   )
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────────[...]
    ROUTER
-───────────────────────────────────────────────────────────────────────────── */
+─────────────────────────────────────────────────────────────────[...]
 export default function App() {
   return (
     <AppProvider>
@@ -154,6 +154,7 @@ export default function App() {
           <Route path="/client/home"            element={<ClientRoute><MapScreen /></ClientRoute>} />
           <Route path="/subscriptions"          element={<ClientRoute><Subscriptions /></ClientRoute>} />
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
+          <Route path="/client/vehicles"        element={<ClientRoute><VehiclesScreen /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
           <Route path="/client/alerts"          element={<ClientRoute><Alerts /></ClientRoute>} />
           <Route path="/client/settings"        element={<ClientRoute><Settings /></ClientRoute>} />
