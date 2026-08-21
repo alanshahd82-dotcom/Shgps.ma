@@ -157,7 +157,7 @@ function StatCard({ icon: Icon, label, value, unit, color, empty }) {
         </span>
       </div>
       <div>
-        <p className="ath-num text-[25px] font-black leading-none text-white">
+        <p className="ath-num text-[25px] font-black leading-none text-slate-900">
           {displayValue}
         </p>
         <p className="mt-2 text-[11px] font-semibold" style={{ color: 'var(--ath-mut)' }}>
@@ -341,19 +341,19 @@ export default function Reports() {
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[.18em]" style={{ color: 'var(--ath-gold)' }}>
               {isAr ? 'تحليلات الأسطول' : 'Analytique flotte'}
             </p>
-            <h1 className="text-xl font-black text-white">{t(lang, 'reports')}</h1>
+            <h1 className="text-xl font-black text-slate-900">{t(lang, 'reports')}</h1>
           </div>
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-[#ff5a5f]/20 bg-[#ff5a5f]/[.08] p-3.5">
-            <p className="ath-num text-2xl font-black text-white">{subscriptionSummary.expired}</p>
+            <p className="ath-num text-2xl font-black text-slate-900">{subscriptionSummary.expired}</p>
             <p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>
               {isAr ? 'اشتراكات منتهية' : 'Abonnements expirés'}
             </p>
           </div>
           <div className="rounded-2xl border border-[#ffb020]/20 bg-[#ffb020]/[.08] p-3.5">
-            <p className="ath-num text-2xl font-black text-white">{subscriptionSummary.expiringSoon}</p>
+            <p className="ath-num text-2xl font-black text-slate-900">{subscriptionSummary.expiringSoon}</p>
             <p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>
               {isAr ? 'قريبة الانتهاء' : 'Bientôt expirés'}
             </p>
@@ -367,7 +367,7 @@ export default function Reports() {
         >
           <span className="flex min-w-0 items-center gap-2">
             <Car size={15} className="shrink-0 text-[#3EE6A0]" />
-            <span className="truncate text-sm font-bold text-white">
+            <span className="truncate text-sm font-bold text-slate-900">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </span>
@@ -495,7 +495,7 @@ export default function Reports() {
                         <RouteIcon size={15} className="text-[#3EE6A0]" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-black text-white" style={{ fontFamily: 'var(--ath-disp)' }}>
+                        <p className="truncate text-sm font-black text-slate-900" style={{ fontFamily: 'var(--ath-disp)' }}>
                           {formatTripDate(start, isAr)}
                         </p>
                         <p className="mt-0.5 text-[10px] text-slate-500">

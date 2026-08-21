@@ -83,7 +83,7 @@ export default function Maintenance() {
 
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between">
-        <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
+        <h1 className="text-indigo-600 font-extrabold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowForm(true)}
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background: '#17324d' }}>
@@ -96,7 +96,7 @@ export default function Maintenance() {
         <button onClick={() => setShowDevices(s => !s)}
           className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2">
-             <Car size={15} className="text-primary-500"/>
+             <Car size={15} className="text-indigo-600"/>
              <span className="text-slate-800 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
@@ -197,7 +197,7 @@ export default function Maintenance() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="relative w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-primary-500 font-extrabold text-base">{isAr ? 'إضافة سجل صيانة' : 'Ajouter maintenance'}</h3>
+                <h3 className="text-indigo-600 font-extrabold text-base">{isAr ? 'إضافة سجل صيانة' : 'Ajouter maintenance'}</h3>
                 <button onClick={() => setShowForm(false)} aria-label={isAr ? 'إغلاق' : 'Fermer'}><X size={20} className="text-slate-400"/></button>
               </div>
               <form onSubmit={handleAdd} className="space-y-3">
@@ -231,7 +231,7 @@ export default function Maintenance() {
                     className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 text-sm outline-none focus:border-accent"/>
                 </div>
                 <motion.button type="submit" disabled={saving} whileTap={{ scale: 0.97 }}
-                  className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-50"
+                  className="w-full py-3.5 rounded-xl font-bold text-slate-900 text-sm disabled:opacity-50"
                   style={{ background: saving ? '#94a3b8' : '#17324d' }}>
                   {saving ? '...' : (isAr ? 'حفظ' : 'Enregistrer')}
                 </motion.button>

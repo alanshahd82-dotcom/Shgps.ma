@@ -45,7 +45,7 @@ export default function Help() {
             <CircleHelp size={23} color="#00D97E" />
           </div>
           <div>
-            <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'مركز المساعدة' : 'Centre d’aide'}</h1>
+            <h1 className="text-indigo-600 font-extrabold text-xl">{isAr ? 'مركز المساعدة' : 'Centre d’aide'}</h1>
             <p className="text-xs mt-1 text-slate-500">
               {isAr ? 'إجابات سريعة وطرق التواصل مع فريق الدعم' : 'Réponses rapides et contacts du support'}
             </p>
@@ -80,7 +80,7 @@ export default function Help() {
       </div>
 
       <section>
-         <h2 className="text-primary-500 font-extrabold text-sm mb-3">{isAr ? 'الأسئلة الشائعة' : 'Questions fréquentes'}</h2>
+         <h2 className="text-indigo-600 font-extrabold text-sm mb-3">{isAr ? 'الأسئلة الشائعة' : 'Questions fréquentes'}</h2>
         <div className="space-y-2">
           {faq.map(([question, answer], index) => (
              <div key={question} className="rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm">

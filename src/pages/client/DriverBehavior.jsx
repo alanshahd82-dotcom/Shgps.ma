@@ -116,11 +116,11 @@ export default function DriverBehavior() {
         <p className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: 'var(--ath-green)' }}>
           {isAr ? 'سلامة الأسطول' : 'Sécurité de la flotte'}
         </p>
-        <h1 className="text-white font-extrabold text-xl mt-1 mb-4">{isAr ? 'سلوك السائق' : 'Comportement conducteur'}</h1>
+        <h1 className="text-slate-900 font-extrabold text-xl mt-1 mb-4">{isAr ? 'سلوك السائق' : 'Comportement conducteur'}</h1>
 
         {/* Device picker */}
         <button onClick={() => setShowDevices(s => !s)}
-          className="ath-card w-full flex items-center justify-between mb-3"
+          className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm w-full flex items-center justify-between mb-3"
           style={{ padding: '13px 14px' }}>
           <div className="flex items-center gap-2">
               <Car size={15} style={{ color: 'var(--ath-green)' }}/>
@@ -169,7 +169,7 @@ export default function DriverBehavior() {
       ) : (
         <div className="px-5 space-y-5">
           {!hasData ? (
-            <div className="ath-card flex flex-col items-center text-center py-14 px-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col items-center text-center py-14 px-5">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
                 style={{ background: 'rgba(0,217,126,.10)', border: '1px solid rgba(0,217,126,.18)' }}>
                 <ShieldCheck size={30} style={{ color: 'var(--ath-green)' }}/>
@@ -184,7 +184,7 @@ export default function DriverBehavior() {
           ) : (
             <>
               {/* Score ring */}
-              <div className="ath-card flex flex-col items-center">
+              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col items-center">
                 <div className="w-full flex items-center justify-between mb-4">
                   <div>
                     <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>
@@ -205,7 +205,7 @@ export default function DriverBehavior() {
               {/* Three behavior stats */}
               <div className="grid grid-cols-3 gap-2">
                 {behaviorStats.map(({ Icon, ar, fr, value, color }) => (
-                  <div key={ar} className="ath-card text-center" style={{ padding: '13px 7px' }}>
+                  <div key={ar} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm text-center" style={{ padding: '13px 7px' }}>
                     <Icon size={16} className="mx-auto mb-2" style={{ color }}/>
                     <p className="text-xl font-black ath-num" style={{ color }}>{value === null ? '—' : value}</p>
                     <p className="text-[9px] leading-tight mt-1" style={{ color: 'var(--ath-mut)' }}>{isAr ? ar : fr}</p>
@@ -214,7 +214,7 @@ export default function DriverBehavior() {
               </div>
 
               {/* Weekly events */}
-              <div className="ath-card">
+              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>{isAr ? 'أحداث الأسبوع' : 'Événements de la semaine'}</p>

@@ -176,7 +176,7 @@ function SubscriptionCard({ device, lang, contacts, renewOpen, onRenew }) {
     : (isAr ? `${remaining} يوم متبقّي` : `${remaining} jours restants`)
 
   return (
-    <article className="ath-card p-3.5" style={{ color: 'var(--ath-txt)' }}>
+    <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm p-3.5" style={{ color: 'var(--ath-txt)' }}>
       <div className="flex items-start gap-3">
         <VehicleIcon type={device.type} iconSize={19} className="!h-11 !w-11 !rounded-xl" />
         <div className="min-w-0 flex-1">
@@ -279,7 +279,7 @@ export default function Subscriptions() {
             />
           ))}
           {!subscribedDevices.length && (
-            <div className="ath-card flex flex-col items-center justify-center px-5 py-14 text-center">
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col items-center justify-center px-5 py-14 text-center">
               <CalendarDays size={30} style={{ color: 'var(--ath-gold)' }} />
               <h2 className="mt-3 text-sm font-black" style={{ color: 'var(--ath-txt)' }}>{isAr ? 'لا توجد اشتراكات' : 'Aucun abonnement'}</h2>
               <p className="mt-1 text-xs font-semibold" style={{ color: 'var(--ath-mut)' }}>

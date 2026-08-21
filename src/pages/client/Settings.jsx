@@ -43,7 +43,7 @@ function Field({ label, children }) {
 function DarkInput({ value, onChange, type = 'text', placeholder = '' }) {
   return (
     <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-      className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none transition-all"
+      className="w-full rounded-xl px-4 py-3 text-slate-900 text-sm outline-none transition-all"
       style={{ background: 'rgba(7,17,31,0.6)', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff' }}
     />
   )
@@ -186,7 +186,7 @@ export default function Settings() {
         <p className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: 'var(--ath-green)' }}>
           {isAr ? 'تخصيص التجربة' : 'Personnalisez votre expérience'}
         </p>
-        <h1 className="text-white font-extrabold text-xl mt-1">{t(lang,'settings')}</h1>
+        <h1 className="text-slate-900 font-extrabold text-xl mt-1">{t(lang,'settings')}</h1>
       </div>
 
       {/* Tab bar */}
@@ -250,7 +250,7 @@ export default function Settings() {
               <Field key={i} label={f.label}>
                 <div className="relative">
                   <input type={showP ? 'text' : 'password'} value={f.val} onChange={e => f.set(e.target.value)}
-                    className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                    className="w-full rounded-xl px-4 py-3 text-slate-900 text-sm outline-none"
                     style={{ ...inputStyle, paddingRight: isAr ? undefined : '3rem', paddingLeft: isAr ? '3rem' : undefined }}/>
                   {i === 0 && (
                     <button type="button" onClick={() => setShowP(p => !p)}
@@ -276,7 +276,7 @@ export default function Settings() {
         {tab === 'appear' && (
           <motion.div key="appear" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }}
             className="space-y-4" >
-            <div className="ath-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm" style={{ padding: 0, overflow: 'hidden' }}>
             {[
               { Icon: Globe, label: isAr ? 'اللغة' : 'Langue', ctrl: (
                 <div className="flex gap-2">
@@ -308,7 +308,7 @@ export default function Settings() {
             ))}
             </div>
 
-            <div className="ath-card">
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>{isAr ? 'حد السرعة' : 'Limite de vitesse'}</p>
@@ -385,7 +385,7 @@ export default function Settings() {
                   <span className="text-sm font-bold" style={{ color: '#38d39f' }}>{(u.name||'?')[0].toUpperCase()}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm truncate">{u.name}</p>
+                  <p className="text-slate-900 font-bold text-sm truncate">{u.name}</p>
                   <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.5)' }}>{u.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -416,7 +416,7 @@ export default function Settings() {
               className="relative w-full rounded-t-3xl p-5"
               style={{ background:'#0e2035', border:'1px solid rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-white font-extrabold text-base">{isAr ? 'إضافة مستخدم' : 'Ajouter utilisateur'}</h3>
+                <h3 className="text-slate-900 font-extrabold text-base">{isAr ? 'إضافة مستخدم' : 'Ajouter utilisateur'}</h3>
                 <button onClick={() => setShowAdd(false)} aria-label={isAr ? 'إغلاق' : 'Fermer'}>
                   <X size={20} style={{ color: 'rgba(255,255,255,0.5)' }}/>
                 </button>
@@ -430,14 +430,14 @@ export default function Settings() {
                   <div key={f.key}>
                     <label className="block text-xs mb-1 font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>{f.label}</label>
                     <input type={f.type} value={newUser[f.key]} onChange={e => setNewUser(u => ({ ...u, [f.key]:e.target.value }))}
-                      className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                      className="w-full rounded-xl px-4 py-3 text-slate-900 text-sm outline-none"
                       style={inputStyle}/>
                   </div>
                 ))}
                 <div>
                   <label className="block text-xs mb-1 font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>{isAr?'الدور':'Rôle'}</label>
                   <select value={newUser.role} onChange={e => setNewUser(u => ({ ...u, role:e.target.value }))}
-                    className="w-full rounded-xl px-4 py-3 text-white text-sm outline-none"
+                    className="w-full rounded-xl px-4 py-3 text-slate-900 text-sm outline-none"
                     style={inputStyle}>
                     <option value="viewer">{isAr?'مشاهد':'Lecteur'}</option>
                     <option value="manager">{isAr?'مدير':'Manager'}</option>
