@@ -37,7 +37,7 @@ export default function ForgotPassword() {
       <div className="flex justify-between items-center px-5 pt-12 pb-4">
         <button
           onClick={() => setLang(isAr ? 'fr' : 'ar')}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-primary-500 shadow-sm"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-indigo-600 shadow-sm"
         >
           {isAr ? 'FR' : 'AR'}
         </button>
@@ -55,7 +55,7 @@ export default function ForgotPassword() {
           <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
             <img src="/athar-gps-mark.svg" alt="ATHAR GPS" width="52" height="52" draggable={false} />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-widest text-primary-500">ATHAR GPS</h1>
+          <h1 className="text-3xl font-extrabold tracking-widest text-indigo-600">ATHAR GPS</h1>
         </motion.div>
 
         {/* Card */}
@@ -82,7 +82,7 @@ export default function ForgotPassword() {
                   </p>
                   <Link
                     to="/client/login"
-                    className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-primary-500"
+                    className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-indigo-600"
                   >
                     <BackArrow size={14} />
                     {t(lang, 'backToLogin')}
@@ -90,7 +90,7 @@ export default function ForgotPassword() {
                 </motion.div>
               ) : (
                 <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <h2 className="text-base font-black text-primary-500 mb-1">
+                  <h2 className="text-base font-black text-indigo-600 mb-1">
                     {t(lang, 'forgotPasswordTitle')}
                   </h2>
                   <p className="text-[11px] text-slate-400 mb-5 leading-5">
@@ -132,7 +132,7 @@ export default function ForgotPassword() {
 
                   <div className="mt-5 text-center">
                     <Link to="/client/login"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-500">
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600">
                       <BackArrow size={13} />
                       {t(lang, 'backToLogin')}
                     </Link>
