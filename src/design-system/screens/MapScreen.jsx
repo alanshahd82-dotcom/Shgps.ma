@@ -6,6 +6,7 @@ import { ClientLayout, Fab } from '../layout'
 import VehicleBottomSheet from './VehicleBottomSheet'
 import VehicleMarker from './VehicleMarker'
 import { useRealVehicles } from '../hooks/useRealVehicles'
+import FleetOverview from './FleetOverview'
 
 function LocateControl() {
   const map = useMap()
@@ -66,6 +67,7 @@ export function MapScreen({
       sheet={selectedVehicle ? <VehicleBottomSheet vehicle={selectedVehicle} stage={stage} onStageChange={setStage} onClose={handleClose} /> : null}
     >
       <div className="relative h-full w-full">
+        <FleetOverview />
         <MapContainer center={[33.5731, -7.5898]} zoom={13} zoomControl={false} preferCanvas className="h-full w-full">
           <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
           {vehicles.map(vehicle => (
