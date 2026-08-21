@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+  <!-- ══ قاعدة البيانات ══════════════════════════════════════════════════════
+       الإعداد الحالي: H2 محلية مع خيارات تقلل من مخاطر قفل الملف.
+       DB_CLOSE_ON_EXIT=FALSE يمنع H2 من إغلاق قاعدة البيانات عند إيقاف JVM
+       بشكل غير نظيف؛ هذا يقلّل من احتمال بقاء ملف القفل بعد الإيقاف.
+       ملاحظة: يقوم entrypoint.sh بحذف ملف القفل القديم عند كل إعادة تشغيل. -->
+  <!-- ══ H2 مدمج (معطّل — نستخدم PostgreSQL) ═══════════════════════
+  <entry key='database.driver'>org.h2.Driver</entry>
+  <entry key='database.url'>jdbc:h2:/opt/traccar/data/database;DB_CLOSE_ON_EXIT=FALSE</entry>
+  <entry key='database.user'>sa</entry>
+  <entry key='database.password'>disabled</entry>
+  ════════════════════════════════════════════════════════════════ -->
+
+  <!-- ══ PostgreSQL (نشط) ═══════════════════════════════════════ -->
+  <entry key='database.driver'>org.postgresql.Driver</entry>
+  <entry key='database.url'>jdbc:postgresql://postgres:5432/shgps</entry>
+  <entry key='database.user'>shgps</entry>
+  <entry key='database.password'>1524512</entry>
+
+  <!-- ══ واجهة الويب و WebSocket ══════════════════════════════════════════ -->
+  <entry key='web.enable'>true</entry>
+  <entry key='web.port'>8082</entry>
+  <entry key='web.address'>0.0.0.0</entry>
+
+  <!-- ══ عنوان الاستماع العام ══════════════════════════════════════════════
+       يجعل Traccar يستمع على كل واجهات الشبكة داخل الحاوية           -->
+  <entry key='server.address'>0.0.0.0</entry>
+
+  <!-- ══ GT06 / WanWay GS900 compatible firmware ════════════════════════════
+       The tested GS900 firmware uses the GT06-compatible listener on 5023. -->
+  <entry key='gt06.port'>5023</entry>
+  <entry key='gt06.enabled'>true</entry>
+  <entry key='gt06.codec'>1</entry>
+
+  <!-- ══ WanWay proprietary protocol (other WanWay models) ═════════════ -->
+  <entry key='wanway.port'>5029</entry>
+  <entry key='wanway.enabled'>true</entry>
+
+  <!-- ══ Traccar Client (تطبيق الموبايل) ══════════════════════════════ -->
+  <entry key='traccar.port'>5055</entry>
+  <entry key='traccar.enabled'>true</entry>
+
+  <!-- ══ بروتوكولات إضافية شائعة ══════════════════════════════════════ -->
+  <entry key='teltonika.port'>5027</entry>
+  <entry key='teltonika.enabled'>true</entry>
+
+  <!-- ══ السجلات ════════════════════════════════════════════════════════
+       warning: يُظهر الأخطاء فقط (مناسب للإنتاج)
+       غيّره إلى "all" مؤقتاً لتشخيص مشاكل اتصال الأجهزة              -->
+  <entry key='logger.level'>warning</entry>
+  <entry key='logger.file'>/opt/traccar/logs/tracker-server.log</entry>
+
+</properties>
