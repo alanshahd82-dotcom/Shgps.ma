@@ -244,29 +244,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* Quick Access */}
-        <section>
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('quick', lang)}</h3>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { icon: Car, label: 'vehicles', route: '/client/vehicles', bg: 'bg-blue-50', fg: 'text-blue-600' },
-              { icon: Bell, label: 'alerts', route: '/client/alerts', bg: 'bg-orange-50', fg: 'text-orange-600' },
-              { icon: Activity, label: 'trips', route: '/client/trips', bg: 'bg-purple-50', fg: 'text-purple-600' },
-            ].map(q => {
-              const Icon = q.icon
-              return (
-                <button key={q.label} onClick={() => navigate(q.route)}
-                  className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col items-center gap-2 hover:shadow-md transition">
-                  <div className={`h-11 w-11 rounded-full ${q.bg} flex items-center justify-center`}>
-                    <Icon className={`h-5 w-5 ${q.fg}`} />
-                  </div>
-                  <span className="text-xs font-medium text-slate-700">{t(q.label, lang)}</span>
-                </button>
-              )
-            })}
-          </div>
-        </section>
-      </main>
+              </main>
 
       <BottomNav active="home" lang={lang} navigate={navigate} />
     </div>
