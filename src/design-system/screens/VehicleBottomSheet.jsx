@@ -49,7 +49,7 @@ function Metric({ icon: Icon, label, value }) {
 }
 
 function getStatus(vehicle) {
-  if (!vehicle.charge && vehicle.status === 'offline') return statusMap.danger
+  if (vehicle.charge === false && vehicle.status === 'offline') return statusMap.danger
   if (vehicle.alerts?.length > 0) return statusMap.alert
   return statusMap[vehicle.status] || statusMap.offline
 }
@@ -113,10 +113,10 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
         {!isCollapsed && (
           <div className="space-y-3 overflow-y-auto px-4 pb-5">
             <div className="grid grid-cols-2 gap-2">
-              <Metric icon={Gauge} label="السرعة" value={`${vehicle.speed || 0} كم/س`} />
-              <Metric icon={Battery} label="البطارية" value={`${vehicle.battery ?? (vehicle.charge ? 100 : 0)}%`} />
+              <Metric icon={Gauge} label="السرعة" value={Number.isFinite(vehicle.speed) ? `${vehicle.speed} كم/س` : 'غير متوفر'} />
+              <Metric icon={Battery} label="البطارية" value={Number.isFinite(vehicle.battery) ? `${vehicle.battery}%` : 'غير متوفر'} />
               <Metric icon={MapPin} label="الموقع" value={vehicle.location || (Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0) ? `${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}` : 'الموقع غير متاح')} />
-              <Metric icon={vehicle.ignition ? Gauge : Clock} label="الحالة" value={vehicle.ignition ? 'المحرك يعمل' : 'متوقف'} />
+              <Metric icon={vehicle.ignition == null ? Clock : vehicle.ignition ? Gauge : Clock} label="حالة المحرك" value={vehicle.ignition == null ? 'غير متوفر' : vehicle.ignition ? 'المحرك يعمل' : 'متوقف'} />
             </div>
             <div className="grid grid-cols-4 gap-2">
               {quickActions.map(({ label, Icon }) => (

@@ -53,7 +53,7 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
   const vehicles = providedVehicles ?? realVehicles
   const [filter, setFilter] = useState('all')
   const [selectedVehicleId, setSelectedVehicleId] = useState(null)
-  const selectedVehicle = useMemo(() => vehicles.find(vehicle => vehicle.id === selectedVehicleId), [selectedVehicleId, vehicles])
+  const selectedVehicle = useMemo(() => vehicles.find(vehicle => String(vehicle.id) === String(selectedVehicleId)), [selectedVehicleId, vehicles])
   const filteredAlerts = alerts.filter(alert => {
     if (filter === 'all') return true
     if (filter === 'power') return alert.type === 'power_disconnected' || alert.type === 'power_restored'
@@ -73,7 +73,7 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
   }
 
   return (
-    <ClientLayout activeTab="alerts" onTabChange={onTabChange} alertCount={alertCount || unreadCount} showTopBar title="التنبيهات" sheet={selectedVehicle ? <VehicleBottomSheet vehicle={selectedVehicle} stage="peek" onClose={() => setSelectedVehicleId(null)} /> : null}>
+    <ClientLayout activeTab="alerts" onTabChange={onTabChange} alertCount={alertCount || unreadCount} showTopBar title="التنبيهات" sheet={selectedVehicle ? <VehicleBottomSheet vehicle={selectedVehicle} stage="peek" onClose={() => { setSelectedVehicleId(null); onSelectVehicle?.(null) }} /> : null}>
       <div className="h-full overflow-y-auto bg-slate-50" dir="rtl">
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-white p-4">
           <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-0.5" role="tablist" aria-label="تصفية التنبيهات">

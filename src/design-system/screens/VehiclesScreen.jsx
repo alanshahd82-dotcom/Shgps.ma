@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react'
 import { Car, ChevronLeft, Gauge, Search } from 'lucide-react'
-import { useApp } from '../../context/AppContext'
 import { Avatar } from '../components/Avatar'
 import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'

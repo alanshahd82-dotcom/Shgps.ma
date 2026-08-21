@@ -60,7 +60,7 @@ export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, on
 
   const groups = [
     { title: 'إدارة', items: [[MapPin, 'المناطق الجغرافية'], [BarChart3, 'التقارير'], [Activity, 'سلوك السائق'], [Wrench, 'الصيانة']] },
-    { title: 'الحساب', items: [[CreditCard, 'الاشتراكات', 'Pro'], [User, 'الملف الشخصي'], [Settings, 'الإعدادات']] },
+    { title: 'الحساب', items: [[CreditCard, 'الاشتراكات'], [User, 'الملف الشخصي'], [Settings, 'الإعدادات']] },
     { title: 'الدعم', items: [[HelpCircle, 'المساعدة'], [Info, 'حول التطبيق'], [LogOut, 'تسجيل الخروج', null, 'danger']] },
   ]
   return (
@@ -68,7 +68,7 @@ export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, on
       <div className="h-full overflow-y-auto bg-slate-50" dir="rtl">
         <div className="flex items-center gap-4 border-b border-border bg-white p-4">
           <Avatar name={user.name || user.email || 'المستخدم'} size="xl" />
-          <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-primary">{user.name || 'حسابي'}</h2><p className="mt-1 truncate text-xs text-slate-500">{user.email || 'بيانات الحساب غير متاحة'}</p><Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan || 'free').toUpperCase()}</Badge></div>
+          <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-primary">{user.name || 'حسابي'}</h2><p className="mt-1 truncate text-xs text-slate-500">{user.email || 'بيانات الحساب غير متاحة'}</p>{(user.subscription || user.plan) && <Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan).toUpperCase()}</Badge>}</div>
         </div>
         <div className="space-y-6 p-4">
           {groups.map(group => <Section key={group.title} title={group.title}>{group.items.map(([Icon, label, badge, variant]) => <MenuItem key={label} Icon={Icon} label={label} badge={badge} variant={variant} onClick={() => handleMenuItemClick(label)} />)}</Section>)}

@@ -73,6 +73,18 @@ export function MapScreen({
           ))}
           <LocateButton />
         </MapContainer>
+          {allVehicles.length === 0 && (
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir="rtl">
+              <p className="text-sm font-semibold text-primary">لا توجد مركبات مرتبطة</p>
+              <p className="mt-1 text-xs text-slate-500">ستظهر المركبات هنا عند توفر أجهزة تتبع مرتبطة بحسابك.</p>
+            </div>
+          )}
+          {allVehicles.length > 0 && vehicles.length === 0 && (
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir="rtl">
+              <p className="text-sm font-semibold text-primary">الموقع غير متاح</p>
+              <p className="mt-1 text-xs text-slate-500">لا تتوفر إحداثيات صالحة للمركبات حالياً.</p>
+            </div>
+          )}
       </div>
     </ClientLayout>
   )
