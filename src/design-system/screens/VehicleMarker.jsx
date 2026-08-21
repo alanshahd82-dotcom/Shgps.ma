@@ -21,6 +21,7 @@ const stateStyles = {
 }
 
 export function VehicleMarker({ vehicle, onClick }) {
+  if (!Number.isFinite(vehicle.lat) || !Number.isFinite(vehicle.lng) || (vehicle.lat === 0 && vehicle.lng === 0)) return null
   const markerState = getMarkerState(vehicle)
   const selected = Boolean(vehicle.selected)
   const size = selected ? 48 : 40

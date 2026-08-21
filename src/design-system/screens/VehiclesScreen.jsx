@@ -1,17 +1,13 @@
 import React, { useMemo, useState } from 'react'
 import { Car, ChevronLeft, Gauge, Search } from 'lucide-react'
+import { useApp } from '../../context/AppContext'
 import { Avatar } from '../components/Avatar'
 import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'
 import { Input } from '../components/Input'
 import { ClientLayout } from '../layout'
 import VehicleBottomSheet from './VehicleBottomSheet'
-
-const defaultVehicles = [
-  { id: 16, name: 'DACIA', status: 'online', speed: 0, battery: 85, charge: true, lastUpdate: 'منذ دقيقتين', lat: 33.5731, lng: -7.5898 },
-  { id: 14, name: 'bekane', status: 'offline', speed: 0, battery: 45, charge: false, lastUpdate: 'منذ ساعة', lat: 33.58, lng: -7.6 },
-  { id: 37, name: 'Othmane', status: 'online', speed: 45, battery: 92, charge: true, lastUpdate: 'منذ 30 ثانية', lat: 33.565, lng: -7.595 },
-]
+import { useRealVehicles } from '../hooks/useRealVehicles'
 
 function getVehicleState(vehicle) {
   if (vehicle.charge === false && vehicle.status === 'offline') return { color: 'danger', badge: 'danger', label: 'بطارية مفصولة' }
@@ -85,12 +81,14 @@ function VehicleCard({ vehicle, onClick, selected }) {
 }
 
 export function VehiclesScreen({
-  vehicles = defaultVehicles,
+  vehicles: providedVehicles,
   onSelectVehicle,
   selectedVehicleId,
   alertCount = 0,
   onTabChange,
 }) {
+  const { vehicles: realVehicles, alertCount: realAlertCount } = useRealVehicles()
+  const vehicles = providedVehicles ?? realVehicles
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [internalSelectedId, setInternalSelectedId] = useState(null)
@@ -128,7 +126,7 @@ export function VehiclesScreen({
     <ClientLayout
       activeTab="vehicles"
       onTabChange={onTabChange}
-      alertCount={alertCount}
+      alertCount={alertCount || realAlertCount}
       showTopBar
       title="المركبات"
       sheet={selectedVehicle ? <VehicleBottomSheet vehicle={selectedVehicle} stage="peek" onClose={closeSheet} /> : null}
@@ -148,7 +146,7 @@ export function VehiclesScreen({
             <VehicleCard key={vehicle.id} vehicle={vehicle} selected={vehicle.id === selectedId} onClick={() => selectVehicle(vehicle.id)} />
           ))}
           {filteredVehicles.length === 0 && (
-            <EmptyState icon={<Car className="h-12 w-12" aria-hidden="true" />} title="لا توجد مركبات" description="لم يتم العثور على مركبات تطابق البحث" />
+            <EmptyState icon={<Car className="h-12 w-12" aria-hidden="true" />} title={vehicles.length ? 'لا توجد نتائج' : 'لا توجد مركبات مرتبطة'} description={vehicles.length ? 'لم يتم العثور على مركبات تطابق البحث' : 'ستظهر المركبات هنا بعد ربط أجهزة التتبع بحسابك'} />
           )}
         </div>
       </div>

@@ -5,8 +5,7 @@ import { Avatar } from '../components/Avatar'
 import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'
 import { ClientLayout } from '../layout'
-
-const defaultUser = { name: 'أمين بن علي', email: 'amin@shgps.ma', subscription: 'pro' }
+import { useApp } from '../../context/AppContext'
 
 const MENU_ROUTES = {
   'المناطق الجغرافية': '/client/geofences',
@@ -34,19 +33,16 @@ function Section({ title, children }) {
   return <section><h2 className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">{title}</h2><Card variant="subtle" padding="sm">{children}</Card></section>
 }
 
-export function MoreScreen({ user = defaultUser, alertCount = 0, onTabChange, onMenuItemClick }) {
+export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, onMenuItemClick }) {
+  const { clientAuth, logoutClient, unreadCount } = useApp()
+  const user = providedUser ?? clientAuth ?? {}
   const navigate = useNavigate()
 
   const handleMenuItemClick = (label) => {
     onMenuItemClick?.(label)
 
     if (label === 'تسجيل الخروج') {
-      localStorage.removeItem('token')
-      localStorage.removeItem('clientToken')
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('user')
-      localStorage.removeItem('clientUser')
-      sessionStorage.clear()
+      logoutClient()
       navigate('/client/login', { replace: true })
       return
     }
@@ -68,11 +64,11 @@ export function MoreScreen({ user = defaultUser, alertCount = 0, onTabChange, on
     { title: 'الدعم', items: [[HelpCircle, 'المساعدة'], [Info, 'حول التطبيق'], [LogOut, 'تسجيل الخروج', null, 'danger']] },
   ]
   return (
-    <ClientLayout activeTab="more" onTabChange={onTabChange} alertCount={alertCount} showTopBar title="المزيد">
+       <ClientLayout activeTab="more" onTabChange={onTabChange} alertCount={alertCount || unreadCount} showTopBar title="المزيد">
       <div className="h-full overflow-y-auto bg-slate-50" dir="rtl">
         <div className="flex items-center gap-4 border-b border-border bg-white p-4">
-          <Avatar name={user.name} size="xl" />
-          <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-primary">{user.name}</h2><p className="mt-1 truncate text-xs text-slate-500">{user.email}</p><Badge variant="default" size="sm" className="mt-2">{String(user.subscription || 'free').toUpperCase()}</Badge></div>
+          <Avatar name={user.name || user.email || 'المستخدم'} size="xl" />
+          <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-primary">{user.name || 'حسابي'}</h2><p className="mt-1 truncate text-xs text-slate-500">{user.email || 'بيانات الحساب غير متاحة'}</p><Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan || 'free').toUpperCase()}</Badge></div>
         </div>
         <div className="space-y-6 p-4">
           {groups.map(group => <Section key={group.title} title={group.title}>{group.items.map(([Icon, label, badge, variant]) => <MenuItem key={label} Icon={Icon} label={label} badge={badge} variant={variant} onClick={() => handleMenuItemClick(label)} />)}</Section>)}

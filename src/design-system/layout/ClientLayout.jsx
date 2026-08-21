@@ -5,8 +5,8 @@ import { Fab } from './Fab'
 import { TopBar } from './TopBar'
 
 const TAB_ROUTES = {
-  map: '/client/home',
-  vehicles: '/client/devices',
+  map: '/client/map',
+  vehicles: '/client/vehicles',
   alerts: '/client/alerts',
   trips: '/client/trips',
   more: '/client/more',
@@ -43,7 +43,7 @@ export function ClientLayout({
           onBack={onBack}
         />
       )}
-      <main className={`absolute inset-x-0 overflow-auto ${showTopBar ? 'top-[calc(56px+env(safe-area-inset-top))]' : 'top-0'} bottom-[calc(64px+env(safe-area-inset-bottom))]`}>
+      <main className={`absolute inset-x-0 overflow-hidden ${showTopBar ? 'top-[calc(56px+env(safe-area-inset-top))]' : 'top-0'} bottom-[calc(64px+env(safe-area-inset-bottom))]`}>
         {children}
       </main>
       {fab && <Fab {...fab} />}

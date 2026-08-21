@@ -32,7 +32,11 @@ export function MapScreen({
   title = 'الخريطة',
 }) {
   const { unreadCount } = useApp()
-  const { vehicles } = useRealVehicles()
+  const { vehicles: allVehicles } = useRealVehicles()
+  const vehicles = useMemo(
+    () => allVehicles.filter(vehicle => Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0)),
+    [allVehicles],
+  )
   const [internalSelectedId, setInternalSelectedId] = useState(null)
   const [stage, setStage] = useState('peek')
   const selectedId = selectedVehicleId ?? internalSelectedId

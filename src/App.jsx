@@ -47,9 +47,9 @@ import AlertsScreen from './design-system/screens/AlertsScreen'
 import TripsScreen from './design-system/screens/TripsScreen'
 import MoreScreen from './design-system/screens/MoreScreen'
 
-/* ────────────────────────────────────────────────────────────────[...]
+/* ────────────────────────────────────────────────────────────────
    ROUTE GUARDS
-─────────────────────────────────────────────────────────────────[...]
+───────────────────────────────────────────────────────────────── */
 
 function isClientAuthenticated(clientAuth) {
   if (!clientAuth || !localStorage.getItem('athargps_token')) return false
@@ -123,9 +123,9 @@ function ClientEntry() {
   )
 }
 
-/* ────────────────────────────────────────────────────────────────[...]
+/* ────────────────────────────────────────────────────────────────
    ROUTER
-─────────────────────────────────────────────────────────────────[...]
+───────────────────────────────────────────────────────────────── */
 export default function App() {
   return (
     <AppProvider>
@@ -156,14 +156,14 @@ export default function App() {
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
           <Route path="/client/vehicles"        element={<ClientRoute><VehiclesScreen /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
-          <Route path="/client/alerts"          element={<ClientRoute><Alerts /></ClientRoute>} />
+          <Route path="/client/alerts"          element={<ClientRoute><AlertsScreen /></ClientRoute>} />
           <Route path="/client/settings"        element={<ClientRoute><Settings /></ClientRoute>} />
           <Route path="/client/reports"         element={<ClientRoute><Reports /></ClientRoute>} />
           <Route path="/client/driver-behavior" element={<ClientRoute><DriverBehavior /></ClientRoute>} />
           <Route path="/client/maintenance"     element={<ClientRoute><Maintenance /></ClientRoute>} />
           <Route path="/client/geofences"       element={<ClientRoute><Geofences /></ClientRoute>} />
           <Route path="/client/device-wizard"   element={<ClientRoute><DeviceWizard /></ClientRoute>} />
-          <Route path="/client/map"             element={<ClientRoute><LiveMap /></ClientRoute>} />
+          <Route path="/client/map"             element={<ClientRoute><MapScreen /></ClientRoute>} />
           <Route path="/client/trips"           element={<ClientRoute><TripsScreen /></ClientRoute>} />
           <Route path="/client/more"            element={<ClientRoute><MoreScreen /></ClientRoute>} />
           <Route path="/client/help"            element={<ClientRoute><Help /></ClientRoute>} />
