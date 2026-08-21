@@ -38,3 +38,13 @@ frontend/package-lock.json
 *.bak*
 *.backup*
 .autodeploy.lock
+
+# Secrets - must never be tracked
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.bak*
+*.backup*
+.autodeploy.lock
