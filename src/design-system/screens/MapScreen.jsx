@@ -1,36 +1,11 @@
 import React, { useMemo, useState } from 'react'
 import { LocateFixed } from 'lucide-react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
+import { useApp } from '../../context/AppContext'
 import { ClientLayout, Fab } from '../layout'
 import VehicleBottomSheet from './VehicleBottomSheet'
 import VehicleMarker from './VehicleMarker'
-
-const defaultVehicles = [
-  {
-    id: 16,
-    name: 'DACIA',
-    status: 'online',
-    lat: 33.5731,
-    lng: -7.5898,
-    speed: 0,
-    battery: 85,
-    charge: true,
-    ignition: false,
-    lastUpdate: 'منذ دقيقتين',
-  },
-  {
-    id: 14,
-    name: 'bekane',
-    status: 'offline',
-    lat: 33.58,
-    lng: -7.6,
-    speed: 0,
-    battery: 45,
-    charge: false,
-    ignition: false,
-    lastUpdate: 'منذ ساعة',
-  },
-]
+import { useRealVehicles } from '../hooks/useRealVehicles'
 
 function LocateControl() {
   const map = useMap()
@@ -49,7 +24,6 @@ function MapActions({ onLocate }) {
 }
 
 export function MapScreen({
-  vehicles = defaultVehicles,
   selectedVehicleId,
   onSelectVehicle,
   alertCount = 0,
@@ -57,6 +31,8 @@ export function MapScreen({
   showTopBar = true,
   title = 'الخريطة',
 }) {
+  const { unreadCount } = useApp()
+  const { vehicles } = useRealVehicles()
   const [internalSelectedId, setInternalSelectedId] = useState(null)
   const [stage, setStage] = useState('peek')
   const selectedId = selectedVehicleId ?? internalSelectedId
@@ -72,11 +48,14 @@ export function MapScreen({
     onSelectVehicle?.(null)
   }
 
+  // Use unreadCount from context as fallback
+  const finalAlertCount = alertCount || unreadCount || 0
+
   return (
     <ClientLayout
       activeTab="map"
       onTabChange={onTabChange}
-      alertCount={alertCount}
+      alertCount={finalAlertCount}
       showTopBar={showTopBar}
       title={title}
       topBarTransparent
