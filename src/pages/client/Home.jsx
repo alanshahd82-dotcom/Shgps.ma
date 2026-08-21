@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle, Bell, ChevronLeft, Car, Truck, Bus, MapPin,
-  Navigation, Zap, Clock, CheckCircle2, Shield, Activity
+  Navigation, Zap, Clock, CheckCircle2, Shield, Activity, Gauge
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
