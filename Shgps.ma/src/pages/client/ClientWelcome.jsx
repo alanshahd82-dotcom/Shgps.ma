@@ -86,10 +86,10 @@ export default function ClientWelcome() {
   if (stage === 'splash') {
     return (
       <main
-        className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden text-white"
+        className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden text-slate-900"
         style={{
-          background: 'var(--ath-bg)',
-          backgroundImage: 'radial-gradient(circle at 50% 42%, rgba(224,179,111,.18), transparent 38%), linear-gradient(180deg, var(--ath-bg), var(--ath-bg2))',
+          background: '#F5F6F8',
+          backgroundImage: 'radial-gradient(circle at 50% 42%, rgba(79,70,229,.12), transparent 38%), linear-gradient(180deg, #F5F6F8, #ffffff)',
         }}
         dir={isAr ? 'rtl' : 'ltr'}
       >
@@ -104,16 +104,16 @@ export default function ClientWelcome() {
             }}
           />
           <h1 className="mt-5 text-4xl font-extrabold tracking-tight" dir="ltr">
-            ATHAR <span style={{ color: 'var(--ath-gold)' }}>GPS</span>
+            ATHAR <span style={{ color: '#4f46e5' }}>GPS</span>
           </h1>
-          <p className="mt-2 text-sm font-medium uppercase tracking-[0.22em]" style={{ color: 'var(--ath-green2)' }} dir="ltr">
+          <p className="mt-2 text-sm font-medium uppercase tracking-[0.22em]" style={{ color: '#16a34a' }} dir="ltr">
             FLEET INTELLIGENCE PLATFORM
           </p>
           <div className="mt-10 h-0.5 w-32 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full w-full animate-pulse rounded-full" style={{ background: 'linear-gradient(90deg, #C8843C, #E0B36F, #FFF0C9)' }} />
+            <div className="h-full w-full animate-pulse rounded-full" style={{ background: 'linear-gradient(90deg, #4f46e5, #6366f1, #22c55e)' }} />
           </div>
         </div>
-        <p className="absolute bottom-8 text-[11px] tracking-wide text-white/30" dir="ltr">
+        <p className="absolute bottom-8 text-[11px] tracking-wide text-slate-400" dir="ltr">
           ATHAR GPS · Fleet Intelligence 2026 ©
         </p>
       </main>

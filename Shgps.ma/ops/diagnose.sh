@@ -246,9 +246,9 @@ if http_check "API health endpoint" "$BASE_URL/api/health" 200 "$public_health_b
 fi
 http_check "Manifest" "$BASE_URL/manifest.json" 200
 http_check "Service worker" "$BASE_URL/sw.js" 200
-http_check "Root favicon" "$BASE_URL/favicon.ico" 200
-http_check "Current ATHAR favicon" "$BASE_URL/athar-gps-favicon.png" 200
-http_check "Main PNG icon" "$BASE_URL/icon-192.png" 200
+http_check "Root favicon" "$BASE_URL/app-icon.png" 200
+http_check "Current ATHAR favicon" "$BASE_URL/app-icon.png" 200
+http_check "Main PNG icon" "$BASE_URL/app-icon.png" 200
 
 if command_exists curl; then
   if ! redirect_code="$(curl -ksS -o /dev/null -w '%{http_code}' --connect-timeout 8 --max-time 15 "http://$HOST/" 2>/dev/null)"; then

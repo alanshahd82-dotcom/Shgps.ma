@@ -534,7 +534,7 @@ export default function Reports() {
       </div>
 
       {replayTrip && (
-        <Suspense fallback={<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#0B1220]"><div className="h-9 w-9 animate-spin rounded-full border-2 border-[#35d39a] border-t-transparent" /></div>}>
+        <Suspense fallback={<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#F5F6F8]"><div className="h-9 w-9 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" /></div>}>
           <TripReplay
             deviceId={deviceId}
             deviceName={selectedDevice?.name}

@@ -935,6 +935,11 @@ img {
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
+.client-app .text-white { color: #0f172a !important; }
+.client-app button.text-white,
+.client-app a.text-white,
+.client-app .bg-primary-500.text-white,
+.client-app .bg-danger.text-white { color: #ffffff !important; }
 .client-app .live-dot::after { animation: liveRipple 1.5s ease-out infinite; }
 .client-app input::placeholder { color: #71879b; }
 .client-app button { -webkit-tap-highlight-color: transparent; }
