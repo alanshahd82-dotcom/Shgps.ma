@@ -187,7 +187,7 @@ export default function Login() {
               </motion.button>
 
               <p className="text-center text-[11px] font-semibold text-slate-400">
-                🔐 اتصال مشفّر · بياناتك محمية
+                اتصال مشفّر · بياناتك محمية
               </p>
 
               {/* Forgot password */}

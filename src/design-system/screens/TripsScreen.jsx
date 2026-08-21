@@ -112,7 +112,7 @@ function TripCard({ trip, vehicle, replaying, onPlay }) {
           </div>
           {vehicle ? (
             <Link
-              to={`/client/device/${vehicle.id}`}
+               to={`/client/vehicle/${vehicle.id}`}
               className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               فتح المركبة

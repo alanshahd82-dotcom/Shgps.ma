@@ -175,7 +175,7 @@ export default function DriverBehavior() {
                 <ShieldCheck size={30} style={{ color: 'var(--ath-green)' }}/>
               </div>
               <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>
-                {isAr ? '🛡️ لا توجد بيانات كافية لتقييم القيادة بعد' : '🛡️ Pas assez de données pour évaluer la conduite'}
+                {isAr ? 'لا توجد بيانات كافية لتقييم القيادة بعد' : 'Pas assez de données pour évaluer la conduite'}
               </p>
               <p className="text-xs leading-relaxed mt-2" style={{ color: 'var(--ath-mut)' }}>
                 {isAr ? 'ستظهر النتيجة بعد تسجيل رحلات وأحداث كافية.' : 'Le score apparaîtra après suffisamment de trajets et d’événements.'}

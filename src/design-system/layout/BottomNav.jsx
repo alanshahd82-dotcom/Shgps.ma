@@ -1,16 +1,19 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Bell, Car, Map, MoreHorizontal, Route } from 'lucide-react'
+import { Bell, Car, Home, MoreHorizontal, Route } from 'lucide-react'
+import { useApp } from '../../context/AppContext'
+import { t } from '../../i18n/translations'
 
 const tabs = [
-  { id: 'map', label: 'الخريطة', Icon: Map },
-  { id: 'vehicles', label: 'المركبات', Icon: Car },
-  { id: 'alerts', label: 'التنبيهات', Icon: Bell },
-  { id: 'trips', label: 'الرحلات', Icon: Route },
-  { id: 'more', label: 'المزيد', Icon: MoreHorizontal },
+  { id: 'home', labelKey: 'home', Icon: Home },
+  { id: 'vehicles', labelKey: 'vehicles', Icon: Car },
+  { id: 'alerts', labelKey: 'alerts', Icon: Bell },
+  { id: 'trips', labelKey: 'trips', Icon: Route },
+  { id: 'more', labelKey: 'more', Icon: MoreHorizontal },
 ]
 
-export function BottomNav({ activeTab = 'map', onTabChange, alertCount = 0 }) {
+export function BottomNav({ activeTab = 'home', onTabChange, alertCount = 0 }) {
+  const { lang } = useApp()
   return (
     <nav
       aria-label="التنقل الرئيسي"
@@ -18,7 +21,7 @@ export function BottomNav({ activeTab = 'map', onTabChange, alertCount = 0 }) {
       dir="rtl"
     >
       <div className="grid h-16 grid-cols-5" role="tablist">
-        {tabs.map(({ id, label, Icon }) => {
+        {tabs.map(({ id, labelKey, Icon }) => {
           const active = activeTab === id
           return (
             <button
@@ -26,7 +29,7 @@ export function BottomNav({ activeTab = 'map', onTabChange, alertCount = 0 }) {
               type="button"
               role="tab"
               aria-selected={active}
-              aria-label={label}
+              aria-label={t(lang, labelKey)}
               onClick={() => onTabChange?.(id)}
               className="relative flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
             >
@@ -45,7 +48,7 @@ export function BottomNav({ activeTab = 'map', onTabChange, alertCount = 0 }) {
                   </span>
                 )}
               </span>
-              <span className={active ? 'text-accent' : 'text-slate-500'}>{label}</span>
+              <span className={active ? 'text-accent' : 'text-slate-500'}>{t(lang, labelKey)}</span>
             </button>
           )
         })}

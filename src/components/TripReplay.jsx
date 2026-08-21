@@ -414,7 +414,7 @@ function eventMeta(type, lang) {
     speeding: lang === 'ar' ? 'تجاوز السرعة' : 'Excès de vitesse',
   }
   const colors = { stop: '#f59e0b', acceleration: '#35d39a', braking: '#ff625d', turn: '#facc15', speeding: '#ff625d' }
-  const icons = { stop: 'P', acceleration: '⚡', braking: '⚡', turn: '↪', speeding: '!' }
+   const icons = { stop: 'P', acceleration: 'A', braking: 'B', turn: 'T', speeding: '!' }
   return { label: labels[type], color: colors[type], icon: icons[type] }
 }
 

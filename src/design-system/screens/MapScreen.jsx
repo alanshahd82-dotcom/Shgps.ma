@@ -92,7 +92,7 @@ export function MapScreen({
 
   return (
     <ClientLayout
-      activeTab="map"
+      activeTab="home"
       onTabChange={onTabChange}
       alertCount={finalAlertCount}
       showTopBar={showTopBar}

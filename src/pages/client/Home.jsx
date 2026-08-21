@@ -1,175 +1,106 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Bell, ChevronLeft, ChevronRight, CircleAlert, Map, Navigation, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Activity, CalendarDays, ChevronRight, CirclePause, CircleStop, WifiOff
-} from 'lucide-react'
 import { useApp } from '../../context/AppContext'
-import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
-import { getDeviceStatusKey } from '../../components/ui'
-import { getSubscriptionSnapshot, getSubscriptionPlan } from '../../utils/subscriptions'
+import ClientNav from '../../components/ClientNav'
+import { StatusBadge, VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
+import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
+import { t } from '../../i18n/translations'
 import promoSlide1 from '../../assets/promo/slide1.jpg'
 import promoSlide2 from '../../assets/promo/slide2.jpg'
 import promoSlide3 from '../../assets/promo/slide3.jpg'
 
-const STATUS = {
-  moving:  { ar: 'تتحرك', fr: 'En mouvement', color: '#00D97E' },
-  idle:    { ar: 'خاملة', fr: 'Au ralenti', color: '#FFB020' },
-  stopped: { ar: 'متوقفة', fr: 'À l’arrêt', color: '#FF5A5F' },
-  offline: { ar: 'غير متصلة', fr: 'Hors ligne', color: '#8CA3B8' },
-}
-
-function CountUp({ value, animate }) {
-  const [displayValue, setDisplayValue] = useState(animate ? 0 : value)
-
-  useEffect(() => {
-    if (!animate) {
-      setDisplayValue(value)
-      return undefined
-    }
-
-    let frame
-    const startedAt = performance.now()
-    const tick = now => {
-      const progress = Math.min(1, (now - startedAt) / 700)
-      setDisplayValue(Math.round(value * (1 - Math.pow(1 - progress, 3))))
-      if (progress < 1) frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [animate, value])
-
-  return <span className="ath-num">{displayValue}</span>
-}
-
-function Stat({ label, value, color, icon: Icon, animate }) {
-  return (
-    <div
-      className="ath-card flex min-h-0 items-center gap-2.5 p-3"
-      style={{ background: `linear-gradient(135deg, ${color}13, var(--ath-card2) 76%)` }}
-    >
-      <span
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-        style={{ background: `${color}1c`, color }}
-      >
-        <Icon size={16} strokeWidth={2.2} />
-      </span>
-      <span className="min-w-0">
-        <strong className="block text-lg font-black leading-none" style={{ color: 'var(--ath-txt)' }}>
-          <CountUp value={value} animate={animate} />
-        </strong>
-        <span className="mt-1 block truncate text-[9px] font-bold" style={{ color: 'var(--ath-mut)' }}>{label}</span>
-      </span>
-    </div>
-  )
-}
-
 const PROMO_SLIDES = [
-  {
-    image: promoSlide1,
-    fallback: '🛰️',
-    title: { ar: 'تتبّع لحظي دقيق', fr: 'Suivi en temps réel précis' },
-    body: { ar: 'شاهد مركباتك على الخريطة في الوقت الفعلي', fr: 'Visualisez vos véhicules sur la carte en temps réel' },
-  },
-  {
-    image: promoSlide2,
-    fallback: '🛡️',
-    title: { ar: 'تنبيهات ذكية', fr: 'Alertes intelligentes' },
-    body: { ar: 'إشعارات فورية عند تجاوز السرعة أو الخروج عن المسار', fr: 'Notifications instantanées en cas d’excès de vitesse ou de sortie de route' },
-  },
-  {
-    image: promoSlide3,
-    fallback: '📊',
-    title: { ar: 'تقارير احترافية', fr: 'Rapports professionnels' },
-    body: { ar: 'إحصائيات الرحلات وسلوك السائقين بنقرة واحدة', fr: 'Statistiques des trajets et du comportement des conducteurs en un clic' },
-  },
+  { image: promoSlide1, titleKey: 'homePromoLiveTitle', bodyKey: 'homePromoLiveBody' },
+  { image: promoSlide2, titleKey: 'homePromoAlertTitle', bodyKey: 'homePromoAlertBody' },
+  { image: promoSlide3, titleKey: 'homePromoTripTitle', bodyKey: 'homePromoTripBody' },
 ]
 
-function PromoCarousel({ lang, reducedMotion, sectionStyle }) {
-  const [activeIndex, setActiveIndex] = useState(0)
+const STATUS_KEYS = ['moving', 'idle', 'stopped', 'offline', 'awaiting_gps', 'unknown']
+const STATUS_COLORS = {
+  moving: '#32c48d',
+  idle: '#d7a458',
+  stopped: '#d86f6f',
+  offline: '#8091a4',
+  awaiting_gps: '#d7a458',
+  unknown: '#8091a4',
+}
+
+function fleetStatus(vehicle) {
+  const key = getDeviceStatusKey(vehicle)
+  return STATUS_KEYS.includes(key) ? key : 'unknown'
+}
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReduced(query.matches)
+    update()
+    query.addEventListener?.('change', update)
+    return () => query.removeEventListener?.('change', update)
+  }, [])
+  return reduced
+}
+
+function PromoCarousel({ lang }) {
+  const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
-  const [failedImages, setFailedImages] = useState({})
-  const touchStartX = useRef(null)
+  const touchStart = useRef(null)
   const isAr = lang === 'ar'
 
   useEffect(() => {
-    if (reducedMotion || paused) return undefined
-    const timer = window.setInterval(() => {
-      setActiveIndex(index => (index + 1) % PROMO_SLIDES.length)
-    }, 4000)
+    if (paused) return undefined
+    const timer = window.setInterval(() => setIndex(current => (current + 1) % PROMO_SLIDES.length), 5000)
     return () => window.clearInterval(timer)
-  }, [paused, reducedMotion])
+  }, [paused])
 
-  function goTo(index) {
-    setActiveIndex((index + PROMO_SLIDES.length) % PROMO_SLIDES.length)
-  }
-
-  function handleTouchStart(event) {
-    touchStartX.current = event.touches[0]?.clientX ?? null
+  function onTouchStart(event) {
+    touchStart.current = event.touches[0]?.clientX ?? null
     setPaused(true)
   }
 
-  function handleTouchEnd(event) {
-    const startX = touchStartX.current
-    const endX = event.changedTouches[0]?.clientX
-    touchStartX.current = null
+  function onTouchEnd(event) {
+    const start = touchStart.current
+    const end = event.changedTouches[0]?.clientX
+    touchStart.current = null
     setPaused(false)
-    if (startX == null || endX == null || Math.abs(endX - startX) < 35) return
-    goTo(activeIndex + (endX < startX ? 1 : -1))
-  }
-
-  function handleTouchCancel() {
-    touchStartX.current = null
-    setPaused(false)
+    if (start == null || end == null || Math.abs(end - start) < 32) return
+    setIndex(current => (current + (end < start ? 1 : -1) + PROMO_SLIDES.length) % PROMO_SLIDES.length)
   }
 
   return (
     <section
-      className="ath-promo relative min-h-0 flex-1 overflow-hidden rounded-[var(--ath-r)]"
-      style={sectionStyle(180)}
+      className="ath-promo relative overflow-hidden rounded-[var(--ath-r)]"
+      aria-label={t(lang, 'homePromoLabel')}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchCancel}
-      aria-label={isAr ? 'مزايا Athar GPS' : 'Fonctionnalités Athar GPS'}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
-      <div
-        className="flex h-full transition-transform duration-500 ease-out"
-        style={{ transform: `translateX(-${activeIndex * 100}%)`, direction: 'ltr' }}
-      >
-        {PROMO_SLIDES.map((slide, index) => (
-          <div key={slide.title.ar} className="relative h-full min-w-full overflow-hidden">
-            {failedImages[index] ? (
-              <div className="flex h-full w-full items-center justify-center bg-[#10253b] text-5xl" aria-hidden="true">
-                {slide.fallback}
-              </div>
-            ) : (
-              <img
-                src={slide.image}
-                alt=""
-                className="h-full w-full object-cover object-center"
-                onError={() => setFailedImages(current => ({ ...current, [index]: true }))}
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#030914]/90 via-[#061222]/25 to-transparent" />
+      <div className="flex h-full transition-transform duration-500 ease-out" style={{ transform: `translateX(-${index * 100}%)`, direction: 'ltr' }}>
+        {PROMO_SLIDES.map(slide => (
+          <article key={slide.titleKey} className="relative min-w-full">
+            <img src={slide.image} alt="" className="h-full min-h-[154px] w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#061321] via-[#061321]/30 to-transparent" />
             <div className={`absolute inset-x-0 bottom-0 p-4 ${isAr ? 'text-right' : 'text-left'}`}>
-              <p className="text-sm font-black text-white drop-shadow-md">{isAr ? slide.title.ar : slide.title.fr}</p>
-              <p className="mt-1 max-w-[85%] text-[10px] font-semibold leading-4 text-white/80">{isAr ? slide.body.ar : slide.body.fr}</p>
+              <h2 className="text-sm font-extrabold text-white">{t(lang, slide.titleKey)}</h2>
+              <p className="mt-1 max-w-[88%] text-[11px] leading-5 text-white/75">{t(lang, slide.bodyKey)}</p>
             </div>
-          </div>
+          </article>
         ))}
       </div>
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5" dir="ltr">
-        {PROMO_SLIDES.map((slide, index) => (
+      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5" dir="ltr">
+        {PROMO_SLIDES.map((slide, slideIndex) => (
           <button
-            key={slide.title.ar}
+            key={slide.titleKey}
             type="button"
-            onClick={() => { goTo(index); setPaused(true) }}
+            onClick={() => { setIndex(slideIndex); setPaused(true) }}
             className="h-1.5 rounded-full transition-all"
-            style={{ width: index === activeIndex ? 18 : 6, background: index === activeIndex ? '#00D97E' : 'rgba(255,255,255,.55)' }}
-            aria-label={isAr ? `الشريحة ${index + 1}` : `Diapositive ${index + 1}`}
-            aria-current={index === activeIndex ? 'true' : undefined}
+            style={{ width: index === slideIndex ? 20 : 6, background: index === slideIndex ? '#32c48d' : 'rgba(255,255,255,.55)' }}
+            aria-label={`${t(lang, 'homePromoSlide')} ${slideIndex + 1}`}
+            aria-current={index === slideIndex ? 'true' : undefined}
           />
         ))}
       </div>
@@ -177,198 +108,154 @@ function PromoCarousel({ lang, reducedMotion, sectionStyle }) {
   )
 }
 
+function SectionHeading({ title, action, onAction }) {
+  return (
+    <div className="mb-2 flex items-center justify-between gap-3 px-1">
+      <h2 className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>{title}</h2>
+      {action && (
+        <button type="button" onClick={onAction} className="text-[11px] font-extrabold" style={{ color: 'var(--ath-green2)' }}>
+          {action}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function FleetSummary({ vehicles, loading, error, lang }) {
+  const isAr = lang === 'ar'
+  if (loading) {
+    return <div className="ath-card h-[150px] animate-pulse" aria-label={t(lang, 'loading')}><div className="h-4 w-28 rounded bg-white/10" /><div className="mt-6 h-12 w-20 rounded bg-white/10" /><div className="mt-5 h-2 rounded bg-white/10" /></div>
+  }
+  if (error) {
+    return <div className="ath-card flex min-h-[150px] flex-col items-center justify-center text-center"><CircleAlert size={22} className="text-[#d86f6f]" /><p className="mt-2 text-sm font-bold">{t(lang, 'homeVehiclesError')}</p><p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeDataUnavailable')}</p></div>
+  }
+  if (!vehicles.length) {
+    return <div className="ath-card flex min-h-[150px] flex-col items-center justify-center text-center"><ShieldCheck size={24} style={{ color: 'var(--ath-green2)' }} /><p className="mt-2 text-sm font-bold">{t(lang, 'homeEmptyFleet')}</p><p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeEmptyFleetBody')}</p></div>
+  }
+
+  const counts = STATUS_KEYS.reduce((result, key) => {
+    result[key] = vehicles.filter(vehicle => fleetStatus(vehicle) === key).length
+    return result
+  }, {})
+  const segments = STATUS_KEYS.filter(key => counts[key] > 0)
+  return (
+    <div className="ath-card" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeFleetNow')}</p>
+          <p className="mt-1 text-4xl font-black leading-none ath-num">{vehicles.length}</p>
+          <p className="mt-1 text-[10px] font-semibold" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeVehiclesRegistered')}</p>
+        </div>
+        <div className="rounded-2xl border px-3 py-2 text-end" style={{ borderColor: 'rgba(50,196,141,.24)', background: 'rgba(50,196,141,.07)' }}>
+          <p className="text-[10px] font-bold" style={{ color: 'var(--ath-green2)' }}>{t(lang, 'homeLiveStatus')}</p>
+          <p className="mt-1 text-xs font-extrabold">{counts.moving > 0 ? t(lang, 'homeMovingNow') : t(lang, 'homeNoMovement')}</p>
+        </div>
+      </div>
+      <div className="mt-5 flex h-2 overflow-hidden rounded-full" style={{ background: 'rgba(255,255,255,.07)' }}>
+        {segments.map(key => <span key={key} style={{ width: `${(counts[key] / vehicles.length) * 100}%`, background: STATUS_COLORS[key] }} />)}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-2">
+        {segments.map(key => <span key={key} className="flex items-center gap-1.5 text-[10px] font-bold" style={{ color: 'var(--ath-mut)' }}><i className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_COLORS[key] }} />{t(lang, `status_${key}`)} {counts[key]}</span>)}
+      </div>
+    </div>
+  )
+}
+
+function VehiclePreview({ vehicle, lang, onOpen }) {
+  const status = getDeviceStatusKey(vehicle)
+  return (
+    <button type="button" onClick={onOpen} className="ath-card flex w-full items-center gap-3 text-start transition-transform active:scale-[.99]" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <VehicleIcon type={vehicle.type} iconSize={23} className="h-14 w-14 rounded-2xl" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-extrabold">{vehicle.name}</span>
+        <span className="mt-1 block truncate text-[10px] font-semibold" style={{ color: 'var(--ath-mut)' }}>{vehicle.plate || t(lang, 'plateUnavailable')}</span>
+        <span className="mt-2 block"><StatusBadge status={status} lang={lang} /></span>
+      </span>
+      <span className="shrink-0" style={{ color: 'var(--ath-mut)' }}>{lang === 'ar' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}</span>
+    </button>
+  )
+}
+
+function RecentAlert({ alert, vehicle, lang, onOpen }) {
+  if (!alert) return <div className="ath-card flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ color: 'var(--ath-green2)', background: 'rgba(50,196,141,.10)' }}><ShieldCheck size={18} /></span><div><p className="text-xs font-extrabold">{t(lang, 'homeNoRecentAlerts')}</p><p className="mt-1 text-[10px]" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeNoRecentAlertsBody')}</p></div></div>
+  const alertTime = alert.time ?? alert.created_at ?? alert.createdAt ?? alert.eventTime
+  return (
+    <button type="button" onClick={onOpen} className="ath-card flex w-full items-start gap-3 text-start">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ color: '#d7a458', background: 'rgba(215,164,88,.12)' }}><AlertTriangle size={18} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-extrabold">{alert.title || t(lang, 'homeRecentAlert')}</span>
+        <span className="mt-1 block truncate text-[10px]" style={{ color: 'var(--ath-mut)' }}>{vehicle?.name || t(lang, 'vehicleUnavailable')}</span>
+        <span className="mt-1 block text-[10px]" style={{ color: 'var(--ath-mut)' }}>{alertTime ? timeAgo(alertTime, lang) : t(lang, 'dataUnavailable')}</span>
+      </span>
+      <Navigation size={16} style={{ color: 'var(--ath-mut)' }} />
+    </button>
+  )
+}
+
+function validMapCoordinate(value, min, max) {
+  const number = Number(value)
+  return Number.isFinite(number) && number >= min && number <= max
+}
+
 export default function Home() {
   const navigate = useNavigate()
-  const { devices, lang, clientAuth } = useApp()
+  const { lang, clientAuth, alertsList } = useApp()
+  const { vehicles, loading, error } = useRealVehicles()
+  const reducedMotion = useReducedMotion()
   const isAr = lang === 'ar'
-  const [reducedMotion, setReducedMotion] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const updateMotionPreference = () => setReducedMotion(mediaQuery.matches)
-    updateMotionPreference()
-    mediaQuery.addEventListener?.('change', updateMotionPreference)
-    return () => mediaQuery.removeEventListener?.('change', updateMotionPreference)
-  }, [])
-
-  useEffect(() => {
-    if (reducedMotion) {
-      setMounted(true)
-      return undefined
+  const latestAlert = useMemo(() => {
+    if (!Array.isArray(alertsList) || !alertsList.length) return null
+    return [...alertsList].sort((a, b) => new Date(b.time ?? b.created_at ?? b.createdAt ?? 0) - new Date(a.time ?? a.created_at ?? a.createdAt ?? 0))[0]
+  }, [alertsList])
+  const alertVehicle = useMemo(() => {
+    const id = latestAlert?.deviceId ?? latestAlert?.vehicleId ?? latestAlert?.device_id
+    return vehicles.find(vehicle => String(vehicle.id) === String(id))
+  }, [latestAlert, vehicles])
+  const displayVehicles = vehicles.slice(0, 3)
+  const userName = clientAuth?.name || clientAuth?.fullName || clientAuth?.email?.split('@')[0] || t(lang, 'homeDriver')
+  const openAlert = () => {
+    if (!latestAlert) return
+    const lat = Number(latestAlert.latitude ?? latestAlert.lat)
+    const lng = Number(latestAlert.longitude ?? latestAlert.lng)
+    if (validMapCoordinate(lat, -90, 90) && validMapCoordinate(lng, -180, 180) && !(Math.abs(lat) < 0.01 && Math.abs(lng) < 0.01)) {
+      const params = new URLSearchParams({ lat: String(lat), lng: String(lng) })
+      if (alertVehicle?.id != null) params.set('device', String(alertVehicle.id))
+      if (latestAlert.id != null) params.set('alert', String(latestAlert.id))
+      navigate(`/client/map?${params.toString()}`)
     }
-    const frame = requestAnimationFrame(() => setMounted(true))
-    return () => cancelAnimationFrame(frame)
-  }, [reducedMotion])
-
-  const stats = useMemo(() => ({
-    moving: devices.filter(d => getDeviceStatusKey(d) === 'moving').length,
-    stopped: devices.filter(d => getDeviceStatusKey(d) === 'stopped').length,
-    idle: devices.filter(d => getDeviceStatusKey(d) === 'idle').length,
-    offline: devices.filter(d => getDeviceStatusKey(d) === 'offline').length,
-  }), [devices])
-
-  const movingDevice = useMemo(
-    () => devices.find(device => getDeviceStatusKey(device) === 'moving'),
-    [devices],
-  )
-
-  const subscriptionSummary = useMemo(() => {
-    const snapshots = devices.map(device => ({ device, subscription: getSubscriptionSnapshot(device) }))
-    const active = snapshots.filter(item => item.subscription.status === 'active').length
-    const nearest = snapshots
-      .filter(item => item.subscription.endDate)
-      .sort((a, b) => a.subscription.endDate.localeCompare(b.subscription.endDate))[0]
-    const plan = getSubscriptionPlan(nearest?.subscription.planId)
-      || snapshots.map(item => getSubscriptionPlan(item.subscription.planId)).find(Boolean)
-    return {
-      active,
-      nearest,
-      plan,
-      accountExpiry: clientAuth?.expiryDate ? String(clientAuth.expiryDate).slice(0, 10) : null,
-    }
-  }, [devices, clientAuth])
-
-  const totalDevices = devices.length
-  const activePercent = totalDevices
-    ? Math.min(100, Math.round((subscriptionSummary.active / totalDevices) * 100))
-    : 0
-  const movingPercent = totalDevices ? (stats.moving / totalDevices) * 100 : 0
-  const stoppedPercent = totalDevices ? (stats.stopped / totalDevices) * 100 : 0
-  const idlePercent = totalDevices ? (stats.idle / totalDevices) * 100 : 0
-  const donut = totalDevices
-    ? `conic-gradient(${STATUS.moving.color} 0 ${movingPercent}%, ${STATUS.stopped.color} ${movingPercent}% ${movingPercent + stoppedPercent}%, ${STATUS.idle.color} ${movingPercent + stoppedPercent}% ${movingPercent + stoppedPercent + idlePercent}%, ${STATUS.offline.color} ${movingPercent + stoppedPercent + idlePercent}% 100%)`
-    : 'conic-gradient(rgba(140,163,184,.3) 0 100%)'
-  const movingSpeed = movingDevice
-    ? Math.round(Number(movingDevice.speed ?? movingDevice.last_speed ?? 0))
-    : 0
-  const sectionStyle = delay => reducedMotion
-    ? undefined
-    : { animation: 'ath-fadeUp .45s cubic-bezier(.22,1,.36,1) both', animationDelay: `${delay}ms` }
+    else navigate('/client/alerts')
+  }
 
   return (
-    <div
-      className="client-app client-home-screen fixed inset-0 overflow-hidden"
-      style={{ background: 'var(--ath-bg)' }}
-      dir={isAr ? 'rtl' : 'ltr'}
-    >
+    <div className="client-app client-home-screen fixed inset-0 overflow-hidden" dir={isAr ? 'rtl' : 'ltr'} style={{ background: 'var(--ath-bg)' }}>
       <ClientHeader fixed showUser />
-
-      <main
-        className="absolute inset-x-0 overflow-hidden px-4 py-3 sm:px-5 sm:py-4"
-        style={{
-          top: 'calc(4rem + env(safe-area-inset-top, 0px))',
-          bottom: 'calc(5.6rem + env(safe-area-inset-bottom, 0px))',
-        }}
-      >
-        <div className="mx-auto flex h-full min-h-0 max-w-xl flex-col gap-2.5">
-          <section className="ath-card relative min-h-0 shrink-0 overflow-hidden p-3.5 sm:p-5" style={{ ...sectionStyle(0), color: 'var(--ath-txt)' }}>
-            <div
-              className="pointer-events-none absolute -end-16 -top-24 h-52 w-52 rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(0,217,126,.22), transparent 68%)' }}
-            />
-            <div className="relative flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold" style={{ color: 'var(--ath-mut)' }}>{isAr ? 'الأسطول الآن' : 'Flotte maintenant'}</p>
-                <p className="ath-num mt-1.5 text-4xl font-black leading-none">
-                  <CountUp value={totalDevices} animate={!reducedMotion} />
-                </p>
-                <p className="mt-1.5 text-[10px] font-semibold" style={{ color: 'var(--ath-mut)' }}>{isAr ? 'مركبات مسجّلة' : 'véhicules enregistrés'}</p>
-              </div>
-
-              <div
-                className="relative flex h-[5.2rem] w-[5.2rem] shrink-0 items-center justify-center rounded-full p-2"
-                style={{
-                  background: donut,
-                  transform: `rotate(${mounted ? 360 : 0}deg)`,
-                  transition: reducedMotion ? 'none' : 'transform .8s cubic-bezier(.22,1,.36,1)',
-                }}
-                aria-label={isAr ? 'توزيع حالة الأسطول' : 'Répartition de la flotte'}
-              >
-                <div className="flex h-full w-full items-center justify-center rounded-full" style={{ background: 'var(--ath-card)' }}>
-                  <div className="text-center" style={{ transform: `rotate(${mounted ? -360 : 0}deg)`, transition: reducedMotion ? 'none' : 'transform .8s cubic-bezier(.22,1,.36,1)' }}>
-                    <strong className="ath-num block text-xl font-black leading-none">{totalDevices}</strong>
-                    <span className="mt-0.5 block text-[8px] font-bold" style={{ color: 'var(--ath-mut)' }}>{isAr ? 'الإجمالي' : 'Total'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--ath-line)] pt-2.5">
-              <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold" style={{ color: 'var(--ath-txt)' }}>
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${movingDevice ? 'live-dot' : ''}`} style={{ background: movingDevice ? STATUS.moving.color : STATUS.offline.color }} />
-                <span className="truncate">
-                  {movingDevice
-                    ? `${movingDevice.name} ${isAr ? 'تتحرك الآن' : 'en mouvement'} · ${movingSpeed} ${isAr ? 'كم/س' : 'km/h'}`
-                    : (isAr ? 'لا توجد مركبة تتحرك الآن' : 'Aucun véhicule en mouvement')}
-                </span>
-              </span>
-              <button onClick={() => navigate('/client/map')} className="flex shrink-0 items-center gap-0.5 text-[10px] font-black" style={{ color: 'var(--ath-green2)' }}>
-                {isAr ? 'فتح الخريطة' : 'Ouvrir la carte'}
-                <ChevronRight size={13} className="rtl:rotate-180" />
-              </button>
+      <main className="absolute inset-x-0 overflow-y-auto px-4 py-4 sm:px-5" style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))', bottom: 'calc(5.6rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className={`mx-auto max-w-xl space-y-4 ${reducedMotion ? '' : 'page-enter'}`}>
+          <header className="pt-1">
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'welcome')}</p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight">{userName}</h1>
+            <p className="mt-1 text-xs font-medium" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeOwnershipLine')}</p>
+          </header>
+          <PromoCarousel lang={lang} />
+          <FleetSummary vehicles={vehicles} loading={loading} error={error} lang={lang} />
+          <section>
+            <SectionHeading title={t(lang, 'homeMyVehicles')} action={t(lang, 'viewAll')} onAction={() => navigate('/client/vehicles')} />
+            {displayVehicles.length ? <div className="space-y-2">{displayVehicles.map(vehicle => <VehiclePreview key={vehicle.id} vehicle={vehicle} lang={lang} onOpen={() => navigate(`/client/vehicle/${vehicle.id}`)} />)}</div> : <div className="ath-card text-center text-xs" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeVehiclesWillAppear')}</div>}
+          </section>
+          <section>
+            <SectionHeading title={t(lang, 'homeRecentAlertTitle')} action={t(lang, 'viewAll')} onAction={() => navigate('/client/alerts')} />
+            <RecentAlert alert={latestAlert} vehicle={alertVehicle} lang={lang} onOpen={openAlert} />
+          </section>
+          <section>
+            <SectionHeading title={t(lang, 'homeShortcuts')} />
+            <div className="grid grid-cols-3 gap-2">
+              <button type="button" onClick={() => navigate('/client/map')} className="ath-card flex min-h-[78px] flex-col items-center justify-center gap-2 p-2 text-center"><Map size={19} style={{ color: 'var(--ath-green2)' }} /><span className="text-[10px] font-extrabold">{t(lang, 'liveMap')}</span></button>
+              <button type="button" onClick={() => navigate('/client/trips')} className="ath-card flex min-h-[78px] flex-col items-center justify-center gap-2 p-2 text-center"><Navigation size={19} style={{ color: 'var(--ath-gold)' }} /><span className="text-[10px] font-extrabold">{t(lang, 'trips')}</span></button>
+              <button type="button" onClick={() => navigate('/client/alerts')} className="ath-card flex min-h-[78px] flex-col items-center justify-center gap-2 p-2 text-center"><Bell size={19} style={{ color: '#8cb4d8' }} /><span className="text-[10px] font-extrabold">{t(lang, 'alerts')}</span></button>
             </div>
           </section>
-
-          <section className="grid min-h-0 shrink-0 grid-cols-2 gap-2" style={sectionStyle(60)}>
-            <Stat label={isAr ? 'تتحرك' : 'En mouvement'} value={stats.moving} color={STATUS.moving.color} icon={Activity} animate={!reducedMotion} />
-            <Stat label={isAr ? 'متوقفة' : 'À l’arrêt'} value={stats.stopped} color={STATUS.stopped.color} icon={CircleStop} animate={!reducedMotion} />
-            <Stat label={isAr ? 'خاملة' : 'Au ralenti'} value={stats.idle} color={STATUS.idle.color} icon={CirclePause} animate={!reducedMotion} />
-            <Stat label={isAr ? 'غير متصلة' : 'Hors ligne'} value={stats.offline} color={STATUS.offline.color} icon={WifiOff} animate={!reducedMotion} />
-          </section>
-
-          <button
-            type="button"
-            onClick={() => navigate('/subscriptions')}
-            className="ath-card group min-h-0 shrink-0 p-3.5 text-start transition-all hover:-translate-y-0.5 hover:border-[rgba(224,179,111,.4)] sm:p-5"
-            style={{ ...sectionStyle(120), color: 'var(--ath-txt)' }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: 'rgba(224,179,111,.14)', color: 'var(--ath-gold)' }}>
-                  <CalendarDays size={17} />
-                </span>
-                <span className="min-w-0">
-                  <strong className="block text-sm font-black">{isAr ? 'الاشتراكات' : 'Abonnements'}</strong>
-                  <span className="mt-0.5 block text-[9px] font-semibold" style={{ color: 'var(--ath-mut)' }}>
-                    {totalDevices ? `${subscriptionSummary.active}/${totalDevices} ${isAr ? 'نشطة' : 'actifs'}` : (isAr ? 'لا توجد أجهزة بعد' : 'Aucun appareil')}
-                  </span>
-                </span>
-              </div>
-              <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-black" style={{ color: 'var(--ath-gold)' }}>
-                {isAr ? 'التفاصيل' : 'Détails'}
-                <ChevronRight size={14} className="rtl:rotate-180" />
-              </span>
-            </div>
-
-            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: 'rgba(224,179,111,.13)' }}>
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${mounted ? activePercent : 0}%`,
-                  background: 'linear-gradient(90deg, var(--ath-gold), #F0CF8D)',
-                  transition: reducedMotion ? 'none' : 'width .8s cubic-bezier(.22,1,.36,1)',
-                }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-2 text-[9px] font-semibold" style={{ color: 'var(--ath-mut)' }}>
-              <span className="truncate">
-                {subscriptionSummary.nearest?.subscription.endDate || subscriptionSummary.accountExpiry
-                  ? `${isAr ? 'ينتهي أقرب اشتراك' : 'Prochaine expiration'}: ${subscriptionSummary.nearest?.subscription.endDate || subscriptionSummary.accountExpiry}`
-                  : (isAr ? 'تاريخ الانتهاء غير محدد' : 'Date d’expiration non définie')}
-              </span>
-              {subscriptionSummary.plan && (
-                <span className="shrink-0 rounded-full px-2 py-0.5 font-black" style={{ background: 'rgba(224,179,111,.15)', color: 'var(--ath-gold)' }}>
-                  {isAr ? subscriptionSummary.plan.label : subscriptionSummary.plan.labelFr}
-                </span>
-              )}
-            </div>
-          </button>
-
-          <PromoCarousel lang={lang} reducedMotion={reducedMotion} sectionStyle={sectionStyle} />
         </div>
       </main>
-
       <ClientNav />
     </div>
   )

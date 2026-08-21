@@ -522,7 +522,7 @@ export default function Reports() {
             ) : (
               <div className="rounded-[18px] border border-[#1DBF73]/15 bg-[#1DBF73]/[.06] p-7 text-center">
                 <p className="text-sm font-extrabold text-[#EDF4F2]">
-                  {isAr ? '📊 لا توجد رحلات في هذه الفترة' : '📊 Aucun trajet pour cette période'}
+                  {isAr ? 'لا توجد رحلات في هذه الفترة' : 'Aucun trajet pour cette période'}
                 </p>
                 <p className="mt-2 text-[11px] text-[#8CA3B8]">
                   {isAr ? 'جرّب اختيار فترة أخرى لمراجعة نشاط المركبة.' : 'Essayez une autre période pour consulter l’activité du véhicule.'}

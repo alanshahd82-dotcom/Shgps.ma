@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home,
   Car,
-  Map,
   Settings,
   MoreHorizontal,
   BarChart2,
@@ -14,6 +13,7 @@ import {
   Wrench,
   MapPinned,
   CircleHelp,
+  Navigation as NavigationIcon,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
@@ -21,9 +21,9 @@ import { Button, Card, Sheet } from '../design-system'
 
 const PRIMARY_NAV = [
   { path: '/client/home',    icon: Home, labelKey: 'home' },
-  { path: '/client/devices', icon: Car,  labelKey: 'vehicles' },
-  { path: '/client/map',     icon: Map,  labelKey: 'mapNav' },
+  { path: '/client/vehicles', icon: Car,  labelKey: 'vehicles' },
   { path: '/client/alerts',  icon: Bell, labelKey: 'alerts', badge: true },
+  { path: '/client/trips',   icon: NavigationIcon, labelKey: 'trips' },
 ]
 
 const MORE_NAV = [
@@ -47,7 +47,9 @@ export default function ClientNav() {
     (item.path !== '/client/home' && location.pathname.startsWith(item.path))
 
   const isVehiclesActive = location.pathname.startsWith('/client/devices') ||
-    location.pathname.startsWith('/client/device/')
+    location.pathname.startsWith('/client/device/') ||
+    location.pathname.startsWith('/client/vehicles') ||
+    location.pathname.startsWith('/client/vehicle/')
 
   const isMoreActive = MORE_NAV.some(isPathActive)
 

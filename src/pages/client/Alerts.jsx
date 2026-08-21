@@ -136,7 +136,7 @@ export default function Alerts() {
               <Bell size={27} style={{ color: 'var(--ath-green)' }}/>
             </div>
             <p className="text-sm font-bold" style={{ color: 'var(--ath-txt)' }}>
-              {isAr ? '🔔 لا توجد تنبيهات حالياً' : '🔔 Aucune alerte pour le moment'}
+              {isAr ? 'لا توجد تنبيهات حالياً' : 'Aucune alerte pour le moment'}
             </p>
             <p className="text-xs" style={{ color: 'var(--ath-mut)' }}>
               {isAr ? 'سنخبرك هنا بأي نشاط مهم في مركباتك' : 'Nous vous informerons ici de toute activité importante.'}

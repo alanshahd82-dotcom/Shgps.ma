@@ -35,7 +35,7 @@ export function useRealVehicles() {
   }
 
   // Transform each device into the shape expected by design system screens
-  const vehicles = devices.map(device => {
+  const vehicles = devices.filter(device => device && device.id != null).map(device => {
     const lastUpdateTime = device.lastUpdate || device.last_update
     const latitude = optionalNumber(device.lat ?? device.latitude)
     const longitude = optionalNumber(device.lng ?? device.longitude)
@@ -47,7 +47,7 @@ export function useRealVehicles() {
     return {
       // Core identifiers
       id: device.id == null ? null : String(device.id),
-      name: device.name || 'Unknown',
+      name: device.name || device.plate || '—',
       type: device.type || 'car',
       traccarId: device.traccarId == null && device.traccar_id == null
         ? null

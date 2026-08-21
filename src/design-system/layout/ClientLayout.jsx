@@ -6,6 +6,7 @@ import { TopBar } from './TopBar'
 import { useApp } from '../../context/AppContext'
 
 const TAB_ROUTES = {
+  home: '/client/home',
   map: '/client/map',
   vehicles: '/client/vehicles',
   alerts: '/client/alerts',
@@ -15,7 +16,7 @@ const TAB_ROUTES = {
 
 export function ClientLayout({
   children,
-  activeTab = 'map',
+  activeTab = 'home',
   onTabChange,
   sheet,
   showTopBar = true,
