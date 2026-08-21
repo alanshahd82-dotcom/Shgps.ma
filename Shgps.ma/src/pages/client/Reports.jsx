@@ -177,18 +177,18 @@ function ReportSkeleton() {
     <div className="space-y-4" aria-label="Loading">
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="min-h-[132px] rounded-[18px] border border-white/5 bg-[#101b2e] p-4">
+          <div key={index} className="min-h-[132px] rounded-[18px] border border-slate-100 bg-[#101b2e] p-4">
             <SkeletonBlock className="h-10 w-10 rounded-xl" />
             <SkeletonBlock className="mt-6 h-6 w-20 rounded-lg" />
             <SkeletonBlock className="mt-2 h-3 w-24 rounded-md" />
           </div>
         ))}
       </div>
-      <div className="rounded-[18px] border border-white/5 bg-[#101b2e] p-4">
+      <div className="rounded-[18px] border border-slate-100 bg-[#101b2e] p-4">
         <SkeletonBlock className="mb-5 h-3 w-28 rounded-md" />
         <SkeletonBlock className="h-[142px] w-full rounded-xl" />
       </div>
-      <div className="rounded-[18px] border border-white/5 bg-[#101b2e] p-4">
+      <div className="rounded-[18px] border border-slate-100 bg-[#101b2e] p-4">
         <SkeletonBlock className="mb-4 h-3 w-32 rounded-md" />
         <div className="space-y-3">
           {Array.from({ length: 3 }, (_, index) => (
@@ -331,7 +331,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="ath-reports-page client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="ath-reports-page client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <style>{styles}</style>
       <ClientHeader />
 
@@ -390,7 +390,7 @@ export default function Reports() {
                 <button
                   key={d.id}
                   onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="flex w-full items-center gap-2 border-b border-white/5 px-4 py-3 text-start text-sm transition-all last:border-0"
+                  className="flex w-full items-center gap-2 border-b border-slate-100 px-4 py-3 text-start text-sm transition-all last:border-0"
                   style={{ color: String(d.id) === deviceId ? '#3EE6A0' : 'rgba(255,255,255,.62)' }}
                 >
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: String(d.id) === deviceId ? '#1DBF73' : 'rgba(255,255,255,.2)' }} />
@@ -476,7 +476,7 @@ export default function Reports() {
 
             {trips.length > 0 ? (
               <div className="overflow-hidden rounded-[18px]" style={{ background: 'var(--reports-surface-soft)', border: '1px solid var(--reports-line)' }}>
-                <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3.5">
+                <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3.5">
                   <FileText size={14} className="text-[#3EE6A0]" />
                   <p className="text-xs font-extrabold tracking-wide text-[#8CA3B8]">
                     {isAr ? 'سجل الرحلات' : 'Historique des trajets'}
@@ -488,7 +488,7 @@ export default function Reports() {
                   return (
                     <div
                       key={`${start || index}-${index}`}
-                      className="ath-reports-trip flex items-center gap-3 border-b border-white/5 px-4 py-3.5 last:border-0"
+                      className="ath-reports-trip flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 last:border-0"
                       style={{ animationDelay: `${index * 45}ms` }}
                     >
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1DBF73]/[.10]">

@@ -482,7 +482,7 @@ export default function LiveMap() {
           boxShadow: '0 18px 48px rgba(0,0,0,0.42)',
         }}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3" dir={isAr ? 'rtl' : 'ltr'}>
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3" dir={isAr ? 'rtl' : 'ltr'}>
           <div className="flex items-center gap-2">
             <Car size={16} style={{ color: '#38d39f' }} />
             <strong className="text-sm text-white">{isAr ? 'أجهزتي' : 'Mes appareils'}</strong>
@@ -491,7 +491,7 @@ export default function LiveMap() {
             type="button"
             onClick={() => setPanelOpen(false)}
             aria-label={isAr ? 'إغلاق الأجهزة' : 'Fermer les appareils'}
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-white/60 transition-colors hover:bg-slate-100 hover:text-white"
           >
             <X size={16} />
           </button>

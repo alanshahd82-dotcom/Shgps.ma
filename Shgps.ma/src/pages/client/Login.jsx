@@ -78,7 +78,7 @@ export default function Login() {
             className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-[var(--ath-rs)] bg-white"
             style={{ border: '1px solid rgba(224,179,111,.55)', boxShadow: '0 0 0 5px rgba(224,179,111,.06), 0 14px 30px rgba(15,32,68,.12)' }}
           >
-            <img src="/athar-gps-mark.svg" alt="ATHAR GPS" width="52" height="52" draggable={false}/>
+            <img src="/app-icon.png" alt="ATHAR GPS" width="52" height="52" draggable={false}/>
           </div>
           <h1 className="text-2xl font-extrabold tracking-wider text-primary-500" dir="ltr">
             ATHAR <span style={{ color: 'var(--ath-teal)' }}>GPS</span>

@@ -246,7 +246,7 @@ export default function Subscriptions() {
   }, [])
 
   return (
-    <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
       <main className="mx-auto max-w-xl px-4 py-4 sm:px-5">
         <div className="mb-4 flex items-center gap-3">

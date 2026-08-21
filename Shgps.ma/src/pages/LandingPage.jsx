@@ -223,7 +223,7 @@ export default function LandingPage() {
       <header className="relative z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-[76px] max-w-6xl items-center justify-between px-5 lg:px-8">
           <Link to="/" className="flex items-center gap-3">
-            <img src="/athar-gps-mark.svg" alt="ATHAR GPS" className="h-10 w-10 rounded-xl" />
+            <img src="/app-icon.png" alt="ATHAR GPS" className="h-10 w-10 rounded-xl" />
             <div><p className="text-sm font-extrabold tracking-[0.12em] text-primary-500">ATHAR GPS</p><p className="text-[9px] font-bold text-slate-400">{copy.footer}</p></div>
           </Link>
           <nav className="athar-desktop-nav hidden items-center gap-7 md:flex">

@@ -180,7 +180,7 @@ export function AppProvider({ children }) {
   const sendBrowserNotification = (title, body, opts = {}) => {
     if (!pushEnabled || Notification.permission !== 'granted') return
     try {
-      const n = new Notification(title, { body, icon: '/athar-gps-mark.svg', badge: '/athar-gps-mark.svg', ...opts })
+      const n = new Notification(title, { body, icon: '/app-icon.png', badge: '/app-icon.png', ...opts })
       n.onclick = () => { window.focus(); n.close() }
     } catch { /* silently skip if blocked */ }
   }
@@ -359,7 +359,7 @@ export function AppProvider({ children }) {
                 try {
                   new Notification('ATHAR GPS', {
                     body: ev.attributes?.message || ev.type || 'تنبيه جديد',
-                    icon: '/athar-gps-mark.svg',
+                    icon: '/app-icon.png',
                   })
                 } catch { /* ignore */ }
               }

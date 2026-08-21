@@ -68,7 +68,7 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
           {battery != null && (
             <span className="mt-3 flex items-center gap-2" aria-label={isAr ? `البطارية ${Math.round(battery)} بالمئة` : `Batterie ${Math.round(battery)} pour cent`}>
               <BatteryMedium size={14} style={{ color: batteryColor }} aria-hidden="true" />
-              <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+              <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
                 <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${battery}%`, background: batteryColor }} />
               </span>
               <span className="w-8 text-end text-[10px] font-bold tabular-nums" style={{ color: batteryColor }}>{Math.round(battery)}%</span>
@@ -87,7 +87,7 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
       </button>
 
       {needsRenewal && (
-        <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#0a192c] px-4 py-2.5">
+        <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-2.5">
           <p className={`text-[10px] font-semibold ${subscription.status === 'expired' ? 'text-danger' : 'text-warning'}`}>
             {subscription.status === 'expired'
               ? (isAr ? 'انتهى الاشتراك — التتبع موقوف' : 'Abonnement expiré — suivi arrêté')
@@ -130,9 +130,9 @@ export default function DeviceList() {
   const attentionDevice = devices.find(device => getSubscriptionSnapshot(device).status !== 'active')
 
   return (
-    <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
-      <header className="border-b border-white/10 bg-[var(--ath-bg)] px-5 pb-4 pt-7">
+      <header className="border-b border-slate-200 bg-[var(--ath-bg)] px-5 pb-4 pt-7">
         <div className="mx-auto max-w-xl">
           <div className="mb-4 flex items-center justify-between">
             <div>

@@ -95,7 +95,7 @@ export default function ClientWelcome() {
       >
         <div className="relative z-10 flex flex-col items-center">
           <img
-            src="/athar-gps-mark.svg"
+            src="/app-icon.png"
             alt="ATHAR GPS"
             className="h-[104px] w-[104px] rounded-[28px]"
             style={{
@@ -109,7 +109,7 @@ export default function ClientWelcome() {
           <p className="mt-2 text-sm font-medium uppercase tracking-[0.22em]" style={{ color: 'var(--ath-green2)' }} dir="ltr">
             FLEET INTELLIGENCE PLATFORM
           </p>
-          <div className="mt-10 h-0.5 w-32 overflow-hidden rounded-full bg-white/10">
+          <div className="mt-10 h-0.5 w-32 overflow-hidden rounded-full bg-slate-100">
             <div className="h-full w-full animate-pulse rounded-full" style={{ background: 'linear-gradient(90deg, #C8843C, #E0B36F, #FFF0C9)' }} />
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function ClientWelcome() {
             <button type="button" onClick={() => setLang(isAr ? 'fr' : 'ar')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold shadow-sm">
               {copy.language}
             </button>
-            <img src="/athar-gps-mark.svg" alt="" className="h-10 w-10 rounded-xl" />
+            <img src="/app-icon.png" alt="" className="h-10 w-10 rounded-xl" />
           </div>
 
           <section className="overflow-hidden rounded-3xl border border-primary-100 bg-white shadow-xl shadow-primary-500/10">

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ar" dir="rtl" class="dark">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -9,30 +9,30 @@
     <meta property="og:site_name" content="ATHAR GPS" />
     <meta property="og:title" content="ATHAR GPS | تتبع المركبات وإدارة الأساطيل" />
     <meta property="og:description" content="منصة واضحة لتتبع المركبات وإدارة الأساطيل ومراجعة الرحلات والتنبيهات." />
-    <meta property="og:image" content="/icon-512.png" />
+    <meta property="og:image" content="/app-icon.png" />
     <meta property="og:image:alt" content="شعار ATHAR GPS" />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#07111f" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="color-scheme" content="light" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- Apple / iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ATHAR GPS" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="/app-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/app-icon.png" />
 
     <!-- Apple Splash Screens -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/athar-gps-favicon.png" />
-    <link rel="icon" href="/favicon.ico" sizes="48x48" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/app-icon.png" />
+    <link rel="icon" href="/app-icon.png" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/app-icon.png" />
+    <link rel="shortcut icon" href="/app-icon.png" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -56,14 +56,14 @@
 
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-      html, body, #root { height: 100%; width: 100%; background: #07111f; color-scheme: dark; }
+      html, body, #root { height: 100%; width: 100%; background: #F5F6F8; color-scheme: dark; }
 
       /* ── شاشة البداية ── */
       #splash {
         position: fixed;
         inset: 0;
         z-index: 9999;
-        background: var(--ath-bg, #0A1120);
+        background: #F5F6F8;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -244,7 +244,7 @@
 
       <div class="splash-content">
         <div class="splash-icon">
-        <img class="athar-mark" src="/athar-gps-mark.svg" alt="ATHAR GPS" />
+        <img class="athar-mark" src="/app-icon.png" alt="ATHAR GPS" />
         </div>
         <div class="splash-name">
           <div class="big">ATHAR <span>GPS</span></div>

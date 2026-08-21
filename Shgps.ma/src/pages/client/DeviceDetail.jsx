@@ -501,23 +501,23 @@ export default function DeviceDetail() {
   const voltageLabel = voltageConnected ? `${Number(voltage).toFixed(1)} V` : (isAr ? 'مفصول' : 'Déconnecté')
 
   if (loading && !device) return (
-      <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">
+      <div className="client-app min-h-screen flex items-center justify-center bg-[#F5F6F8]">
        <div className="w-9 h-9 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
     </div>
   )
 
   return (
-      <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
-        <div className="mx-4 mt-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#102945] to-[#0e2035] px-4 pb-5 pt-4 shadow-[0_18px_48px_rgba(0,0,0,.25)]">
+        <div className="mx-4 mt-3 rounded-3xl border border-slate-200 bg-gradient-to-br from-[#102945] to-[#0e2035] px-4 pb-5 pt-4 shadow-[0_18px_48px_rgba(0,0,0,.25)]">
           <div className="flex items-start gap-3">
-         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/10 bg-[#07111f] active:scale-95"
+         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200 bg-[#F5F6F8] active:scale-95"
            >
            <ChevronLeft size={20} className="text-primary-500" style={{ transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </button>
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#07111f]">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-[#F5F6F8]">
           <VehicleIcon type={vehicleType} iconSize={24} className="!h-10 !w-10 !rounded-xl" />
         </div>
         <div className="flex-1 min-w-0">
@@ -526,7 +526,7 @@ export default function DeviceDetail() {
                 aria-label={isAr ? 'اسم الجهاز' : 'Nom du véhicule'}
                 value={editForm.name}
                 onChange={event => setEditForm(form => ({ ...form, name: event.target.value }))}
-                className="w-full rounded-lg border border-[#38d39f]/50 bg-[#07111f]/70 px-2 py-1 text-base font-extrabold text-white outline-none focus:border-[#38d39f]"
+                className="w-full rounded-lg border border-[#38d39f]/50 bg-[#F5F6F8]/70 px-2 py-1 text-base font-extrabold text-white outline-none focus:border-[#38d39f]"
               />
             ) : (
               <h1 className="truncate text-lg font-extrabold text-[#edf4f2]">{device?.name || '...'}</h1>
@@ -539,7 +539,7 @@ export default function DeviceDetail() {
              <span className="text-xs font-bold" style={{ color:stColor }}>{stLabel}</span>
         </div>
         {!editing && (
-          <button onClick={openEdit} aria-label={isAr ? 'تعديل بيانات الجهاز' : 'Modifier l’appareil'} className="mt-1 rounded-xl border border-white/10 bg-white/[.06] p-2 text-[#8ceac5] transition hover:bg-white/10">
+          <button onClick={openEdit} aria-label={isAr ? 'تعديل بيانات الجهاز' : 'Modifier l’appareil'} className="mt-1 rounded-xl border border-slate-200 bg-white/[.06] p-2 text-[#8ceac5] transition hover:bg-slate-100">
             <Pencil size={14} />
           </button>
         )}
@@ -570,7 +570,7 @@ export default function DeviceDetail() {
                 <span className="text-[9px] mt-0.5 text-slate-400">{label}</span>
                 {secondary && <span className="mt-1 text-[8px] text-slate-500">{secondary}</span>}
                         {bar != null && (
-                          <div className="mt-2 h-1.5 w-full max-w-24 overflow-hidden rounded-full bg-white/10" aria-label={`${Math.round(Number(bar))}%`}>
+                          <div className="mt-2 h-1.5 w-full max-w-24 overflow-hidden rounded-full bg-slate-100" aria-label={`${Math.round(Number(bar))}%`}>
                             <div
                               className="h-full rounded-full transition-all"
                               style={{ width: `${Math.max(0, Math.min(100, Number(bar) || 0))}%`, background: color }}
@@ -792,7 +792,7 @@ export default function DeviceDetail() {
                         value={customFrom}
                         max={customTo || localDateValue(new Date())}
                         onChange={event => setCustomFrom(event.target.value)}
-                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
+                        className="mt-1 block w-full min-w-0 rounded-xl border border-slate-200 bg-[#F5F6F8] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
                       />
                     </label>
                     <label className="min-w-0 text-[10px] font-semibold text-slate-400">
@@ -803,7 +803,7 @@ export default function DeviceDetail() {
                         min={customFrom}
                         max={localDateValue(new Date())}
                         onChange={event => setCustomTo(event.target.value)}
-                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
+                        className="mt-1 block w-full min-w-0 rounded-xl border border-slate-200 bg-[#F5F6F8] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
                       />
                     </label>
                   </div>

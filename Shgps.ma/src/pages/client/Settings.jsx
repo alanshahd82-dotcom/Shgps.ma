@@ -178,7 +178,7 @@ export default function Settings() {
   const cardStyle  = { background: 'linear-gradient(180deg, var(--ath-card), var(--ath-card2))', border: '1px solid var(--ath-line)' }
 
   return (
-    <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}

@@ -27,7 +27,7 @@ export default function SplashScreen() {
       >
         {/* App icon */}
         <img
-          src="/athar-gps-mark.svg"
+          src="/app-icon.png"
           alt="ATHAR GPS"
           style={{
             borderRadius: 28,
