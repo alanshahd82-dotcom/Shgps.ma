@@ -56,7 +56,7 @@ function mergeDeviceSnapshots(previous, next) {
 }
 
 export function AppProvider({ children }) {
-  const [lang, setLang]                     = useState('ar')
+  const [lang, setLang]                     = useState('fr')
   const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
   const [adminAuth,  setAdminAuth]          = useState(() => loadFromStorage('athargps_admin'))
   const [authReady,  setAuthReady]          = useState(false)
