@@ -1,11 +1,14 @@
+import { api } from '../../api/index.js'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Activity,
+  Trash2,
   AlertTriangle,
   BatteryLow,
   Bell,
   CheckCheck,
+  Trash2,
   ExternalLink,
   Gauge,
   MapPin,
@@ -85,7 +88,7 @@ function alertDeviceId(alert) {
   return alert?.deviceId ?? alert?.vehicleId ?? alert?.device_id ?? alert?.device?.id ?? null
 }
 
-function AlertRow({ alert, vehicle, onOpen, onOpenVehicle, onOpenMap }) {
+function AlertRow({ alert, vehicle, onOpen, onOpenVehicle, onOpenMap, onDelete }) {
   const { Icon, title, variant, label } = alertMeta(alert)
   const timestamp = alertTimestamp(alert)
   const message = alert?.message || alert?.description || null
@@ -127,6 +130,10 @@ function AlertRow({ alert, vehicle, onOpen, onOpenVehicle, onOpenMap }) {
                 عرض على الخريطة
               </button>
             ) : <span className="text-[11px] text-slate-400">الموقع غير متاح</span>}
+            <button type="button" onClick={onDelete} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-semibold text-red-600 transition-colors hover:bg-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              حذف
+            </button>
           </div>
         </div>
       </div>
@@ -138,7 +145,18 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
   const { alertsList, alertsLoading, alertsLoaded, alertsError, markAlertRead, markAllAlertsRead, unreadCount } = useApp()
   const { vehicles: realVehicles } = useRealVehicles()
   const navigate = useNavigate()
-  const alerts = providedAlerts ?? alertsList
+  const rawAlerts = providedAlerts ?? alertsList
+  const [dismissed, setDismissed] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('athargps_dismissed_alerts') || '[]') } catch { return [] }
+  })
+  React.useEffect(() => {
+    const handler = () => {
+      try { setDismissed(JSON.parse(localStorage.getItem('athargps_dismissed_alerts') || '[]')) } catch {}
+    }
+    window.addEventListener('athar:alerts-changed', handler)
+    return () => window.removeEventListener('athar:alerts-changed', handler)
+  }, [])
+  const alerts = rawAlerts.filter(a => !dismissed.includes(a.id))
   const vehicles = providedVehicles ?? realVehicles
   const [filter, setFilter] = useState('all')
   const [selectedVehicleId, setSelectedVehicleId] = useState(null)
@@ -159,6 +177,24 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
   const markAllRead = () => {
     void markAllAlertsRead()
     onMarkAllRead?.()
+  }
+  const readCount = alerts.filter(a => a.read).length
+  const deleteAlert = (alertId) => {
+    // حذف من localStorage كـ cache محلي
+    try {
+      const stored = JSON.parse(localStorage.getItem('athargps_dismissed_alerts') || '[]')
+      if (!stored.includes(alertId)) stored.push(alertId)
+      localStorage.setItem('athargps_dismissed_alerts', JSON.stringify(stored))
+    } catch {}
+    // إذا كان هناك API delete حقيقي، نستخدمه
+    if (api && api.alerts && typeof api.alerts.delete === 'function') {
+      api.alerts.delete(alertId).catch(() => {})
+    }
+    // إعادة تحميل التنبيهات
+    window.dispatchEvent(new CustomEvent('athar:alerts-changed'))
+  }
+  const deleteRead = () => {
+    alerts.filter(a => a.read).forEach(a => deleteAlert(a.id))
   }
   const selectAlert = alert => {
     if (!alert.read) void markAlertRead(alert.id)
@@ -182,6 +218,12 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
               <button key={id} type="button" role="tab" aria-selected={filter === id} onClick={() => setFilter(id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${filter === id ? 'bg-accent text-white' : 'border border-border bg-slate-50 text-slate-500 hover:bg-border'}`}>{label}</button>
             ))}
           </div>
+          {readCount > 0 && (
+            <button type="button" onClick={deleteRead} aria-label="حذف المقروءة" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">حذف المقروءة</span>
+            </button>
+          )}
           {unreadCount > 0 && (
             <button type="button" onClick={markAllRead} aria-label="تعليم الكل كمقروء" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               <CheckCheck className="h-4 w-4" aria-hidden="true" />
@@ -199,6 +241,7 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
                 alert={alert}
                 vehicle={vehicle}
                 onOpen={() => selectAlert(alert)}
+                onDelete={() => deleteAlert(alert.id)}
                 onOpenVehicle={() => {
                   if (!vehicle) return
                   if (!alert.read) void markAlertRead(alert.id)
