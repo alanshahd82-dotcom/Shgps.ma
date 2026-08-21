@@ -6,9 +6,6 @@ import {
   ChevronRight,
   CircleAlert,
   Gauge,
-  MapPinned,
-  Navigation,
-  Route,
   ShieldCheck,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -337,29 +334,9 @@ export default function Home() {
             <RecentAlert alert={latestAlert} vehicle={alertVehicle} lang={lang} onOpen={openAlert} />
           </section>
 
-          <section className="phase18-section phase18-shortcuts">
-            <div className="phase18-section-heading"><div><span className="phase18-eyebrow">{t(lang, 'homeShortcuts')}</span><h2>{isAr ? 'الوصول السريع' : 'Accès rapide'}</h2></div></div>
-            <div className="phase18-shortcut-grid">
-              <button type="button" onClick={() => navigate('/client/vehicles')}><CarIcon /><span>{t(lang, 'vehicles')}</span></button>
-              <button type="button" onClick={() => navigate('/client/trips')}><Route size={20} /><span>{t(lang, 'trips')}</span></button>
-              <button type="button" onClick={() => navigate('/client/map')}><MapPinned size={20} /><span>{t(lang, 'liveMap')}</span></button>
-              <button type="button" onClick={() => navigate('/client/alerts')}><Bell size={20} /><span>{t(lang, 'alerts')}</span></button>
-              <button type="button" onClick={() => navigate('/client/reports')}><Navigation size={20} /><span>{t(lang, 'reports')}</span></button>
-            </div>
-          </section>
         </div>
       </main>
       <ClientNav />
     </div>
-  )
-}
-
-function CarIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m5 17-1-5 2.1-5.2A2 2 0 0 1 8 5.5h8a2 2 0 0 1 1.9 1.3L20 12l-1 5" />
-      <path d="M4 12h16M6 17h12M7 17v2m10-2v2" />
-      <circle cx="7" cy="14.5" r="1" /><circle cx="17" cy="14.5" r="1" />
-    </svg>
   )
 }

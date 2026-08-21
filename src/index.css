@@ -2341,34 +2341,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--ath-mut);
 }
 
-.phase18-shortcut-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: .45rem;
-}
-
-.phase18-shortcut-grid button {
-  display: flex;
-  min-height: 4.35rem;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: .45rem;
-  border: 1px solid rgba(148,180,215,.13);
-  border-radius: .9rem;
-  background: rgba(14,32,53,.72);
-  color: #8cb4d8;
-  font-size: .58rem;
-  font-weight: 800;
-  transition: transform .2s ease, background .2s ease, color .2s ease;
-}
-
-.phase18-shortcut-grid button:hover {
-  background: rgba(56,211,159,.1);
-  color: #70e7ba;
-  transform: translateY(-2px);
-}
-
 .phase18-empty,
 .phase18-state {
   display: flex;
@@ -2438,14 +2410,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     grid-auto-columns: minmax(10.5rem, 47%);
   }
 
-  .phase18-shortcut-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .phase18-shortcut-grid button:nth-child(4),
-  .phase18-shortcut-grid button:nth-child(5) {
-    min-height: 3.85rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2453,8 +2417,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .phase18-pulse-bar span,
   .phase18-notification-link,
   .phase18-vehicle-card,
-  .phase18-alert,
-  .phase18-shortcut-grid button {
+  .phase18-alert {
     animation: none;
     transition: none;
   }
