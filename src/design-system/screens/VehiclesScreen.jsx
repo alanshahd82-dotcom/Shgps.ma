@@ -10,9 +10,10 @@ import { useRealVehicles } from '../hooks/useRealVehicles'
 
 function getVehicleState(vehicle) {
   if (vehicle.charge === false && vehicle.status === 'offline') return { color: 'danger', badge: 'danger', label: 'بطارية مفصولة' }
-  if (vehicle.speed > 5) return { color: 'online', badge: 'online', label: 'متحرك' }
+  if (vehicle.status === 'online' && Number.isFinite(vehicle.speed) && vehicle.speed > 5) return { color: 'online', badge: 'online', label: 'متحرك' }
   if (vehicle.status === 'online') return { color: 'idle', badge: 'idle', label: 'متصل' }
-  return { color: 'offline', badge: 'offline', label: 'غير متصل' }
+  if (vehicle.status === 'offline') return { color: 'offline', badge: 'offline', label: 'غير متصل' }
+  return { color: 'offline', badge: 'offline', label: 'غير معروف' }
 }
 
 function Chip({ active, onClick, children }) {
@@ -62,9 +63,9 @@ function VehicleCard({ vehicle, onClick, selected }) {
             <h3 className="truncate text-sm font-semibold text-primary">{vehicle.name}</h3>
             <Badge variant={state.badge} size="sm">{state.label}</Badge>
           </div>
-          <p className="mt-1 truncate text-xs text-slate-500">آخر تحديث: {vehicle.lastUpdate || 'غير معروف'}</p>
+          <p className="mt-1 truncate text-xs text-slate-500">آخر تحديث: {vehicle.lastUpdate || 'غير متوفر'}</p>
         </div>
-        {vehicle.status === 'online' && vehicle.speed > 0 && (
+        {vehicle.status === 'online' && Number.isFinite(vehicle.speed) && (
           <div className="shrink-0 text-left text-accent" dir="ltr">
             <div className="flex items-center gap-1">
               <Gauge className="h-4 w-4" aria-hidden="true" />

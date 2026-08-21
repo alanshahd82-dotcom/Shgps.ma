@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Battery,
@@ -6,13 +6,12 @@ import {
   ChevronUp,
   Clock,
   Gauge,
-  Map,
   MapPin,
-  Settings,
-  Share2,
+  ExternalLink,
   X,
 } from 'lucide-react'
 import { Badge } from '../index.ts'
+import { Link } from 'react-router-dom'
 
 const stages = {
   collapsed: 'h-[72px]',
@@ -26,13 +25,6 @@ const statusMap = {
   alert: { variant: 'alert', label: 'تنبيه' },
   danger: { variant: 'danger', label: 'خطر' },
 }
-
-const quickActions = [
-  { label: 'الخريطة', Icon: Map },
-  { label: 'السجل', Icon: Clock },
-  { label: 'الأوامر', Icon: Settings },
-  { label: 'مشاركة', Icon: Share2 },
-]
 
 function Metric({ icon: Icon, label, value }) {
   return (
@@ -51,11 +43,10 @@ function Metric({ icon: Icon, label, value }) {
 function getStatus(vehicle) {
   if (vehicle.charge === false && vehicle.status === 'offline') return statusMap.danger
   if (vehicle.alerts?.length > 0) return statusMap.alert
-  return statusMap[vehicle.status] || statusMap.offline
+  return statusMap[vehicle.status] || { variant: 'offline', label: 'غير معروف' }
 }
 
 export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onClose }) {
-  const [activeTab, setActiveTab] = useState('details')
   const status = getStatus(vehicle)
 
   useEffect(() => {
@@ -96,7 +87,7 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0 text-right">
               <h2 id={`vehicle-sheet-${vehicle.id}`} className="truncate text-base font-semibold text-primary">{vehicle.name}</h2>
-              {!isCollapsed && vehicle.lastUpdate && <p className="text-xs text-slate-500">آخر تحديث: {vehicle.lastUpdate}</p>}
+          {!isCollapsed && <p className="text-xs text-slate-500">آخر تحديث: {vehicle.lastUpdate || 'غير متوفر'}</p>}
             </div>
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
@@ -115,39 +106,13 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
             <div className="grid grid-cols-2 gap-2">
               <Metric icon={Gauge} label="السرعة" value={Number.isFinite(vehicle.speed) ? `${vehicle.speed} كم/س` : 'غير متوفر'} />
               <Metric icon={Battery} label="البطارية" value={Number.isFinite(vehicle.battery) ? `${vehicle.battery}%` : 'غير متوفر'} />
-              <Metric icon={MapPin} label="الموقع" value={vehicle.location || (Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0) ? `${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}` : 'الموقع غير متاح')} />
+              <Metric icon={MapPin} label="الموقع" value={vehicle.location || (Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0) ? `${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}` : 'غير متوفر')} />
               <Metric icon={vehicle.ignition == null ? Clock : vehicle.ignition ? Gauge : Clock} label="حالة المحرك" value={vehicle.ignition == null ? 'غير متوفر' : vehicle.ignition ? 'المحرك يعمل' : 'متوقف'} />
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {quickActions.map(({ label, Icon }) => (
-                <button key={label} type="button" onClick={() => setActiveTab(label === 'الخريطة' ? 'details' : label)} className="flex flex-col items-center gap-1 rounded-[10px] border border-border p-2 text-[11px] text-slate-600 transition-colors hover:border-accent hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {label}
-                </button>
-              ))}
-            </div>
-            {isFull && (
-              <div>
-                <div className="flex border-b border-border" role="tablist" aria-label="تفاصيل المركبة">
-                  {[
-                    ['details', 'التفاصيل'],
-                    ['commands', 'الأوامر'],
-                    ['history', 'السجل'],
-                    ['share', 'مشاركة'],
-                  ].map(([id, label]) => (
-                    <button key={id} type="button" role="tab" aria-selected={activeTab === id} onClick={() => setActiveTab(id)} className={`flex-1 border-b-2 px-2 py-2 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${activeTab === id ? 'border-accent text-accent' : 'border-transparent text-slate-500'}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="py-4 text-sm text-slate-600" role="tabpanel">
-                  {activeTab === 'details' && <p>تفاصيل المركبة ومعلومات الاتصال الحالية.</p>}
-                  {activeTab === 'commands' && <p>أوامر المركبة ستكون متاحة في مرحلة لاحقة.</p>}
-                  {activeTab === 'history' && <p>سجل الرحلات والتوقفات سيظهر هنا.</p>}
-                  {activeTab === 'share' && <p>مشاركة موقع المركبة ستكون متاحة قريباً.</p>}
-                </div>
-              </div>
-            )}
+            <Link to={`/client/device/${vehicle.id}`} className="flex items-center justify-center gap-2 rounded-[10px] bg-accent px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              فتح تفاصيل المركبة
+            </Link>
           </div>
         )}
       </motion.section>

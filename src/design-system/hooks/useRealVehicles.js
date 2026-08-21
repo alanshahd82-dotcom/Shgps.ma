@@ -1,6 +1,12 @@
 import { useApp } from '../../context/AppContext'
 import { timeAgo } from '../../components/ui'
 
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
 /**
  * Hook to transform real devices from AppContext into the format
  * needed by the new design system screens (MapScreen, VehiclesScreen).
@@ -23,11 +29,12 @@ export function useRealVehicles() {
   // Transform each device into the shape expected by design system screens
   const vehicles = devices.map(device => {
     const lastUpdateTime = device.lastUpdate || device.last_update
-    const latitude = Number(device.lat ?? device.latitude ?? 0)
-    const longitude = Number(device.lng ?? device.longitude ?? 0)
-    const speed = Number(device.speed ?? device.last_speed ?? 0)
-    const battery = device.batteryLevel ?? device.battery ?? null
-    const voltage = device.voltage ?? null
+    const latitude = optionalNumber(device.lat ?? device.latitude)
+    const longitude = optionalNumber(device.lng ?? device.longitude)
+    const speed = optionalNumber(device.speed ?? device.last_speed)
+    const battery = optionalNumber(device.batteryLevel ?? device.battery)
+    const voltage = optionalNumber(device.voltage)
+    const ignition = device.engineOn ?? device.ignition
 
     return {
       // Core identifiers
@@ -53,7 +60,7 @@ export function useRealVehicles() {
       battery: battery,
       batteryLevel: battery,
       voltage: voltage,
-      ignition: device.engineOn ?? device.ignition ?? false,
+      ignition: ignition == null ? null : Boolean(ignition),
       charge: device.charge,
 
       // Timestamps
