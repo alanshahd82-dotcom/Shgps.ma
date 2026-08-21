@@ -127,7 +127,7 @@ export default function VehicleControl() {
     })
   }, [vehicle?.id])
 
-  const L = lang === 'fr' ? {
+  const T = lang === 'fr' ? {
     details:'Détails du véhicule', vName:'Nom du véhicule', dName:'Nom du conducteur',
     dPhone:'Téléphone du conducteur', devId:"ID de l'appareil",
     save:'Enregistrer', saved:'Enregistré', online:'En ligne', offline:'Hors ligne',
@@ -195,7 +195,7 @@ export default function VehicleControl() {
             <h1 className="truncate text-lg font-extrabold text-slate-900">{meta.name || vehicle.name}</h1>
             <p className="text-[11px] font-medium text-slate-500">
               <span className={'inline-block h-2 w-2 rounded-full ' + (online ? 'bg-green-500' : 'bg-slate-400')}/>
-              <span className="ms-1.5">{online ? L.online : L.offline}</span>
+              <span className="ms-1.5">{online ? T.online : T.offline}</span>
             </p>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function VehicleControl() {
             <div className={'h-3 w-3 rounded-full ' + (capability === 'available' ? 'bg-green-500' : 'bg-slate-400')}/>
             <h2 className="text-sm font-extrabold text-slate-900">{lang==='fr' ? 'Contrôle du moteur' : 'التحكم بالمحرك'}</h2>
           </div>
-          {capability !== 'available' && <p className="mt-2 text-[11px] text-slate-500">{L.noEngine}</p>}
+          {capability !== 'available' && <p className="mt-2 text-[11px] text-slate-500">{T.noEngine}</p>}
           {capability === 'available' && (
             <button type="button" onClick={() => setCommand({ turnOff: true })} className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-red-600 py-5 text-base font-black text-white shadow-lg shadow-red-200 hover:bg-red-700 active:scale-[0.98]">
               <Square size={22} fill="currentColor"/>
@@ -244,7 +244,7 @@ export default function VehicleControl() {
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <button type="button" onClick={openReplay} disabled={tripLoading} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-extrabold text-slate-700 disabled:opacity-50">
             {tripLoading ? <Loader2 className="animate-spin" size={15}/> : <Play size={15}/>}
-            {tripLoading ? L.loading : L.replay}
+            {tripLoading ? T.loading : T.replay}
           </button>
           {tripOptions && (
             <div className="mt-3 space-y-2">
@@ -262,23 +262,23 @@ export default function VehicleControl() {
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Pencil size={16} className="text-indigo-600"/>
-            <h2 className="text-sm font-extrabold text-slate-900">{L.details}</h2>
+            <h2 className="text-sm font-extrabold text-slate-900">{T.details}</h2>
           </div>
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-500">{L.vName}</label>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.vName}</label>
               <input type="text" value={meta.name} onChange={e => setMeta(Object.assign({}, meta, { name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-500">{L.dName}</label>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.dName}</label>
               <input type="text" value={meta.driverName} onChange={e => setMeta(Object.assign({}, meta, { driverName: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-500">{L.dPhone}</label>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.dPhone}</label>
               <input type="tel" dir="ltr" value={meta.driverPhone} onChange={e => setMeta(Object.assign({}, meta, { driverPhone: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-500">{L.devId}</label>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.devId}</label>
               <div className="flex items-center gap-2">
                 <input type="text" value={vehicle.uniqueId || String(vehicle.id)} readOnly className="flex-1 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500"/>
                 {meta.driverPhone ? (
@@ -287,7 +287,7 @@ export default function VehicleControl() {
               </div>
             </div>
             <button type="button" onClick={saveDetails} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
-              {saved ? <><Save size={14}/> {L.saved}</> : <><Pencil size={14}/> {L.save}</>}
+              {saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
             </button>
           </div>
         </section>
