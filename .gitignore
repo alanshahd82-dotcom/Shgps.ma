@@ -28,3 +28,13 @@ Thumbs.db
 autodeploy.sh
 src/assets/car-marker.png.backup
 frontend/package-lock.json
+
+# Secrets - must never be tracked
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.bak*
+*.backup*
+.autodeploy.lock
