@@ -1785,3 +1785,677 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     transition: none;
   }
 }
+
+/* Phase 18 — premium automotive home */
+.phase18-home {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(48, 108, 119, .22), transparent 38%),
+    var(--ath-bg);
+}
+
+.phase18-home-scroll {
+  scrollbar-width: none;
+  overscroll-behavior-y: contain;
+}
+
+.phase18-home-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.phase18-container {
+  width: min(100%, 39rem);
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+.phase18-welcome {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.phase18-eyebrow {
+  display: block;
+  color: var(--ath-mut);
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.phase18-welcome h1 {
+  margin-top: .22rem;
+  color: var(--ath-txt);
+  font-family: var(--ath-disp);
+  font-size: clamp(1.45rem, 5vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -.04em;
+  line-height: 1.1;
+}
+
+.phase18-welcome p {
+  margin-top: .35rem;
+  color: var(--ath-mut);
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.phase18-notification-link {
+  display: inline-flex;
+  width: 2.6rem;
+  height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px;
+  background: rgba(14,32,53,.75);
+  color: #d7a458;
+  box-shadow: 0 12px 25px rgba(0,0,0,.15);
+  transition: transform .2s ease, border-color .2s ease;
+}
+
+.phase18-notification-link:hover {
+  border-color: rgba(56,211,159,.55);
+  transform: translateY(-2px);
+}
+
+.phase18-hero {
+  position: relative;
+  min-height: clamp(16rem, 58vw, 22rem);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 1.45rem;
+  background: #0a192c;
+  box-shadow: 0 20px 50px rgba(0,0,0,.28);
+  isolation: isolate;
+}
+
+.phase18-hero-image,
+.phase18-hero-image img,
+.phase18-hero-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.phase18-hero-image {
+  animation: phase18-hero-in .6s ease both;
+}
+
+.phase18-hero-image img {
+  object-fit: cover;
+  object-position: center;
+  transition: transform 6s ease;
+}
+
+.phase18-hero:hover .phase18-hero-image img {
+  transform: scale(1.04);
+}
+
+.phase18-hero-shade {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(5,14,26,.16), rgba(5,14,26,.1) 46%, rgba(5,14,26,.88) 100%),
+    linear-gradient(0deg, rgba(5,14,26,.94), transparent 56%);
+}
+
+[dir="rtl"] .phase18-hero-shade {
+  background:
+    linear-gradient(270deg, rgba(5,14,26,.16), rgba(5,14,26,.1) 46%, rgba(5,14,26,.88) 100%),
+    linear-gradient(0deg, rgba(5,14,26,.94), transparent 56%);
+}
+
+.phase18-hero-copy {
+  position: absolute;
+  inset-inline: 1.35rem;
+  bottom: 2.9rem;
+  z-index: 2;
+  max-width: 19rem;
+}
+
+.phase18-hero-kicker {
+  color: #70e7ba;
+  font-family: 'DM Mono', monospace;
+  font-size: .6rem;
+  font-weight: 500;
+  letter-spacing: .1em;
+}
+
+.phase18-hero-copy h2 {
+  margin-top: .55rem;
+  color: #fff;
+  font-family: var(--ath-disp);
+  font-size: clamp(1.45rem, 6vw, 2.35rem);
+  font-weight: 900;
+  letter-spacing: -.045em;
+  line-height: 1.1;
+}
+
+.phase18-hero-copy p {
+  max-width: 17rem;
+  margin-top: .45rem;
+  color: rgba(255,255,255,.74);
+  font-size: .73rem;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+.phase18-hero-action {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  gap: .3rem;
+  margin-top: .9rem;
+  border-radius: 999px;
+  padding: 0 1rem;
+  background: #f4f0e9;
+  color: #10243c;
+  font-size: .7rem;
+  font-weight: 900;
+  transition: transform .2s ease, background .2s ease;
+}
+
+.phase18-hero-action:hover {
+  background: #fff;
+  transform: translateY(-2px);
+}
+
+.phase18-hero-controls {
+  position: absolute;
+  inset-inline: 1rem;
+  bottom: .85rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.phase18-hero-controls > button {
+  display: inline-flex;
+  width: 1.8rem;
+  height: 1.8rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(5,14,26,.26);
+  transition: background .2s ease;
+}
+
+.phase18-hero-controls > button:hover {
+  background: rgba(56,211,159,.3);
+}
+
+.phase18-hero-controls > div {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.phase18-hero-controls > div button {
+  display: inline-flex;
+  height: 1.2rem;
+  align-items: center;
+}
+
+.phase18-hero-controls i {
+  display: block;
+  width: .34rem;
+  height: .34rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.55);
+  transition: width .25s ease, background .25s ease;
+}
+
+.phase18-hero-controls i.is-active {
+  width: 1.2rem;
+  background: #38d39f;
+}
+
+.phase18-pulse {
+  margin-top: 1rem;
+  border-block: 1px solid rgba(148,180,215,.14);
+  padding: 1rem .15rem .85rem;
+}
+
+.phase18-pulse-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.phase18-pulse-top strong {
+  display: block;
+  margin-top: .25rem;
+  color: var(--ath-txt);
+  font-family: var(--ath-disp);
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.phase18-pulse-top small {
+  display: block;
+  margin-top: .25rem;
+  color: var(--ath-mut);
+  font-size: .64rem;
+  font-weight: 600;
+}
+
+.phase18-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  color: #70e7ba;
+  font-size: .62rem;
+  font-weight: 800;
+}
+
+.phase18-live-indicator i {
+  width: .45rem;
+  height: .45rem;
+  border-radius: 999px;
+  background: #38d39f;
+  box-shadow: 0 0 0 4px rgba(56,211,159,.12);
+}
+
+.phase18-pulse-bar {
+  display: flex;
+  height: .38rem;
+  overflow: hidden;
+  margin-top: 1rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+}
+
+.phase18-pulse-bar span {
+  min-width: .4rem;
+  transition: width .4s ease;
+}
+
+.phase18-pulse-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem .9rem;
+  margin-top: .65rem;
+}
+
+.phase18-pulse-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: .32rem;
+  color: var(--ath-mut);
+  font-size: .6rem;
+  font-weight: 700;
+}
+
+.phase18-pulse-legend i {
+  width: .38rem;
+  height: .38rem;
+  border-radius: 999px;
+}
+
+.phase18-pulse-legend b {
+  color: var(--ath-txt);
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+}
+
+.phase18-section {
+  margin-top: 1.45rem;
+}
+
+.phase18-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .7rem;
+}
+
+.phase18-section-heading h2 {
+  margin-top: .2rem;
+  color: var(--ath-txt);
+  font-family: var(--ath-disp);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -.025em;
+}
+
+.phase18-section-heading > button {
+  color: #5fe1ad;
+  font-size: .66rem;
+  font-weight: 900;
+}
+
+.phase18-section-heading > button:hover {
+  color: #a7f5d5;
+}
+
+.phase18-vehicle-rail {
+  display: grid;
+  grid-auto-columns: minmax(10.9rem, 44%);
+  grid-auto-flow: column;
+  gap: .65rem;
+  overflow-x: auto;
+  padding: .15rem .1rem .6rem;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.phase18-vehicle-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.phase18-vehicle-card {
+  position: relative;
+  overflow: hidden;
+  scroll-snap-align: start;
+  border: 1px solid rgba(148,180,215,.14);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(14,32,53,.98), rgba(9,24,42,.96));
+  color: var(--ath-txt);
+  text-align: start;
+  box-shadow: 0 14px 30px rgba(0,0,0,.16);
+  transition: transform .2s ease, border-color .2s ease;
+}
+
+.phase18-vehicle-card:hover {
+  border-color: rgba(56,211,159,.45);
+  transform: translateY(-3px);
+}
+
+.phase18-vehicle-photo {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: linear-gradient(145deg, #173653, #08152a);
+}
+
+.phase18-vehicle-photo .flex {
+  height: 6.7rem;
+  align-items: center;
+  background: radial-gradient(circle at 50% 30%, rgba(86,145,162,.2), transparent 60%);
+}
+
+.phase18-vehicle-photo img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+}
+
+.phase18-status-dot {
+  position: absolute;
+  inset-inline-start: .65rem;
+  top: .65rem;
+  width: .5rem;
+  height: .5rem;
+  border: 2px solid #0d233a;
+  border-radius: 999px;
+  background: #8296aa;
+}
+
+.phase18-status-dot--moving,
+.phase18-status-dot--online {
+  background: #38d39f;
+}
+
+.phase18-status-dot--idle,
+.phase18-status-dot--awaiting_gps {
+  background: #d7a458;
+}
+
+.phase18-status-dot--stopped {
+  background: #e47a78;
+}
+
+.phase18-vehicle-copy {
+  display: block;
+  padding: .75rem .75rem .25rem;
+}
+
+.phase18-vehicle-copy strong,
+.phase18-vehicle-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phase18-vehicle-copy strong {
+  font-size: .74rem;
+  font-weight: 900;
+}
+
+.phase18-vehicle-copy small {
+  margin-top: .18rem;
+  color: var(--ath-mut);
+  font-size: .6rem;
+  font-weight: 600;
+}
+
+.phase18-vehicle-copy > span {
+  display: block;
+  margin-top: .5rem;
+}
+
+.phase18-vehicle-copy .inline-flex {
+  font-size: .57rem;
+}
+
+.phase18-speed {
+  display: flex;
+  align-items: center;
+  gap: .28rem;
+  padding: .55rem .75rem .75rem;
+  color: #8cb4d8;
+}
+
+.phase18-speed b {
+  color: var(--ath-txt);
+  font-family: 'DM Mono', monospace;
+  font-size: .75rem;
+  font-weight: 500;
+}
+
+.phase18-speed small {
+  color: var(--ath-mut);
+  font-size: .56rem;
+}
+
+.phase18-alert {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: .75rem;
+  border: 1px solid rgba(215,164,88,.2);
+  border-radius: 1rem;
+  padding: .9rem 1rem;
+  background: linear-gradient(100deg, rgba(215,164,88,.13), rgba(14,32,53,.72));
+  color: var(--ath-txt);
+  text-align: start;
+  transition: border-color .2s ease, transform .2s ease;
+}
+
+.phase18-alert:hover {
+  border-color: rgba(215,164,88,.48);
+  transform: translateY(-2px);
+}
+
+.phase18-alert-empty {
+  border-color: rgba(56,211,159,.2);
+  background: rgba(56,211,159,.08);
+}
+
+.phase18-alert > span:first-child {
+  display: inline-flex;
+  width: 2.4rem;
+  height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: .8rem;
+  background: rgba(215,164,88,.12);
+  color: #d7a458;
+}
+
+.phase18-alert-empty > span:first-child {
+  background: rgba(56,211,159,.12);
+  color: #38d39f;
+}
+
+.phase18-alert-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.phase18-alert-copy strong,
+.phase18-alert-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phase18-alert-copy strong {
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.phase18-alert-copy small {
+  margin-top: .25rem;
+  color: var(--ath-mut);
+  font-size: .6rem;
+  font-weight: 600;
+}
+
+.phase18-alert > svg {
+  flex: 0 0 auto;
+  color: var(--ath-mut);
+}
+
+.phase18-shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .45rem;
+}
+
+.phase18-shortcut-grid button {
+  display: flex;
+  min-height: 4.35rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  border: 1px solid rgba(148,180,215,.13);
+  border-radius: .9rem;
+  background: rgba(14,32,53,.72);
+  color: #8cb4d8;
+  font-size: .58rem;
+  font-weight: 800;
+  transition: transform .2s ease, background .2s ease, color .2s ease;
+}
+
+.phase18-shortcut-grid button:hover {
+  background: rgba(56,211,159,.1);
+  color: #70e7ba;
+  transform: translateY(-2px);
+}
+
+.phase18-empty,
+.phase18-state {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  border: 1px dashed rgba(148,180,215,.22);
+  border-radius: 1rem;
+  padding: 1rem;
+  color: var(--ath-mut);
+  font-size: .7rem;
+}
+
+.phase18-state {
+  border-style: solid;
+}
+
+.phase18-state svg {
+  flex: 0 0 auto;
+  color: #38d39f;
+}
+
+.phase18-state[role="status"] svg {
+  color: #d7a458;
+}
+
+.phase18-state div {
+  display: grid;
+  gap: .2rem;
+}
+
+.phase18-state strong {
+  color: var(--ath-txt);
+  font-size: .72rem;
+}
+
+.phase18-state span {
+  color: var(--ath-mut);
+  font-size: .62rem;
+}
+
+.phase18-skeleton > span {
+  display: block;
+  background: rgba(255,255,255,.08);
+  animation: phase18-shimmer 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes phase18-hero-in {
+  from { opacity: 0; transform: scale(1.03); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes phase18-shimmer {
+  from { opacity: .5; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 430px) {
+  .phase18-container {
+    padding-inline: .8rem;
+  }
+
+  .phase18-hero {
+    min-height: 15rem;
+  }
+
+  .phase18-vehicle-rail {
+    grid-auto-columns: minmax(10.5rem, 47%);
+  }
+
+  .phase18-shortcut-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .phase18-shortcut-grid button:nth-child(4),
+  .phase18-shortcut-grid button:nth-child(5) {
+    min-height: 3.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase18-hero-image,
+  .phase18-pulse-bar span,
+  .phase18-notification-link,
+  .phase18-vehicle-card,
+  .phase18-alert,
+  .phase18-shortcut-grid button {
+    animation: none;
+    transition: none;
+  }
+}
