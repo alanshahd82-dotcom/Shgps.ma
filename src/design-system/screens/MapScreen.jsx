@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { LocateFixed } from 'lucide-react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
+import { useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { ClientLayout, Fab } from '../layout'
 import VehicleBottomSheet from './VehicleBottomSheet'
@@ -34,14 +35,20 @@ export function MapScreen({
 }) {
   const { unreadCount } = useApp()
   const { vehicles: allVehicles } = useRealVehicles()
+  const [searchParams] = useSearchParams()
   const vehicles = useMemo(
     () => allVehicles.filter(vehicle => Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0)),
     [allVehicles],
   )
-  const [internalSelectedId, setInternalSelectedId] = useState(null)
+  const [internalSelectedId, setInternalSelectedId] = useState(() => searchParams.get('device'))
   const [stage, setStage] = useState('peek')
   const selectedId = selectedVehicleId ?? internalSelectedId
-  const selectedVehicle = useMemo(() => vehicles.find(vehicle => vehicle.id === selectedId), [selectedId, vehicles])
+  const selectedVehicle = useMemo(() => vehicles.find(vehicle => String(vehicle.id) === String(selectedId)), [selectedId, vehicles])
+
+  useEffect(() => {
+    const requestedId = searchParams.get('device')
+    if (requestedId) setInternalSelectedId(requestedId)
+  }, [searchParams])
 
   const handleSelect = id => {
     setInternalSelectedId(id)
