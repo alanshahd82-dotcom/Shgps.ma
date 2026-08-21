@@ -121,7 +121,7 @@ function AlertRow({ alert, vehicle, onOpen, onOpenVehicle, onOpenMap }) {
                 فتح المركبة
               </button>
             ) : <span className="text-[11px] text-slate-400">المركبة غير متاحة</span>}
-            {coordinates && vehicle && vehicleHasPosition(vehicle) ? (
+            {coordinates ? (
               <button type="button" onClick={onOpenMap} className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                 عرض على الخريطة
@@ -135,7 +135,7 @@ function AlertRow({ alert, vehicle, onOpen, onOpenVehicle, onOpenMap }) {
 }
 
 export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicles, onSelectVehicle, alertCount = 0, onMarkAllRead, onTabChange }) {
-  const { alertsList, markAlertRead, markAllAlertsRead, unreadCount } = useApp()
+  const { alertsList, alertsLoading, alertsLoaded, alertsError, markAlertRead, markAllAlertsRead, unreadCount } = useApp()
   const { vehicles: realVehicles } = useRealVehicles()
   const navigate = useNavigate()
   const alerts = providedAlerts ?? alertsList
@@ -205,14 +205,34 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
                   navigate(`/client/device/${vehicle.id}`)
                 }}
                 onOpenMap={() => {
-                  if (!vehicle || !alertCoordinates(alert)) return
+                  const coordinates = alertCoordinates(alert)
+                  if (!coordinates) return
                   if (!alert.read) void markAlertRead(alert.id)
-                  navigate(`/client/map?device=${encodeURIComponent(deviceId ?? vehicle.id)}`)
+                  const params = new URLSearchParams()
+                  if (deviceId ?? vehicle?.id) params.set('device', String(deviceId ?? vehicle.id))
+                  params.set('lat', String(coordinates.latitude))
+                  params.set('lng', String(coordinates.longitude))
+                  if (alert.id != null) params.set('alert', String(alert.id))
+                  navigate(`/client/map?${params.toString()}`)
                 }}
               />
             )
           })}
-          {filteredAlerts.length === 0 && <div className="py-16 text-center text-sm text-slate-500" role="status">لا توجد تنبيهات في هذا التصنيف</div>}
+          {alertsLoading && !alertsLoaded && (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500" role="status">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-accent" aria-hidden="true" />
+              جاري تحميل التنبيهات
+            </div>
+          )}
+          {!alertsLoading && alertsError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center" role="alert">
+              <p className="text-sm font-semibold text-red-700">تعذّر تحميل التنبيهات</p>
+              <p className="mt-1 text-xs text-red-600">تحقق من الاتصال وحاول مرة أخرى.</p>
+            </div>
+          )}
+          {!alertsLoading && !alertsError && filteredAlerts.length === 0 && (
+            <div className="py-16 text-center text-sm text-slate-500" role="status">لا توجد تنبيهات في هذا التصنيف</div>
+          )}
         </div>
       </div>
     </ClientLayout>

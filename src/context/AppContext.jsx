@@ -65,6 +65,11 @@ export function AppProvider({ children }) {
   const [devices,      setDevices]          = useState([])
   const [alertsList,   setAlertsList]       = useState([])
   const [clientList,   setClientList]       = useState([])
+  const [devicesLoading, setDevicesLoading] = useState(false)
+  const [devicesLoaded, setDevicesLoaded]   = useState(false)
+  const [alertsLoading, setAlertsLoading]   = useState(false)
+  const [alertsLoaded, setAlertsLoaded]     = useState(false)
+  const [alertsError, setAlertsError]       = useState(false)
   const [networkError, setNetworkError]     = useState(false)
   const [clientsError, setClientsError]     = useState(false)
   const [wsConnected,        setWsConnected]        = useState(false)
@@ -81,6 +86,7 @@ export function AppProvider({ children }) {
   const wsReconnectRef = useRef(null)
   const wsLastActivityRef = useRef(0)
   const wsPollingRef = useRef(null)
+  const wsEventSequenceRef = useRef(0)
   const devicesRef = useRef([]) // mirror of devices — readable inside stale WS closures
   const positionPendingRef = useRef(new Map())
   const positionFlushTimerRef = useRef(null)
@@ -277,16 +283,44 @@ export function AppProvider({ children }) {
   }, [clientAuth, adminAuth]) // eslint-disable-line
 
   async function loadDevices() {
+    setDevicesLoading(true)
     try {
       const nextDevices = await api.devices.list()
       setDevices(prev => mergeDeviceSnapshots(prev, Array.isArray(nextDevices) ? nextDevices : []))
       setNetworkError(false)
     } catch {
       setNetworkError(true)
+    } finally {
+      setDevicesLoaded(true)
+      setDevicesLoading(false)
     }
   }
   async function loadAlerts() {
-    try { setAlertsList(await api.alerts.list()) } catch { /* non-critical */ }
+    setAlertsLoading(true)
+    setAlertsError(false)
+    try {
+      const nextAlerts = await api.alerts.list()
+      const incoming = Array.isArray(nextAlerts) ? nextAlerts : []
+      setAlertsList(prev => {
+        const seen = new Set()
+        const result = []
+        for (const alert of [...incoming, ...prev]) {
+          const stableId = alert?.id ?? alert?.eventId ?? alert?.event_id
+          if (stableId != null) {
+            const key = String(stableId)
+            if (seen.has(key)) continue
+            seen.add(key)
+          }
+          result.push(alert)
+        }
+        return result.slice(0, 100)
+      })
+    } catch {
+      setAlertsError(true)
+    } finally {
+      setAlertsLoaded(true)
+      setAlertsLoading(false)
+    }
   }
   async function loadClients() {
     try {
@@ -356,7 +390,7 @@ export function AppProvider({ children }) {
           setDevices(prev => {
             const updated = [...prev]
             for (const dev of data.devices) {
-              const idx = updated.findIndex(d => d.traccarId === dev.id || d.traccar_id === dev.id)
+              const idx = updated.findIndex(d => sameDevice(d.traccarId ?? d.traccar_id, dev.id))
               if (idx !== -1) {
                 updated[idx] = { ...updated[idx], status: dev.status }
               }
@@ -366,29 +400,55 @@ export function AppProvider({ children }) {
         }
 
         if (data.events && data.events.length > 0) {
-          // Push new events to alertsList
+          // Stable server IDs are safe to deduplicate. Events without one are
+          // kept conservatively because their distinct identity is unknown.
           setAlertsList(prev => {
-            const newAlerts = data.events.map(ev => ({
-              id:         ev.id || Date.now(),
-              type:       ev.type || 'event',
-              deviceId:   ev.deviceId,
-              deviceName: devicesRef.current.find(d => d.id === ev.deviceId)?.name || '',
-              message:    ev.attributes?.message || ev.type,
-              time:       ev.eventTime || new Date().toISOString(),
-              read:       false,
-            }))
+            const seenIds = new Set(prev.map(item => item.id).filter(id => id != null).map(String))
+            const newAlerts = data.events.map(ev => {
+              const stableId = ev.id ?? ev.eventId ?? ev.event_id ?? null
+              const eventId = stableId != null
+                ? String(stableId)
+                : `ws-${Date.now()}-${wsEventSequenceRef.current++}`
+              const attributes = ev.attributes && typeof ev.attributes === 'object' ? ev.attributes : {}
+              const dataFields = ev.data && typeof ev.data === 'object' ? ev.data : {}
+              const deviceId = ev.deviceId ?? ev.device_id ?? ev.vehicleId ?? null
+              const device = devicesRef.current.find(d =>
+                sameDevice(d.id, deviceId)
+                  || sameDevice(d.traccarId ?? d.traccar_id, deviceId)
+              )
+              return {
+                id:         eventId,
+                type:       ev.type || 'event',
+                deviceId,
+                deviceName: device?.name || '',
+                message:    ev.message || attributes.message || dataFields.message || ev.type,
+                time:       ev.eventTime || ev.event_time || new Date().toISOString(),
+                latitude:   ev.latitude ?? ev.lat ?? attributes.latitude ?? attributes.lat ?? dataFields.latitude ?? dataFields.lat,
+                longitude:  ev.longitude ?? ev.lng ?? attributes.longitude ?? attributes.lng ?? dataFields.longitude ?? dataFields.lng,
+                position:   ev.position || dataFields.position,
+                data:       ev.data || attributes,
+                read:       false,
+                _stableId:  stableId != null ? String(stableId) : null,
+              }
+            })
+            const uniqueAlerts = newAlerts.filter(alert => {
+              if (alert._stableId == null) return true
+              if (seenIds.has(alert._stableId)) return false
+              seenIds.add(alert._stableId)
+              return true
+            })
             // Fire browser notifications for new alerts (if enabled)
             if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
-              for (const ev of data.events) {
+              for (const alert of uniqueAlerts) {
                 try {
                   new Notification('ATHAR GPS', {
-                    body: ev.attributes?.message || ev.type || 'تنبيه جديد',
+                    body: alert.message || alert.type || 'تنبيه جديد',
                     icon: '/athar-gps-mark.svg',
                   })
                 } catch { /* ignore */ }
               }
             }
-            return [...newAlerts, ...prev].slice(0, 100) // keep last 100
+            return [...uniqueAlerts, ...prev].slice(0, 100) // keep last 100
           })
         }
 
@@ -577,6 +637,10 @@ export function AppProvider({ children }) {
     localStorage.setItem('athargps_token',  data.token)
     localStorage.setItem('athargps_client', JSON.stringify(data.user))
     setClientAuth(data.user)
+    setDevicesLoaded(false)
+    setAlertsLoaded(false)
+    setAlertsError(false)
+    setNetworkError(false)
     setAuthBootstrapError(false)
     setMustChange(!!data.user.mustChangePassword)
     loadDevices(); loadAlerts(); openWebSocket()
@@ -593,6 +657,10 @@ export function AppProvider({ children }) {
     localStorage.setItem('athargps_token', data.token)
     localStorage.setItem('athargps_admin', JSON.stringify(data.user))
     setAdminAuth(data.user)
+    setDevicesLoaded(false)
+    setAlertsLoaded(false)
+    setAlertsError(false)
+    setNetworkError(false)
     setAuthBootstrapError(false)
     setMustChange(!!data.user.mustChangePassword)
     loadDevices(); loadAlerts(); loadClients(); openWebSocket()
@@ -610,6 +678,7 @@ export function AppProvider({ children }) {
     localStorage.removeItem('athargps_client')
     localStorage.removeItem('athargps_admin')
     setClientAuth(null); setAdminAuth(null); setDevices([]); setAlertsList([]); setClientList([])
+    setDevicesLoaded(false); setAlertsLoaded(false); setAlertsError(false)
   }
 
   const logoutAdmin = () => {
@@ -618,6 +687,7 @@ export function AppProvider({ children }) {
     localStorage.removeItem('athargps_admin')
     localStorage.removeItem('athargps_client')
     setAdminAuth(null); setClientAuth(null); setDevices([]); setAlertsList([]); setClientList([])
+    setDevicesLoaded(false); setAlertsLoaded(false); setAlertsError(false)
   }
 
   const clearMustChange = () => {
@@ -738,6 +808,8 @@ export function AppProvider({ children }) {
          setClientAuth,
         mustChangePassword, clearMustChange,
         devices, alertsList, clientList,
+         devicesLoading, devicesLoaded,
+         alertsLoading, alertsLoaded, alertsError,
         loginClient, loginAdmin,
         logoutClient, logoutAdmin,
         toggleEngine,

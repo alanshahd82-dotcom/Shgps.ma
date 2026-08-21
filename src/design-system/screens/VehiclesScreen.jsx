@@ -87,13 +87,13 @@ export function VehiclesScreen({
   alertCount = 0,
   onTabChange,
 }) {
-  const { vehicles: realVehicles, alertCount: realAlertCount } = useRealVehicles()
+  const { vehicles: realVehicles, alertCount: realAlertCount, loading, error } = useRealVehicles()
   const vehicles = providedVehicles ?? realVehicles
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [internalSelectedId, setInternalSelectedId] = useState(null)
   const selectedId = selectedVehicleId ?? internalSelectedId
-  const selectedVehicle = useMemo(() => vehicles.find(vehicle => vehicle.id === selectedId), [selectedId, vehicles])
+  const selectedVehicle = useMemo(() => vehicles.find(vehicle => String(vehicle.id) === String(selectedId)), [selectedId, vehicles])
 
   const counts = useMemo(() => ({
     online: vehicles.filter(vehicle => vehicle.status === 'online').length,
@@ -142,10 +142,17 @@ export function VehiclesScreen({
           </div>
         </div>
         <div className="space-y-3 p-4">
-          {filteredVehicles.map(vehicle => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} selected={vehicle.id === selectedId} onClick={() => selectVehicle(vehicle.id)} />
+           {loading && (
+             <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500" role="status">
+               <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-accent" aria-hidden="true" />
+               جاري تحميل المركبات
+             </div>
+           )}
+           {!loading && error && <EmptyState icon={<Car className="h-12 w-12" aria-hidden="true" />} title="تعذّر تحميل المركبات" description="تحقق من الاتصال وحاول مرة أخرى." />}
+           {!loading && !error && filteredVehicles.map(vehicle => (
+            <VehicleCard key={vehicle.id} vehicle={vehicle} selected={String(vehicle.id) === String(selectedId)} onClick={() => selectVehicle(vehicle.id)} />
           ))}
-          {filteredVehicles.length === 0 && (
+           {!loading && !error && filteredVehicles.length === 0 && (
             <EmptyState icon={<Car className="h-12 w-12" aria-hidden="true" />} title={vehicles.length ? 'لا توجد نتائج' : 'لا توجد مركبات مرتبطة'} description={vehicles.length ? 'لم يتم العثور على مركبات تطابق البحث' : 'ستظهر المركبات هنا بعد ربط أجهزة التتبع بحسابك'} />
           )}
         </div>

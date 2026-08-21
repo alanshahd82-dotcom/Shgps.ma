@@ -15,13 +15,21 @@ function optionalNumber(value) {
  * and handles WebSocket live updates.
  */
 export function useRealVehicles() {
-  const { devices, alertsList, lang } = useApp()
+  const {
+    devices,
+    alertsList,
+    lang,
+    devicesLoading,
+    devicesLoaded,
+    networkError,
+  } = useApp()
 
   if (!Array.isArray(devices)) {
     return {
       vehicles: [],
-      loading: false,
-      error: null,
+      loading: devicesLoading && !devicesLoaded,
+      refreshing: devicesLoading && devicesLoaded,
+      error: networkError ? 'تعذر تحديث بيانات المركبات' : null,
       alertCount: 0,
     }
   }
@@ -38,10 +46,12 @@ export function useRealVehicles() {
 
     return {
       // Core identifiers
-      id: device.id,
+      id: device.id == null ? null : String(device.id),
       name: device.name || 'Unknown',
       type: device.type || 'car',
-      traccarId: device.traccarId ?? device.traccar_id,
+      traccarId: device.traccarId == null && device.traccar_id == null
+        ? null
+        : String(device.traccarId ?? device.traccar_id),
 
       // Location
       lat: latitude,
@@ -88,8 +98,9 @@ export function useRealVehicles() {
 
   return {
     vehicles,
-    loading: false,
-    error: null,
+    loading: devicesLoading && !devicesLoaded,
+    refreshing: devicesLoading && devicesLoaded,
+    error: networkError ? 'تعذر تحديث بيانات المركبات' : null,
     alertCount,
   }
 }
