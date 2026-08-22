@@ -59,6 +59,10 @@ export default function ClientNav() {
   }
 
   useEffect(() => {
+    setMoreOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
     if (!moreOpen) return undefined
     const onKeyDown = (event) => {
       if (event.key === 'Escape') setMoreOpen(false)
@@ -178,7 +182,12 @@ export default function ClientNav() {
           {/* More button */}
           <button
             type="button"
-            onClick={() => setMoreOpen(v => !v)}
+            onClick={() => {
+              // The dedicated More route already renders the canonical menu.
+              // Do not replace it with the compact sheet when returning from Profile.
+              if (location.pathname === '/client/more') return
+              setMoreOpen(v => !v)
+            }}
             aria-expanded={moreOpen}
             aria-haspopup="dialog"
             aria-current={isMoreActive ? 'page' : undefined}

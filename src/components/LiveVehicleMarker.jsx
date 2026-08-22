@@ -71,10 +71,15 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   const markerHeight = Math.round(markerWidth * (MARKER_ASPECT_RATIO[vehicleType] || MARKER_ASPECT_RATIO.bike))
   const iconWidth = markerWidth + 20
   const iconHeight = markerHeight + 20
+  const rawSpeed = device?.speedKmh ?? device?.speed ?? device?.last_speed
+  const speedLabel = Number.isFinite(Number(rawSpeed))
+    ? `${Math.round(Math.max(0, Number(rawSpeed)))} ${lang === 'ar' ? 'كم/س' : 'km/h'}`
+    : ''
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
       <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color}">
+        ${speedLabel ? `<span class="athar-live-speed">${speedLabel}</span>` : ''}
         <span class="athar-live-marker-visual" style="width:${markerWidth}px;height:${markerHeight}px">
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
           <span class="athar-live-marker-ring" style="${isSelected ? 'border:2px solid var(--ds-color-primary);' : ''}"></span>

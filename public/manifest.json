@@ -17,14 +17,14 @@
   ],
   "icons": [
     {
-          "src": "/athar-gps-favicon.png",
-          "sizes": "192x192",
+          "src": "/athar-gps-app-icon.png",
+          "sizes": "1024x1024",
           "type": "image/png",
           "purpose": "any"
     },
     {
-          "src": "/icon-512.png",
-          "sizes": "512x512",
+          "src": "/athar-gps-app-icon.png",
+          "sizes": "1024x1024",
           "type": "image/png",
       "purpose": "any maskable"
     }
@@ -38,8 +38,8 @@
       "url": "/client/home",
       "icons": [
         {
-          "src": "/icon-192.png",
-          "sizes": "192x192",
+          "src": "/athar-gps-app-icon.png",
+          "sizes": "1024x1024",
           "type": "image/png"
         }
       ]
@@ -51,8 +51,8 @@
       "url": "/client/devices",
       "icons": [
         {
-          "src": "/icon-192.png",
-          "sizes": "192x192",
+          "src": "/athar-gps-app-icon.png",
+          "sizes": "1024x1024",
           "type": "image/png"
         }
       ]

@@ -201,7 +201,7 @@ export default function Home() {
                 const s = statusInfo(v)
                 const dotColor = s.color === 'green' ? 'bg-green-500' : s.color === 'orange' ? 'bg-orange-500' : 'bg-slate-400'
                 return (
-                  <button key={v.id || v.uniqueId} onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
+                  <button key={v.id || v.uniqueId} onClick={() => navigate(`/client/device/${v.id || v.uniqueId}`)}
                     className="flex-shrink-0 w-56 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 text-start hover:shadow-md transition">
                     <div className="h-28 bg-gradient-to-br from-slate-100 to-slate-200 relative flex items-center justify-center">
                       <VehicleIcon type={v.type || v.category} className="h-14 w-14 text-slate-400" />

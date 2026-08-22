@@ -1981,3 +1981,51 @@ write before subsequent packets arrive.
 - `git status --short`: verified to contain documentation changes only before commit.
 - One focused documentation commit was created and pushed to `origin/main`.
 - Final local `HEAD` was verified equal to `origin/main` after the push.
+
+## 2026-08-22 — Vehicle experience consolidation — in progress
+
+### Scope
+
+- Frontend-only consolidation of the client vehicle journey.
+- Repository and branch verified as `alanshahd82-dotcom/Shgps.ma`, `main`.
+- Backend, database, Traccar, API contracts, authentication, WebSocket behavior,
+  Docker, and deployment were not changed.
+
+### Changes
+
+- Routed Home, Vehicles, Trips, Alerts, and the legacy vehicle URL to the existing
+  `DeviceDetail` screen so all vehicle entry points share one implementation.
+- Kept the canonical More screen from being replaced by the compact More sheet when
+  the user is already on More, fixing the Profile → More inconsistency.
+- Reused `MapLayers` and `LiveVehicleMarker` in the all-vehicles map, including the
+  existing car, motorcycle, and truck artwork and telemetry-backed speed labels.
+- Added a browser fullscreen control to the existing Device Detail map.
+- Added date-range choices for today, 2 days, 3 days, 7 days, and 1 month while
+  preserving the existing report and positions APIs.
+- Applied the supplied app icon to HTML/PWA references and the supplied engine-stop
+  artwork to the existing engine command control.
+
+### Files changed
+
+- `src/App.jsx`
+- `src/components/ClientNav.jsx`
+- `src/components/LiveVehicleMarker.jsx`
+- `src/design-system/screens/{AlertsScreen,MapScreen,TripsScreen,VehiclesScreen}.jsx`
+- `src/index.css`
+- `src/pages/client/{DeviceDetail,Home}.jsx`
+- `src/assets/engine-stop.png`
+- `public/athar-gps-app-icon.png`
+- `index.html`
+- `public/manifest.json`
+- generated `dist/` output
+- `docs/AI_CONTEXT.md`
+- `.agents/memory/MEMORY.md`
+- `.agents/memory/vehicle-experience-consolidation.md`
+
+### Validation
+
+- `npm run build`: PASS using a temporary install without modifying lockfiles.
+- `git diff --check`: PASS.
+- Runtime map interaction, authenticated API data, engine relay behavior, and
+  production deployment remain `[UNCONFIRMED]` until the app is run against the
+  deployed services.

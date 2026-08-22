@@ -21,7 +21,6 @@ import Maintenance from './pages/client/Maintenance'
 import Geofences from './pages/client/Geofences'
 import DeviceWizard from './pages/client/DeviceWizard'
 import LiveMap from './pages/client/LiveMap'
-import VehicleControl from './pages/client/VehicleControl'
 import Help from './pages/client/Help'
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'))
@@ -157,7 +156,7 @@ export default function App() {
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
           <Route path="/client/vehicles"        element={<ClientRoute><VehiclesScreen /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
-          <Route path="/client/vehicle/:id"     element={<ClientRoute><VehicleControl /></ClientRoute>} />
+          <Route path="/client/vehicle/:id"     element={<ClientRoute><DeviceDetail /></ClientRoute>} />
           <Route path="/client/alerts"          element={<ClientRoute><AlertsScreen /></ClientRoute>} />
           <Route path="/client/settings"        element={<ClientRoute><Settings /></ClientRoute>} />
           <Route path="/client/reports"         element={<ClientRoute><Reports /></ClientRoute>} />

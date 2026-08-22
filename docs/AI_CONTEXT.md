@@ -224,6 +224,23 @@ Verified lessons are retained in this file's historical sections and in the focu
   begin by rereading this context, checking the repository/branch/Git state,
   and defining a self-contained scope.
 
+## D1. CURRENT VERIFIED STATE — 2026-08-22 vehicle experience consolidation
+
+- Client vehicle entry points now converge on the existing `DeviceDetail`
+  implementation; the legacy competing `VehicleControl` route is no longer
+  reachable from client navigation.
+- The client all-vehicles map reuses `MapLayers` and `LiveVehicleMarker`, with
+  source vehicle artwork and speed labels shown only when telemetry provides
+  speed. Marker selection opens the existing vehicle detail flow.
+- Device Detail's existing map now exposes browser fullscreen, and replay range
+  choices are today, 2 days, 3 days, 7 days, 1 month, or custom.
+- The supplied ATHAR app icon is the referenced icon for HTML/PWA entry points;
+  the supplied engine-stop artwork is used by the existing engine command.
+- This task remains frontend-only: backend, database, Traccar, API contracts,
+  authentication, WebSocket behavior, Docker, and deployment were unchanged.
+- Build and remote Git result must be verified after the final commit; production
+  behavior and physical engine/telemetry behavior remain `[UNCONFIRMED]`.
+
 ## E. WORKING RULES
 
 - ATHAR GPS is an existing production project; do not rebuild its architecture from scratch.

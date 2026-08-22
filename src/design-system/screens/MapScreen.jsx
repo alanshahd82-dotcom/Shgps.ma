@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { LocateFixed } from 'lucide-react'
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, MapContainer, Popup, useMap } from 'react-leaflet'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { ClientLayout, Fab } from '../layout'
 import VehicleBottomSheet from './VehicleBottomSheet'
-import VehicleMarker from './VehicleMarker'
+import LiveVehicleMarker from '../../components/LiveVehicleMarker'
+import MapLayers from '../../components/MapLayers'
 import { useRealVehicles } from '../hooks/useRealVehicles'
 import FleetOverview from './FleetOverview'
 
@@ -53,7 +54,7 @@ export function MapScreen({
   showTopBar = true,
   title = 'الخريطة',
 }) {
-  const { unreadCount } = useApp()
+  const { unreadCount, lang } = useApp()
   const { vehicles: allVehicles, loading, error } = useRealVehicles()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -104,11 +105,23 @@ export function MapScreen({
       <div className="relative h-full w-full">
         <FleetOverview />
         <MapContainer center={[33.5731, -7.5898]} zoom={13} zoomControl={false} preferCanvas className="h-full w-full">
-          <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+          <MapLayers />
           <EventFocus latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
           <AlertEventMarker latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
           {vehicles.map(vehicle => (
-            <VehicleMarker key={vehicle.id} vehicle={{ ...vehicle, selected: vehicle.id === selectedId }} onClick={() => handleSelect(vehicle.id)} />
+            <LiveVehicleMarker
+              key={vehicle.id}
+              device={{ ...vehicle._raw, ...vehicle, lang }}
+              isSelected={String(vehicle.id) === String(selectedId)}
+              onClick={() => handleSelect(vehicle.id)}
+            >
+              <Popup>
+                <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-w-[130px] text-center">
+                  <strong className="block">{vehicle.name}</strong>
+                  <span className="text-xs">{Number.isFinite(vehicle.speed) ? `${Math.round(vehicle.speed)} ${lang === 'ar' ? 'كم/س' : 'km/h'}` : '—'}</span>
+                </div>
+              </Popup>
+            </LiveVehicleMarker>
           ))}
           <LocateButton />
         </MapContainer>

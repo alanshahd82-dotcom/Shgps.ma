@@ -280,7 +280,7 @@ export function AlertsScreen({ alerts: providedAlerts, vehicles: providedVehicle
                 onOpenVehicle={() => {
                   if (!vehicle) return
                   if (!alert.read) void markAlertRead(alert.id)
-                   navigate(`/client/vehicle/${vehicle.id}`)
+                   navigate(`/client/device/${vehicle.id}`)
                 }}
                 onOpenMap={() => {
                   const coordinates = alertCoordinates(alert)
