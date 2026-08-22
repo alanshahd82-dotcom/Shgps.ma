@@ -24,9 +24,9 @@ const EMPTY_DEVICES = []
 
 const styles = `
   .ath-reports-page {
-    --reports-surface: rgba(16, 27, 46, .92);
-    --reports-surface-soft: rgba(12, 22, 38, .82);
-    --reports-line: rgba(148, 180, 215, .11);
+    --reports-surface: #ffffff;
+    --reports-surface-soft: #ffffff;
+    --reports-line: #e2e8f0;
   }
   .ath-reports-page .ath-reports-chip-row {
     position: relative;
@@ -46,11 +46,11 @@ const styles = `
   }
   .ath-reports-page .ath-reports-chip-row::before {
     inset-inline-start: 0;
-    background: linear-gradient(90deg, #07111f, transparent);
+    background: linear-gradient(90deg, #f5f6f8, transparent);
   }
   .ath-reports-page .ath-reports-chip-row::after {
     inset-inline-end: 0;
-    background: linear-gradient(270deg, #07111f, transparent);
+    background: linear-gradient(270deg, #f5f6f8, transparent);
   }
   .ath-reports-page .ath-reports-chip-track {
     position: relative;
@@ -73,7 +73,7 @@ const styles = `
     opacity: .55;
   }
   .ath-reports-page .ath-reports-skeleton {
-    background: linear-gradient(110deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.14) 45%, rgba(255,255,255,.06) 65%);
+    background: linear-gradient(110deg, #f8fafc 25%, #ffffff 45%, #f8fafc 65%);
     background-size: 220% 100%;
     animation: ath-sk 1.35s ease-in-out infinite;
   }
@@ -140,9 +140,9 @@ function StatCard({ icon: Icon, label, value, unit, color, empty }) {
       className="ath-reports-kpi flex min-h-[132px] flex-col justify-between rounded-[18px] p-4"
       style={{
         '--kpi-color': color,
-        background: 'linear-gradient(180deg, rgba(16,27,46,.98), rgba(12,22,38,.92))',
-        border: '1px solid rgba(148,180,215,.11)',
-        boxShadow: '0 12px 30px rgba(0,0,0,.18)',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 4px 16px rgba(15,23,42,.04)',
       }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -160,7 +160,7 @@ function StatCard({ icon: Icon, label, value, unit, color, empty }) {
         <p className="ath-num text-[25px] font-black leading-none text-slate-900">
           {displayValue}
         </p>
-        <p className="mt-2 text-[11px] font-semibold" style={{ color: 'var(--ath-mut)' }}>
+        <p className="mt-2 text-[11px] font-semibold text-slate-500">
           {label}
         </p>
       </div>
@@ -177,18 +177,18 @@ function ReportSkeleton() {
     <div className="space-y-4" aria-label="Loading">
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="min-h-[132px] rounded-[18px] border border-white/5 bg-[#101b2e] p-4">
+          <div key={index} className="min-h-[132px] rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
             <SkeletonBlock className="h-10 w-10 rounded-xl" />
             <SkeletonBlock className="mt-6 h-6 w-20 rounded-lg" />
             <SkeletonBlock className="mt-2 h-3 w-24 rounded-md" />
           </div>
         ))}
       </div>
-      <div className="rounded-[18px] border border-white/5 bg-[#101b2e] p-4">
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <SkeletonBlock className="mb-5 h-3 w-28 rounded-md" />
         <SkeletonBlock className="h-[142px] w-full rounded-xl" />
       </div>
-      <div className="rounded-[18px] border border-white/5 bg-[#101b2e] p-4">
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <SkeletonBlock className="mb-4 h-3 w-32 rounded-md" />
         <div className="space-y-3">
           {Array.from({ length: 3 }, (_, index) => (
@@ -331,14 +331,14 @@ export default function Reports() {
   }
 
   return (
-    <div className="ath-reports-page client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="ath-reports-page client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <style>{styles}</style>
       <ClientHeader />
 
       <div className="px-5 pb-4 pt-5">
         <div className="mb-5 flex items-end justify-between gap-3">
           <div>
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[.18em]" style={{ color: 'var(--ath-gold)' }}>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[.18em] text-indigo-600">
               {isAr ? 'تحليلات الأسطول' : 'Analytique flotte'}
             </p>
             <h1 className="text-xl font-black text-slate-900">{t(lang, 'reports')}</h1>
@@ -348,13 +348,13 @@ export default function Reports() {
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-[#ff5a5f]/20 bg-[#ff5a5f]/[.08] p-3.5">
             <p className="ath-num text-2xl font-black text-slate-900">{subscriptionSummary.expired}</p>
-            <p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>
+            <p className="mt-1 text-[11px] text-slate-500">
               {isAr ? 'اشتراكات منتهية' : 'Abonnements expirés'}
             </p>
           </div>
           <div className="rounded-2xl border border-[#ffb020]/20 bg-[#ffb020]/[.08] p-3.5">
             <p className="ath-num text-2xl font-black text-slate-900">{subscriptionSummary.expiringSoon}</p>
-            <p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>
+            <p className="mt-1 text-[11px] text-slate-500">
               {isAr ? 'قريبة الانتهاء' : 'Bientôt expirés'}
             </p>
           </div>
@@ -362,11 +362,10 @@ export default function Reports() {
 
         <button
           onClick={() => setShowDevices(s => !s)}
-          className="mb-3 flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-start transition-all"
-          style={{ background: 'var(--reports-surface)', border: '1px solid var(--reports-line)' }}
+          className="mb-3 flex w-full items-center justify-between rounded-3xl border border-slate-200 bg-white px-4 py-3.5 text-start shadow-sm transition-all"
         >
           <span className="flex min-w-0 items-center gap-2">
-            <Car size={15} className="shrink-0 text-[#3EE6A0]" />
+            <Car size={15} className="shrink-0 text-indigo-600" />
             <span className="truncate text-sm font-bold text-slate-900">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
@@ -383,17 +382,15 @@ export default function Reports() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="mb-3 overflow-hidden rounded-2xl"
-              style={{ background: 'var(--reports-surface)', border: '1px solid var(--reports-line)' }}
+              className="mb-3 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
             >
               {safeDevices.map(d => (
                 <button
                   key={d.id}
                   onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="flex w-full items-center gap-2 border-b border-white/5 px-4 py-3 text-start text-sm transition-all last:border-0"
-                  style={{ color: String(d.id) === deviceId ? '#3EE6A0' : 'rgba(255,255,255,.62)' }}
+                  className={`flex w-full items-center gap-2 border-b border-slate-100 px-4 py-3 text-start text-sm transition-all last:border-0 ${String(d.id) === deviceId ? 'text-indigo-600' : 'text-slate-500'}`}
                 >
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: String(d.id) === deviceId ? '#1DBF73' : 'rgba(255,255,255,.2)' }} />
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${String(d.id) === deviceId ? 'bg-indigo-600' : 'bg-slate-300'}`} />
                   {d.name}
                 </button>
               ))}
@@ -421,7 +418,7 @@ export default function Reports() {
         {loading ? (
           <ReportSkeleton />
         ) : error ? (
-          <div className="rounded-2xl border border-[#ff5a5f]/20 bg-[#ff5a5f]/[.08] p-4 text-center text-sm text-[#ff8c90]">{error}</div>
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-sm text-red-600">{error}</div>
         ) : (
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-3">
@@ -433,11 +430,10 @@ export default function Reports() {
 
             {chartData.length > 0 && (
               <div
-                className="ath-reports-chart rounded-[18px] p-4"
-                style={{ background: 'var(--reports-surface-soft)', border: '1px solid var(--reports-line)' }}
+                className="ath-reports-chart rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <p className="text-xs font-extrabold tracking-wide text-[#8CA3B8]">
+                  <p className="text-xs font-extrabold tracking-wide text-slate-700">
                     {isAr ? 'منحنى السرعة' : 'Courbe de vitesse'}
                   </p>
                   <span className="ath-num text-[10px] text-slate-500">{chartData.length} {isAr ? 'نقطة' : 'points'}</span>
@@ -465,7 +461,7 @@ export default function Reports() {
                       strokeWidth={2.5}
                       fill="url(#ath-reports-speed-gradient)"
                       dot={false}
-                      activeDot={{ r: 4, fill: '#1DBF73', stroke: '#07111f', strokeWidth: 2 }}
+                      activeDot={{ r: 4, fill: '#4f46e5', stroke: '#ffffff', strokeWidth: 2 }}
                       animationDuration={900}
                       animationEasing="ease-out"
                     />
@@ -475,10 +471,10 @@ export default function Reports() {
             )}
 
             {trips.length > 0 ? (
-              <div className="overflow-hidden rounded-[18px]" style={{ background: 'var(--reports-surface-soft)', border: '1px solid var(--reports-line)' }}>
-                <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3.5">
-                  <FileText size={14} className="text-[#3EE6A0]" />
-                  <p className="text-xs font-extrabold tracking-wide text-[#8CA3B8]">
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3.5">
+                  <FileText size={14} className="text-indigo-600" />
+                  <p className="text-xs font-extrabold tracking-wide text-slate-700">
                     {isAr ? 'سجل الرحلات' : 'Historique des trajets'}
                   </p>
                 </div>
@@ -488,27 +484,27 @@ export default function Reports() {
                   return (
                     <div
                       key={`${start || index}-${index}`}
-                      className="ath-reports-trip flex items-center gap-3 border-b border-white/5 px-4 py-3.5 last:border-0"
+                      className="ath-reports-trip flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 last:border-0"
                       style={{ animationDelay: `${index * 45}ms` }}
                     >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1DBF73]/[.10]">
-                        <RouteIcon size={15} className="text-[#3EE6A0]" />
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
+                        <RouteIcon size={15} className="text-indigo-600" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-black text-slate-900" style={{ fontFamily: 'var(--ath-disp)' }}>
+                        <p className="truncate text-sm font-black text-slate-900">
                           {formatTripDate(start, isAr)}
                         </p>
                         <p className="mt-0.5 text-[10px] text-slate-500">
                           {formatTripTime(start, isAr)}{end ? ` — ${formatTripTime(end, isAr)}` : ''}
                         </p>
-                        <p className="ath-num mt-1 truncate text-[10px] font-semibold text-[#8CA3B8]" dir="ltr">
+                        <p className="ath-num mt-1 truncate text-[10px] font-semibold text-slate-500" dir="ltr">
                           {getTripDistance(trip).toFixed(1)} km · {Math.round(getTripMaxSpeed(trip))} km/h
                         </p>
                       </div>
                       <button
                         onClick={() => replaySingleTrip(trip, index)}
                         disabled={replayLoading === String(index)}
-                        className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[#1DBF73]/60 px-2.5 py-2 text-[10px] font-extrabold text-[#6ee7b7] transition-all hover:bg-[#1DBF73]/[.12] disabled:opacity-50"
+                        className="flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-200 px-2.5 py-2 text-[10px] font-extrabold text-indigo-600 transition-all hover:bg-indigo-50 disabled:opacity-50"
                       >
                         {replayLoading === String(index)
                           ? <Loader2 size={12} className="animate-spin" />
@@ -520,11 +516,11 @@ export default function Reports() {
                 })}
               </div>
             ) : (
-              <div className="rounded-[18px] border border-[#1DBF73]/15 bg-[#1DBF73]/[.06] p-7 text-center">
-                <p className="text-sm font-extrabold text-[#EDF4F2]">
+              <div className="rounded-3xl border border-indigo-100 bg-indigo-50 p-7 text-center">
+                <p className="text-sm font-extrabold text-slate-900">
                   {isAr ? 'لا توجد رحلات في هذه الفترة' : 'Aucun trajet pour cette période'}
                 </p>
-                <p className="mt-2 text-[11px] text-[#8CA3B8]">
+                <p className="mt-2 text-[11px] text-slate-500">
                   {isAr ? 'جرّب اختيار فترة أخرى لمراجعة نشاط المركبة.' : 'Essayez une autre période pour consulter l’activité du véhicule.'}
                 </p>
               </div>
@@ -534,7 +530,7 @@ export default function Reports() {
       </div>
 
       {replayTrip && (
-        <Suspense fallback={<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#0B1220]"><div className="h-9 w-9 animate-spin rounded-full border-2 border-[#35d39a] border-t-transparent" /></div>}>
+        <Suspense fallback={<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-50"><div className="h-9 w-9 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" /></div>}>
           <TripReplay
             deviceId={deviceId}
             deviceName={selectedDevice?.name}

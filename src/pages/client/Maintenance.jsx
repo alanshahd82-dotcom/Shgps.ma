@@ -13,7 +13,7 @@ const SERVICE_TYPES = [
   { key: 'oil_change', ar: 'تغيير الزيت', fr: 'Vidange', color: '#F59E0B' },
   { key: 'tires',      ar: 'إطارات',      fr: 'Pneus',  color: '#3B82F6' },
   { key: 'brake',      ar: 'الفرامل',     fr: 'Freins', color: '#FF3B30' },
-  { key: 'inspection', ar: 'فحص دوري',   fr: 'Visite', color: '#00D97E' },
+   { key: 'inspection', ar: 'فحص دوري',   fr: 'Visite', color: '#4f46e5' },
   { key: 'battery',    ar: 'بطارية',      fr: 'Batterie', color: '#8b5cf6' },
   { key: 'ac',         ar: 'تكييف',       fr: 'Clim',   color: '#06b6d4' },
   { key: 'oil_filter', ar: 'فلتر زيت',   fr: 'Filtre à huile', color: '#F59E0B' },

@@ -136,8 +136,7 @@ export default function Geofences() {
             </div>
             <p className="text-sm text-slate-500">{isAr ? 'لا توجد مناطق جغرافية' : 'Aucune zone'}</p>
             <button onClick={() => setShowMap(true)}
-              className="px-4 py-2 rounded-full text-xs font-semibold"
-              style={{ background:'#e8f5f0', color:'#16866d', border:'1px solid #bfe4d7' }}>
+               className="rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-600">
               {isAr ? '+ إضافة منطقة' : '+ Ajouter zone'}
             </button>
           </div>
@@ -145,20 +144,19 @@ export default function Geofences() {
           <motion.div key={geo.id || i} initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} transition={{ delay:i*0.04 }}
             className="p-4 rounded-2xl" style={cardStyle}>
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background:'#e8f5f0' }}>
-                <MapPin size={20} className="text-[#16866d]"/>
+               <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50">
+                 <MapPin size={20} className="text-indigo-600"/>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-slate-800 font-bold text-sm">{geo.name}</p>
                 <p className="text-xs mt-0.5 text-slate-500">{geo.radius} m</p>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="flex items-center gap-1 text-[10px]"
-                    style={{ color: geo.alert_enter ? '#00D97E' : 'rgba(255,255,255,0.25)' }}>
+                    style={{ color: geo.alert_enter ? '#4f46e5' : '#94a3b8' }}>
                     <Bell size={10}/>{isAr ? 'دخول' : 'Entrée'}
                   </span>
                   <span className="flex items-center gap-1 text-[10px]"
-                    style={{ color: geo.alert_exit ? '#FF9500' : 'rgba(255,255,255,0.25)' }}>
+                    style={{ color: geo.alert_exit ? '#d97706' : '#94a3b8' }}>
                     <Bell size={10}/>{isAr ? 'خروج' : 'Sortie'}
                   </span>
                 </div>

@@ -80,18 +80,18 @@ export default function DriverBehavior() {
     return value === undefined ? null : value
   }
   const behaviorStats = [
-    { Icon: CircleAlert, ar: 'فرملة مفاجئة', fr: 'Freinage brusque', value: valueFor('harsh_brake_events', 'harsh_brakes', 'braking_events'), color: 'var(--ath-red)' },
-    { Icon: Zap, ar: 'تسارع حاد', fr: 'Accélération brusque', value: valueFor('harsh_accel_events', 'harsh_accels', 'acceleration_events'), color: 'var(--ath-amber)' },
-    { Icon: Gauge, ar: 'تجاوز سرعة', fr: 'Excès de vitesse', value: valueFor('speeding_events'), color: 'var(--ath-red)' },
+    { Icon: CircleAlert, ar: 'فرملة مفاجئة', fr: 'Freinage brusque', value: valueFor('harsh_brake_events', 'harsh_brakes', 'braking_events'), color: '#dc2626' },
+    { Icon: Zap, ar: 'تسارع حاد', fr: 'Accélération brusque', value: valueFor('harsh_accel_events', 'harsh_accels', 'acceleration_events'), color: '#d97706' },
+    { Icon: Gauge, ar: 'تجاوز سرعة', fr: 'Excès de vitesse', value: valueFor('speeding_events'), color: '#dc2626' },
   ]
   const eventRows = events.flatMap((event) => {
     const rows = []
     const date = event.recorded_date || event.date || ''
     const deviceName = selectedDevice?.name || (isAr ? 'المركبة' : 'Véhicule')
     const entries = [
-      { key: 'speeding_events', Icon: Gauge, ar: 'تجاوز سرعة', fr: 'Excès de vitesse', color: 'var(--ath-red)' },
-      { key: 'harsh_brake_events', Icon: CircleAlert, ar: 'فرملة مفاجئة', fr: 'Freinage brusque', color: 'var(--ath-amber)' },
-      { key: 'harsh_accel_events', Icon: Zap, ar: 'تسارع حاد', fr: 'Accélération brusque', color: 'var(--ath-amber)' },
+      { key: 'speeding_events', Icon: Gauge, ar: 'تجاوز سرعة', fr: 'Excès de vitesse', color: '#dc2626' },
+      { key: 'harsh_brake_events', Icon: CircleAlert, ar: 'فرملة مفاجئة', fr: 'Freinage brusque', color: '#d97706' },
+      { key: 'harsh_accel_events', Icon: Zap, ar: 'تسارع حاد', fr: 'Accélération brusque', color: '#d97706' },
     ]
     entries.forEach(entry => {
       if (event[entry.key] > 0) rows.push({ ...entry, value: event[entry.key], date, deviceName })
@@ -168,12 +168,12 @@ export default function DriverBehavior() {
             <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col items-center text-center py-14 px-5">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
                 style={{ background: 'rgba(0,217,126,.10)', border: '1px solid rgba(0,217,126,.18)' }}>
-                <ShieldCheck size={30} style={{ color: 'var(--ath-green)' }}/>
+                <ShieldCheck size={30} className="text-indigo-600"/>
               </div>
-              <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>
+              <p className="text-sm font-extrabold text-slate-900">
                 {isAr ? 'لا توجد بيانات كافية لتقييم القيادة بعد' : 'Pas assez de données pour évaluer la conduite'}
               </p>
-              <p className="text-xs leading-relaxed mt-2" style={{ color: 'var(--ath-mut)' }}>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
                 {isAr ? 'ستظهر النتيجة بعد تسجيل رحلات وأحداث كافية.' : 'Le score apparaîtra après suffisamment de trajets et d’événements.'}
               </p>
             </div>
@@ -183,15 +183,15 @@ export default function DriverBehavior() {
               <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col items-center">
                 <div className="w-full flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>
+                    <p className="text-sm font-extrabold text-slate-900">
                       {isAr ? 'نقاط السلامة' : 'Score de sécurité'}
                     </p>
-                    <p className="text-[10px] mt-1" style={{ color: 'var(--ath-mut)' }}>
+                    <p className="mt-1 text-[10px] text-slate-500">
                       {isAr ? 'آخر تقييم مسجل' : 'Dernière évaluation'}
                     </p>
                   </div>
-                  <span className="ath-badge" style={{ background: 'rgba(0,217,126,.10)', color: 'var(--ath-green2)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--ath-green)' }}/>
+                  <span className="ath-badge bg-indigo-50 text-indigo-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"/>
                     {isAr ? 'محدث' : 'À jour'}
                   </span>
                 </div>
@@ -204,7 +204,7 @@ export default function DriverBehavior() {
                   <div key={ar} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm text-center" style={{ padding: '13px 7px' }}>
                     <Icon size={16} className="mx-auto mb-2" style={{ color }}/>
                     <p className="text-xl font-black ath-num" style={{ color }}>{value === null ? '—' : value}</p>
-                    <p className="text-[9px] leading-tight mt-1" style={{ color: 'var(--ath-mut)' }}>{isAr ? ar : fr}</p>
+                    <p className="mt-1 text-[9px] leading-tight text-slate-500">{isAr ? ar : fr}</p>
                   </div>
                 ))}
               </div>
@@ -213,30 +213,30 @@ export default function DriverBehavior() {
               <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-sm font-extrabold" style={{ color: 'var(--ath-txt)' }}>{isAr ? 'أحداث الأسبوع' : 'Événements de la semaine'}</p>
-                    <p className="text-[10px] mt-1" style={{ color: 'var(--ath-mut)' }}>{isAr ? 'النشاط المسجل حديثاً' : 'Activité récemment enregistrée'}</p>
+                    <p className="text-sm font-extrabold text-slate-900">{isAr ? 'أحداث الأسبوع' : 'Événements de la semaine'}</p>
+                    <p className="mt-1 text-[10px] text-slate-500">{isAr ? 'النشاط المسجل حديثاً' : 'Activité récemment enregistrée'}</p>
                   </div>
-                  <Clock size={17} style={{ color: 'var(--ath-green)' }}/>
+                  <Clock size={17} className="text-indigo-600"/>
                 </div>
                 {eventRows.length > 0 ? eventRows.map((row, index) => (
                   <div key={`${row.key}-${row.date}-${index}`} className="flex items-center gap-3 py-3"
-                    style={{ borderTop: index ? '1px solid var(--ath-line)' : undefined }}>
+                    style={{ borderTop: index ? '1px solid #e2e8f0' : undefined }}>
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{ background: row.color === 'var(--ath-red)' ? 'rgba(255,90,95,.12)' : 'rgba(255,176,32,.12)' }}>
                       <row.Icon size={15} style={{ color: row.color }}/>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold truncate" style={{ color: 'var(--ath-txt)' }}>{isAr ? row.ar : row.fr}</p>
-                      <p className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--ath-mut)' }}>{row.deviceName}</p>
+                      <p className="truncate text-xs font-bold text-slate-900">{isAr ? row.ar : row.fr}</p>
+                      <p className="mt-0.5 truncate text-[10px] text-slate-500">{row.deviceName}</p>
                     </div>
                     <div className="text-end flex-shrink-0">
                       <p className="text-sm font-black ath-num" style={{ color: row.color }}>{row.value}</p>
-                      <p className="text-[9px]" style={{ color: 'var(--ath-mut)' }}>{row.date}</p>
+                      <p className="text-[9px] text-slate-500">{row.date}</p>
                     </div>
                   </div>
                 )) : (
                   <div className="py-7 text-center">
-                    <p className="text-xs" style={{ color: 'var(--ath-mut)' }}>{isAr ? 'لا توجد أحداث مسجلة هذا الأسبوع' : 'Aucun événement cette semaine'}</p>
+                    <p className="text-xs text-slate-500">{isAr ? 'لا توجد أحداث مسجلة هذا الأسبوع' : 'Aucun événement cette semaine'}</p>
                   </div>
                 )}
               </div>

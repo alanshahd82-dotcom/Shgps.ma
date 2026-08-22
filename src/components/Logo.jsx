@@ -10,7 +10,7 @@ export default function Logo({ size = 'md', white = false }) {
   return (
     <div className="flex items-center gap-2 select-none" dir="ltr">
       <img
-        src="/athar-gps-mark.svg"
+        src="/app-icon.png"
         alt="ATHAR GPS"
         width={s.img}
         height={s.img}
@@ -18,7 +18,7 @@ export default function Logo({ size = 'md', white = false }) {
         style={{ width:s.img, height:s.img, borderRadius: size === 'sm' ? 8 : 11 }}
       />
       <div className="flex flex-col leading-none">
-        <span className={`font-bold ${s.text} ${white ? 'text-white' : 'text-primary-500'} tracking-tight`}>
+        <span className={`font-bold ${s.text} ${white ? 'text-white' : 'text-slate-900'} tracking-tight`}>
           ATHAR <span className={`${white ? 'text-accent-400' : 'text-accent'}`}>GPS</span>
         </span>
         {size !== 'sm' && (

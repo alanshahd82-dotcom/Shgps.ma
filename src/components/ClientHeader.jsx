@@ -14,12 +14,10 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
 
   return (
     <header
-      className={`ath-client-header ${fixed ? 'fixed' : overlay ? 'absolute' : 'sticky'} inset-x-0 top-0 z-40 border-b border-white/10 bg-[#07111f]/85 shadow-[0_8px_30px_rgba(0,0,0,.18)] backdrop-blur-xl`}
+      className={`ath-client-header ${fixed ? 'fixed' : overlay ? 'absolute' : 'sticky'} inset-x-0 top-0 z-40 border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur`}
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        background: overlay
-          ? 'linear-gradient(180deg, rgba(7,17,31,.94) 0%, rgba(7,17,31,.62) 72%, transparent 100%)'
-          : 'linear-gradient(180deg, rgba(7,17,31,.98) 0%, rgba(11,27,51,.94) 100%)',
+        background: 'rgba(255,255,255,.90)',
       }}
     >
       <div className="mx-auto flex h-16 max-w-xl items-center justify-between px-5">
@@ -27,7 +25,7 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
         <div className="flex min-w-0 items-center gap-2.5">
           {showUser && (
             <div className="min-w-0 max-w-[8.5rem] text-end">
-              <p className="truncate text-[10px] font-semibold text-[#8da2b5]">
+               <p className="truncate text-[10px] font-semibold text-slate-500">
                 {isAr ? 'مرحباً، ' : 'Bonjour, '}{displayName}
               </p>
             </div>
@@ -36,10 +34,10 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
             onClick={() => navigate('/client/alerts')}
             label={isAr ? 'التنبيهات' : 'Notifications'}
             aria-current={location.pathname === '/client/alerts' ? 'page' : undefined}
-            className="relative shrink-0 border-white/10 bg-[#0e2035] text-[#d9ad62] shadow-sm hover:border-[#38d39f]/60 focus-visible:outline-none"
+             className="relative shrink-0 border-slate-200 bg-slate-100 text-slate-700 shadow-sm hover:border-indigo-300 focus-visible:outline-none"
           >
             <Bell size={18} strokeWidth={2} />
-            {unreadCount > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#FF5A5F] ring-2 ring-[#0e2035]" aria-label={isAr ? 'تنبيهات غير مقروءة' : 'Unread notifications'} />}
+             {unreadCount > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-slate-100" aria-label={isAr ? 'تنبيهات غير مقروءة' : 'Unread notifications'} />}
           </IconButton>
         </div>
       </div>

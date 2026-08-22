@@ -74,9 +74,9 @@ export default function ClientNav() {
         title={t(lang, 'more')}
         labelledBy={moreTitleId}
         onClose={() => setMoreOpen(false)}
-        className="pb-[max(var(--ds-space-4),env(safe-area-inset-bottom))]"
+         className="border-slate-200 bg-white pb-[max(var(--ds-space-4),env(safe-area-inset-bottom))]"
       >
-        <p className="mb-4 text-xs font-semibold text-[var(--ds-color-text-muted)]">
+         <p className="mb-4 text-xs font-semibold text-slate-500">
           {lang === 'ar' ? 'كل أدوات حسابك في مكان واحد' : 'Tous les outils de votre compte au même endroit'}
         </p>
         <div className="grid grid-cols-2 gap-[var(--ds-space-2)]">
@@ -91,20 +91,19 @@ export default function ClientNav() {
                 key={item.path}
                 onClick={() => navTo(item.path)}
                 aria-current={active ? 'page' : undefined}
-                className="flex min-h-[76px] flex-col items-center justify-center gap-2 px-3 py-3"
+                 className={`flex min-h-[76px] flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-3 ${active ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-200 bg-slate-50 text-slate-500'}`}
                 style={active ? {
-                  borderColor: 'var(--ds-color-primary-strong)',
-                  background: 'var(--ds-color-primary-soft)',
+                   borderColor: '#4f46e5',
+                   background: '#eef2ff',
                 } : undefined}
               >
                 <Icon
                   size={20}
                   aria-hidden="true"
-                  style={{ color: active ? 'var(--ds-color-primary)' : 'var(--ds-color-cool-gray)' }}
+                   className={active ? 'text-indigo-600' : 'text-slate-500'}
                 />
                 <span
-                  className="text-xs font-bold"
-                  style={{ color: active ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)' }}
+                   className={`text-xs font-bold ${active ? 'text-indigo-600' : 'text-slate-500'}`}
                 >
                   {t(lang, item.labelKey)}
                 </span>
@@ -125,12 +124,12 @@ export default function ClientNav() {
 
       {/* Bottom bar */}
       <div
-        className="ath-client-nav athar-bottom-nav fixed inset-x-0 bottom-0 z-30 w-full border-t"
+         className="ath-client-nav athar-bottom-nav fixed inset-x-0 bottom-0 z-30 w-full border-t border-slate-200 bg-white"
         style={{
           paddingBottom: 'max(var(--ds-space-2), env(safe-area-inset-bottom))',
-          background: 'var(--ds-color-surface)',
-          borderColor: 'var(--ds-border)',
-          boxShadow: 'var(--ds-shadow-overlay)',
+           background: '#ffffff',
+           borderColor: '#e2e8f0',
+           boxShadow: '0 -4px 18px rgba(15,23,42,.06)',
         }}
       >
         <div className="mx-auto flex w-full max-w-xl items-stretch px-[var(--ds-space-1)] pt-[var(--ds-space-1)]">
@@ -150,8 +149,7 @@ export default function ClientNav() {
               >
                 {active && (
                   <div
-                    className="absolute left-1/2 top-0 h-0.5 w-8 -translate-x-1/2 rounded-full"
-                    style={{ background: 'var(--ds-color-primary)' }}
+                     className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-indigo-600"
                   />
                 )}
                 <div className="relative">
@@ -159,8 +157,7 @@ export default function ClientNav() {
                     size={20}
                     aria-hidden="true"
                     style={{
-                      color: active ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)',
-                      transition: 'color var(--ds-motion-fast)',
+                       color: active ? '#4f46e5' : '#64748b',
                     }}
                   />
                   {item.badge && unreadCount > 0 && (
@@ -170,11 +167,7 @@ export default function ClientNav() {
                   )}
                 </div>
                 <span
-                  className="mt-1 truncate px-1 text-[10px] font-semibold"
-                  style={{
-                    color: active ? 'var(--ds-color-text)' : 'var(--ds-color-text-muted)',
-                    transition: 'color var(--ds-motion-fast)',
-                  }}
+                   className={`mt-1 truncate px-1 text-[10px] font-semibold ${active ? 'text-indigo-600' : 'text-slate-500'}`}
                 >
                   {t(lang, item.labelKey)}
                 </span>
@@ -193,24 +186,18 @@ export default function ClientNav() {
           >
             {isMoreActive && (
               <div
-                className="absolute left-1/2 top-0 h-0.5 w-8 -translate-x-1/2 rounded-full"
-                style={{ background: 'var(--ds-color-primary)' }}
+                 className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-indigo-600"
               />
             )}
             <MoreHorizontal
               size={21}
               aria-hidden="true"
               style={{
-                color: (moreOpen || isMoreActive) ? 'var(--ds-color-primary)' : 'var(--ds-color-text-muted)',
-                transition: 'color var(--ds-motion-fast)',
+                 color: (moreOpen || isMoreActive) ? '#4f46e5' : '#64748b',
               }}
             />
             <span
-              className="mt-1 truncate px-1 text-[10px] font-semibold"
-              style={{
-                color: (moreOpen || isMoreActive) ? 'var(--ds-color-text)' : 'var(--ds-color-text-muted)',
-                transition: 'color var(--ds-motion-fast)',
-              }}
+               className={`mt-1 truncate px-1 text-[10px] font-semibold ${(moreOpen || isMoreActive) ? 'text-indigo-600' : 'text-slate-500'}`}
             >
               {t(lang, 'more')}
             </span>
