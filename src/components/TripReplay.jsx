@@ -958,13 +958,14 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
             {mapFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
           </button>
           {loading && (
-            <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-slate-950/35 px-5 backdrop-blur-[2px]" role="status" aria-live="polite">
-              <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-[#0b1220]/95 p-5 text-white shadow-2xl" dir={isAr ? 'rtl' : 'ltr'}>
+            <div className="athar-replay-loading-overlay absolute inset-0 z-[1000] flex items-center justify-center px-5" role="status" aria-live="polite">
+              <div className="athar-replay-loading-panel w-full max-w-sm" dir={isAr ? 'rtl' : 'ltr'}>
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#35d39a]/15 text-[#35d39a]">
+                  <span className="athar-replay-loading-icon mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-[#35d39a]" />
                   </span>
                   <div className="min-w-0 flex-1">
+                    <p className="mb-1 text-[9px] font-black uppercase tracking-[.18em] text-[#35d39a]">ATHAR GPS · REPLAY</p>
                     <p className="text-sm font-black">{loadingTitle}</p>
                     <p className="mt-1 text-[11px] leading-5 text-white/60">{loadingDetail}</p>
                   </div>
@@ -973,10 +974,11 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
                 {loadingCounter && <p className="mt-3 text-center font-mono text-sm font-bold tracking-wide text-white/85" dir="ltr">
                   {loadingCounter.processed.toLocaleString()} / {loadingCounter.total.toLocaleString()}
                 </p>}
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
+                {loadingCounter && <p className="mt-1 text-center text-[9px] text-white/45">{label('نقطة GPS معالجة', 'points GPS traités')}</p>}
+                <div className="athar-replay-loading-track mt-4 h-1.5 overflow-hidden">
                   {visiblePercent === null
-                    ? <div className="h-full w-2/5 animate-[athar-loading_1.4s_ease-in-out_infinite] rounded-full bg-[#35d39a]" />
-                    : <div className="h-full rounded-full bg-[#35d39a] transition-[width] duration-150" style={{ width: `${visiblePercent}%` }} />}
+                    ? <div className="athar-replay-loading-indeterminate h-full w-2/5 animate-[athar-loading_1.4s_ease-in-out_infinite]" />
+                    : <div className="athar-replay-loading-fill h-full transition-[width] duration-150" style={{ width: `${visiblePercent}%` }} />}
                 </div>
                 <p className="mt-2 text-[10px] text-white/45">
                   {visiblePercent === null

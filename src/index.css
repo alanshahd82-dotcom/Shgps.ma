@@ -2644,3 +2644,35 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   50% { transform: translateX(120%); }
   100% { transform: translateX(280%); }
 }
+
+.athar-replay-loading-overlay {
+  background: rgba(15, 32, 68, .16);
+  backdrop-filter: blur(1.5px);
+}
+
+.athar-replay-loading-panel {
+  padding: 20px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 24px;
+  background: rgba(11, 18, 32, .96);
+  box-shadow: 0 20px 60px rgba(7, 17, 31, .35), 0 0 0 1px rgba(53, 211, 154, .06);
+}
+
+.athar-replay-loading-icon {
+  border: 1px solid rgba(53, 211, 154, .24);
+  border-radius: 12px;
+  background: rgba(53, 211, 154, .12);
+}
+
+.athar-replay-loading-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+}
+
+.athar-replay-loading-fill,
+.athar-replay-loading-indeterminate {
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1dbf73, #8ceac5);
+  box-shadow: 0 0 12px rgba(53, 211, 154, .35);
+}
