@@ -2,6 +2,44 @@
 
 This file records the completed work and the current production verification notes.
 
+## 2026-08-22 — Repair replay and geofence basemap fallback
+
+### Root cause
+
+- The Geofences “Nouvelle zone” editor mounted `GeoapifyTileLayer` directly.
+  When the optional `GEOAPIFY_API_KEY` was unavailable, the existing proxy
+  returned `503` and the editor had no client-side fallback, leaving the map
+  dark or blank.
+- Trip Replay already used `MapLayers`, but its non-satellite chain began with
+  browser Carto tiles and then the same key-dependent Geoapify proxy. A blocked
+  provider could therefore leave the dark loading surface visible while the
+  route and replay overlays were still present.
+- The Settings dark-mode switch remains correctly wired to `darkMode` and
+  `toggleDarkMode`, with `AppContext` synchronizing the `dark` document class
+  and `athargps_darkmode` storage value. No separate reachable legacy dark
+  route was found in the current router.
+
+### Fix
+
+- Added the existing keyless `/api/map/street-tiles/{z}/{x}/{y}.png` proxy as
+  the first non-satellite `MapLayers` source, retaining Carto, Geoapify, and
+  OSM as later fallbacks. The backend route and all map/API contracts remain
+  unchanged.
+- Replaced the Geofences editor’s direct Geoapify layer with the shared
+  `MapLayers` component, so its light street map now follows the same resilient
+  path as Device Detail and Trip Replay.
+- Preserved trip data, route positions, playback timing, marker movement,
+  timeline, speed analysis, WebSocket/API behavior, and all backend,
+  database, Traccar, Docker, and deployment files.
+
+### Verification
+
+- `npm run build` passes successfully.
+- `git diff --check` passes.
+- Source audit confirms only `src/components/MapLayers.jsx`,
+  `src/pages/client/Geofences.jsx`, and this documentation entry are changed;
+  no backend file was modified.
+
 ## 2026-08-15 — Client map error-boundary hardening
 
 ## 2026-08-15 — Client map deterministic Leaflet initialization

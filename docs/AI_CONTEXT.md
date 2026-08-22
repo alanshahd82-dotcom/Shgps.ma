@@ -189,14 +189,21 @@ The chronological historical record is retained in `docs/TASK_LOG.md`. New impor
 
 Verified lessons are retained in this file's historical sections and in the focused topic files under `.agents/memory/`. In particular, map changes must remain additive and surgical, replay timing must preserve equal timestamps, and electrical disconnect alerts require explicit electrical telemetry. Do not invent or silently remove lessons.
 
-## D. CURRENT VERIFIED STATE — 2026-08-22 memory audit
+## D. CURRENT VERIFIED STATE — 2026-08-22 map fallback audit
 
 - Repository: verified as `alanshahd82-dotcom/Shgps.ma`.
 - Branch: verified as `main`.
-- Local HEAD: `00ec8c71fe2698174474924b3e09518f87fdf384`.
-- Remote state: local `HEAD` matches `origin/main` at the verified repository state.
-- The previous permanent-memory organization commit is confirmed present on `origin/main`; it is not pending.
-- This documentation-only synchronization changes no application behavior, dependencies, backend, database, Traccar, Docker, or deployment configuration.
+- Local HEAD: frontend map fallback repair and documentation audit; verify the
+  final hash from `git log` after pushing.
+- The non-satellite map path now starts with the existing keyless street-tile
+  proxy before optional third-party tile sources.
+- The client Geofences editor shares `MapLayers` with Device Detail and Trip
+  Replay instead of mounting the optional Geoapify proxy directly.
+- Settings dark-mode state is synchronized through `AppContext`; no separate
+  reachable legacy dark route was found during the screen audit.
+- This task changes only frontend source and project documentation. Backend,
+  database, Traccar, Docker, deployment, API contracts, and WebSocket behavior
+  remain unchanged.
 
 ### Historical information
 
@@ -208,9 +215,14 @@ Verified lessons are retained in this file's historical sections and in the focu
 - Production deployment, VPS service health, live Traccar reachability, physical relay movement, physical battery tests, and current production behavior remain unconfirmed unless a recent task entry explicitly records a verification.
 - Certbot configuration remains unconfirmed.
 
-- Current known application problems: none newly investigated in this documentation-only synchronization.
-- Current documentation state: permanent project-memory documentation is synchronized with the verified repository state.
-- Next step: none for this documentation synchronization; future work must begin by rereading this context, checking the repository/branch/Git state, and defining a self-contained scope.
+- Current map issue addressed: key-dependent basemap failure could leave
+  Geofences and replay surfaces dark or blank; the frontend fallback path is
+  now keyless-first.
+- Current documentation state: this audit is synchronized with the source
+  changes and must be kept alongside the final pushed commit.
+- Next step: verify the final commit and remote branch, then future work must
+  begin by rereading this context, checking the repository/branch/Git state,
+  and defining a self-contained scope.
 
 ## E. WORKING RULES
 

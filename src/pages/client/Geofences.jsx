@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Car, Loader2 } from 'lucide-react'
 import { MapContainer, Circle as LeafletCircle, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
+import MapLayers from '../../components/MapLayers'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -183,7 +183,7 @@ export default function Geofences() {
             {/* Map */}
              <div style={{ height:280, margin:'0 16px', borderRadius:16, overflow:'hidden', border:'1px solid #e2e8f0' }}>
               <MapContainer center={[31.7917,-7.0926]} zoom={5} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
-                <GeoapifyTileLayer />
+                <MapLayers />
                 <MapClickHandler onMapClick={ll => setCenter(ll)} enabled={true}/>
                 {center && (
                   <>

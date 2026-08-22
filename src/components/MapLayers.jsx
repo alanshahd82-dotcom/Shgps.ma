@@ -5,6 +5,7 @@ import GeoapifyTileLayer from './GeoapifyTileLayer'
 const SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 const CARTO_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const STREET_PROXY_URL = '/api/map/street-tiles/{z}/{x}/{y}.png'
 const TILE_ERROR_LIMIT = 5
 const TILE_ERROR_WINDOW_MS = 4000
 const TILE_LOADING_TIMEOUT_MS = 2500
@@ -33,6 +34,17 @@ function CartoLayer({ onTileError, onTileLoad }) {
   )
 }
 
+function StreetProxyLayer({ onTileError, onTileLoad }) {
+  return (
+    <TileLayer
+      url={STREET_PROXY_URL}
+      maxZoom={19}
+      eventHandlers={{ tileerror: onTileError, tileload: onTileLoad }}
+      attribution="© Esri"
+    />
+  )
+}
+
 export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
   const [sourceIndex, setSourceIndex] = useState(0)
   const [tileLoaded, setTileLoaded] = useState(false)
@@ -42,7 +54,7 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
 
   const sources = satellite
     ? ['esri', 'geoapify-hybrid', 'osm']
-    : ['carto', 'geoapify', 'osm']
+    : ['street', 'carto', 'geoapify', 'osm']
 
   useEffect(() => {
     sourceIndexRef.current = 0
@@ -120,6 +132,9 @@ export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
   }
   if (source === 'carto') {
     return (<>{loadingSurface}<CartoLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
+  }
+  if (source === 'street') {
+    return (<>{loadingSurface}<StreetProxyLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
   }
   return (<>{loadingSurface}<OpenStreetMapLayer key={source} onTileError={handleTileError} onTileLoad={handleTileLoad} /></>)
 }
