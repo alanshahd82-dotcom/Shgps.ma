@@ -69,7 +69,7 @@ export default function Help() {
 
         <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
          <p className="text-xs font-semibold text-slate-800 mb-1">{isAr ? 'ساعات الدعم' : 'Horaires du support'}</p>
-         <p className="text-xs text-slate-500">{support.hours}</p>
+         <p className="text-xs text-slate-500">{isAr ? support.hours : 'Tous les jours de 09:00 à 18:00'}</p>
          <p className="text-[10px] mt-2 break-all text-slate-400">
           {support.phone} · {support.email}
         </p>

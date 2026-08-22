@@ -11,11 +11,7 @@ import { useRealVehicles } from '../hooks/useRealVehicles'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
-const RANGES = [
-  ['today', 'اليوم'],
-  ['yesterday', 'الأمس'],
-  ['week', 'آخر 7 أيام'],
-]
+const RANGES = ['today', 'yesterday', 'week']
 
 function Chip({ active, onClick, children }) {
   return (
@@ -44,31 +40,34 @@ function validDate(value) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function formatDate(value) {
+function formatDate(value, lang) {
   const date = validDate(value)
   return date
-    ? date.toLocaleDateString('ar-MA', { day: 'numeric', month: 'short', year: 'numeric' })
-    : 'التاريخ غير متوفر'
+    ? date.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { day: 'numeric', month: 'short', year: 'numeric' })
+    : lang === 'fr' ? 'Date indisponible' : 'التاريخ غير متوفر'
 }
 
-function formatTime(value) {
+function formatTime(value, lang) {
   const date = validDate(value)
-  return date ? date.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' }) : 'غير متوفر'
+  return date ? date.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { hour: '2-digit', minute: '2-digit' }) : lang === 'fr' ? 'Indisponible' : 'غير متوفر'
 }
 
-function formatNumber(value, suffix = '') {
-  if (value === null || value === undefined || value === '') return 'غير متوفر'
+function formatNumber(value, suffix = '', unavailable = 'غير متوفر') {
+  if (value === null || value === undefined || value === '') return unavailable
   const number = Number(value)
-  return Number.isFinite(number) ? `${number}${suffix}` : 'غير متوفر'
+  return Number.isFinite(number) ? `${number}${suffix}` : unavailable
 }
 
-function formatDuration(minutes) {
-  if (minutes === null || minutes === undefined || minutes === '') return 'غير متوفر'
+function formatDuration(minutes, lang) {
+  const unavailable = lang === 'fr' ? 'Indisponible' : 'غير متوفر'
+  if (minutes === null || minutes === undefined || minutes === '') return unavailable
   const value = Number(minutes)
-  if (!Number.isFinite(value)) return 'غير متوفر'
+  if (!Number.isFinite(value)) return unavailable
   const hours = Math.floor(value / 60)
   const rest = Math.round(value % 60)
-  return hours > 0 ? `${hours} س ${rest} د` : `${rest} د`
+  return lang === 'fr'
+    ? hours > 0 ? `${hours} h ${rest} min` : `${rest} min`
+    : hours > 0 ? `${hours} س ${rest} د` : `${rest} د`
 }
 
 function getPeriodBounds(range) {
@@ -97,18 +96,18 @@ function Stat({ Icon, label, value }) {
   )
 }
 
-function TripCard({ trip, vehicle, replaying, onPlay }) {
+function TripCard({ trip, vehicle, replaying, onPlay, lang, L }) {
   const start = getTripStart(trip)
   const end = getTripEnd(trip)
   const tripId = trip?.index ?? start ?? 'unknown'
   return (
     <Card padding="md">
-      <div dir="rtl">
+      <div dir={lang === 'ar' ? 'rtl' : 'ltr'}>
         <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold text-primary">{vehicle?.name || 'المركبة غير متاحة'}</h3>
-            <p className="mt-1 text-xs text-slate-500">{formatDate(start)}</p>
-            <p className="mt-1 text-xs text-slate-500" dir="ltr">{formatTime(start)} — {formatTime(end)}</p>
+            <p className="mt-1 text-xs text-slate-500">{formatDate(start, lang)}</p>
+            <p className="mt-1 text-xs text-slate-500" dir="ltr">{L.from} {formatTime(start, lang)} — {L.to} {formatTime(end, lang)}</p>
           </div>
           {vehicle ? (
             <Link
@@ -120,20 +119,20 @@ function TripCard({ trip, vehicle, replaying, onPlay }) {
           ) : <span className="shrink-0 text-[11px] text-slate-400">المركبة غير متاحة</span>}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
-          <Stat Icon={RouteIcon} label="المسافة" value={formatNumber(trip?.distanceKm ?? trip?.distance_km ?? trip?.distance, ' كم')} />
-          <Stat Icon={Clock} label="المدة" value={formatDuration(trip?.durationMin ?? trip?.duration_min ?? trip?.duration)} />
-          <Stat Icon={Gauge} label="متوسط السرعة" value={formatNumber(trip?.avgSpeed ?? trip?.avg_speed, ' كم/س')} />
-          <Stat Icon={Gauge} label="السرعة القصوى" value={formatNumber(trip?.maxSpeed ?? trip?.max_speed, ' كم/س')} />
-          <Stat Icon={MapPin} label="التوقف" value={formatDuration(trip?.stopMin ?? trip?.stop_min)} />
+          <Stat Icon={RouteIcon} label={L.distance} value={formatNumber(trip?.distanceKm ?? trip?.distance_km ?? trip?.distance, lang === 'fr' ? ' km' : ' كم', L.unavailable)} />
+          <Stat Icon={Clock} label={L.duration} value={formatDuration(trip?.durationMin ?? trip?.duration_min ?? trip?.duration, lang)} />
+          <Stat Icon={Gauge} label={L.averageSpeed} value={formatNumber(trip?.avgSpeed ?? trip?.avg_speed, lang === 'fr' ? ' km/h' : ' كم/س', L.unavailable)} />
+          <Stat Icon={Gauge} label={L.maxSpeed} value={formatNumber(trip?.maxSpeed ?? trip?.max_speed, lang === 'fr' ? ' km/h' : ' كم/س', L.unavailable)} />
+          <Stat Icon={MapPin} label={L.stops} value={formatDuration(trip?.stopMin ?? trip?.stop_min, lang)} />
           <Button
             variant="secondary"
             size="sm"
             icon={replaying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
             onClick={() => onPlay(trip, tripId)}
             disabled={replaying}
-            aria-label="عرض الرحلة على الخريطة"
+            aria-label={L.viewTrip}
           >
-            {replaying ? 'جاري التحميل' : 'عرض الرحلة'}
+            {replaying ? L.loading : L.viewTrip}
           </Button>
         </div>
       </div>
@@ -141,19 +140,19 @@ function TripCard({ trip, vehicle, replaying, onPlay }) {
   )
 }
 
-function EmptyTrips({ hasVehicle, hasReport }) {
+function EmptyTrips({ hasVehicle, hasReport, L }) {
   return (
     <div className="rounded-2xl border border-accent/15 bg-accent/[0.05] px-5 py-12 text-center" role="status">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent">
         <RouteIcon className="h-7 w-7" aria-hidden="true" />
       </div>
       <p className="mt-4 text-sm font-semibold text-primary">
-        {hasVehicle && hasReport ? 'لا توجد بيانات رحلات متاحة حالياً' : 'لا توجد مركبات مرتبطة'}
+        {hasVehicle && hasReport ? L.noTrips : L.noVehicles}
       </p>
       <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">
         {hasVehicle && hasReport
-          ? 'ستظهر الرحلات هنا عندما تتوفر سجلات مواقع صالحة للمركبة المحددة.'
-          : 'ستظهر الرحلات بعد ربط مركبة بحسابك.'}
+          ? L.noTripsHint
+          : L.noVehiclesHint}
       </p>
     </div>
   )
@@ -162,6 +161,25 @@ function EmptyTrips({ hasVehicle, hasReport }) {
 export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, onSelectTrip, alertCount = 0, onTabChange }) {
   const { vehicles: realVehicles, alertCount: realAlertCount } = useRealVehicles()
   const { lang } = useApp()
+  const L = lang === 'fr' ? {
+    title: 'Trajets', vehicle: 'Véhicule', unnamedVehicle: 'Véhicule sans nom', timeRange: 'Période',
+    ranges: { today: 'Aujourd’hui', yesterday: 'Hier', week: '7 derniers jours' },
+    loadingTrips: 'Chargement des trajets', loadError: 'Impossible de charger les trajets', retry: 'Réessayer',
+    unavailable: 'Indisponible', noTrips: 'Aucune donnée de trajet disponible', noVehicles: 'Aucun véhicule associé',
+    noTripsHint: 'Les trajets apparaîtront lorsque des positions valides seront disponibles pour le véhicule sélectionné.', routeUnavailable: 'Itinéraire indisponible',
+    noVehiclesHint: 'Les trajets apparaîtront après l’association d’un véhicule à votre compte.',
+    from: 'De', to: 'à', distance: 'Distance', duration: 'Durée', averageSpeed: 'Vitesse moyenne',
+    maxSpeed: 'Vitesse maximale', stops: 'Arrêts', viewTrip: 'Voir le trajet',
+  } : {
+    title: 'الرحلات', vehicle: 'المركبة', unnamedVehicle: 'مركبة غير مسماة', timeRange: 'الفترة الزمنية',
+    ranges: { today: 'اليوم', yesterday: 'الأمس', week: 'آخر 7 أيام' },
+    loadingTrips: 'جاري تحميل الرحلات', loadError: 'تعذّر تحميل الرحلات', retry: 'إعادة المحاولة',
+    unavailable: 'غير متوفر', noTrips: 'لا توجد بيانات رحلات متاحة حالياً', noVehicles: 'لا توجد مركبات مرتبطة',
+    noTripsHint: 'ستظهر الرحلات هنا عندما تتوفر سجلات مواقع صالحة للمركبة المحددة.', routeUnavailable: 'المسار غير متوفر',
+    noVehiclesHint: 'ستظهر الرحلات بعد ربط مركبة بحسابك.',
+    from: 'من', to: 'إلى', distance: 'المسافة', duration: 'المدة', averageSpeed: 'متوسط السرعة',
+    maxSpeed: 'السرعة القصوى', stops: 'التوقف', viewTrip: 'عرض الرحلة',
+  }
   const vehicles = providedVehicles ?? realVehicles
   const hasProvidedTrips = Array.isArray(providedTrips)
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
@@ -200,7 +218,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
       .catch(nextError => {
         if (!cancelled) {
           setTrips([])
-          setError(nextError?.message || 'تعذّر تحميل الرحلات')
+          setError(nextError?.message || L.loadError)
         }
       })
       .finally(() => {
@@ -213,7 +231,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
     const start = getTripStart(trip)
     const end = getTripEnd(trip)
     if (!selectedVehicleId || !validDate(start) || !validDate(end) || replayLoading) {
-      setReplayError('المسار غير متوفر')
+      setReplayError(L.routeUnavailable)
       return
     }
     setReplayLoading(String(tripKey))
@@ -221,7 +239,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
     try {
       const points = await api.stats.getPositions(selectedVehicleId, start, end, 900)
       if (!Array.isArray(points) || points.length < 2) {
-        setReplayError('المسار غير متوفر')
+        setReplayError(L.routeUnavailable)
       } else {
         setReplay({ startTime: start, endTime: end, positions: points })
         onSelectTrip?.(trip?.id ?? tripKey)
@@ -234,20 +252,20 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
   }
 
   return (
-    <ClientLayout activeTab="trips" onTabChange={onTabChange} alertCount={alertCount || realAlertCount} showTopBar title="الرحلات">
+    <ClientLayout activeTab="trips" onTabChange={onTabChange} alertCount={alertCount || realAlertCount} showTopBar title={L.title}>
       <div className="h-full overflow-y-auto bg-slate-50" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
         <div className="sticky top-0 z-10 space-y-3 border-b border-border bg-white p-4">
           {vehicles.length > 0 && (
             <Select
-              label="المركبة"
-              options={vehicles.map(vehicle => ({ value: String(vehicle.id), label: vehicle.name || 'مركبة غير مسماة' }))}
+              label={L.vehicle}
+              options={vehicles.map(vehicle => ({ value: String(vehicle.id), label: vehicle.name || L.unnamedVehicle }))}
               value={selectedVehicleId}
               onChange={setSelectedVehicleId}
             />
           )}
-          <div className="flex gap-2 overflow-x-auto pb-0.5" role="group" aria-label="الفترة الزمنية">
-            {RANGES.map(([id, label]) => (
-              <Chip key={id} active={range === id} onClick={() => setRange(id)}>{label}</Chip>
+          <div className="flex gap-2 overflow-x-auto pb-0.5" role="group" aria-label={L.timeRange}>
+            {RANGES.map(id => (
+              <Chip key={id} active={range === id} onClick={() => setRange(id)}>{L.ranges[id]}</Chip>
             ))}
           </div>
         </div>
@@ -255,15 +273,15 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
           {loading && (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500" role="status">
               <Loader2 className="h-5 w-5 animate-spin text-accent" aria-hidden="true" />
-              جاري تحميل الرحلات
+              {L.loadingTrips}
             </div>
           )}
           {!loading && error && (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center" role="alert">
-              <p className="text-sm font-semibold text-red-700">تعذّر تحميل الرحلات</p>
+              <p className="text-sm font-semibold text-red-700">{L.loadError}</p>
               <p className="mt-1 text-xs text-red-600">{error}</p>
               <button type="button" onClick={() => setReloadKey(current => current + 1)} className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
-                إعادة المحاولة
+                {L.retry}
               </button>
             </div>
           )}
@@ -272,12 +290,14 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
               key={trip.id ?? `${getTripStart(trip) ?? 'trip'}-${index}`}
               trip={trip}
               vehicle={selectedVehicle}
+              lang={lang}
+              L={L}
               replaying={replayLoading === String(trip.index ?? trip.id ?? getTripStart(trip) ?? index)}
               onPlay={openReplay}
             />
           ))}
           {!loading && !error && trips.length === 0 && (
-            <EmptyTrips hasVehicle={Boolean(selectedVehicle)} hasReport={!hasProvidedTrips || Array.isArray(providedTrips)} />
+            <EmptyTrips hasVehicle={Boolean(selectedVehicle)} hasReport={!hasProvidedTrips || Array.isArray(providedTrips)} L={L} />
           )}
           {replayError && <p className="text-center text-xs text-amber-700" role="status">{replayError}</p>}
         </div>

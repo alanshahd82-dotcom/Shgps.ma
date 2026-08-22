@@ -187,7 +187,7 @@ export default function Login() {
               </motion.button>
 
               <p className="text-center text-[11px] font-semibold text-slate-400">
-                اتصال مشفّر · بياناتك محمية
+                {isAr ? 'اتصال مشفّر · بياناتك محمية' : 'Connexion chiffrée · données protégées'}
               </p>
 
               {/* Forgot password */}

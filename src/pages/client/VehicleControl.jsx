@@ -217,10 +217,10 @@ export default function VehicleControl() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-2 p-3">
-            <button type="button" disabled={!point} onClick={() => { const u = dirUrl('google', point); if (u) window.open(u,'_blank','noopener') }} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-extrabold text-slate-700 disabled:opacity-40">
+            <button type="button" disabled={!point} onClick={() => { const u = dirUrl('google', point); if (u) window.open(u,'_blank','noopener') }} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-extrabold text-slate-700 disabled:bg-slate-200 disabled:text-slate-400">
               <GIcon/>Google Maps
             </button>
-            <button type="button" disabled={!point} onClick={() => { const u = dirUrl('waze', point); if (u) window.open(u,'_blank','noopener') }} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-3 text-xs font-extrabold text-white disabled:opacity-40">
+            <button type="button" disabled={!point} onClick={() => { const u = dirUrl('waze', point); if (u) window.open(u,'_blank','noopener') }} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-3 text-xs font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400">
               <WIcon/>Waze
             </button>
           </div>
