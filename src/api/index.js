@@ -4,7 +4,7 @@ export const BOOT_TIMEOUT_MS = 8000
 
 function getToken() { return localStorage.getItem('athargps_token') }
 
-async function apiFetch(path, options = {}, timeoutMs = 0) {
+async function apiFetch(path, options = {}, timeoutMs = 0, onProgress) {
   const token = getToken()
   const controller = timeoutMs > 0 && typeof AbortController !== 'undefined'
     ? new AbortController()
@@ -27,6 +27,31 @@ async function apiFetch(path, options = {}, timeoutMs = 0) {
       error.code = data.code
       error.status = res.status
       throw error
+    }
+    if (typeof onProgress === 'function' && res.body && typeof res.body.getReader === 'function') {
+      const total = Number(res.headers.get('Content-Length'))
+      const reader = res.body.getReader()
+      const chunks = []
+      let received = 0
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+        received += value.byteLength
+        onProgress({
+          stage: 'download',
+          loadedBytes: received,
+          totalBytes: Number.isFinite(total) && total > 0 ? total : null,
+          percent: Number.isFinite(total) && total > 0 ? Math.round((received / total) * 100) : null,
+        })
+      }
+      const bytes = new Uint8Array(received)
+      let offset = 0
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset)
+        offset += chunk.byteLength
+      }
+      return JSON.parse(new TextDecoder().decode(bytes))
     }
     return res.json()
   } catch (error) {
@@ -91,12 +116,12 @@ export const api = {
     positions: () => apiFetch('/map/positions'),
   },
   stats: {
-    getPositions: (deviceId, from, to, maxPoints, signal) => {
+    getPositions: (deviceId, from, to, maxPoints, signal, onProgress) => {
       const params = new URLSearchParams({ deviceId: String(deviceId) })
       if (from) params.set('from', from)
       if (to) params.set('to', to)
       if (maxPoints != null) params.set('maxPoints', String(maxPoints))
-      return apiFetch(`/stats/positions?${params}`, signal ? { signal } : {})
+      return apiFetch(`/stats/positions?${params}`, signal ? { signal } : {}, 0, onProgress)
     },
   },
   reports: {

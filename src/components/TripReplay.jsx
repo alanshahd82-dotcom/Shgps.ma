@@ -5,6 +5,7 @@ import {
   Activity, AlertTriangle, BarChart3, ChevronDown, ChevronRight, Clock3,
   Download, Gauge, MapPin, Navigation, Pause, Play, Route as RouteIcon,
   ShieldCheck, SkipBack, SkipForward, Square, Target, Timer, TrendingUp, X, Zap,
+  Maximize2, Minimize2,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { api } from '../api/index.js'
@@ -95,10 +96,15 @@ function haversine(a, b) {
   return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)))
 }
 
-function cleanRoute(points) {
+function cleanRoute(points, onProgress) {
   const candidates = (Array.isArray(points) ? points : [])
-    .filter(validPoint)
-    .map(normalisePoint)
+    .reduce((validPoints, point, index, source) => {
+      if (validPoint(point)) validPoints.push(normalisePoint(point))
+      if (onProgress && (index === source.length - 1 || index % 100 === 0)) {
+        onProgress(index + 1, source.length)
+      }
+      return validPoints
+    }, [])
     .sort((a, b) => a.timestamp - b.timestamp)
   const cleaned = []
   for (const point of candidates) {
@@ -117,11 +123,13 @@ function cleanRoute(points) {
   // samples with equal timestamps, which otherwise makes progressForTime()
   // jump over the whole segment instead of moving the vehicle.
   let replayTime = 0
-  return cleaned.map((point, index) => {
+  const result = cleaned.map((point, index) => {
     const actualTime = point.timestamp
     replayTime = index === 0 ? actualTime : Math.max(actualTime, replayTime + MIN_REPLAY_STEP_MS)
     return { ...point, replayTime }
   })
+  onProgress?.(Array.isArray(points) ? points.length : 0, Array.isArray(points) ? points.length : 0)
+  return result
 }
 
 function bearing(a, b) {
@@ -540,6 +548,9 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   const isAr = lang === 'ar'
   const [route, setRoute] = useState(() => cleanRoute(suppliedPositions))
   const [loading, setLoading] = useState(route.length === 0)
+  const [loadingStage, setLoadingStage] = useState(route.length === 0 ? 'download' : '')
+  const [loadingProgress, setLoadingProgress] = useState(null)
+  const [loadingCounter, setLoadingCounter] = useState(null)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState(0)
   const [playing, setPlaying] = useState(false)
@@ -553,7 +564,9 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
     return storedStyle ? storedStyle === 'satellite' : true
   })
   const [mapReady, setMapReady] = useState(false)
+  const [mapFullscreen, setMapFullscreen] = useState(false)
   const [mapNotice, setMapNotice] = useState('')
+  const mapSurfaceRef = useRef(null)
   const rafRef = useRef(null)
   const virtualTimeRef = useRef(null)
   const lastFrameRef = useRef(null)
@@ -570,6 +583,27 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   }, [isAr])
 
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      setMapFullscreen(document.fullscreenElement === mapSurfaceRef.current)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  async function toggleMapFullscreen() {
+    if (mapFullscreen) {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen().catch(() => {})
+      }
+      setMapFullscreen(false)
+      return
+    }
+    if (mapSurfaceRef.current?.requestFullscreen) {
+      await mapSurfaceRef.current.requestFullscreen().catch(() => {})
+    }
+  }
+
+  useEffect(() => {
     localStorage.setItem(MAP_STYLE_STORAGE_KEY, satelliteMode ? 'satellite' : 'map')
   }, [satelliteMode])
 
@@ -579,6 +613,9 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
     if (suppliedPositions.length) {
       setRoute(cleanRoute(suppliedPositions))
       setLoading(false)
+      setLoadingStage('')
+      setLoadingProgress(null)
+      setLoadingCounter(null)
       return () => {
         cancelled = true
         controller?.abort()
@@ -590,6 +627,9 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
     if (cachedRoute) {
       setRoute(cachedRoute)
       setLoading(false)
+      setLoadingStage('')
+      setLoadingProgress(null)
+      setLoadingCounter(null)
       return () => {
         cancelled = true
         controller?.abort()
@@ -598,13 +638,27 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
 
     setLoading(true)
     setError('')
-    api.stats.getPositions(deviceId, startTime, endTime, undefined, controller?.signal)
+    setLoadingStage('download')
+    setLoadingProgress(null)
+    setLoadingCounter(null)
+    api.stats.getPositions(deviceId, startTime, endTime, undefined, controller?.signal, (progress) => {
+      if (cancelled) return
+      setLoadingStage('download')
+      setLoadingProgress(progress.percent)
+    })
       .then((data) => {
         if (!cancelled) {
-          const nextRoute = cleanRoute(data)
+          setLoadingStage('processing')
+          setLoadingProgress(null)
+          setLoadingCounter({ processed: 0, total: Array.isArray(data) ? data.length : 0 })
+          const nextRoute = cleanRoute(data, (processed, total) => {
+            if (!cancelled) setLoadingCounter({ processed, total })
+          })
           replayRouteCache.set(cacheKey, nextRoute)
           if (replayRouteCache.size > REPLAY_CACHE_LIMIT) replayRouteCache.delete(replayRouteCache.keys().next().value)
           setRoute(nextRoute)
+          setLoadingStage('ready')
+          setLoadingProgress(100)
         }
       })
       .catch(() => {
@@ -613,7 +667,12 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setLoadingStage('')
+          setLoadingProgress(null)
+          setLoadingCounter(null)
+        }
       })
     return () => {
       cancelled = true
@@ -852,13 +911,25 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   const routeBounds = route.length ? route : [{ latitude: 33.5731, longitude: -7.5898 }]
   const surfaceClass = 'border border-slate-200/80 bg-white/95 backdrop-blur-xl'
   const label = (ar, fr) => (isAr ? ar : fr)
+  const loadingTitle = loadingStage === 'processing'
+    ? t(lang, 'replayProcessingGps')
+    : loadingStage === 'ready'
+      ? label('تم تحميل المسار', 'Itinéraire chargé')
+      : t(lang, 'replayLoadingData')
+  const loadingDetail = loadingStage === 'processing'
+    ? t(lang, 'replayPreparingDetails')
+    : t(lang, 'replayLoadingPeriod')
+  const counterPercent = loadingCounter?.total > 0
+    ? Math.min(100, Math.max(0, (loadingCounter.processed / loadingCounter.total) * 100))
+    : null
+  const visiblePercent = counterPercent !== null ? counterPercent : loadingProgress
   const progressPercent = route.length > 1
     ? Math.min(100, Math.max(0, (progress / (route.length - 1)) * 100))
     : 0
 
   return (
     <div className="athar-replay-shell fixed inset-0 z-[1000] bg-slate-100 text-slate-900" dir={isAr ? 'rtl' : 'ltr'}>
-      <div className="absolute inset-0 h-[100dvh] min-h-[420px] w-full">
+      <div ref={mapSurfaceRef} className="absolute inset-0 h-[100dvh] min-h-[420px] w-full">
           <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} minZoom={3} maxZoom={19} style={{ height: '100%', width: '100%', minHeight: '420px' }} zoomControl={false} preferCanvas>
           <MapLayers
             satellite={allowSatellite && satelliteMode}
@@ -877,6 +948,44 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
           {current && <VehicleMarker type={deviceType} current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} playbackSpeed={multiplier} />}
         </MapContainer>
           {!mapReady && <div className="athar-map-loading athar-replay-map-loading" role="status" aria-label={label('جار تحميل الخريطة', 'Chargement de la carte')}><span className="athar-map-spinner" /></div>}
+          <button
+            type="button"
+            onClick={toggleMapFullscreen}
+            aria-label={mapFullscreen ? label('الخروج من ملء الشاشة', 'Quitter le plein écran') : label('تكبير الخريطة', 'Plein écran')}
+            title={mapFullscreen ? label('الخروج من ملء الشاشة', 'Quitter le plein écran') : label('تكبير الخريطة', 'Plein écran')}
+            className="athar-replay-fullscreen"
+          >
+            {mapFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+          </button>
+          {loading && (
+            <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-slate-950/35 px-5 backdrop-blur-[2px]" role="status" aria-live="polite">
+              <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-[#0b1220]/95 p-5 text-white shadow-2xl" dir={isAr ? 'rtl' : 'ltr'}>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#35d39a]/15 text-[#35d39a]">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-[#35d39a]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black">{loadingTitle}</p>
+                    <p className="mt-1 text-[11px] leading-5 text-white/60">{loadingDetail}</p>
+                  </div>
+                  {visiblePercent !== null && <strong className="shrink-0 text-lg font-black text-[#8ceac5]">{visiblePercent.toFixed(counterPercent !== null ? 1 : 0)}%</strong>}
+                </div>
+                {loadingCounter && <p className="mt-3 text-center font-mono text-sm font-bold tracking-wide text-white/85" dir="ltr">
+                  {loadingCounter.processed.toLocaleString()} / {loadingCounter.total.toLocaleString()}
+                </p>}
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  {visiblePercent === null
+                    ? <div className="h-full w-2/5 animate-[athar-loading_1.4s_ease-in-out_infinite] rounded-full bg-[#35d39a]" />
+                    : <div className="h-full rounded-full bg-[#35d39a] transition-[width] duration-150" style={{ width: `${visiblePercent}%` }} />}
+                </div>
+                <p className="mt-2 text-[10px] text-white/45">
+                  {visiblePercent === null
+                    ? t(lang, 'replayMeasuringProgress')
+                    : t(lang, 'replayMeasuredProgress')}
+                </p>
+              </div>
+            </div>
+          )}
       </div>
 
       {mapNotice && (
