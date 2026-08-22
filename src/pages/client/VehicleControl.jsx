@@ -129,6 +129,7 @@ export default function VehicleControl() {
   const [command, setCommand] = useState(null)
   const [sending, setSending] = useState(false)
   const [cmdErr, setCmdErr] = useState('')
+  const [cmdSuccess, setCmdSuccess] = useState('')
   const [replay, setReplay] = useState(null)
   const [tripLoading, setTripLoading] = useState(false)
   const [tripError, setTripError] = useState('')
@@ -204,10 +205,12 @@ export default function VehicleControl() {
 
   async function confirmCommand() {
     if (!vehicle || sending || !command) return
-    setSending(true); setCmdErr('')
+    setSending(true); setCmdErr(''); setCmdSuccess('')
     try {
       await api.devices.sendCommand(vehicle.id, command.turnOff ? 'engineStop' : 'engineResume')
-      setCommand(null); await refreshDevices?.()
+      setCommand(null)
+      setCmdSuccess(t(lang, command.turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
+      await refreshDevices?.()
     } catch (e) { setCmdErr(t(lang,'vehicleCommandFailed')) } finally { setSending(false) }
   }
 
@@ -321,7 +324,8 @@ export default function VehicleControl() {
               {lang==='fr' ? 'ARRÊTER LE MOTEUR' : 'إيقاف المحرك'}
             </button>
           )}
-          {cmdErr && <p className="mt-3 text-xs text-red-600">{cmdErr}</p>}
+           {cmdErr && <p role="alert" className="mt-3 text-xs text-red-600">{cmdErr}</p>}
+           {cmdSuccess && <p role="status" className="mt-3 text-xs font-bold text-green-600">{cmdSuccess}</p>}
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
