@@ -119,6 +119,7 @@ export default function VehicleControl() {
   const [saved, setSaved] = useState(false)
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const vehicleMapRef = useRef(null)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const vehicle = useMemo(() => vehicles.find(v => String(v.id) === String(id)), [id, vehicles])
   const point = pt(vehicle)
@@ -138,19 +139,21 @@ export default function VehicleControl() {
   }, [vehicle?.id])
 
   const T = lang === 'fr' ? {
-    details:'Détails du véhicule', vName:'Nom du véhicule', dName:'Nom du conducteur',
+    details:'Informations du véhicule', vName:'Nom du véhicule', dName:'Nom du conducteur',
     dPhone:'Téléphone du conducteur', devId:"ID de l'appareil",
     save:'Enregistrer', saved:'Enregistré', online:'En ligne', offline:'Hors ligne',
     noEngine:"Le contrôle du moteur n'est pas disponible pour ce véhicule",
     replay:"Rejouer l'itinéraire", loading:'Chargement...',
     fullscreen:'Plein écran', exitFullscreen:'Quitter le plein écran',
+    plate:'Plaque', type:'Type', voltage:'Tension', status:'Statut',
   } : {
-    details:'تفاصيل المركبة', vName:'اسم المركبة', dName:'اسم السائق',
+    details:'معلومات المركبة', vName:'اسم المركبة', dName:'اسم السائق',
     dPhone:'هاتف السائق', devId:'رقم الجهاز',
     save:'حفظ', saved:'تم الحفظ', online:'متصلة', offline:'غير متصلة',
     noEngine:'التحكم بالمحرك غير متاح حتى يؤكد النظام دعمه لهذه المركبة',
     replay:'إعادة المسار', loading:'جاري التحميل...',
     fullscreen:'ملء الشاشة', exitFullscreen:'الخروج من ملء الشاشة',
+    plate:'اللوحة', type:'النوع', voltage:'الفولطاج', status:'الحالة',
   }
 
   useEffect(() => {
@@ -218,6 +221,18 @@ export default function VehicleControl() {
     html: '<span style="display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#fff;border:3px solid #4F46E5;box-shadow:0 8px 24px rgba(79,70,229,.35)"><img src="' + markerFor(vehicle.type).url + '" alt="" style="width:36px;height:36px;object-fit:contain"/></span>',
     iconSize:[52,52], iconAnchor:[26,26],
   })
+  const displayValue = value => value == null || value === '' ? '—' : String(value)
+  const vehicleType = vehicle.type === 'car'
+    ? (lang === 'fr' ? 'Voiture' : 'سيارة')
+    : vehicle.type === 'truck'
+      ? (lang === 'fr' ? 'Camion' : 'شاحنة')
+      : vehicle.type === 'bike' || vehicle.type === 'motorcycle'
+        ? (lang === 'fr' ? 'Moto' : 'دراجة')
+        : '—'
+  const voltageValue = Number(vehicle.voltage)
+  const voltageLabel = Number.isFinite(voltageValue) && voltageValue > 0
+    ? `${voltageValue.toFixed(1)} V`
+    : '—'
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-24" dir={lang==='ar'?'rtl':'ltr'}>
@@ -307,12 +322,36 @@ export default function VehicleControl() {
           {tripError && <p className="mt-2 text-center text-[11px] text-orange-600">{tripError}</p>}
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Pencil size={16} className="text-indigo-600"/>
-            <h2 className="text-sm font-extrabold text-slate-900">{T.details}</h2>
-          </div>
-          <div className="space-y-3">
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <button
+            type="button"
+            onClick={() => setInfoOpen(value => !value)}
+            aria-expanded={infoOpen}
+            className="flex w-full items-center justify-between gap-3 p-4 text-start"
+          >
+            <span className="flex items-center gap-2">
+              <Pencil size={16} className="text-indigo-600"/>
+              <span className="text-sm font-extrabold text-slate-900">{T.details}</span>
+            </span>
+            <span className="text-lg leading-none text-slate-400" aria-hidden="true">{infoOpen ? '−' : '+'}</span>
+          </button>
+          {infoOpen && <div className="space-y-3 border-t border-slate-100 p-4">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                [T.dName, meta.driverName],
+                [T.plate, vehicle.plate ?? vehicle.licensePlate],
+                [T.type, vehicleType],
+                [T.dPhone, meta.driverPhone],
+                [T.devId, vehicle.uniqueId || vehicle.id],
+                [T.voltage, voltageLabel],
+                [T.status, online ? T.online : T.offline],
+              ].map(([label, value]) => (
+                <div key={label} className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
+                  <p className="truncate text-[10px] font-bold text-slate-500">{label}</p>
+                  <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(value)}</p>
+                </div>
+              ))}
+            </div>
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.vName}</label>
               <input type="text" value={meta.name} onChange={e => setMeta(Object.assign({}, meta, { name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
@@ -337,7 +376,7 @@ export default function VehicleControl() {
             <button type="button" onClick={saveDetails} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
               {saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
             </button>
-          </div>
+          </div>}
         </section>
       </main>
 
