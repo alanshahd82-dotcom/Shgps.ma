@@ -813,14 +813,14 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   }
 
   const routeBounds = route.length ? route : [{ latitude: 33.5731, longitude: -7.5898 }]
-  const surfaceClass = 'border border-white/[.10] bg-[rgba(7,17,31,.94)] backdrop-blur-xl'
+  const surfaceClass = 'border border-slate-200/80 bg-white/95 backdrop-blur-xl'
   const label = (ar, fr) => (isAr ? ar : fr)
   const progressPercent = route.length > 1
     ? Math.min(100, Math.max(0, (progress / (route.length - 1)) * 100))
     : 0
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-[#0B1220] text-[#edf4f2]" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="athar-replay-shell fixed inset-0 z-[1000] bg-slate-100 text-slate-900" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="absolute inset-0 h-[100dvh] min-h-[420px] w-full">
           <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} minZoom={3} maxZoom={19} style={{ height: '100%', width: '100%', minHeight: '420px' }} zoomControl={false} preferCanvas>
           <MapLayers
@@ -879,7 +879,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
         <Target size={17} />
       </button>
 
-      <header className={`athar-replay-header absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.90)' }}>
+      <header className={`athar-replay-header absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(255,255,255,.96)' }}>
         <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-extrabold text-white">{deviceName || t(lang, 'device')}</p>
@@ -888,7 +888,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
         <span className="hidden shrink-0 rounded-lg bg-[#35d39a]/10 px-2 py-1 text-[9px] font-bold tracking-[.12em] text-[#8ceac5] sm:inline">ATHAR GPS</span>
       </header>
 
-      <section className={`athar-replay-sheet pointer-events-auto absolute inset-x-0 bottom-0 z-[1001] flex max-h-[min(82vh,680px)] flex-col rounded-t-3xl shadow-[0_-16px_50px_rgba(0,0,0,.3)] ${showAnalysis ? 'is-expanded' : ''} ${surfaceClass}`} style={{ background: 'rgba(11,18,32,.95)' }}>
+      <section className={`athar-replay-sheet pointer-events-auto absolute inset-x-0 bottom-0 z-[1001] flex max-h-[min(82vh,680px)] flex-col rounded-t-3xl shadow-[0_-16px_50px_rgba(0,0,0,.3)] ${showAnalysis ? 'is-expanded' : ''} ${surfaceClass}`} style={{ background: 'rgba(255,255,255,.97)' }}>
         <button onClick={() => setShowAnalysis((value) => !value)} aria-expanded={showAnalysis} className="flex w-full shrink-0 items-center justify-center py-2.5">
           <span className="h-1 w-12 rounded-full bg-white/25 transition hover:bg-white/45" />
         </button>

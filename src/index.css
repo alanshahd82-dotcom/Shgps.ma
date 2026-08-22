@@ -2378,3 +2378,63 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     transition: none;
   }
 }
+
+
+/* Trip replay light identity overrides */
+.athar-replay-shell {
+  color: var(--ds-color-text);
+}
+
+.athar-replay-shell .athar-replay-map .leaflet-container {
+  background: var(--ds-color-surface-sunken) !important;
+}
+
+.athar-replay-shell .athar-replay-header,
+.athar-replay-shell .athar-replay-sheet {
+  border-color: var(--ds-border) !important;
+  box-shadow: var(--ds-shadow-card);
+}
+
+.athar-replay-shell [class*="text-white"] {
+  color: var(--ds-color-text) !important;
+}
+
+.athar-replay-shell [class*="text-white/"] {
+  color: var(--ds-color-text-muted) !important;
+}
+
+.athar-replay-shell [class*="bg-white/"] {
+  background: var(--ds-color-surface-sunken) !important;
+}
+
+.athar-replay-shell [class*="border-white/"] {
+  border-color: var(--ds-border) !important;
+}
+
+.athar-replay-shell .athar-replay-follow {
+  border-color: var(--ds-border) !important;
+  background: var(--ds-color-surface) !important;
+  color: var(--ds-color-text) !important;
+  box-shadow: var(--ds-shadow-soft);
+}
+
+.athar-replay-shell .athar-replay-follow.is-active {
+  border-color: var(--ds-color-primary) !important;
+  background: var(--ds-color-primary-soft) !important;
+  color: #087a4a !important;
+}
+
+.athar-replay-shell .leaflet-control-zoom a {
+  border-color: var(--ds-border) !important;
+  background: var(--ds-color-surface) !important;
+  color: var(--ds-color-text) !important;
+}
+
+.athar-replay-shell .leaflet-control-zoom a:hover {
+  background: var(--ds-color-surface-sunken) !important;
+}
+
+.athar-replay-shell .athar-map-loading,
+.athar-replay-shell .athar-map-loading-surface {
+  background: var(--ds-color-surface-sunken);
+}
