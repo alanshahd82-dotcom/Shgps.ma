@@ -8,3 +8,4 @@
 - [Silence alert policy](silence-alert-verification.md) — silence or generic alarm labels never prove a vehicle-battery disconnect; require explicit electrical telemetry.
 - [Power episode restoration](power-episode-restoration.md) — missing or fluctuating tracker charge fields are not restore evidence during telemetry-triggered disconnects
 - [Vehicle-experience restoration](vehicle-experience-restoration.md) — e72cb505 was identified as the problematic vehicle-experience task, and the project was restored to its parent state aa20c11c because the dist-only rollback was insufficient when source code changed; future feature work must be incremental.
+- [Vehicle Detail fullscreen](vehicle-detail-fullscreen.md) — Task 1 preserved the existing Vehicle Detail page, adding only a responsive fullscreen map control and a collapsed-by-default vehicle information section; frontend-only with no backend, database, Traccar, or API changes.

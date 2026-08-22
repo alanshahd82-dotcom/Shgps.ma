@@ -6,7 +6,7 @@ import L from 'leaflet'
 import {
   ChevronLeft, ChevronRight, Zap, ZapOff, MapPin, Clock, Activity, Play,
   Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
-  Pencil, Check, X as CloseX, Phone, Radio
+  Pencil, Check, X as CloseX, Phone, Radio, Maximize2, Minimize2
 } from 'lucide-react'
 import NativeAreaChart from '../../components/NativeAreaChart'
 import { useApp } from '../../context/AppContext'
@@ -119,6 +119,17 @@ function FitRoute({ positions }) {
   return null
 }
 
+function ResizeMapOnFullscreen({ fullscreen }) {
+  const map = useMap()
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => map.invalidateSize({ animate: false }))
+    return () => cancelAnimationFrame(frame)
+  }, [fullscreen, map])
+
+  return null
+}
+
 const TABS = [
   { key:'info',     Icon: MapPin,      ar: 'المعلومات',  fr: 'Infos'    },
   { key:'route',    Icon: RouteIcon,   labelKey: 'replayRoute'         },
@@ -160,6 +171,9 @@ export default function DeviceDetail() {
   const [editing,   setEditing]   = useState(false)
   const [editForm,  setEditForm]  = useState({ name: '', driver: '', phone: '', plate: '', type: 'bike' })
   const [saving,    setSaving]    = useState(false)
+  const [vehicleInfoOpen, setVehicleInfoOpen] = useState(false)
+  const [mapFullscreen, setMapFullscreen] = useState(false)
+  const vehicleMapRef = useRef(null)
   const isAr = lang === 'ar'
   const trackingEnabled = device?.trackingEnabled !== false
   const latitude = finiteCoordinate(device?.lat) ?? finiteCoordinate(device?.last_lat)
@@ -403,6 +417,7 @@ export default function DeviceDetail() {
       type: ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike',
     })
     setEditing(true)
+    setVehicleInfoOpen(true)
     setToast(null)
   }
 
@@ -428,6 +443,29 @@ export default function DeviceDetail() {
 
   function callDriver() {
     if (canCallDriver()) window.location.href = `tel:${driverPhone()}`
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setMapFullscreen(document.fullscreenElement === vehicleMapRef.current)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  async function toggleMapFullscreen() {
+    const mapElement = vehicleMapRef.current
+    if (mapFullscreen) {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen().catch(() => {})
+      }
+      setMapFullscreen(false)
+      return
+    }
+    setMapFullscreen(true)
+    if (mapElement?.requestFullscreen) {
+      await mapElement.requestFullscreen().catch(() => {})
+    }
   }
 
   async function generateShareLink() {
@@ -636,19 +674,41 @@ export default function DeviceDetail() {
       )}
               {/* Mini map */}
               {trackingEnabled && validPosition(latitude, longitude) && (
-                <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
+                <div
+                  ref={vehicleMapRef}
+                  className={`device-detail-map relative rounded-2xl overflow-hidden${mapFullscreen ? ' is-fullscreen' : ''}`}
+                  style={{ height:180 }}
+                >
                   <MapContainer center={[latitude, longitude]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
                     <MapLayers />
+                    <ResizeMapOnFullscreen fullscreen={mapFullscreen} />
                     <Marker position={[latitude, longitude]}
                       icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:'+stColor+';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })}/>
                   </MapContainer>
+                  <button
+                    type="button"
+                    onClick={toggleMapFullscreen}
+                    className="device-detail-map__fullscreen"
+                    aria-label={isAr ? (mapFullscreen ? 'الخروج من ملء الشاشة' : 'ملء الشاشة') : (mapFullscreen ? 'Quitter le plein écran' : 'Plein écran')}
+                    title={isAr ? (mapFullscreen ? 'الخروج من ملء الشاشة' : 'ملء الشاشة') : (mapFullscreen ? 'Quitter le plein écran' : 'Plein écran')}
+                  >
+                    {mapFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+                  </button>
                 </div>
               )}
               {/* Detail rows + edit */}
               <div className="rounded-2xl overflow-hidden" style={cardStyle}>
                 {/* Edit header */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{isAr ? 'بيانات المركبة' : 'Véhicule'}</span>
+                <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setVehicleInfoOpen(value => !value)}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 text-start"
+                    aria-expanded={vehicleInfoOpen}
+                  >
+                    <span className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-400">{t(lang, 'vehicleInformation')}</span>
+                    <ChevronRight size={14} className={`flex-shrink-0 transition-transform ${vehicleInfoOpen ? (isAr ? '-rotate-90' : 'rotate-90') : ''}`} aria-hidden="true" />
+                  </button>
                   {!editing
                     ? <button onClick={openEdit} className="flex items-center gap-1 text-[11px] font-bold text-primary-500 hover:opacity-70 transition-opacity">
                         <Pencil size={11}/>{isAr ? 'تعديل' : 'Modifier'}
@@ -665,7 +725,7 @@ export default function DeviceDetail() {
                       </div>}
                 </div>
 
-                {editing ? (
+                {vehicleInfoOpen && (editing ? (
                   /* Edit form */
                   <div className="divide-y divide-slate-100">
                     {[
@@ -696,13 +756,18 @@ export default function DeviceDetail() {
                     </div>
                   </div>
                 ) : (
-                  /* Read-only rows */
-                  [
+                  <>
+                  {/* Read-only rows */}
+                  {[
                     { label: isAr?'الجهاز':'Appareil', val: device.name },
                     { label: isAr?'اللوحة':'Plaque', val: device.plate || '—' },
                     { label: isAr?'السائق':'Conducteur', val: device.driver || '—' },
                     { label: isAr?'هاتف السائق':'Téléphone', val: device.phone || '—', phone: device.phone },
-                    { label: isAr?'آخر تحديث':'Dernier signal', val: lastUpdate ? timeAgo(lastUpdate, lang) : (isAr?'لا توجد بيانات':'Aucune donnée') },
+                     { label: t(lang, 'vehicleType'), val: t(lang, vehicleType) },
+                     { label: t(lang, 'driverNumber'), val: device.phone || '—' },
+                     { label: t(lang, 'voltage'), val: voltageLabel },
+                     { label: t(lang, 'status'), val: stLabel },
+                     { label: t(lang, 'lastUpdate'), val: lastUpdate ? timeAgo(lastUpdate, lang) : t(lang, 'noData') },
                   ].map((row,i,arr) => (
                      <div key={i} onClick={row.copyCoordinates ? copyCoordinates : undefined} onKeyDown={event => {
                        if (row.copyCoordinates && (event.key === 'Enter' || event.key === ' ')) {
@@ -749,8 +814,7 @@ export default function DeviceDetail() {
                          )}
                        </div>
                     </div>
-                  ))
-                )}
+                   ))}
                 {!editing && (
                   <details className="technical-details border-t border-slate-100" dir={isAr ? 'rtl' : 'ltr'}>
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold text-slate-500">
@@ -810,6 +874,7 @@ export default function DeviceDetail() {
                     </div>
                   </details>
                 )}
+                  </>))}
               </div>
             </motion.div>
           )}

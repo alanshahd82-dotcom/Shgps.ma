@@ -1981,3 +1981,15 @@ write before subsequent packets arrive.
 - `git status --short`: verified to contain documentation changes only before commit.
 - One focused documentation commit was created and pushed to `origin/main`.
 - Final local `HEAD` was verified equal to `origin/main` after the push.
+
+## 2026-08-22 — Task 1 vehicle detail fullscreen and information
+
+- Preserved the existing `DeviceDetail` page and added a responsive fullscreen control
+  to its existing Leaflet map without creating a second map or changing the provider.
+- Made the vehicle information section collapsed by default; expansion keeps the
+  existing edit/technical details and displays available driver, plate, type,
+  driver number, voltage, status, and device identifier values without inventing data.
+- Frontend-only change. Backend, database, Traccar, API contracts, Docker, and Nginx
+  were unchanged.
+- Build and `git diff --check` passed. Commit and remote result must be recorded
+  after the final push.
