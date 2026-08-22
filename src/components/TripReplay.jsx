@@ -20,10 +20,12 @@ const MIN_STOP_MS = 2 * 60 * 1000
 const ACCELERATION_LIMIT = 2.5
 const BRAKING_LIMIT = -3
 const MAX_EVENT_INTERVAL_MS = 30 * 1000
-const TRAIL_POINT_LIMIT = 15
 const MAP_STYLE_STORAGE_KEY = 'athargps_map_style'
 const MAX_POSITION_SPEED_KMH = 220
-const PLAYBACK_RENDER_INTERVAL_MS = 250
+// The map is deliberately not part of the playback clock.  This only controls
+// how often the surrounding controls receive a progress update; the marker
+// itself remains the only moving map layer.
+const PLAYBACK_RENDER_INTERVAL_MS = 120
 const MIN_REPLAY_STEP_MS = 120
 const replayRouteCache = new Map()
 
@@ -264,15 +266,6 @@ const ReplayStaticLayers = React.memo(function ReplayStaticLayers({ route, route
           </Marker>
         )
       })}
-    </>
-  )
-})
-
-const ReplayDynamicLayers = React.memo(function ReplayDynamicLayers({ traveledPositions, motionTrail }) {
-  return (
-    <>
-      {traveledPositions.length > 1 && <Polyline positions={traveledPositions} pathOptions={{ color: '#66F2B5', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />}
-      {motionTrail.map((segment, index) => <Polyline key={`trail-${index}`} positions={segment.positions} pathOptions={{ color: '#B6F8D9', weight: 3, opacity: segment.opacity, lineCap: 'round', lineJoin: 'round' }} />)}
     </>
   )
 })
@@ -581,9 +574,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   const rafRef = useRef(null)
   const virtualTimeRef = useRef(null)
   const lastFrameRef = useRef(null)
-  const lastTrailUpdateRef = useRef(0)
   const lastRenderRef = useRef(0)
-  const [traveledProgress, setTraveledProgress] = useState(0)
   const handleMapLoad = useCallback(() => setMapReady(true), [])
   const handleSatelliteTimeout = useCallback(() => {
     setSatelliteMode((currentValue) => {
@@ -681,31 +672,6 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
     : 0)
   const routeLeafletPositions = useMemo(() => route.map(leafletPosition), [route])
   const routePositions = useMemo(() => downsample(simplifyPath(routeLeafletPositions, 0.00005), 1200), [routeLeafletPositions])
-  const traveledPositions = useMemo(() => {
-    if (!route.length) return []
-    const traveledIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
-    const positions = routeLeafletPositions.slice(0, traveledIndex + 1)
-    const progressIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
-    const next = route[Math.min(route.length - 1, progressIndex + 1)]
-    const start = route[progressIndex]
-    const ratio = Math.min(1, Math.max(0, traveledProgress - progressIndex))
-    const currentPosition = start && next
-      ? [start.latitude + (next.latitude - start.latitude) * ratio, start.longitude + (next.longitude - start.longitude) * ratio]
-      : positions.at(-1)
-    const lastPosition = positions.at(-1)
-    if (!lastPosition || lastPosition[0] !== currentPosition[0] || lastPosition[1] !== currentPosition[1]) {
-      positions.push(currentPosition)
-    }
-    return downsample(positions, 1200)
-  }, [routeLeafletPositions, traveledProgress, route])
-  const motionTrail = useMemo(() => {
-    if (traveledPositions.length < 2) return []
-    const visibleTrail = traveledPositions.slice(-TRAIL_POINT_LIMIT)
-    return visibleTrail.slice(0, -1).map((point, index) => ({
-      positions: [point, visibleTrail[index + 1]],
-      opacity: 0.1 + ((index + 1) / Math.max(1, visibleTrail.length - 1)) * 0.62,
-    }))
-  }, [traveledPositions])
   const efficiencyScore = useMemo(() => route.length ? Math.max(5, Math.min(100, Math.round(
     100 - events.filter((event) => event.type === 'acceleration').length * 5
       - events.filter((event) => event.type === 'braking').length * 5
@@ -737,10 +703,6 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
         lastRenderRef.current = frameTime
         setProgress(nextProgress)
       }
-       if (nextProgress >= route.length - 1 || frameTime - lastTrailUpdateRef.current >= 500) {
-         lastTrailUpdateRef.current = frameTime
-         setTraveledProgress(nextProgress)
-       }
       if (nextProgress >= route.length - 1) {
         setPlaying(false)
         virtualTimeRef.current = null
@@ -755,7 +717,6 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
       lastFrameRef.current = null
-      lastTrailUpdateRef.current = 0
       lastRenderRef.current = 0
     }
   }, [multiplier, playing, route])
@@ -763,7 +724,6 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   useEffect(() => {
     if (route.length > 1 && !loading && !error && mapReady) {
       setProgress(0)
-      setTraveledProgress(0)
       // Keep the replay paused at the first point until the user explicitly
       // presses Play. Loading the map must never start vehicle playback.
       setPlaying(false)
@@ -797,7 +757,6 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
     lastFrameRef.current = null
     const nextProgress = Number(value)
     setProgress(nextProgress)
-    setTraveledProgress(nextProgress)
   }
 
   function jumpToEvent(event) {
@@ -915,7 +874,6 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
            <MapResizeSync mapReady={mapReady} showAnalysis={showAnalysis} routeLength={route.length} />
           <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} mapReady={mapReady} onManualMove={() => setFollowCurrent(false)} />
           <ReplayStaticLayers route={route} routePositions={routePositions} speedingSegments={speedingSegments} stops={stops} isAr={isAr} lang={lang} />
-          <ReplayDynamicLayers traveledPositions={traveledPositions} motionTrail={motionTrail} />
           {showAnalysis && events.filter((event) => event.type !== 'stop' && event.type !== 'speeding').map((event, index) => {
             const meta = eventMeta(event.type, lang)
             return <Marker key={`${event.type}-${event.index}-${index}`} position={leafletPosition(event)} icon={labelIcon(meta.icon, meta.color, 22)} />
