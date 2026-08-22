@@ -189,19 +189,28 @@ The chronological historical record is retained in `docs/TASK_LOG.md`. New impor
 
 Verified lessons are retained in this file's historical sections and in the focused topic files under `.agents/memory/`. In particular, map changes must remain additive and surgical, replay timing must preserve equal timestamps, and electrical disconnect alerts require explicit electrical telemetry. Do not invent or silently remove lessons.
 
-## D. CURRENT STATE — latest workspace verification
+## D. CURRENT VERIFIED STATE — 2026-08-22 memory audit
 
 - Repository: verified as `alanshahd82-dotcom/Shgps.ma`.
 - Branch: verified as `main`.
-- Current commit: [UNCONFIRMED in this document; verify with `git rev-parse HEAD` after the memory commit].
-- Git status at the start of this memory task: the prior UI commit and memory-auth documentation were present locally; the attached instruction file was untracked and is not project documentation.
-- Last verified build: `npm run build` passed during the preceding frontend task; no build was run for this documentation-only task.
-- Last verified deployment: [UNCONFIRMED].
-- Current service status: [UNCONFIRMED]; Replit artifact workflows are workspace tooling and do not prove VPS production health.
-- Current known problems: no new application problem was investigated in this documentation-only task.
-- Current task: organize the permanent project-memory documentation.
-- Waiting: push of the documentation commit to `origin/main`.
-- Next step: run the documentation-only validation, commit once, and push only after repository/branch checks pass.
+- Local HEAD: `00ec8c71fe2698174474924b3e09518f87fdf384`.
+- Remote state: local `HEAD` matches `origin/main` at the verified repository state.
+- The previous permanent-memory organization commit is confirmed present on `origin/main`; it is not pending.
+- This documentation-only synchronization changes no application behavior, dependencies, backend, database, Traccar, Docker, or deployment configuration.
+
+### Historical information
+
+- Earlier task entries describe prior UI, telemetry, replay, security, and deployment investigations. They remain historical records and must not be read as proof of current production health.
+- The last recorded frontend build passed during a preceding application task; no build is required for this documentation-only synchronization.
+
+### [UNCONFIRMED]
+
+- Production deployment, VPS service health, live Traccar reachability, physical relay movement, physical battery tests, and current production behavior remain unconfirmed unless a recent task entry explicitly records a verification.
+- Certbot configuration remains unconfirmed.
+
+- Current known application problems: none newly investigated in this documentation-only synchronization.
+- Current documentation state: permanent project-memory documentation is synchronized with the verified repository state.
+- Next step: none for this documentation synchronization; future work must begin by rereading this context, checking the repository/branch/Git state, and defining a self-contained scope.
 
 ## E. WORKING RULES
 
