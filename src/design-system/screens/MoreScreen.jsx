@@ -79,10 +79,8 @@ export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, on
       return
     }
 
-    if (item[1] === 'about') {
-      window.alert('ATHAR GPS\nمنصة تتبع وإدارة المركبات')
-      return
-    }
+    // about menu disabled
+    if (false) return
 
     const route = MENU_ROUTES[item[1]]
     if (route) navigate(route)
