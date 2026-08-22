@@ -689,6 +689,7 @@ export default function DeviceDetail() {
                     type="button"
                     onClick={toggleMapFullscreen}
                     className="device-detail-map__fullscreen"
+                    style={{ position: 'absolute', top: 12, insetInlineEnd: 12, zIndex: 1000, pointerEvents: 'auto' }}
                     aria-label={isAr ? (mapFullscreen ? 'الخروج من ملء الشاشة' : 'ملء الشاشة') : (mapFullscreen ? 'Quitter le plein écran' : 'Plein écran')}
                     title={isAr ? (mapFullscreen ? 'الخروج من ملء الشاشة' : 'ملء الشاشة') : (mapFullscreen ? 'Quitter le plein écran' : 'Plein écran')}
                   >

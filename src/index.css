@@ -1748,12 +1748,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   position: absolute;
   top: 12px;
   inset-inline-end: 12px;
-  z-index: 500;
+  z-index: 1000 !important;
   display: inline-flex;
   width: 38px;
   height: 38px;
   align-items: center;
   justify-content: center;
+  pointer-events: auto;
   border: 1px solid rgba(255,255,255,.18);
   border-radius: 12px;
   background: rgba(6,12,26,.86);
