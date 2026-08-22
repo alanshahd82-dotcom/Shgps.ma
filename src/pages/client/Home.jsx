@@ -13,6 +13,7 @@ function useLang() {
 
 const t = (key, lang) => ({
   ar: {
+    home: 'الرئيسية', more: 'المزيد',
     greeting: 'مرحباً', subtitle: 'إليك حالة مركباتك اليوم',
     heroTitle: 'أسطولك تحت السيطرة', heroSub: 'تابع مركباتك لحظة بلحظة بكل أمان وراحة بال',
     heroCta: 'عرض المركبات', fleet: 'حالة الأسطول',
@@ -23,6 +24,7 @@ const t = (key, lang) => ({
     kmh: 'كم/س', ago: 'منذ', now: 'الآن',
   },
   fr: {
+    home: 'Accueil', more: 'Plus',
     greeting: 'Bonjour', subtitle: 'Voici l\'état de votre flotte',
     heroTitle: 'Votre flotte sous contrôle', heroSub: 'Suivez vos véhicules en temps réel',
     heroCta: 'Voir les véhicules', fleet: 'État de la flotte',
