@@ -42,6 +42,7 @@ function dirUrl(type, p) {
 }
 const tripS = x => x?.startTime ?? x?.start_time ?? x?.start ?? null
 const tripE = x => x?.endTime ?? x?.end_time ?? x?.end ?? null
+const REPLAY_RANGES = [1, 2, 3, 7, 30]
 
 function GIcon() {
   return (
@@ -115,6 +116,7 @@ export default function VehicleControl() {
   const [tripLoading, setTripLoading] = useState(false)
   const [tripError, setTripError] = useState('')
   const [tripOptions, setTripOptions] = useState(null)
+  const [replayRange, setReplayRange] = useState(1)
   const [meta, setMeta] = useState({ name:'', driverName:'', driverPhone:'' })
   const [saved, setSaved] = useState(false)
   const [mapFullscreen, setMapFullscreen] = useState(false)
@@ -146,6 +148,7 @@ export default function VehicleControl() {
     replay:"Rejouer l'itinéraire", loading:'Chargement...',
     fullscreen:'Plein écran', exitFullscreen:'Quitter le plein écran',
     plate:'Plaque', type:'Type', voltage:'Tension', status:'Statut',
+    replayRanges:['Aujourd’hui', '2 derniers jours', '3 derniers jours', '7 derniers jours', '30 derniers jours'],
   } : {
     details:'معلومات المركبة', vName:'اسم المركبة', dName:'اسم السائق',
     dPhone:'هاتف السائق', devId:'رقم الجهاز',
@@ -154,6 +157,7 @@ export default function VehicleControl() {
     replay:'إعادة المسار', loading:'جاري التحميل...',
     fullscreen:'ملء الشاشة', exitFullscreen:'الخروج من ملء الشاشة',
     plate:'اللوحة', type:'النوع', voltage:'الفولطاج', status:'الحالة',
+    replayRanges:['اليوم', 'آخر يومين', 'آخر 3 أيام', 'آخر 7 أيام', 'آخر 30 يومًا'],
   }
 
   useEffect(() => {
@@ -190,7 +194,10 @@ export default function VehicleControl() {
 
   async function openReplay() {
     if (!vehicle || tripLoading) return
-    const end = new Date(), start = new Date(end); start.setHours(0,0,0,0)
+    const end = new Date()
+    const start = new Date(end)
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - (replayRange - 1))
     setTripLoading(true); setTripError(''); setTripOptions(null)
     try {
       const r = await api.reports.get(vehicle.id, start.toISOString(), end.toISOString())
@@ -305,6 +312,26 @@ export default function VehicleControl() {
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3">
+            <p className="mb-2 text-[11px] font-extrabold text-slate-500">{lang === 'fr' ? 'Période' : 'الفترة الزمنية'}</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {REPLAY_RANGES.map((days, index) => (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => { setReplayRange(days); setTripOptions(null); setTripError('') }}
+                  aria-pressed={replayRange === days}
+                  className={'rounded-xl border px-2 py-2.5 text-[11px] font-extrabold transition ' + (
+                    replayRange === days
+                      ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300'
+                  )}
+                >
+                  {T.replayRanges[index]}
+                </button>
+              ))}
+            </div>
+          </div>
           <button type="button" onClick={openReplay} disabled={tripLoading} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-extrabold text-slate-700 disabled:opacity-50">
             {tripLoading ? <Loader2 className="animate-spin" size={15}/> : <Play size={15}/>}
             {tripLoading ? T.loading : T.replay}
