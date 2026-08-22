@@ -25,6 +25,7 @@ const MAP_STYLE_STORAGE_KEY = 'athargps_map_style'
 const MAX_POSITION_SPEED_KMH = 220
 const PLAYBACK_RENDER_INTERVAL_MS = 250
 const MIN_REPLAY_STEP_MS = 120
+const replayRouteCache = new Map()
 
 function readyMapContainer(map) {
   if (!map || map._loaded !== true || typeof map.getContainer !== 'function') return null
@@ -62,11 +63,13 @@ function validPoint(point) {
 
 function normalisePoint(point) {
   const pointBearing = Number(point.course ?? point.bearing ?? point.heading ?? point.direction)
+  const fixTime = point.fixTime ?? point.timestamp ?? point.time
   return {
     latitude: Number(point.latitude ?? point.lat),
     longitude: Number(point.longitude ?? point.lng),
     speed: Math.max(0, Number(point.speed ?? 0)),
-    fixTime: point.fixTime ?? point.timestamp ?? point.time,
+    fixTime,
+    timestamp: new Date(fixTime).getTime(),
     address: point.address || null,
     bearing: Number.isFinite(pointBearing) ? (pointBearing + 360) % 360 : null,
   }
@@ -92,12 +95,12 @@ function cleanRoute(points) {
   const candidates = (Array.isArray(points) ? points : [])
     .filter(validPoint)
     .map(normalisePoint)
-    .sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
+    .sort((a, b) => a.timestamp - b.timestamp)
   const cleaned = []
   for (const point of candidates) {
     const previous = cleaned.at(-1)
     if (previous) {
-      const elapsedHours = (new Date(point.fixTime) - new Date(previous.fixTime)) / 3600000
+      const elapsedHours = (point.timestamp - previous.timestamp) / 3600000
       const speedKmh = elapsedHours > 0 ? haversine(previous, point) / elapsedHours : 0
       // Traccar can return several valid fixes with the same timestamp.
       // They still describe movement and must not collapse the replay to one
@@ -111,7 +114,7 @@ function cleanRoute(points) {
   // jump over the whole segment instead of moving the vehicle.
   let replayTime = 0
   return cleaned.map((point, index) => {
-    const actualTime = new Date(point.fixTime).getTime()
+    const actualTime = point.timestamp
     replayTime = index === 0 ? actualTime : Math.max(actualTime, replayTime + MIN_REPLAY_STEP_MS)
     return { ...point, replayTime }
   })
@@ -230,6 +233,49 @@ function labelIcon(label, background, size = 26) {
     iconAnchor: [size / 2, size / 2],
   })
 }
+
+const ReplayStaticLayers = React.memo(function ReplayStaticLayers({ route, routePositions, speedingSegments, stops, isAr, lang }) {
+  const label = (ar, fr) => (isAr ? ar : fr)
+  return (
+    <>
+      {route.length > 1 && <>
+        <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
+        <Polyline positions={routePositions} pathOptions={{ color: '#1DBF73', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
+      </>}
+      {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
+      {route.length > 0 && <Marker position={leafletPosition(route[0])} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
+      {route.length > 1 && <Marker position={leafletPosition(route.at(-1))} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
+      {stops.map((stop, index) => {
+        const start = route[stop.index]
+        const end = route[stop.endIndex]
+        return (
+          <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#f5b54a', 28)}>
+            <Popup className="athar-stop-popup">
+              <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-[165px] text-xs text-slate-700">
+                <p className="mb-2 text-sm font-extrabold text-slate-900">{label('تفاصيل التوقف', 'Détails de l’arrêt')}</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('التاريخ', 'Date')}</span><strong>{formatDate(start?.fixTime, lang)}</strong></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('بداية التوقف', 'Début')}</span><strong dir="ltr">{formatClockTime(start?.fixTime, lang)}</strong></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('نهاية التوقف', 'Fin')}</span><strong dir="ltr">{formatClockTime(end?.fixTime, lang)}</strong></div>
+                  <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('المدة', 'Durée')}</span><strong>{formatDuration(stop.duration, lang)}</strong></div>
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        )
+      })}
+    </>
+  )
+})
+
+const ReplayDynamicLayers = React.memo(function ReplayDynamicLayers({ traveledPositions, motionTrail }) {
+  return (
+    <>
+      {traveledPositions.length > 1 && <Polyline positions={traveledPositions} pathOptions={{ color: '#66F2B5', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />}
+      {motionTrail.map((segment, index) => <Polyline key={`trail-${index}`} positions={segment.positions} pathOptions={{ color: '#B6F8D9', weight: 3, opacity: segment.opacity, lineCap: 'round', lineJoin: 'round' }} />)}
+    </>
+  )
+})
 
 function vehicleIcon(type, initialBearing = 0) {
   const marker = markerFor(type)
@@ -561,11 +607,24 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
       return () => { cancelled = true }
     }
 
+    const cacheKey = `${deviceId}:${startTime}:${endTime}`
+    const cachedRoute = replayRouteCache.get(cacheKey)
+    if (cachedRoute) {
+      setRoute(cachedRoute)
+      setLoading(false)
+      return () => { cancelled = true }
+    }
+
     setLoading(true)
     setError('')
     api.stats.getPositions(deviceId, startTime, endTime)
       .then((data) => {
-        if (!cancelled) setRoute(cleanRoute(data))
+        if (!cancelled) {
+          const nextRoute = cleanRoute(data)
+          replayRouteCache.set(cacheKey, nextRoute)
+          if (replayRouteCache.size > 8) replayRouteCache.delete(replayRouteCache.keys().next().value)
+          setRoute(nextRoute)
+        }
       })
       .catch(() => {
         if (!cancelled) setError(isAr ? 'تعذّر تحميل نقاط الرحلة. حاول مرة أخرى.' : 'Impossible de charger les points du trajet.')
@@ -855,34 +914,8 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
            <MapLifecycle onLoad={handleMapLoad} />
            <MapResizeSync mapReady={mapReady} showAnalysis={showAnalysis} routeLength={route.length} />
           <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} mapReady={mapReady} onManualMove={() => setFollowCurrent(false)} />
-          {route.length > 1 && <>
-            <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
-            <Polyline positions={routePositions} pathOptions={{ color: '#1DBF73', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
-            {traveledPositions.length > 1 && <Polyline positions={traveledPositions} pathOptions={{ color: '#66F2B5', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />}
-          </>}
-          {motionTrail.map((segment, index) => <Polyline key={`trail-${index}`} positions={segment.positions} pathOptions={{ color: '#B6F8D9', weight: 3, opacity: segment.opacity, lineCap: 'round', lineJoin: 'round' }} />)}
-          {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
-          {route.length > 0 && <Marker position={leafletPosition(route[0])} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
-          {route.length > 1 && <Marker position={leafletPosition(route.at(-1))} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
-          {stops.map((stop, index) => {
-            const start = route[stop.index]
-            const end = route[stop.endIndex]
-            return (
-              <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#f5b54a', 28)}>
-                <Popup className="athar-stop-popup">
-                  <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-[165px] text-xs text-slate-700">
-                    <p className="mb-2 text-sm font-extrabold text-slate-900">{label('تفاصيل التوقف', 'Détails de l’arrêt')}</p>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('التاريخ', 'Date')}</span><strong>{formatDate(start?.fixTime, lang)}</strong></div>
-                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('بداية التوقف', 'Début')}</span><strong dir="ltr">{formatClockTime(start?.fixTime, lang)}</strong></div>
-                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('نهاية التوقف', 'Fin')}</span><strong dir="ltr">{formatClockTime(end?.fixTime, lang)}</strong></div>
-                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('المدة', 'Durée')}</span><strong>{formatDuration(stop.duration, lang)}</strong></div>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            )
-          })}
+          <ReplayStaticLayers route={route} routePositions={routePositions} speedingSegments={speedingSegments} stops={stops} isAr={isAr} lang={lang} />
+          <ReplayDynamicLayers traveledPositions={traveledPositions} motionTrail={motionTrail} />
           {showAnalysis && events.filter((event) => event.type !== 'stop' && event.type !== 'speeding').map((event, index) => {
             const meta = eventMeta(event.type, lang)
             return <Marker key={`${event.type}-${event.index}-${index}`} position={leafletPosition(event)} icon={labelIcon(meta.icon, meta.color, 22)} />
