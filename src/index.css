@@ -917,50 +917,6 @@ img {
   touch-action: manipulation;
 }
 
-.client-app { background: #07111f !important; color: #edf4f2; }
-.client-app .bg-white { background-color: #0e2035 !important; }
-.client-app .bg-slate-50 { background-color: #0a192c !important; }
-.client-app .border-slate-200,
-.client-app .border-slate-100,
-.client-app .border-slate-300 { border-color: rgba(255,255,255,.10) !important; }
-.client-app .text-slate-900,
-.client-app .text-slate-800,
-.client-app .text-slate-700 { color: #edf4f2 !important; }
-.client-app .text-slate-600 { color: #b2c0cc !important; }
-.client-app .text-slate-500,
-.client-app .text-slate-400 { color: #8da2b5 !important; }
-.client-app .text-slate-300 { color: #61788d !important; }
-.client-app .shadow-sm { box-shadow: 0 12px 32px rgba(0,0,0,.18) !important; }
-.client-app .bg-primary-500 { background-color: #0b1b33 !important; }
-.client-app .text-primary-500 { color: #edf4f2 !important; }
-.client-app .bg-primary-50 { background-color: rgba(56,211,159,.12) !important; }
-.client-app .text-danger { color: #e46b68 !important; }
-.client-app .bg-emerald-50 { background-color: rgba(56,211,159,.12) !important; }
-.client-app .text-emerald-700 { color: #75e6bd !important; }
-.client-app .bg-red-50 { background-color: rgba(228,107,104,.12) !important; }
-.client-app .text-red-600, .client-app .text-red-500 { color: #f28c88 !important; }
-.client-app .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255,255,255,.08) !important; }
-.client-app .bg-\[\#f5f7f8\] { background-color: #07111f !important; }
-.client-app .bg-red-50,
-.client-app .bg-orange-50,
-.client-app .bg-yellow-50 { background-color: rgba(228,107,104,.10) !important; }
-.client-app [style*="#ffffff"],
-.client-app [style*="#fff"],
-.client-app [style*="#f8fafc"],
-.client-app [style*="rgb(255, 255, 255)"],
-.client-app [style*="rgb(248, 250, 252)"] {
-  background-color: #0e2035 !important;
-  border-color: rgba(255,255,255,.10) !important;
-}
-.client-app [style*="#e2e8f0"],
-.client-app [style*="#f1f5f9"] {
-  border-color: rgba(255,255,255,.10) !important;
-}
-.client-app input,
-.client-app textarea,
-.client-app select { color: #edf4f2 !important; background-color: #0a192c !important; border-color: rgba(255,255,255,.10) !important; }
-.client-app input::placeholder,
-.client-app textarea::placeholder { color: #61788d !important; }
 .glass-card {
   background: rgba(14,32,53,.82);
   border: 1px solid rgba(255,255,255,.10);
