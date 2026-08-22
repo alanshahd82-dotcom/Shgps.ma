@@ -58,9 +58,9 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'maxPoints must be a positive integer' })
   }
   const maxPoints = maxPointsQuery === undefined
-    ? 1500
+    ? null
     : Number(maxPointsQuery)
-  if (!Number.isInteger(maxPoints) || maxPoints < 2 || maxPoints > 5000) {
+  if (maxPoints !== null && (!Number.isInteger(maxPoints) || maxPoints < 2 || maxPoints > 5000)) {
     return res.status(400).json({ error: 'maxPoints must be an integer between 2 and 5000' })
   }
 
@@ -73,7 +73,12 @@ statsRouter.get('/positions', requireAuth, async (req, res) => {
     }
 
     const cleanedPositions = traccar.cleanPositions(await traccar.getHistory(device.traccar_id, fromDate, toDate))
-    const positions = samplePositions(cleanedPositions, maxPoints)
+    // Replay requests omit maxPoints so the complete cleaned GPS history,
+    // including real stops, remains available to the client. Callers that
+    // explicitly request a cap keep the existing display-oriented behavior.
+    const positions = maxPoints === null
+      ? cleanedPositions
+      : samplePositions(cleanedPositions, maxPoints)
     console.info('[stats/positions]', {
       deviceId: deviceIdNumber,
       from: fromDate,

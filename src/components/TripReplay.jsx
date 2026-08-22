@@ -22,7 +22,6 @@ const ACCELERATION_LIMIT = 2.5
 const BRAKING_LIMIT = -3
 const MAX_EVENT_INTERVAL_MS = 30 * 1000
 const MAP_STYLE_STORAGE_KEY = 'athargps_map_style'
-const MAX_POSITION_SPEED_KMH = 220
 // The map is deliberately not part of the playback clock.  This only controls
 // how often the surrounding controls receive a progress update; the marker
 // itself remains the only moving map layer.
@@ -106,19 +105,9 @@ function cleanRoute(points, onProgress) {
       return validPoints
     }, [])
     .sort((a, b) => a.timestamp - b.timestamp)
-  const cleaned = []
-  for (const point of candidates) {
-    const previous = cleaned.at(-1)
-    if (previous) {
-      const elapsedHours = (point.timestamp - previous.timestamp) / 3600000
-      const speedKmh = elapsedHours > 0 ? haversine(previous, point) / elapsedHours : 0
-      // Traccar can return several valid fixes with the same timestamp.
-      // They still describe movement and must not collapse the replay to one
-      // visible point. Only reject impossible movement when time advances.
-      if (elapsedHours > 0 && speedKmh > MAX_POSITION_SPEED_KMH) continue
-    }
-    cleaned.push(point)
-  }
+  // Keep every valid GPS fix. The raw history is the replay source of truth;
+  // display-only simplification happens later for the static polyline.
+  const cleaned = candidates
   // Playback needs a strictly increasing clock. Traccar may emit valid
   // samples with equal timestamps, which otherwise makes progressForTime()
   // jump over the whole segment instead of moving the vehicle.

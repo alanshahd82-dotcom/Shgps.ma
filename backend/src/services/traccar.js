@@ -24,20 +24,6 @@ async function ensureSession() {
   console.log('[Traccar] REST session established')
   return _sessionCookie
 }
-const MAX_POSITION_SPEED_KMH = 220
-
-function haversineKm(a, b) {
-  const radius = 6371
-  const lat1 = Number(a.latitude) * Math.PI / 180
-  const lat2 = Number(b.latitude) * Math.PI / 180
-  const dLat = (Number(b.latitude) - Number(a.latitude)) * Math.PI / 180
-  const dLng = (Number(b.longitude) - Number(a.longitude)) * Math.PI / 180
-  const sinLat = Math.sin(dLat / 2)
-  const sinLng = Math.sin(dLng / 2)
-  const value = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng
-  return radius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(Math.max(0, 1 - value)))
-}
-
 export function cleanPositions(list) {
   const candidates = (Array.isArray(list) ? list : [])
     .filter((position) => {
@@ -56,22 +42,7 @@ export function cleanPositions(list) {
     })
     .sort((a, b) => new Date(a.fixTime) - new Date(b.fixTime))
 
-  const cleaned = []
-  for (const position of candidates) {
-    const previous = cleaned.at(-1)
-    if (previous) {
-      const elapsedHours = (new Date(position.fixTime) - new Date(previous.fixTime)) / 3600000
-      const speedKmh = elapsedHours > 0
-        ? haversineKm(previous, position) / elapsedHours
-        : 0
-      // Equal-timestamp fixes are valid Traccar samples. Do not discard them
-      // as impossible-speed points; only apply the speed guard when time has
-      // actually advanced.
-      if (elapsedHours > 0 && speedKmh > MAX_POSITION_SPEED_KMH) continue
-    }
-    cleaned.push(position)
-  }
-  return cleaned
+  return candidates
 }
 
 async function call(path, opts = {}, _retried = false) {
