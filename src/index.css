@@ -1680,8 +1680,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ath-client-nav {
   min-height: var(--ds-nav-height);
   border-color: var(--ds-border);
-  background: rgba(14, 32, 53, 0.96) !important;
-  box-shadow: var(--ds-shadow-overlay) !important;
+  background: #ffffff !important;
+  box-shadow: 0 -4px 18px rgba(15,23,42,.06) !important;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
