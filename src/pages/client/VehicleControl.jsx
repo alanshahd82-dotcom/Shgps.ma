@@ -40,9 +40,26 @@ function dirUrl(type, p) {
   const [la, lo] = p
   return type === 'waze' ? `https://waze.com/ul?ll=${la},${lo}&navigate=yes` : `https://www.google.com/maps/dir/?api=1&destination=${la},${lo}`
 }
-const tripS = x => x?.startTime ?? x?.start_time ?? x?.start ?? null
-const tripE = x => x?.endTime ?? x?.end_time ?? x?.end ?? null
 const REPLAY_RANGES = [1, 2, 3, 7, 30]
+
+function replayDayWindow(date, isToday = false) {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(start)
+  if (isToday) return { startTime: start.toISOString(), endTime: new Date().toISOString() }
+  end.setDate(end.getDate() + 1)
+  return { startTime: start.toISOString(), endTime: new Date(end.getTime() - 1).toISOString() }
+}
+
+function replayDays(count) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(today)
+    date.setDate(today.getDate() - index)
+    return { date, ...replayDayWindow(date, index === 0) }
+  })
+}
 
 function GIcon() {
   return (
@@ -148,7 +165,8 @@ export default function VehicleControl() {
     replay:"Rejouer l'itinéraire", loading:'Chargement...',
     fullscreen:'Plein écran', exitFullscreen:'Quitter le plein écran',
     plate:'Plaque', type:'Type', voltage:'Tension', status:'Statut',
-    replayRanges:['Aujourd’hui', '2 derniers jours', '3 derniers jours', '7 derniers jours', '30 derniers jours'],
+    replayRanges:['Aujourd’hui', '2 jours', '3 jours', '7 jours', '30 jours'],
+    showAll:'Afficher tout',
   } : {
     details:'معلومات المركبة', vName:'اسم المركبة', dName:'اسم السائق',
     dPhone:'هاتف السائق', devId:'رقم الجهاز',
@@ -157,7 +175,8 @@ export default function VehicleControl() {
     replay:'إعادة المسار', loading:'جاري التحميل...',
     fullscreen:'ملء الشاشة', exitFullscreen:'الخروج من ملء الشاشة',
     plate:'اللوحة', type:'النوع', voltage:'الفولطاج', status:'الحالة',
-    replayRanges:['اليوم', 'آخر يومين', 'آخر 3 أيام', 'آخر 7 أيام', 'آخر 30 يومًا'],
+    replayRanges:['اليوم', 'يومان', '3 أيام', '7 أيام', '30 يومًا'],
+    showAll:'عرض الكل',
   }
 
   useEffect(() => {
@@ -194,17 +213,11 @@ export default function VehicleControl() {
 
   async function openReplay() {
     if (!vehicle || tripLoading) return
-    const end = new Date()
-    const start = new Date(end)
-    start.setHours(0, 0, 0, 0)
-    start.setDate(start.getDate() - (replayRange - 1))
-    setTripLoading(true); setTripError(''); setTripOptions(null)
-    try {
-      const r = await api.reports.get(vehicle.id, start.toISOString(), end.toISOString())
-      const trips = Array.isArray(r?.trips) ? r.trips.filter(tr => tripS(tr) && tripE(tr)) : []
-      if (!trips.length) { setTripError(t(lang,'vehicleNoTripsToday')); return }
-      setTripOptions(trips)
-    } catch (e) { setTripError(t(lang,'vehicleReplayUnavailable')) } finally { setTripLoading(false) }
+    setTripLoading(true); setTripError('')
+    // The replay component loads the recorded positions for this exact window.
+    // Keep the selector day-based even when a day contains several trip segments.
+    setTripOptions(replayDays(replayRange))
+    setTripLoading(false)
   }
 
   function saveDetails() {
@@ -338,10 +351,32 @@ export default function VehicleControl() {
           </button>
           {tripOptions && (
             <div className="mt-3 space-y-2">
-              {tripOptions.map((tr, i) => (
-                <button key={i} type="button" onClick={() => { const s = tripS(tr), e = tripE(tr); if (s && e) setReplay({ startTime: s, endTime: e }) }} className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-start text-xs font-bold">
-                  <span>{new Date(tripS(tr)).toLocaleTimeString(lang==='ar'?'ar-MA':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
-                  <span className="text-slate-500">{new Date(tripE(tr)).toLocaleTimeString(lang==='ar'?'ar-MA':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+              {tripOptions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const first = tripOptions.at(-1)
+                    const last = tripOptions[0]
+                    if (first && last) setReplay({ startTime: first.startTime, endTime: last.endTime })
+                  }}
+                  className="flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 text-xs font-black text-indigo-700"
+                >
+                  {T.showAll}
+                </button>
+              )}
+              {tripOptions.map((day, index) => (
+                <button
+                  key={day.startTime}
+                  type="button"
+                  onClick={() => setReplay({ startTime: day.startTime, endTime: day.endTime })}
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-start text-xs font-bold"
+                >
+                  <span>
+                    {day.date.toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-FR', {
+                      weekday: 'long', day: 'numeric', month: 'long',
+                    })}
+                  </span>
+                  <span className="text-slate-400">{index + 1}</span>
                 </button>
               ))}
             </div>
