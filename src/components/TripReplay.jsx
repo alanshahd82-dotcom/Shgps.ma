@@ -620,14 +620,12 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   const currentBearing = current?.bearing ?? (current && route.length > 1
     ? bearing(route[Math.min(currentIndex, route.length - 2)], route[Math.min(route.length - 1, currentIndex + 1)])
     : 0)
-  const routePositions = useMemo(() => {
-    const points = route.map(leafletPosition)
-    return downsample(simplifyPath(points, 0.00005), 1200)
-  }, [route])
+  const routeLeafletPositions = useMemo(() => route.map(leafletPosition), [route])
+  const routePositions = useMemo(() => downsample(simplifyPath(routeLeafletPositions, 0.00005), 1200), [routeLeafletPositions])
   const traveledPositions = useMemo(() => {
     if (!route.length) return []
     const traveledIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
-    const positions = route.slice(0, traveledIndex + 1).map(leafletPosition)
+    const positions = routeLeafletPositions.slice(0, traveledIndex + 1)
     const progressIndex = Math.min(route.length - 1, Math.max(0, Math.floor(traveledProgress)))
     const next = route[Math.min(route.length - 1, progressIndex + 1)]
     const start = route[progressIndex]
@@ -639,8 +637,8 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
     if (!lastPosition || lastPosition[0] !== currentPosition[0] || lastPosition[1] !== currentPosition[1]) {
       positions.push(currentPosition)
     }
-    return downsample(simplifyPath(positions, 0.00005), 1200)
-  }, [traveledProgress, route])
+    return downsample(positions, 1200)
+  }, [routeLeafletPositions, traveledProgress, route])
   const motionTrail = useMemo(() => {
     if (traveledPositions.length < 2) return []
     const visibleTrail = traveledPositions.slice(-TRAIL_POINT_LIMIT)
@@ -649,16 +647,16 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
       opacity: 0.1 + ((index + 1) / Math.max(1, visibleTrail.length - 1)) * 0.62,
     }))
   }, [traveledPositions])
-  const efficiencyScore = route.length ? Math.max(5, Math.min(100, Math.round(
+  const efficiencyScore = useMemo(() => route.length ? Math.max(5, Math.min(100, Math.round(
     100 - events.filter((event) => event.type === 'acceleration').length * 5
       - events.filter((event) => event.type === 'braking').length * 5
       - events.filter((event) => event.type === 'turn').length * 3
       - speedingMs / 60000,
-  ))) : 0
+  ))) : 0, [events, route.length, speedingMs])
   const scoreColor = efficiencyScore >= 80 ? '#35d39a' : efficiencyScore >= 60 ? '#f5b54a' : '#ff625d'
-  const averageSpeed = route.length
+  const averageSpeed = useMemo(() => route.length
     ? route.reduce((sum, point) => sum + Math.max(0, Number(point.speed) || 0), 0) / route.length
-    : 0
+    : 0, [route])
 
   useEffect(() => {
     if (!route.length || route.length < 2 || !playing) {
@@ -871,7 +869,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
             const end = route[stop.endIndex]
             return (
               <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#f5b54a', 28)}>
-                <Popup>
+                <Popup className="athar-stop-popup">
                   <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-[165px] text-xs text-slate-700">
                     <p className="mb-2 text-sm font-extrabold text-slate-900">{label('تفاصيل التوقف', 'Détails de l’arrêt')}</p>
                     <div className="space-y-1.5">
