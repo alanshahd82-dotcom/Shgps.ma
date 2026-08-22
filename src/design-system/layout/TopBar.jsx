@@ -5,7 +5,6 @@ export function TopBar({ title, left, right, transparent = false, onBack }) {
   return (
     <header
       className={`absolute inset-x-0 top-0 z-40 box-border flex h-[calc(56px+env(safe-area-inset-top))] items-end justify-between px-4 pb-2 pt-[env(safe-area-inset-top)] ${transparent ? 'bg-white/70 backdrop-blur-md' : 'border-b border-border bg-white'}`}
-      dir="rtl"
     >
       <div className="flex min-w-0 flex-1 items-center justify-start gap-2">
         {onBack && (

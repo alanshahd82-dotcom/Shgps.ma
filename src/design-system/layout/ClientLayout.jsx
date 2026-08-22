@@ -36,7 +36,7 @@ export function ClientLayout({
   }
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-slate-50" dir="rtl">
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-slate-50">
       {showTopBar && (
         <TopBar
           title={title}

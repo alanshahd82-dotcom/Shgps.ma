@@ -18,7 +18,6 @@ export function BottomNav({ activeTab = 'home', onTabChange, alertCount = 0 }) {
     <nav
       aria-label="التنقل الرئيسي"
        className="absolute inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]"
-      dir="rtl"
     >
       <div className="grid h-16 grid-cols-5" role="tablist">
         {tabs.map(({ id, labelKey, Icon }) => {
