@@ -322,9 +322,8 @@ function speedColor(speed) {
   return '#EF4444'
 }
 
-function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, mapReady }) {
+function Viewport({ route, current, followCurrent, onManualMove, mapReady }) {
   const map = useMap()
-  const lastFollowAtRef = useRef(0)
 
   useEffect(() => {
     if (!readyMapContainer(map)) return undefined
@@ -367,39 +366,21 @@ function Viewport({ route, current, followCurrent, onManualMove, showAnalysis, m
   }, [map, onManualMove])
 
   useEffect(() => {
+    // Do not pan the map from the playback clock. Leaflet starts loading a
+    // fresh tile set after a pan, so doing this for every marker update can
+    // make the basemap flash or temporarily go blank. "Follow" is a
+    // recenter action, not a second animation loop.
     if (mapReady && current && followCurrent) {
       const mapContainer = readyMapContainer(map)
       if (!mapContainer) return
       try {
         if (map.getZoom() < 15) map.setZoom(15, { animate: false })
-        const mapRect = mapContainer.getBoundingClientRect()
-        if (mapRect.width <= 0 || mapRect.height <= 0) return
-        const sheet = document.querySelector('.athar-replay-sheet')
-        const header = document.querySelector('.athar-replay-header')
-        const sheetTop = sheet?.getBoundingClientRect().top ?? mapRect.bottom
-        const headerBottom = header?.getBoundingClientRect().bottom ?? mapRect.top + 68
-        const visibleTop = Math.max(mapRect.top, headerBottom + 12) - mapRect.top
-        const visibleBottom = Math.min(mapRect.bottom, sheetTop - 12) - mapRect.top
-        const targetY = Math.max(visibleTop, Math.min(visibleBottom, (visibleTop + visibleBottom) / 2))
-        const currentPoint = map.latLngToContainerPoint(leafletPosition(current))
-        const offset = L.point(mapRect.width / 2, targetY).subtract(currentPoint)
-
-        if (Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
-          // The playback clock can update at 60fps. Animating a new Leaflet pan
-          // on every frame queues overlapping transitions and eventually freezes
-          // the replay. Keep the vehicle comfortably in view with an immediate,
-          // throttled pan instead.
-          const now = performance.now()
-          if (Math.hypot(offset.x, offset.y) >= 24 && now - lastFollowAtRef.current >= 120) {
-            lastFollowAtRef.current = now
-            map.panBy(offset, { animate: false })
-          }
-        }
+        map.setView(leafletPosition(current), map.getZoom(), { animate: false })
       } catch {
         // Leaflet can finish tearing down between a playback tick and a map call.
       }
     }
-  }, [current?.latitude, current?.longitude, followCurrent, map, mapReady, showAnalysis])
+  }, [followCurrent, map, mapReady])
 
   return null
 }
@@ -872,7 +853,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
           <ZoomControl position="topright" />
            <MapLifecycle onLoad={handleMapLoad} />
            <MapResizeSync mapReady={mapReady} showAnalysis={showAnalysis} routeLength={route.length} />
-          <Viewport route={route} current={current} followCurrent={followCurrent} showAnalysis={showAnalysis} mapReady={mapReady} onManualMove={() => setFollowCurrent(false)} />
+          <Viewport route={route} current={current} followCurrent={followCurrent} mapReady={mapReady} onManualMove={() => setFollowCurrent(false)} />
           <ReplayStaticLayers route={route} routePositions={routePositions} speedingSegments={speedingSegments} stops={stops} isAr={isAr} lang={lang} />
           {showAnalysis && events.filter((event) => event.type !== 'stop' && event.type !== 'speeding').map((event, index) => {
             const meta = eventMeta(event.type, lang)
