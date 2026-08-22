@@ -840,7 +840,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
           {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
           {route.length > 0 && <Marker position={leafletPosition(route[0])} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
           {route.length > 1 && <Marker position={leafletPosition(route.at(-1))} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
-          {showAnalysis && stops.map((stop, index) => <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#e59518', 24)} />)}
+          {stops.map((stop, index) => <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#f5b54a', 28)} />)}
           {showAnalysis && events.filter((event) => event.type !== 'stop' && event.type !== 'speeding').map((event, index) => {
             const meta = eventMeta(event.type, lang)
             return <Marker key={`${event.type}-${event.index}-${index}`} position={leafletPosition(event)} icon={labelIcon(meta.icon, meta.color, 22)} />
