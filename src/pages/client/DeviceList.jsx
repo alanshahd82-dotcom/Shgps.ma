@@ -175,7 +175,7 @@ export default function DeviceList() {
               </motion.div>
             ) : filtered.map((device, index) => (
               <DeviceCard key={device.id} device={device} lang={lang} index={index}
-                onClick={() => navigate('/client/device/' + device.id)}
+                onClick={() => navigate('/client/vehicle/' + device.id)}
                 onRenew={() => setRenewDevice(device)} />
             ))}
           </AnimatePresence>

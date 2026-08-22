@@ -109,7 +109,7 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
               <Metric icon={MapPin} label="الموقع" value={vehicle.location || (Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0) ? `${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}` : 'غير متوفر')} />
               <Metric icon={vehicle.ignition == null ? Clock : vehicle.ignition ? Gauge : Clock} label="حالة المحرك" value={vehicle.ignition == null ? 'غير متوفر' : vehicle.ignition ? 'المحرك يعمل' : 'متوقف'} />
             </div>
-            <Link to={`/client/device/${vehicle.id}`} className="flex items-center justify-center gap-2 rounded-[10px] bg-accent px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            <Link to={`/client/vehicle/${vehicle.id}`} className="flex items-center justify-center gap-2 rounded-[10px] bg-accent px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
               فتح تفاصيل المركبة
             </Link>

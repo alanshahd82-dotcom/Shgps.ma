@@ -101,7 +101,7 @@ export function FleetOverview() {
       {summary.importantVehicles.length > 0 && (
         <div className="pointer-events-auto flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="وصول سريع للمركبات المهمة">
           {summary.importantVehicles.map(vehicle => (
-            <VehicleQuickLink key={vehicle.id} vehicle={vehicle} onClick={id => navigate(`/client/device/${id}`)} />
+            <VehicleQuickLink key={vehicle.id} vehicle={vehicle} onClick={id => navigate(`/client/vehicle/${id}`)} />
           ))}
           {alertVehicles.length > 2 && (
             <button type="button" onClick={() => navigate('/client/vehicles')} className="shrink-0 rounded-xl border border-white/80 bg-white/90 px-3 text-[11px] font-bold text-primary shadow-sm backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">

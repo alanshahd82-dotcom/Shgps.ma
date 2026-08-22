@@ -700,7 +700,7 @@ export default function LiveMap() {
                         className="athar-device-popup-link"
                         onClick={event => {
                           event.stopPropagation()
-                          navigate('/client/device/' + d.id)
+                          navigate('/client/vehicle/' + d.id)
                         }}
                       >
                         {isAr ? 'عرض التفاصيل' : 'Voir les détails'}
