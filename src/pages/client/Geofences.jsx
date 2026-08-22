@@ -84,7 +84,7 @@ export default function Geofences() {
   const cardStyle = { background:'#ffffff', border:'1px solid #e2e8f0', boxShadow:'0 4px 16px rgba(23,50,77,.04)' }
 
   return (
-    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-dvh bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}

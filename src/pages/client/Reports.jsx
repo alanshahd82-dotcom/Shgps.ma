@@ -331,7 +331,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="ath-reports-page client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="ath-reports-page client-app min-h-dvh bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <style>{styles}</style>
       <ClientHeader />
 

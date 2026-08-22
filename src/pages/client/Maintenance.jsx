@@ -78,7 +78,7 @@ export default function Maintenance() {
   const getSvc = key => SERVICE_TYPES.find(s => s.key === key) || SERVICE_TYPES[SERVICE_TYPES.length - 1]
 
   return (
-    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-dvh bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
@@ -189,7 +189,7 @@ export default function Maintenance() {
       <AnimatePresence>
         {showForm && (
           <motion.div className="fixed inset-0 z-50 flex items-end" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setShowForm(false)}/>
+            <div className="absolute inset-0" style={{ background: 'rgba(15,23,42,0.4)' }} onClick={() => setShowForm(false)}/>
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="relative w-full rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl">

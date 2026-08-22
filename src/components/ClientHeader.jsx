@@ -34,7 +34,7 @@ export default function ClientHeader({ overlay = false, fixed = false, showUser 
             onClick={() => navigate('/client/alerts')}
             label={isAr ? 'التنبيهات' : 'Notifications'}
             aria-current={location.pathname === '/client/alerts' ? 'page' : undefined}
-             className="relative shrink-0 border-slate-200 bg-slate-100 text-slate-700 shadow-sm hover:border-indigo-300 focus-visible:outline-none"
+             className="relative shrink-0 border-slate-200 bg-slate-100 text-slate-600 shadow-sm hover:border-indigo-300 focus-visible:outline-none"
           >
             <Bell size={18} strokeWidth={2} />
              {unreadCount > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-slate-100" aria-label={isAr ? 'تنبيهات غير مقروءة' : 'Unread notifications'} />}

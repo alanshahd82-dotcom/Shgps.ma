@@ -36,7 +36,7 @@ export default function Help() {
   const whatsapp = `https://wa.me/${String(support.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(isAr ? 'مرحباً، أحتاج مساعدة في ATHAR GPS' : 'Bonjour, j’ai besoin d’aide avec ATHAR GPS')}`
 
   return (
-    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28 px-5" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-dvh bg-[#F5F6F8] pb-28 px-5" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
       <header className="pt-5 pb-5">
         <div className="flex items-center gap-3">

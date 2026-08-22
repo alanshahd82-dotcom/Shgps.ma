@@ -7,15 +7,43 @@ import { Card } from '../components/Card'
 import { ClientLayout } from '../layout'
 import { useApp } from '../../context/AppContext'
 
+const GROUPS = [
+  {
+    ar: 'إدارة', fr: 'Gestion',
+    items: [
+      [MapPin, 'geofences', 'المناطق الجغرافية', 'Géofences'],
+      [BarChart3, 'reports', 'التقارير', 'Rapports'],
+      [Activity, 'driverBehavior', 'سلوك السائق', 'Comportement conducteur'],
+      [Wrench, 'maintenance', 'الصيانة', 'Maintenance'],
+    ],
+  },
+  {
+    ar: 'الحساب', fr: 'Compte',
+    items: [
+      [CreditCard, 'subscriptions', 'الاشتراكات', 'Abonnements'],
+      [User, 'profile', 'الملف الشخصي', 'Profil'],
+      [Settings, 'settings', 'الإعدادات', 'Paramètres'],
+    ],
+  },
+  {
+    ar: 'الدعم', fr: 'Support',
+    items: [
+      [HelpCircle, 'help', 'المساعدة', 'Aide'],
+      [Info, 'about', 'حول التطبيق', 'À propos'],
+      [LogOut, 'logout', 'تسجيل الخروج', 'Déconnexion', 'danger'],
+    ],
+  },
+]
+
 const MENU_ROUTES = {
-  'المناطق الجغرافية': '/client/geofences',
-  'التقارير': '/client/reports',
-  'سلوك السائق': '/client/driver-behavior',
-  'الصيانة': '/client/maintenance',
-  'الاشتراكات': '/subscriptions',
-  'الملف الشخصي': '/client/settings',
-  'الإعدادات': '/client/settings',
-  'المساعدة': '/client/help',
+  geofences: '/client/geofences',
+  reports: '/client/reports',
+  driverBehavior: '/client/driver-behavior',
+  maintenance: '/client/maintenance',
+  subscriptions: '/subscriptions',
+  profile: '/client/settings',
+  settings: '/client/settings',
+  help: '/client/help',
 }
 
 function MenuItem({ Icon, label, badge, variant = 'default', onClick }) {
@@ -36,44 +64,39 @@ function Section({ title, children }) {
 }
 
 export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, onMenuItemClick }) {
-  const { clientAuth, logoutClient, unreadCount } = useApp()
+  const { clientAuth, logoutClient, unreadCount, lang } = useApp()
   const user = providedUser ?? clientAuth ?? {}
   const navigate = useNavigate()
+  const isAr = lang === 'ar'
 
-  const handleMenuItemClick = (label) => {
+  const handleMenuItemClick = (item) => {
+    const label = isAr ? item[2] : item[3]
     onMenuItemClick?.(label)
 
-    if (label === 'تسجيل الخروج') {
+    if (item[1] === 'logout') {
       logoutClient()
       navigate('/client/login', { replace: true })
       return
     }
 
-    if (label === 'حول التطبيق') {
+    if (item[1] === 'about') {
       window.alert('ATHAR GPS\nمنصة تتبع وإدارة المركبات')
       return
     }
 
-    const route = MENU_ROUTES[label]
-    if (route) {
-      navigate(route)
-    }
+    const route = MENU_ROUTES[item[1]]
+    if (route) navigate(route)
   }
 
-  const groups = [
-    { title: 'إدارة', items: [[MapPin, 'المناطق الجغرافية'], [BarChart3, 'التقارير'], [Activity, 'سلوك السائق'], [Wrench, 'الصيانة']] },
-    { title: 'الحساب', items: [[CreditCard, 'الاشتراكات'], [User, 'الملف الشخصي'], [Settings, 'الإعدادات']] },
-    { title: 'الدعم', items: [[HelpCircle, 'المساعدة'], [Info, 'حول التطبيق'], [LogOut, 'تسجيل الخروج', null, 'danger']] },
-  ]
   return (
-       <ClientLayout activeTab="more" onTabChange={onTabChange} alertCount={alertCount || unreadCount} showTopBar title="المزيد">
-       <div className="h-full overflow-y-auto bg-white" dir="rtl">
-        <div className="flex items-center gap-4 border-b border-border bg-white p-4">
-          <Avatar name={user.name || user.email || 'المستخدم'} size="xl" />
-           <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-slate-900">{user.name || 'حسابي'}</h2><p className="mt-1 truncate text-xs text-slate-600">{user.email || 'بيانات الحساب غير متاحة'}</p>{(user.subscription || user.plan) && <Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan).toUpperCase()}</Badge>}</div>
+    <ClientLayout activeTab="more" onTabChange={onTabChange} alertCount={alertCount || unreadCount} showTopBar title={isAr ? 'المزيد' : 'Plus'}>
+      <div className="h-full overflow-y-auto bg-white" dir={isAr ? 'rtl' : 'ltr'}>
+        <div className="flex items-center gap-4 border-b border-slate-200 bg-white p-4">
+          <Avatar name={user.name || user.email || (isAr ? 'المستخدم' : 'Utilisateur')} size="xl" />
+          <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-slate-900">{user.name || (isAr ? 'حسابي' : 'Mon compte')}</h2><p className="mt-1 truncate text-xs text-slate-600">{user.email || (isAr ? 'بيانات الحساب غير متاحة' : 'Données du compte indisponibles')}</p>{(user.subscription || user.plan) && <Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan).toUpperCase()}</Badge>}</div>
         </div>
-        <div className="space-y-6 p-4">
-          {groups.map(group => <Section key={group.title} title={group.title}>{group.items.map(([Icon, label, badge, variant]) => <MenuItem key={label} Icon={Icon} label={label} badge={badge} variant={variant} onClick={() => handleMenuItemClick(label)} />)}</Section>)}
+        <div className="space-y-6 bg-white p-4">
+          {GROUPS.map(group => <Section key={group.ar} title={isAr ? group.ar : group.fr}>{group.items.map(item => <MenuItem key={item[1]} Icon={item[0]} label={isAr ? item[2] : item[3]} variant={item[4]} onClick={() => handleMenuItemClick(item)} />)}</Section>)}
         </div>
       </div>
     </ClientLayout>
