@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, Polyline, ZoomControl, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
   Activity, AlertTriangle, BarChart3, ChevronDown, ChevronRight, Clock3,
@@ -139,6 +139,32 @@ function formatTime(value, lang, withSeconds = true) {
       hour: '2-digit',
       minute: '2-digit',
       ...(withSeconds ? { second: '2-digit' } : {}),
+    }).format(new Date(value))
+  } catch {
+    return '—'
+  }
+}
+
+function formatDate(value, lang) {
+  if (!value) return '—'
+  try {
+    return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-MA' : 'fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(value))
+  } catch {
+    return '—'
+  }
+}
+
+function formatClockTime(value, lang) {
+  if (!value) return '—'
+  try {
+    return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-MA' : 'fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
     }).format(new Date(value))
   } catch {
     return '—'
@@ -840,7 +866,25 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
           {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
           {route.length > 0 && <Marker position={leafletPosition(route[0])} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
           {route.length > 1 && <Marker position={leafletPosition(route.at(-1))} icon={labelIcon(isAr ? 'ن' : 'E', '#d55356')} />}
-          {stops.map((stop, index) => <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#f5b54a', 28)} />)}
+          {stops.map((stop, index) => {
+            const start = route[stop.index]
+            const end = route[stop.endIndex]
+            return (
+              <Marker key={`stop-${index}`} position={leafletPosition(stop)} icon={labelIcon('P', '#f5b54a', 28)}>
+                <Popup>
+                  <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-[165px] text-xs text-slate-700">
+                    <p className="mb-2 text-sm font-extrabold text-slate-900">{label('تفاصيل التوقف', 'Détails de l’arrêt')}</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('التاريخ', 'Date')}</span><strong>{formatDate(start?.fixTime, lang)}</strong></div>
+                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('بداية التوقف', 'Début')}</span><strong dir="ltr">{formatClockTime(start?.fixTime, lang)}</strong></div>
+                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('نهاية التوقف', 'Fin')}</span><strong dir="ltr">{formatClockTime(end?.fixTime, lang)}</strong></div>
+                      <div className="flex items-center justify-between gap-3"><span className="text-slate-500">{label('المدة', 'Durée')}</span><strong>{formatDuration(stop.duration, lang)}</strong></div>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            )
+          })}
           {showAnalysis && events.filter((event) => event.type !== 'stop' && event.type !== 'speeding').map((event, index) => {
             const meta = eventMeta(event.type, lang)
             return <Marker key={`${event.type}-${event.index}-${index}`} position={leafletPosition(event)} icon={labelIcon(meta.icon, meta.color, 22)} />
