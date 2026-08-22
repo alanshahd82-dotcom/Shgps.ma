@@ -153,3 +153,72 @@ src/utils/subscriptions.js
 - The frontend is built with Vite to `dist/`, which is served by Nginx.
 - Restart the backend with `docker compose restart backend`.
 - The backend service listens on port `3001`.
+
+## A. PROJECT CONTEXT — authoritative summary
+
+- Project: ATHAR GPS, a bilingual Morocco-focused vehicle-tracking platform.
+- Repository: `alanshahd82-dotcom/Shgps.ma`.
+- Primary branch: `main`.
+- Project root in this workspace: `/home/runner/workspace`.
+- Frontend source of truth: `src/`.
+- Frontend entry point: `index.html` → `src/main.jsx` → `src/App.jsx`.
+- Frontend build output: `dist/`, served by Nginx in the documented Docker deployment.
+- Backend source of truth: `backend/`; it is a Node.js/Express service exposing the application API.
+- Tracking source of truth: Traccar, integrated through the backend service.
+- Database source of truth: PostgreSQL schema and migrations under `backend/src/db/`.
+- Deployment source of truth: `Dockerfile`, `docker-compose.yml`, and `nginx/`.
+- Certbot configuration: [UNCONFIRMED — no current Certbot configuration was verified in this workspace].
+- Documented production path: `/opt/shgps`; live production reachability and service status are [UNCONFIRMED].
+- Relationship: the frontend calls the backend API; the backend owns authentication, database access, Traccar communication, WebSocket behavior, and server-side policy; Nginx serves the frontend and proxies the deployed services.
+
+Important directories:
+
+- `src/` — React client and admin interfaces.
+- `backend/` — API, authentication, database, and Traccar integration.
+- `lib/` — shared generated/API/database libraries present in the repository.
+- `dist/` — generated Vite frontend output.
+- `nginx/` — reverse-proxy configuration.
+- `docs/` — project context and historical task records.
+- `.agents/memory/` — durable agent lessons and pointers, not a replacement for project documentation.
+
+## B. TASK LOG — pointer
+
+The chronological historical record is retained in `docs/TASK_LOG.md`. New important work must be appended there; old entries must remain marked as historical when they no longer describe the current state.
+
+## C. KNOWN ISSUES / LESSONS LEARNED — pointer
+
+Verified lessons are retained in this file's historical sections and in the focused topic files under `.agents/memory/`. In particular, map changes must remain additive and surgical, replay timing must preserve equal timestamps, and electrical disconnect alerts require explicit electrical telemetry. Do not invent or silently remove lessons.
+
+## D. CURRENT STATE — latest workspace verification
+
+- Repository: verified as `alanshahd82-dotcom/Shgps.ma`.
+- Branch: verified as `main`.
+- Current commit: [UNCONFIRMED in this document; verify with `git rev-parse HEAD` after the memory commit].
+- Git status at the start of this memory task: the prior UI commit and memory-auth documentation were present locally; the attached instruction file was untracked and is not project documentation.
+- Last verified build: `npm run build` passed during the preceding frontend task; no build was run for this documentation-only task.
+- Last verified deployment: [UNCONFIRMED].
+- Current service status: [UNCONFIRMED]; Replit artifact workflows are workspace tooling and do not prove VPS production health.
+- Current known problems: no new application problem was investigated in this documentation-only task.
+- Current task: organize the permanent project-memory documentation.
+- Waiting: push of the documentation commit to `origin/main`.
+- Next step: run the documentation-only validation, commit once, and push only after repository/branch checks pass.
+
+## E. WORKING RULES
+
+- ATHAR GPS is an existing production project; do not rebuild its architecture from scratch.
+- Verify repository and branch before modifying code or documentation.
+- Keep frontend tasks frontend-only unless another layer is explicitly required.
+- Do not modify backend, database, Traccar, API contracts, authentication, WebSocket behavior, Docker, or deployment during a frontend-only task.
+- Do not modify lockfiles randomly or refactor unrelated files.
+- Read permanent project memory before substantial work; verified current state takes priority over historical notes.
+- Mark uncertain information as `[UNCONFIRMED]`.
+- Preserve Arabic RTL, French LTR, and user-facing translations.
+- Check local changes before dangerous Git operations; never use `git reset --hard` blindly or delete directories without checking dependencies.
+- Never expose or store secrets. Use placeholders such as `GITHUB_TOKEN=[SECRET]`.
+- Do not repeat a failed approach without a reason; record durable lessons after important work.
+
+## F. REPLIT OPERATING RULES
+
+Replit is an execution environment and agent, not the permanent memory source. Every future task must be self-contained and state its repository, branch, project root, source root, verified state, exact scope, files that must not change, validation, build requirement, Git/commit/push requirement, and final report format.
+
+Future sessions must read this permanent project memory first, compare it with the latest verified repository state, analyze results before giving the next command, avoid repeating documented failures, and update the relevant context, task log, lessons, and current state after important completed work. ChatGPT/Replit must not rely on an earlier conversation being available.

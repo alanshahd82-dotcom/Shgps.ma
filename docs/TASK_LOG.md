@@ -1906,3 +1906,32 @@ write before subsequent packets arrive.
 - التحقق: `npm run build` و`git diff --check` نجحا. التغيير frontend-only
   بالإضافة إلى هذا السجل؛ لم يتغير `backend/` أو API أو DB أو WebSocket أو auth
   أو Traccar.
+
+## 2026-08-22 — Permanent project-memory organization
+
+### Scope
+
+- Documentation and memory only.
+- Repository and branch verified as `alanshahd82-dotcom/Shgps.ma`, `main`.
+- No application behavior, dependency, backend, database, Traccar, Docker, or deployment changes.
+
+### Changes
+
+- Retained the existing historical task log and existing focused memory topics.
+- Organized `docs/AI_CONTEXT.md` with explicit project context, task-log pointer,
+  lessons pointer, current-state rules, working rules, and Replit operating rules.
+- Replaced the placeholder `replit.md` with verified project operating guidance.
+- Kept unverified production/service facts explicitly marked `[UNCONFIRMED]`.
+
+### Validation
+
+- `git diff --check`: pending until the documentation edits are complete.
+- `git status --short`: pending until the documentation edits are complete.
+- No build, test, dev-server, Docker, or deployment command is required for this
+  documentation-only task.
+
+### Git
+
+- Required commit message: `docs: establish permanent project memory`
+- Required push target: `origin/main`
+- Final result: pending validation and commit.
