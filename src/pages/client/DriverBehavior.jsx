@@ -16,7 +16,7 @@ function ScoreRing({ score, size = 148 }) {
   const R    = (size - 18) / 2
   const circ = 2 * Math.PI * R
   const offset = circ - (score / 100) * circ
-  const color = '#00D97E'
+  const color = '#4f46e5'
   const label = score >= 80 ? 'ممتاز' : score >= 60 ? 'جيد' : 'يحتاج تحسين'
   return (
     <div className="flex flex-col items-center">
@@ -29,10 +29,10 @@ function ScoreRing({ score, size = 148 }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-black leading-none" style={{ fontSize: 38, color }}>{score}</span>
-           <span className="text-xs mt-1" style={{ color: 'var(--ath-mut)' }}>/100</span>
+           <span className="mt-1 text-xs text-slate-500">/100</span>
         </div>
       </div>
-      <p className="text-xs mt-2 font-bold" style={{ color }}>{label}</p>
+       <p className="mt-2 text-xs font-bold text-indigo-600">{label}</p>
     </div>
   )
 }
@@ -108,12 +108,12 @@ export default function DriverBehavior() {
   }
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
       <div className="px-5 pt-5 pb-4">
-        <p className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: 'var(--ath-green)' }}>
+         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">
           {isAr ? 'سلامة الأسطول' : 'Sécurité de la flotte'}
         </p>
         <h1 className="text-slate-900 font-extrabold text-xl mt-1 mb-4">{isAr ? 'سلوك السائق' : 'Comportement conducteur'}</h1>
@@ -123,22 +123,21 @@ export default function DriverBehavior() {
           className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm w-full flex items-center justify-between mb-3"
           style={{ padding: '13px 14px' }}>
           <div className="flex items-center gap-2">
-              <Car size={15} style={{ color: 'var(--ath-green)' }}/>
-              <span className="text-sm font-bold" style={{ color: 'var(--ath-txt)' }}>
+               <Car size={15} className="text-indigo-600"/>
+               <span className="text-sm font-bold text-slate-900">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
-            <ChevronDown size={15} style={{ color: 'var(--ath-mut)', transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
+             <ChevronDown size={15} className="text-slate-500" style={{ transform: showDevices ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
         </button>
 
         <AnimatePresence>
           {showDevices && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden ath-card" style={{ padding: 0 }}>
+              className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" style={{ padding: 0 }}>
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="w-full px-4 py-3 text-left text-sm"
-                  style={{ color: String(d.id) === deviceId ? 'var(--ath-green)' : 'var(--ath-mut)', borderBottom: '1px solid var(--ath-line)' }}>
+                  className={`w-full border-b border-slate-200 px-4 py-3 text-left text-sm ${String(d.id) === deviceId ? 'text-indigo-600' : 'text-slate-500'}`}>
                   {d.name}
                 </button>
               ))}
@@ -149,11 +148,8 @@ export default function DriverBehavior() {
         {/* Period tabs */}
         <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {PERIODS.map(p => (
-            <button key={p.key} onClick={() => setPeriod(p.key)}
-              className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all"
-              style={period === p.key
-                 ? { background: 'var(--ath-green)', color: '#04120B', border: '1px solid var(--ath-green)' }
-                 : { background: 'var(--ath-card)', color: 'var(--ath-mut)', border: '1px solid var(--ath-line)' }}>
+              <button key={p.key} onClick={() => setPeriod(p.key)}
+              className={`flex-shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition-all ${period === p.key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>
               {p[isAr ? 'ar' : 'fr']}
             </button>
           ))}

@@ -78,15 +78,14 @@ export default function Maintenance() {
   const getSvc = key => SERVICE_TYPES.find(s => s.key === key) || SERVICE_TYPES[SERVICE_TYPES.length - 1]
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-indigo-600 font-extrabold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowForm(true)}
-          className="w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ background: '#17324d' }}>
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700">
           <Plus size={20} color="white"/>
         </motion.button>
       </div>
@@ -109,8 +108,7 @@ export default function Maintenance() {
               className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="w-full px-4 py-3 text-left text-sm"
-                  style={{ color: String(d.id) === deviceId ? '#17324d' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
+                  className={`w-full border-b border-slate-100 px-4 py-3 text-left text-sm ${String(d.id) === deviceId ? 'text-indigo-600' : 'text-slate-600'}`}>
                   {d.name}
                 </button>
               ))}
@@ -134,8 +132,7 @@ export default function Maintenance() {
               {isAr ? 'لا توجد سجلات' : 'Aucun enregistrement'}
             </p>
             <button onClick={() => setShowForm(true)}
-              className="px-4 py-2 rounded-full text-xs font-semibold"
-              style={{ background: '#e8f5f0', color: '#16866d', border: '1px solid #bfe4d7' }}>
+               className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-600">
               {isAr ? '+ إضافة سجل' : '+ Ajouter'}
             </button>
           </div>
@@ -145,7 +142,7 @@ export default function Maintenance() {
           return (
             <motion.div key={log.id || i}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-               className="p-4 rounded-xl border shadow-sm"
+                className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
                style={{ background: isDue ? '#fffaf0' : '#ffffff',
                         border: '1px solid ' + (isDue ? '#ead8b4' : '#e2e8f0') }}>
               <div className="flex items-start gap-3">
@@ -231,8 +228,8 @@ export default function Maintenance() {
                     className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 text-sm outline-none focus:border-accent"/>
                 </div>
                 <motion.button type="submit" disabled={saving} whileTap={{ scale: 0.97 }}
-                  className="w-full py-3.5 rounded-xl font-bold text-slate-900 text-sm disabled:opacity-50"
-                  style={{ background: saving ? '#94a3b8' : '#17324d' }}>
+                   className="w-full rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50"
+                   style={{ background: saving ? '#94a3b8' : undefined }}>
                   {saving ? '...' : (isAr ? 'حفظ' : 'Enregistrer')}
                 </motion.button>
               </form>

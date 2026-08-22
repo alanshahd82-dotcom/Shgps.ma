@@ -84,15 +84,14 @@ export default function Geofences() {
   const cardStyle = { background:'#ffffff', border:'1px solid #e2e8f0', boxShadow:'0 4px 16px rgba(23,50,77,.04)' }
 
   return (
-    <div className="client-app min-h-screen bg-[#f5f7f8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-[#F5F6F8] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'المناطق الجغرافية' : 'Géofences'}</h1>
         <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowMap(true)}
-          className="w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ background:'#17324d' }}>
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700">
           <Plus size={20} color="white"/>
         </motion.button>
       </div>
@@ -107,7 +106,7 @@ export default function Geofences() {
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>
           </div>
-          <ChevronDown size={15} style={{ color:'rgba(255,255,255,0.4)', transform: showDevices ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}/>
+           <ChevronDown size={15} className="text-slate-500" style={{ transform: showDevices ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}/>
         </button>
         <AnimatePresence>
           {showDevices && (
@@ -115,8 +114,7 @@ export default function Geofences() {
               className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               {devices.map(d => (
                 <button key={d.id} onClick={() => { setDeviceId(String(d.id)); setShowDevices(false) }}
-                  className="w-full px-4 py-3 text-left text-sm"
-                  style={{ color: String(d.id)===deviceId ? '#17324d' : '#64748b', borderBottom:'1px solid #f1f5f9' }}>
+                  className={`w-full border-b border-slate-100 px-4 py-3 text-left text-sm ${String(d.id)===deviceId ? 'text-indigo-600' : 'text-slate-600'}`}>
                   {d.name}
                 </button>
               ))}
@@ -176,17 +174,16 @@ export default function Geofences() {
       {/* Draw modal */}
       <AnimatePresence>
         {showMap && (
-          <motion.div className="fixed inset-0 z-50" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-              style={{ background:'#0d1b33' }}>
+          <motion.div className="fixed inset-0 z-50 bg-slate-50" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
             <div className="flex items-center justify-between px-5 pt-12 pb-3">
-              <h2 className="text-white font-bold text-base">{isAr ? 'رسم منطقة جديدة' : 'Nouvelle zone'}</h2>
+               <h2 className="text-slate-900 font-bold text-base">{isAr ? 'رسم منطقة جديدة' : 'Nouvelle zone'}</h2>
               <button onClick={() => { setShowMap(false); setCenter(null) }}>
-                <X size={22} style={{ color:'rgba(255,255,255,0.5)' }}/>
+                 <X size={22} className="text-slate-500"/>
               </button>
             </div>
 
             {/* Map */}
-            <div style={{ height:280, margin:'0 16px', borderRadius:16, overflow:'hidden', border:'1px solid rgba(255,255,255,0.1)' }}>
+             <div style={{ height:280, margin:'0 16px', borderRadius:16, overflow:'hidden', border:'1px solid #e2e8f0' }}>
               <MapContainer center={[31.7917,-7.0926]} zoom={5} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
                 <GeoapifyTileLayer />
                 <MapClickHandler onMapClick={ll => setCenter(ll)} enabled={true}/>
@@ -200,24 +197,24 @@ export default function Geofences() {
               </MapContainer>
             </div>
 
-            <p className="text-center text-xs mt-2 mb-3" style={{ color:'rgba(255,255,255,0.35)' }}>
+             <p className="text-center text-xs mt-2 mb-3 text-slate-500">
               {isAr ? 'اضغط على الخريطة لتحديد المركز' : 'Appuyez sur la carte pour centrer'}
             </p>
 
             <div className="px-5 space-y-3">
               <div>
-                <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.38)' }}>{isAr ? 'اسم المنطقة' : 'Nom de la zone'}</label>
+                 <label className="block text-xs mb-1.5 text-slate-600">{isAr ? 'اسم المنطقة' : 'Nom de la zone'}</label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder={isAr ? 'مثال: المنزل، المكتب...' : 'Ex: Maison, Bureau...'}
-                  className="w-full rounded-xl border border-slate-600 bg-slate-800 px-4 py-3 text-white text-sm outline-none"/>
+                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 text-sm outline-none focus:border-indigo-600"/>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs" style={{ color:'rgba(255,255,255,0.38)' }}>{isAr ? 'نصف القطر' : 'Rayon'}</label>
-                <span className="text-xs font-bold text-accent">{radius} m</span>
+                 <label className="text-xs text-slate-600">{isAr ? 'نصف القطر' : 'Rayon'}</label>
+                 <span className="text-xs font-bold text-indigo-600">{radius} m</span>
                 </div>
                 <input type="range" min="100" max="5000" step="50" value={radius} onChange={e => setRadius(Number(e.target.value))}
-                  className="w-full" style={{ accentColor:'#e4b56b' }}/>
+                   className="w-full" style={{ accentColor:'#4f46e5' }}/>
               </div>
 
               <div className="flex items-center gap-4 py-2">
@@ -225,10 +222,8 @@ export default function Geofences() {
                   { key:'enter', label: isAr?'تنبيه دخول':'Alerte entrée', val:alertEnter, set:setAlertEnter },
                   { key:'exit',  label: isAr?'تنبيه خروج':'Alerte sortie', val:alertExit,  set:setAlertExit  },
                 ].map(({ key, label, val, set }) => (
-                  <button key={key} onClick={() => set(v => !v)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                    style={val ? { background:'rgba(228,181,107,0.18)', color:'#e4b56b', border:'1px solid rgba(228,181,107,0.35)' }
-                              : { background:'rgba(255,255,255,0.07)', color:'rgba(255,255,255,0.4)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                   <button key={key} onClick={() => set(v => !v)}
+                     className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${val ? 'border-indigo-200 bg-indigo-50 text-indigo-600' : 'border-slate-200 bg-white text-slate-500'}`}>
                     {val ? <Bell size={11}/> : <BellOff size={11}/>}
                     {label}
                   </button>
@@ -236,8 +231,7 @@ export default function Geofences() {
               </div>
 
               <motion.button disabled={!center || !name.trim() || saving} onClick={handleSave} whileTap={{ scale:0.97 }}
-                className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-40"
-                style={{ background:'#e4b56b', color:'#17324d' }}>
+                 className="w-full rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-40">
                 {saving ? '...' : (isAr ? 'حفظ المنطقة' : 'Enregistrer la zone')}
               </motion.button>
             </div>
