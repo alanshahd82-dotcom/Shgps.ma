@@ -20,17 +20,19 @@ const MENU_ROUTES = {
 
 function MenuItem({ Icon, label, badge, variant = 'default', onClick }) {
   return (
-    <button type="button" onClick={onClick} className={`flex w-full items-center gap-3 border-b border-border py-3 text-right last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${variant === 'danger' ? 'text-red-500' : 'text-primary'} hover:bg-slate-50`} dir="rtl">
-      <Icon className={`h-5 w-5 shrink-0 ${variant === 'danger' ? 'text-red-500' : 'text-slate-500'}`} aria-hidden="true" />
-      <span className="flex-1 text-sm">{label}</span>
+    <button type="button" onClick={onClick} className={`flex w-full items-center gap-3 border-b border-slate-200 py-3 text-right last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600 ${variant === 'danger' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-slate-900 hover:bg-slate-50'}`} dir="rtl">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${variant === 'danger' ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <span className={`flex-1 text-sm ${variant === 'danger' ? 'text-red-600' : 'text-slate-900'}`}>{label}</span>
       {badge && <Badge variant="default" size="sm">{badge}</Badge>}
-      <ChevronLeft className="h-4 w-4 shrink-0 text-slate-400 rtl:rotate-180" aria-hidden="true" />
+      <ChevronLeft className={`h-4 w-4 shrink-0 rtl:rotate-180 ${variant === 'danger' ? 'text-red-400' : 'text-slate-400'}`} aria-hidden="true" />
     </button>
   )
 }
 
 function Section({ title, children }) {
-  return <section><h2 className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">{title}</h2><Card variant="subtle" padding="sm">{children}</Card></section>
+  return <section><h2 className="mb-2 px-1 text-[10px] font-medium uppercase tracking-wider text-slate-600">{title}</h2><Card variant="subtle" padding="sm">{children}</Card></section>
 }
 
 export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, onMenuItemClick }) {
@@ -65,10 +67,10 @@ export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, on
   ]
   return (
        <ClientLayout activeTab="more" onTabChange={onTabChange} alertCount={alertCount || unreadCount} showTopBar title="المزيد">
-      <div className="h-full overflow-y-auto bg-slate-50" dir="rtl">
+       <div className="h-full overflow-y-auto bg-white" dir="rtl">
         <div className="flex items-center gap-4 border-b border-border bg-white p-4">
           <Avatar name={user.name || user.email || 'المستخدم'} size="xl" />
-          <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-primary">{user.name || 'حسابي'}</h2><p className="mt-1 truncate text-xs text-slate-500">{user.email || 'بيانات الحساب غير متاحة'}</p>{(user.subscription || user.plan) && <Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan).toUpperCase()}</Badge>}</div>
+           <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-slate-900">{user.name || 'حسابي'}</h2><p className="mt-1 truncate text-xs text-slate-600">{user.email || 'بيانات الحساب غير متاحة'}</p>{(user.subscription || user.plan) && <Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan).toUpperCase()}</Badge>}</div>
         </div>
         <div className="space-y-6 p-4">
           {groups.map(group => <Section key={group.title} title={group.title}>{group.items.map(([Icon, label, badge, variant]) => <MenuItem key={label} Icon={Icon} label={label} badge={badge} variant={variant} onClick={() => handleMenuItemClick(label)} />)}</Section>)}

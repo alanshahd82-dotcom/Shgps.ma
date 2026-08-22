@@ -17,7 +17,7 @@ export function BottomNav({ activeTab = 'home', onTabChange, alertCount = 0 }) {
   return (
     <nav
       aria-label="التنقل الرئيسي"
-      className="absolute inset-x-0 bottom-0 z-50 border-t border-border bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+       className="absolute inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]"
       dir="rtl"
     >
       <div className="grid h-16 grid-cols-5" role="tablist">
@@ -36,19 +36,19 @@ export function BottomNav({ activeTab = 'home', onTabChange, alertCount = 0 }) {
               {active && (
                 <motion.span
                   layoutId="nav-indicator"
-                  className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-accent"
+                   className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-indigo-600"
                   transition={{ type: 'spring', stiffness: 420, damping: 30 }}
                 />
               )}
-              <span className={`relative ${active ? 'text-accent' : 'text-slate-500'}`}>
-                <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
+               <span className={`relative ${active ? 'text-indigo-600' : 'text-slate-500'}`}>
+                 <Icon className={`h-5 w-5 ${active ? 'text-indigo-600' : 'text-slate-500'}`} strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
                 {id === 'alerts' && alertCount > 0 && (
                   <span className="absolute -end-2 -top-2 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-4 text-white">
                     {alertCount > 99 ? '99+' : alertCount}
                   </span>
                 )}
               </span>
-              <span className={active ? 'text-accent' : 'text-slate-500'}>{t(lang, labelKey)}</span>
+               <span className={active ? 'font-semibold text-indigo-600' : 'text-slate-500'}>{t(lang, labelKey)}</span>
             </button>
           )
         })}
