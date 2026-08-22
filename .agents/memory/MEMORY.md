@@ -4,7 +4,7 @@
 - [Docker Alpine npm install breakage](docker-alpine-npm.md) — package-lock.json from non-Alpine env breaks npm install inside Docker; always use COPY package.json (not package*.json) and add .dockerignore
 - [Trip replay timing](trip-replay-timing.md) — preserve equal-timestamp GPS fixes and use a monotonic internal clock for playback
 - [Replay map fallback](replay-map-fallback.md) — replay basemaps must survive missing optional keys and tile-provider failures
-- [Vehicle experience consolidation](vehicle-experience-consolidation.md) — all client vehicle entry points share one detail screen and one map marker path
 - [Duplicate artifact workflow ports](workflow-port-collision.md) — nested and root artifact workflows can compete for one managed port
 - [Silence alert policy](silence-alert-verification.md) — silence or generic alarm labels never prove a vehicle-battery disconnect; require explicit electrical telemetry.
 - [Power episode restoration](power-episode-restoration.md) — missing or fluctuating tracker charge fields are not restore evidence during telemetry-triggered disconnects
+- [Vehicle-experience restoration](vehicle-experience-restoration.md) — e72cb505 was identified as the problematic vehicle-experience task, and the project was restored to its parent state aa20c11c because the dist-only rollback was insufficient when source code changed; future feature work must be incremental.

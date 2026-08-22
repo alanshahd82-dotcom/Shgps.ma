@@ -210,26 +210,6 @@
   pointer-events: auto;
 }
 
-.athar-live-speed {
-  position: absolute;
-  left: 50%;
-  top: -4px;
-  z-index: 5;
-  padding: 3px 6px;
-  border: 1px solid rgba(255,255,255,.18);
-  border-radius: 999px;
-  background: rgba(6,12,26,.92);
-  color: #edf4f2;
-  box-shadow: 0 3px 10px rgba(0,0,0,.28);
-  font-family: 'Cairo', sans-serif;
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-  transform: translate(-50%, -100%);
-  pointer-events: none;
-}
-
 .athar-live-marker-visual {
   position: absolute;
   top: 0;
@@ -332,27 +312,6 @@
 .athar-live-map-shell .leaflet-container {
   border-radius: inherit;
 }
-
-.athar-map-fullscreen {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(255,255,255,.22);
-  border-radius: 10px;
-  background: rgba(6,12,26,.86);
-  color: #edf4f2;
-  box-shadow: 0 4px 14px rgba(0,0,0,.28);
-  backdrop-filter: blur(10px);
-}
-
-.athar-map-fullscreen:hover { background: rgba(6,12,26,.96); }
-.leaflet-container:fullscreen { border-radius: 0; }
 
 .athar-map-error-fallback {
   position: absolute;

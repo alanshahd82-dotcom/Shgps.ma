@@ -60,7 +60,7 @@ export function VehiclesScreen({ vehicles: providedVehicles, alertCount = 0, onT
         <div className="space-y-2 p-4">
           {loading && !vehicles.length && [1, 2, 3].map(item => <SkeletonCard key={item} />)}
           {!loading && error && <div className="ath-card flex flex-col items-center justify-center py-12 text-center"><AlertCircle size={25} className="text-[#d86f6f]" /><p className="mt-3 text-sm font-extrabold">{t(lang, 'vehicleLoadError')}</p><p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'homeDataUnavailable')}</p></div>}
-          {!loading && !error && filtered.map(vehicle => <VehicleCard key={vehicle.id} vehicle={vehicle} lang={lang} onOpen={() => navigate(`/client/device/${vehicle.id}`)} />)}
+          {!loading && !error && filtered.map(vehicle => <VehicleCard key={vehicle.id} vehicle={vehicle} lang={lang} onOpen={() => navigate(`/client/vehicle/${vehicle.id}`)} />)}
           {!loading && !error && !filtered.length && <div className="ath-card flex flex-col items-center justify-center py-14 text-center"><CarFront size={28} style={{ color: 'var(--ath-mut)' }} /><p className="mt-3 text-sm font-extrabold">{vehicles.length ? t(lang, 'vehicleNoResults') : t(lang, 'homeEmptyFleet')}</p><p className="mt-1 text-[11px]" style={{ color: 'var(--ath-mut)' }}>{vehicles.length ? t(lang, 'vehicleNoResultsBody') : t(lang, 'homeEmptyFleetBody')}</p></div>}
         </div>
       </div>

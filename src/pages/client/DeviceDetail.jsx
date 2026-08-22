@@ -6,7 +6,7 @@ import L from 'leaflet'
 import {
   ChevronLeft, ChevronRight, Zap, ZapOff, MapPin, Clock, Activity, Play,
   Gauge, Navigation, Wifi, Share2, Copy, CheckCheck, Loader2, Map, Route as RouteIcon, Terminal,
-  Pencil, Check, X as CloseX, Phone, Radio, Maximize2
+  Pencil, Check, X as CloseX, Phone, Radio
 } from 'lucide-react'
 import NativeAreaChart from '../../components/NativeAreaChart'
 import { useApp } from '../../context/AppContext'
@@ -22,7 +22,6 @@ import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import MapLayers from '../../components/MapLayers'
 import Toast from '../../components/Toast'
 import { bucketMax, downsample, simplifyPath } from '../../utils/simplify'
-import engineStopImage from '../../assets/engine-stop.png'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
@@ -40,39 +39,6 @@ function validPosition(lat, lng) {
     lat <= 90 &&
     lng >= -180 &&
     lng <= 180
-  )
-}
-
-function FullscreenMapButton() {
-  const map = useMap()
-  const isAr = document.documentElement.lang === 'ar'
-
-  useEffect(() => {
-    const onFullscreenChange = () => map.invalidateSize()
-    document.addEventListener('fullscreenchange', onFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
-  }, [map])
-
-  async function toggleFullscreen() {
-    const container = map.getContainer()
-    if (document.fullscreenElement === container) {
-      await document.exitFullscreen?.()
-    } else {
-      await container.requestFullscreen?.()
-    }
-    window.setTimeout(() => map.invalidateSize(), 120)
-  }
-
-  return (
-    <button
-      type="button"
-      className="athar-map-fullscreen"
-      onClick={toggleFullscreen}
-      aria-label={isAr ? 'توسيع الخريطة' : 'Plein écran'}
-      title={isAr ? 'توسيع الخريطة' : 'Plein écran'}
-    >
-      <Maximize2 size={16} aria-hidden="true" />
-    </button>
   )
 }
 
@@ -215,11 +181,7 @@ export default function DeviceDetail() {
       return { from, to }
     }
 
-    const days = rangePreset === 'month' ? 30
-      : rangePreset === 'week' ? 7
-        : rangePreset === 'threeDays' ? 3
-          : rangePreset === 'twoDays' ? 2
-            : 1
+    const days = rangePreset === 'week' ? 7 : rangePreset === 'fifteen' ? 15 : 1
     const from = new Date(now)
     from.setHours(0, 0, 0, 0)
     from.setDate(from.getDate() - (days - 1))
@@ -255,11 +217,7 @@ export default function DeviceDetail() {
       return days.reverse()
     }
 
-    const count = rangePreset === 'month' ? 30
-      : rangePreset === 'week' ? 7
-        : rangePreset === 'threeDays' ? 3
-          : rangePreset === 'twoDays' ? 2
-            : 1
+    const count = rangePreset === 'week' ? 7 : rangePreset === 'fifteen' ? 15 : 1
     for (let index = 0; index < count; index += 1) {
       const date = new Date(today)
       date.setHours(0, 0, 0, 0)
@@ -681,7 +639,6 @@ export default function DeviceDetail() {
                 <div className="rounded-2xl overflow-hidden" style={{ height:180 }}>
                   <MapContainer center={[latitude, longitude]} zoom={14} style={{ height:'100%',width:'100%' }} zoomControl={false} preferCanvas>
                     <MapLayers />
-                    <FullscreenMapButton />
                     <Marker position={[latitude, longitude]}
                       icon={L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:'+stColor+';border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>', iconSize:[14,14], iconAnchor:[7,7] })}/>
                   </MapContainer>
@@ -864,10 +821,8 @@ export default function DeviceDetail() {
                  <div className="ath-period-control" role="tablist" aria-label={isAr ? 'الفترة' : 'Période'}>
                   {[
                     ['today', t(lang, 'today')],
-                    ['twoDays', isAr ? 'يومان' : '2 jours'],
-                    ['threeDays', isAr ? '3 أيام' : '3 jours'],
                     ['week', t(lang, 'last7Days')],
-                    ['month', isAr ? 'شهر' : '1 mois'],
+                    ['fifteen', t(lang, 'last15Days')],
                     ['custom', t(lang, 'customRange')],
                   ].map(([key, label]) => (
                     <button
@@ -1151,8 +1106,6 @@ export default function DeviceDetail() {
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: cmdColor+'22' }}>
                     {sending
                       ? <Loader2 size={22} className="animate-spin" style={{ color: cmdColor }}/>
-                      : turnOff
-                        ? <img src={engineStopImage} alt="" className="h-12 w-12 rounded-xl object-cover" />
                       : <CmdIcon size={22} style={{ color: cmdColor }}/>}
                   </div>
                   <div className={isAr ? 'text-right' : 'text-left'}>
