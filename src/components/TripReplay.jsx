@@ -848,6 +848,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
           <MapContainer className="athar-replay-map" center={[routeBounds[0].latitude, routeBounds[0].longitude]} zoom={12} minZoom={3} maxZoom={19} style={{ height: '100%', width: '100%', minHeight: '420px' }} zoomControl={false} preferCanvas>
           <MapLayers
             satellite={allowSatellite && satelliteMode}
+            stable
             onSatelliteTimeout={allowSatellite ? handleSatelliteTimeout : undefined}
           />
           <ZoomControl position="topright" />

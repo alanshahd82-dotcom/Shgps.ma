@@ -45,16 +45,18 @@ function StreetProxyLayer({ onTileError, onTileLoad }) {
   )
 }
 
-export default function MapLayers({ satellite = false, onSatelliteTimeout }) {
+export default function MapLayers({ satellite = false, onSatelliteTimeout, stable = false }) {
   const [sourceIndex, setSourceIndex] = useState(0)
   const [tileLoaded, setTileLoaded] = useState(false)
   const sourceIndexRef = useRef(0)
   const errorTimesRef = useRef([])
   const satelliteReadyRef = useRef(false)
 
-  const sources = satellite
-    ? ['esri', 'geoapify-hybrid', 'osm']
-    : ['street', 'carto', 'geoapify', 'osm']
+  const sources = stable
+    ? ['osm']
+    : satellite
+      ? ['esri', 'geoapify-hybrid', 'osm']
+      : ['street', 'carto', 'geoapify', 'osm']
 
   useEffect(() => {
     sourceIndexRef.current = 0
