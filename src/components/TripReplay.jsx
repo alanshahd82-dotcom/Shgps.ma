@@ -28,6 +28,8 @@ const MAX_POSITION_SPEED_KMH = 220
 const PLAYBACK_RENDER_INTERVAL_MS = 120
 const MIN_REPLAY_STEP_MS = 120
 const replayRouteCache = new Map()
+const REPLAY_CACHE_LIMIT = 8
+const EMPTY_POSITIONS = []
 
 function readyMapContainer(map) {
   if (!map || map._loaded !== true || typeof map.getContainer !== 'function') return null
@@ -475,7 +477,7 @@ function detectBehaviors(route) {
     const closesStop = stopStart !== null && (!stopped || index === route.length - 1)
     if (closesStop) {
       const endIndex = stopped ? index : index - 1
-      const duration = new Date(route[endIndex].fixTime) - new Date(route[stopStart].fixTime)
+      const duration = route[endIndex].timestamp - route[stopStart].timestamp
       if (duration >= MIN_STOP_MS) {
         events.push({
           type: 'stop',
@@ -491,7 +493,7 @@ function detectBehaviors(route) {
 
     if (index === 0) continue
     const previous = route[index - 1]
-    const deltaMs = new Date(point.fixTime) - new Date(previous.fixTime)
+    const deltaMs = point.timestamp - previous.timestamp
     if (deltaMs > 0 && deltaMs <= MAX_EVENT_INTERVAL_MS) {
       const acceleration = ((point.speed - previous.speed) / 3.6) / (deltaMs / 1000)
       if (acceleration > ACCELERATION_LIMIT && previous.speed > 5) {
@@ -509,7 +511,7 @@ function detectBehaviors(route) {
       const before = route[index - 2]
       const firstBearing = bearing(before, previous)
       const secondBearing = bearing(previous, point)
-      const turnMs = new Date(point.fixTime) - new Date(before.fixTime)
+      const turnMs = point.timestamp - before.timestamp
       if (turnMs > 0 && turnMs < 3000 && angleDifference(firstBearing, secondBearing) > 45 && previous.speed > 10) {
         events.push({
           type: 'turn',
@@ -533,7 +535,7 @@ function eventMessage(event, lang) {
   return meta.label
 }
 
-export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', startTime, endTime, positions: suppliedPositions = [], onClose, allowSatellite = true }) {
+export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', startTime, endTime, positions: suppliedPositions = EMPTY_POSITIONS, onClose, allowSatellite = true }) {
   const { lang } = useApp()
   const isAr = lang === 'ar'
   const [route, setRoute] = useState(() => cleanRoute(suppliedPositions))
@@ -573,10 +575,14 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
 
   useEffect(() => {
     let cancelled = false
+    const controller = typeof AbortController === 'undefined' ? null : new AbortController()
     if (suppliedPositions.length) {
       setRoute(cleanRoute(suppliedPositions))
       setLoading(false)
-      return () => { cancelled = true }
+      return () => {
+        cancelled = true
+        controller?.abort()
+      }
     }
 
     const cacheKey = `${deviceId}:${startTime}:${endTime}`
@@ -584,31 +590,39 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
     if (cachedRoute) {
       setRoute(cachedRoute)
       setLoading(false)
-      return () => { cancelled = true }
+      return () => {
+        cancelled = true
+        controller?.abort()
+      }
     }
 
     setLoading(true)
     setError('')
-    api.stats.getPositions(deviceId, startTime, endTime)
+    api.stats.getPositions(deviceId, startTime, endTime, undefined, controller?.signal)
       .then((data) => {
         if (!cancelled) {
           const nextRoute = cleanRoute(data)
           replayRouteCache.set(cacheKey, nextRoute)
-          if (replayRouteCache.size > 8) replayRouteCache.delete(replayRouteCache.keys().next().value)
+          if (replayRouteCache.size > REPLAY_CACHE_LIMIT) replayRouteCache.delete(replayRouteCache.keys().next().value)
           setRoute(nextRoute)
         }
       })
       .catch(() => {
-        if (!cancelled) setError(isAr ? 'تعذّر تحميل نقاط الرحلة. حاول مرة أخرى.' : 'Impossible de charger les points du trajet.')
+        if (!cancelled && !controller?.signal.aborted) {
+          setError(isAr ? 'تعذّر تحميل نقاط الرحلة. حاول مرة أخرى.' : 'Impossible de charger les points du trajet.')
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      controller?.abort()
+    }
   }, [deviceId, endTime, isAr, startTime, suppliedPositions])
 
   const durationMs = useMemo(() => route.length > 1
-    ? new Date(route.at(-1).fixTime) - new Date(route[0].fixTime)
+    ? route.at(-1).timestamp - route[0].timestamp
     : 0, [route])
 
   const currentIndex = Math.min(route.length - 1, Math.max(0, Math.floor(progress)))
@@ -623,7 +637,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
       latitude: start.latitude + (next.latitude - start.latitude) * ratio,
       longitude: start.longitude + (next.longitude - start.longitude) * ratio,
       speed: start.speed + (next.speed - start.speed) * ratio,
-      fixTime: new Date(new Date(start.fixTime).getTime() + (new Date(next.fixTime) - new Date(start.fixTime)) * ratio).toISOString(),
+      fixTime: new Date(start.timestamp + (next.timestamp - start.timestamp) * ratio).toISOString(),
       address: ratio > 0.55 && next.address ? next.address : start.address,
       bearing: interpolateBearing(start.bearing, next.bearing, ratio),
     }
@@ -639,13 +653,13 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
   const totalDistance = useMemo(() => route.slice(1).reduce((sum, point, index) => sum + haversine(route[index], point), 0), [route])
   const maxSpeed = useMemo(() => route.reduce((max, point) => Math.max(max, point.speed), 0), [route])
   const movingMs = useMemo(() => route.slice(1).reduce((sum, point, index) => {
-    const segmentMs = new Date(point.fixTime) - new Date(route[index].fixTime)
+    const segmentMs = point.timestamp - route[index].timestamp
     return point.speed >= STOP_SPEED ? sum + Math.max(0, segmentMs) : sum
   }, 0), [route])
   const totalStopMs = useMemo(() => stops.reduce((sum, stop) => sum + stop.duration, 0), [stops])
   const speedingMs = useMemo(() => route.slice(1).reduce((sum, point, index) => {
     if (point.speed <= SPEED_LIMIT && route[index].speed <= SPEED_LIMIT) return sum
-    return sum + Math.max(0, new Date(point.fixTime) - new Date(route[index].fixTime))
+    return sum + Math.max(0, point.timestamp - route[index].timestamp)
   }, 0), [route])
   const currentSpeed = current ? Math.round(current.speed) : 0
   const currentBearing = current?.bearing ?? (current && route.length > 1
@@ -915,7 +929,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
             <div className="shrink-0 px-4 pb-3">
               <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-white/50">
                 <span className="truncate">{formatTime(route[0].fixTime, lang, false)}</span>
-                <span className="flex items-center gap-1 rounded-full border border-[#35d39a]/30 bg-[#35d39a]/10 px-2.5 py-1 font-bold text-[#8ceac5]"><Timer size={12} />{formatClock(timeForProgress(route, progress) - new Date(route[0].fixTime).getTime(), lang)}</span>
+                <span className="flex items-center gap-1 rounded-full border border-[#35d39a]/30 bg-[#35d39a]/10 px-2.5 py-1 font-bold text-[#8ceac5]"><Timer size={12} />{formatClock(timeForProgress(route, progress) - route[0].timestamp, lang)}</span>
                 <span className="truncate text-end">{formatTime(route.at(-1).fixTime, lang, false)}</span>
               </div>
               <div className="relative">
