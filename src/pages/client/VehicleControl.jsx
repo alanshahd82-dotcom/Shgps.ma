@@ -1,8 +1,8 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { ArrowLeft, ArrowRight, Car, Loader2, Pencil, Phone, Play, Route, Save, Square, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Car, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Square, X } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -18,6 +18,14 @@ function pt(v) {
   return la != null && lo != null && la >= -90 && la <= 90 && lo >= -180 && lo <= 180 && !(Math.abs(la) < 0.01 && Math.abs(lo) < 0.01) ? [la, lo] : null
 }
 function CenterMap({ point }) { const m = useMap(); useEffect(() => { if (point) m.setView(point, 15, { animate: false }) }, [m, point]); return null }
+function ResizeMap({ fullscreen }) {
+  const map = useMap()
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => map.invalidateSize({ animate: false }))
+    return () => cancelAnimationFrame(frame)
+  }, [fullscreen, map])
+  return null
+}
 function cap(v) {
   const raw = v?._raw || v
   const val = raw?.engineControlStatus ?? raw?.engine_control_status ?? raw?.engineCommandStatus ?? raw?.engine_command_status ?? raw?.engineControl?.status ?? raw?.engine_control?.status
@@ -109,6 +117,8 @@ export default function VehicleControl() {
   const [tripOptions, setTripOptions] = useState(null)
   const [meta, setMeta] = useState({ name:'', driverName:'', driverPhone:'' })
   const [saved, setSaved] = useState(false)
+  const [mapFullscreen, setMapFullscreen] = useState(false)
+  const vehicleMapRef = useRef(null)
 
   const vehicle = useMemo(() => vehicles.find(v => String(v.id) === String(id)), [id, vehicles])
   const point = pt(vehicle)
@@ -133,12 +143,37 @@ export default function VehicleControl() {
     save:'Enregistrer', saved:'Enregistré', online:'En ligne', offline:'Hors ligne',
     noEngine:"Le contrôle du moteur n'est pas disponible pour ce véhicule",
     replay:"Rejouer l'itinéraire", loading:'Chargement...',
+    fullscreen:'Plein écran', exitFullscreen:'Quitter le plein écran',
   } : {
     details:'تفاصيل المركبة', vName:'اسم المركبة', dName:'اسم السائق',
     dPhone:'هاتف السائق', devId:'رقم الجهاز',
     save:'حفظ', saved:'تم الحفظ', online:'متصلة', offline:'غير متصلة',
     noEngine:'التحكم بالمحرك غير متاح حتى يؤكد النظام دعمه لهذه المركبة',
     replay:'إعادة المسار', loading:'جاري التحميل...',
+    fullscreen:'ملء الشاشة', exitFullscreen:'الخروج من ملء الشاشة',
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setMapFullscreen(document.fullscreenElement === vehicleMapRef.current)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  async function toggleMapFullscreen() {
+    const mapElement = vehicleMapRef.current
+    if (mapFullscreen) {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen().catch(() => {})
+      }
+      setMapFullscreen(false)
+      return
+    }
+    setMapFullscreen(true)
+    if (mapElement?.requestFullscreen) {
+      await mapElement.requestFullscreen().catch(() => {})
+    }
   }
 
   async function confirmCommand() {
@@ -204,12 +239,25 @@ export default function VehicleControl() {
       <main className="mx-auto max-w-3xl space-y-4 p-4">
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           {point ? (
-            <div className="h-64">
+            <div
+              ref={vehicleMapRef}
+              className={'vehicle-control-map' + (mapFullscreen ? ' is-fullscreen' : '')}
+            >
               <MapContainer center={point} zoom={15} zoomControl={false} className="h-full w-full">
                 <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap"/>
+                <ResizeMap fullscreen={mapFullscreen}/>
                 <CenterMap point={point}/>
                 <Marker position={point} icon={markerIcon}/>
               </MapContainer>
+              <button
+                type="button"
+                onClick={toggleMapFullscreen}
+                className="vehicle-control-map__fullscreen"
+                aria-label={mapFullscreen ? T.exitFullscreen : T.fullscreen}
+                title={mapFullscreen ? T.exitFullscreen : T.fullscreen}
+              >
+                {mapFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
+              </button>
             </div>
           ) : (
             <div className="flex h-40 flex-col items-center justify-center text-slate-400">

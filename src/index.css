@@ -165,6 +165,51 @@
   background: #0B1220 !important;
 }
 
+.vehicle-control-map {
+  position: relative;
+  height: 16rem;
+  isolation: isolate;
+  transition: height .28s ease, border-radius .28s ease;
+}
+
+.vehicle-control-map.is-fullscreen,
+.vehicle-control-map:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  height: 100dvh;
+  border-radius: 0;
+  background: #0B1220;
+}
+
+.vehicle-control-map__fullscreen {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 12px;
+  z-index: 1000 !important;
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 12px;
+  background: rgba(6,12,26,.88);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,.32);
+  backdrop-filter: blur(12px);
+  transition: background .18s ease, transform .18s ease;
+}
+
+.vehicle-control-map__fullscreen:hover {
+  background: rgba(79,70,229,.92);
+}
+
+.vehicle-control-map__fullscreen:active {
+  transform: scale(.93);
+}
+
 .athar-map-loading {
   position: absolute;
   inset: 0;
