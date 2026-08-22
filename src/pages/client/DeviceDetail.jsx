@@ -490,7 +490,7 @@ export default function DeviceDetail() {
     index,
     isStop: getTripDistance(trip) < 0.05 && getTripMaxSpeed(trip) < 1,
   }))
-  const cardStyle = { background:'#0e2035', border:'1px solid rgba(255,255,255,.10)', boxShadow:'0 16px 38px rgba(0,0,0,.20)' }
+  const cardStyle = { background:'#ffffff', border:'1px solid rgba(100,116,139,.20)', boxShadow:'0 6px 22px rgba(15,23,42,.08)' }
   const distanceToday = device?.distanceToday ?? device?.distance_today ?? device?.distance_km ?? device?.distance
   const signalStrength = device?.signalStrength ?? device?.signal_strength ?? device?.signal ?? device?.rssi
   const vehicleType = ['car', 'bike', 'truck'].includes(device?.type) ? device.type : 'bike'
@@ -499,23 +499,23 @@ export default function DeviceDetail() {
   const voltageLabel = formatVoltage(voltage, lang, lastUpdate, device?.powerDisconnected)
 
   if (loading && !device) return (
-      <div className="client-app min-h-screen flex items-center justify-center bg-[#07111f]">
+      <div className="client-app min-h-screen flex items-center justify-center bg-slate-50">
        <div className="w-9 h-9 rounded-full border-2 animate-spin" style={{ borderColor:'#e4b56b', borderTopColor:'transparent' }}/>
     </div>
   )
 
   return (
-      <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="client-app device-detail-page min-h-screen bg-slate-50 pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
 
       {/* Header */}
-        <div className="mx-4 mt-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#102945] to-[#0e2035] px-4 pb-5 pt-4 shadow-[0_18px_48px_rgba(0,0,0,.25)]">
+        <div className="mx-4 mt-3 rounded-3xl border border-slate-200 bg-white px-4 pb-5 pt-4 shadow-[0_6px_24px_rgba(15,23,42,.08)]">
           <div className="flex items-start gap-3">
-         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/10 bg-[#07111f] active:scale-95"
+         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-200 bg-slate-50 text-slate-700 active:scale-95"
            >
            <ChevronLeft size={20} className="text-primary-500" style={{ transform: isAr ? 'rotate(180deg)' : 'none' }}/>
         </button>
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#07111f]">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
           <VehicleIcon type={vehicleType} iconSize={24} className="!h-10 !w-10 !rounded-xl" />
         </div>
         <div className="flex-1 min-w-0">
@@ -527,7 +527,7 @@ export default function DeviceDetail() {
                 className="w-full rounded-lg border border-[#38d39f]/50 bg-[#07111f]/70 px-2 py-1 text-base font-extrabold text-white outline-none focus:border-[#38d39f]"
               />
             ) : (
-              <h1 className="truncate text-lg font-extrabold text-[#edf4f2]">{device?.name || '...'}</h1>
+              <h1 className="truncate text-lg font-extrabold text-slate-900">{device?.name || '...'}</h1>
             )}
         </div>
         {/* Live indicator */}
@@ -537,7 +537,7 @@ export default function DeviceDetail() {
              <span className="text-xs font-bold" style={{ color:stColor }}>{stLabel}</span>
         </div>
         {!editing && (
-          <button onClick={openEdit} aria-label={isAr ? 'تعديل بيانات الجهاز' : 'Modifier l’appareil'} className="mt-1 rounded-xl border border-white/10 bg-white/[.06] p-2 text-[#8ceac5] transition hover:bg-white/10">
+          <button onClick={openEdit} aria-label={isAr ? 'تعديل بيانات الجهاز' : 'Modifier l’appareil'} className="mt-1 rounded-xl border border-slate-200 bg-indigo-50 p-2 text-indigo-600 transition hover:bg-indigo-100">
             <Pencil size={14} />
           </button>
         )}
@@ -988,7 +988,7 @@ export default function DeviceDetail() {
                         <FitRoute positions={positions}/>
                       </MapContainer>
                     ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-[#0b1929] text-center">
+                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-slate-50 text-center">
                         {routeLoading ? (
                           <Loader2 size={22} className="animate-spin text-[#38d39f]" />
                         ) : (
@@ -996,13 +996,13 @@ export default function DeviceDetail() {
                             <Map size={24} className="text-slate-500" />
                             <button
                                onClick={() => loadRoute()}
-                              className="rounded-xl bg-[#38d39f] px-5 py-2.5 text-xs font-extrabold text-[#07111f] transition hover:brightness-110"
+                              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-extrabold text-white transition hover:bg-indigo-700"
                             >
                               {t(lang, 'showRoute')}
                             </button>
                           </>
                         )}
-                        {routeError && <p className="px-4 text-[10px] font-semibold text-amber-300">{routeError}</p>}
+                        {routeError && <p className="px-4 text-[10px] font-semibold text-amber-700">{routeError}</p>}
                       </div>
                     )}
                   </div>

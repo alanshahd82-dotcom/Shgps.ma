@@ -10,7 +10,7 @@ import { useRealVehicles } from '../hooks/useRealVehicles'
 const FILTERS = ['all', 'moving', 'stopped', 'offline']
 
 function SkeletonCard() {
-  return <div className="ath-card h-[92px] animate-pulse"><div className="flex items-center gap-3"><span className="h-14 w-14 rounded-2xl bg-white/10" /><span className="flex-1"><span className="block h-3 w-1/2 rounded bg-white/10" /><span className="mt-3 block h-2 w-2/3 rounded bg-white/10" /><span className="mt-3 block h-2 w-1/3 rounded bg-white/10" /></span></div></div>
+  return <div className="ath-card h-[92px] animate-pulse"><div className="flex items-center gap-3"><span className="h-14 w-14 rounded-2xl bg-slate-100" /><span className="flex-1"><span className="block h-3 w-1/2 rounded bg-slate-100" /><span className="mt-3 block h-2 w-2/3 rounded bg-slate-100" /><span className="mt-3 block h-2 w-1/3 rounded bg-slate-100" /></span></div></div>
 }
 
 function VehicleCard({ vehicle, lang, onOpen }) {
@@ -51,10 +51,10 @@ export function VehiclesScreen({ vehicles: providedVehicles, alertCount = 0, onT
   return (
     <ClientLayout activeTab="vehicles" onTabChange={onTabChange} alertCount={alertCount || realAlertCount} showTopBar title={t(lang, 'vehicles')}>
       <div className="h-full overflow-y-auto" style={{ background: 'var(--ath-bg)' }} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="sticky top-0 z-10 border-b border-white/10 p-4" style={{ background: 'var(--ath-bg)' }}>
-          <div className="flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-2.5" style={{ background: 'var(--ath-card)' }}><Search size={16} style={{ color: 'var(--ath-mut)' }} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={t(lang, 'vehicleSearchPlaceholder')} className="min-w-0 flex-1 bg-transparent text-xs outline-none" /></div>
+         <div className="sticky top-0 z-10 border-b border-slate-200 p-4" style={{ background: 'var(--ath-bg)' }}>
+           <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"><Search size={16} style={{ color: 'var(--ath-mut)' }} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={t(lang, 'vehicleSearchPlaceholder')} className="min-w-0 flex-1 bg-transparent text-xs text-slate-900 outline-none placeholder:text-slate-400" /></div>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5">
-            {FILTERS.map(item => <button key={item} type="button" onClick={() => setFilter(item)} aria-pressed={filter === item} className="shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-extrabold transition-colors" style={filter === item ? { color: '#061321', background: '#32c48d', borderColor: '#32c48d' } : { color: 'var(--ath-mut)', borderColor: 'rgba(255,255,255,.10)' }}>{t(lang, `vehicleFilter_${item}`)}{item === 'all' ? ` ${vehicles.length}` : ` ${item === 'moving' ? count('moving') : item === 'stopped' ? count('stopped') : count('offline') + count('awaiting_gps')}`}</button>)}
+             {FILTERS.map(item => <button key={item} type="button" onClick={() => setFilter(item)} aria-pressed={filter === item} className="shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-extrabold transition-colors" style={filter === item ? { color: '#ffffff', background: '#4f46e5', borderColor: '#4f46e5' } : { color: 'var(--ath-mut)', background: '#ffffff', borderColor: 'var(--ath-line)' }}>{t(lang, `vehicleFilter_${item}`)}{item === 'all' ? ` ${vehicles.length}` : ` ${item === 'moving' ? count('moving') : item === 'stopped' ? count('stopped') : count('offline') + count('awaiting_gps')}`}</button>)}
           </div>
         </div>
         <div className="space-y-2 p-4">

@@ -2418,6 +2418,46 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: var(--ds-shadow-soft);
 }
 
+.athar-replay-map-loading {
+  background: rgba(248, 250, 252, .92) !important;
+}
+
+.device-detail-page [class*="bg-[#07111f]"],
+.device-detail-page [class*="bg-[#0b1929]"] {
+  background: var(--ds-color-surface-sunken) !important;
+}
+
+.device-detail-page [class*="text-white"] {
+  color: var(--ds-color-text) !important;
+}
+
+.device-detail-page [class*="border-white/"] {
+  border-color: var(--ds-border) !important;
+}
+
+.athar-replay-shell .athar-replay-map,
+.athar-replay-shell .athar-replay-map .leaflet-pane,
+.athar-replay-shell .athar-replay-map .leaflet-tile-pane {
+  background: var(--ds-color-surface-sunken) !important;
+}
+
+.athar-replay-shell .athar-replay-sheet [class*="text-slate-"],
+.athar-replay-shell .athar-replay-sheet [class*="text-white"] {
+  color: var(--ds-color-text) !important;
+}
+
+.athar-replay-shell .athar-replay-sheet [class*="text-white/"] {
+  color: var(--ds-color-text-muted) !important;
+}
+
+.athar-replay-shell .athar-replay-sheet [class*="bg-white/"] {
+  background: var(--ds-color-surface-sunken) !important;
+}
+
+.athar-replay-shell .athar-replay-sheet [class*="border-white/"] {
+  border-color: var(--ds-border-subtle) !important;
+}
+
 .athar-replay-shell .athar-replay-follow.is-active {
   border-color: var(--ds-color-primary) !important;
   background: var(--ds-color-primary-soft) !important;

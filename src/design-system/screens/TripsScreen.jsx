@@ -105,7 +105,7 @@ function TripCard({ trip, vehicle, replaying, onPlay, lang, L }) {
       <div dir={lang === 'ar' ? 'rtl' : 'ltr'}>
         <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-primary">{vehicle?.name || 'المركبة غير متاحة'}</h3>
+            <h3 className="truncate text-sm font-semibold text-primary">{vehicle?.name || L.unavailableVehicle}</h3>
             <p className="mt-1 text-xs text-slate-500">{formatDate(start, lang)}</p>
             <p className="mt-1 text-xs text-slate-500" dir="ltr">{L.from} {formatTime(start, lang)} — {L.to} {formatTime(end, lang)}</p>
           </div>
@@ -114,9 +114,9 @@ function TripCard({ trip, vehicle, replaying, onPlay, lang, L }) {
                to={`/client/vehicle/${vehicle.id}`}
               className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              فتح المركبة
+              {L.openVehicle}
             </Link>
-          ) : <span className="shrink-0 text-[11px] text-slate-400">المركبة غير متاحة</span>}
+          ) : <span className="shrink-0 text-[11px] text-slate-400">{L.unavailableVehicle}</span>}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
           <Stat Icon={RouteIcon} label={L.distance} value={formatNumber(trip?.distanceKm ?? trip?.distance_km ?? trip?.distance, lang === 'fr' ? ' km' : ' كم', L.unavailable)} />
@@ -170,6 +170,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
     noVehiclesHint: 'Les trajets apparaîtront après l’association d’un véhicule à votre compte.',
     from: 'De', to: 'à', distance: 'Distance', duration: 'Durée', averageSpeed: 'Vitesse moyenne',
     maxSpeed: 'Vitesse maximale', stops: 'Arrêts', viewTrip: 'Voir le trajet',
+    openVehicle: 'Ouvrir le véhicule', unavailableVehicle: 'Véhicule indisponible',
   } : {
     title: 'الرحلات', vehicle: 'المركبة', unnamedVehicle: 'مركبة غير مسماة', timeRange: 'الفترة الزمنية',
     ranges: { today: 'اليوم', yesterday: 'الأمس', week: 'آخر 7 أيام' },
@@ -179,6 +180,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
     noVehiclesHint: 'ستظهر الرحلات بعد ربط مركبة بحسابك.',
     from: 'من', to: 'إلى', distance: 'المسافة', duration: 'المدة', averageSpeed: 'متوسط السرعة',
     maxSpeed: 'السرعة القصوى', stops: 'التوقف', viewTrip: 'عرض الرحلة',
+    openVehicle: 'فتح المركبة', unavailableVehicle: 'المركبة غير متاحة',
   }
   const vehicles = providedVehicles ?? realVehicles
   const hasProvidedTrips = Array.isArray(providedTrips)

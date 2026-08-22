@@ -847,7 +847,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
           })}
           {current && <VehicleMarker type={deviceType} current={current} degrees={currentBearing} fast={currentSpeed > SPEED_LIMIT} playbackSpeed={multiplier} />}
         </MapContainer>
-          {!mapReady && <div className="athar-map-loading" role="status" aria-label={label('جار تحميل الخريطة', 'Chargement de la carte')}><span className="athar-map-spinner" /></div>}
+          {!mapReady && <div className="athar-map-loading athar-replay-map-loading" role="status" aria-label={label('جار تحميل الخريطة', 'Chargement de la carte')}><span className="athar-map-spinner" /></div>}
       </div>
 
       {mapNotice && (
@@ -880,10 +880,10 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
       </button>
 
       <header className={`athar-replay-header absolute inset-x-3 top-3 z-[1001] flex h-[52px] items-center gap-3 rounded-2xl px-3 shadow-2xl sm:inset-x-4 ${surfaceClass}`} style={{ background: 'rgba(255,255,255,.96)' }}>
-        <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white"><X size={18} /></button>
+        <button onClick={onClose} aria-label={t(lang, 'close')} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"><X size={18} /></button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-extrabold text-white">{deviceName || t(lang, 'device')}</p>
-          <p className="truncate text-[10px] text-white/50">{t(lang, 'replayRoute')} · {route.length ? `${formatTime(route[0].fixTime, lang, false)} — ${formatTime(route.at(-1).fixTime, lang, false)}` : '—'}</p>
+          <p className="truncate text-sm font-extrabold text-slate-900">{deviceName || t(lang, 'device')}</p>
+          <p className="truncate text-[10px] text-slate-500">{t(lang, 'replayRoute')} · {route.length ? `${formatTime(route[0].fixTime, lang, false)} — ${formatTime(route.at(-1).fixTime, lang, false)}` : '—'}</p>
         </div>
         <span className="hidden shrink-0 rounded-lg bg-[#35d39a]/10 px-2 py-1 text-[9px] font-bold tracking-[.12em] text-[#8ceac5] sm:inline">ATHAR GPS</span>
       </header>

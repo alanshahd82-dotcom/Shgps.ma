@@ -128,7 +128,7 @@ export default function DeviceList() {
   const attentionDevice = devices.find(device => getSubscriptionSnapshot(device).status !== 'active')
 
   return (
-    <div className="client-app min-h-screen bg-[#07111f] pb-28" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="client-app min-h-screen bg-slate-50 pb-28" dir={isAr ? 'rtl' : 'ltr'}>
       <ClientHeader />
       <header className="border-b border-white/10 bg-[var(--ath-bg)] px-5 pb-4 pt-7">
         <div className="mx-auto max-w-xl">
@@ -159,7 +159,7 @@ export default function DeviceList() {
         >
           {FILTERS.map(item => (
              <button key={item.key} onClick={() => setFilter(item.key)}
-               className={`shrink-0 rounded-full border px-3 py-2 text-[11px] font-bold transition-all active:scale-95 ${filter === item.key ? 'border-[var(--ath-green)] bg-[var(--ath-green)] text-[#07111f]' : 'border-[var(--ath-line)] bg-[var(--ath-card)] text-[var(--ath-mut)]'}`}>
+               className={`shrink-0 rounded-full border px-3 py-2 text-[11px] font-bold transition-all active:scale-95 ${filter === item.key ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-[var(--ath-line)] bg-white text-[var(--ath-mut)]'}`}>
               {item[isAr ? 'ar' : 'fr']} <span className="ms-1 opacity-60">{counts[item.key]}</span>
             </button>
           ))}
