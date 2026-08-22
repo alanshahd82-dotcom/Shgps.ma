@@ -157,7 +157,7 @@ export default function App() {
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
           <Route path="/client/vehicles"        element={<ClientRoute><VehiclesScreen /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
-          <Route path="/client/vehicle/:id"     element={<ClientRoute><DeviceDetail /></ClientRoute>} />
+          <Route path="/client/vehicle/:id"     element={<ClientRoute><VehicleControl /></ClientRoute>} />
           <Route path="/client/alerts"          element={<ClientRoute><AlertsScreen /></ClientRoute>} />
           <Route path="/client/settings"        element={<ClientRoute><Settings /></ClientRoute>} />
           <Route path="/client/reports"         element={<ClientRoute><Reports /></ClientRoute>} />
