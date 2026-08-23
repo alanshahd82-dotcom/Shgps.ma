@@ -121,6 +121,24 @@ function ConfirmDialog({ lang, turnOff, name, sending, onCancel, onConfirm }) {
   )
 }
 
+function EngineCutoffButton({ lang, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t(lang, 'cutEngine')}
+      className="engine-cutoff-button mt-4"
+    >
+      <span className="engine-cutoff-button__ring" aria-hidden="true">
+        <span className="engine-cutoff-button__core">
+          <Square size={31} strokeWidth={2.5} fill="currentColor" />
+          <span>{t(lang, 'cutEngine')}</span>
+        </span>
+      </span>
+    </button>
+  )
+}
+
 export default function VehicleControl() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -319,10 +337,7 @@ export default function VehicleControl() {
           </div>
           {capability !== 'available' && <p className="mt-2 text-[11px] text-slate-500">{T.noEngine}</p>}
           {capability === 'available' && (
-            <button type="button" onClick={() => setCommand({ turnOff: true })} className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-red-600 py-5 text-base font-black text-white shadow-lg shadow-red-200 hover:bg-red-700 active:scale-[0.98]">
-              <Square size={22} fill="currentColor"/>
-              {lang==='fr' ? 'ARRÊTER LE MOTEUR' : 'إيقاف المحرك'}
-            </button>
+            <EngineCutoffButton lang={lang} onClick={() => setCommand({ turnOff: true })} />
           )}
            {cmdErr && <p role="alert" className="mt-3 text-xs text-red-600">{cmdErr}</p>}
            {cmdSuccess && <p role="status" className="mt-3 text-xs font-bold text-green-600">{cmdSuccess}</p>}
