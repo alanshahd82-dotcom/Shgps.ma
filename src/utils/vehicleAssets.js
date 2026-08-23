@@ -1,5 +1,5 @@
 import carUrl from '../assets/car-marker.png'
-import bikeUrl from '../assets/bike-marker.jpg'
+import bikeUrl from '../assets/bike-marker.png'
 import truckUrl from '../assets/truck-marker.png'
 
 export const VEHICLE_MARKERS = {

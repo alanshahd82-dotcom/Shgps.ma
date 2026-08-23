@@ -68,7 +68,6 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
       <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color}">
         <span class="athar-live-marker-visual" style="width:${markerWidth}px;height:${markerHeight}px">
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
-          <span class="athar-live-marker-ring" style="${isSelected ? 'border:2px solid var(--ds-color-primary);' : ''}"></span>
         </span>
       </div>
     `,
