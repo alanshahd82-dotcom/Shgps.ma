@@ -29,11 +29,18 @@ function ResizeMap({ fullscreen }) {
 function cap(v) {
   const raw = v?._raw || v
   const val = raw?.engineControlStatus ?? raw?.engine_control_status ?? raw?.engineCommandStatus ?? raw?.engine_command_status ?? raw?.engineControl?.status ?? raw?.engine_control?.status
-  if (typeof val !== 'string') return 'unknown'
-  const n = val.trim().toLowerCase()
-  if (['available','confirmed','supported'].includes(n)) return 'available'
-  if (['unsupported','unavailable','disabled','not_supported'].includes(n)) return 'unsupported'
-  return 'unknown'
+  if (typeof val === 'string') {
+    const n = val.trim().toLowerCase()
+    if (['available','confirmed','supported'].includes(n)) return 'available'
+    if (['unsupported','unavailable','disabled','not_supported'].includes(n)) return 'unsupported'
+    return 'unknown'
+  }
+
+  // The devices endpoint does not expose a separate capability field. A
+  // Traccar mapping is the existing prerequisite for the command route, which
+  // resolves the appropriate protocol/relay command server-side.
+  const traccarId = v?.traccarId ?? v?.traccar_id ?? raw?.traccarId ?? raw?.traccar_id
+  return traccarId != null && String(traccarId).trim() !== '' ? 'available' : 'unknown'
 }
 function dirUrl(type, p) {
   if (!p) return null
