@@ -210,6 +210,63 @@
   transform: scale(.93);
 }
 
+.vehicle-control-map__engine {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  width: fit-content;
+  max-width: min(13rem, calc(100% - 68px));
+  padding: 8px;
+  pointer-events: auto;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 16px;
+  background: rgba(6,12,26,.68);
+  box-shadow: 0 8px 22px rgba(0,0,0,.28);
+  backdrop-filter: blur(10px);
+}
+
+.vehicle-control-map__engine-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.vehicle-control-map__engine > p {
+  margin: 6px 2px 0;
+  color: rgba(255,255,255,.72);
+  font-size: 10px;
+}
+
+.vehicle-control-map__engine .engine-cutoff-button {
+  margin-top: 6px;
+}
+
+.vehicle-control-map__engine .engine-cutoff-button__ring {
+  width: min(9rem, 34vw);
+}
+
+.vehicle-control-map__engine-error,
+.vehicle-control-map__engine-success {
+  max-width: 11rem;
+  margin: 6px 2px 0 !important;
+  font-size: 10px !important;
+  line-height: 1.35;
+}
+
+.vehicle-control-map__engine-error {
+  color: #fca5a5 !important;
+}
+
+.vehicle-control-map__engine-success {
+  color: #86efac !important;
+  font-weight: 700;
+}
+
 .engine-cutoff-button {
   position: relative;
   display: flex;
@@ -278,8 +335,18 @@
 }
 
 @media (max-width: 380px) {
+  .vehicle-control-map__engine {
+    top: 8px;
+    left: 8px;
+    padding: 6px;
+  }
+
   .engine-cutoff-button__ring {
     width: min(8.75rem, 52vw);
+  }
+
+  .vehicle-control-map__engine .engine-cutoff-button__ring {
+    width: min(7.5rem, 32vw);
   }
 }
 

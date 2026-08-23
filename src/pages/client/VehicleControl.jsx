@@ -337,6 +337,22 @@ export default function VehicleControl() {
               >
                 {mapFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
               </button>
+              <div className="vehicle-control-map__engine">
+                <div className="vehicle-control-map__engine-title">
+                  <div className={'h-2.5 w-2.5 rounded-full ' + (capability === 'available' ? 'bg-green-400' : 'bg-slate-400')}/>
+                  <h2>{lang==='fr' ? 'Contrôle du moteur' : 'التحكم بالمحرك'}</h2>
+                </div>
+                {capability !== 'available' && <p>{T.noEngine}</p>}
+                {capability === 'available' && (
+                  <EngineCutoffButton
+                    lang={lang}
+                    engineRunning={engineRunning}
+                    onClick={() => setCommand({ turnOff: engineRunning })}
+                  />
+                )}
+                {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
+                {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
+              </div>
             </div>
           ) : (
             <div className="flex h-40 flex-col items-center justify-center text-slate-400">
@@ -351,23 +367,6 @@ export default function VehicleControl() {
               <WIcon/>Waze
             </button>
           </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className={'h-3 w-3 rounded-full ' + (capability === 'available' ? 'bg-green-500' : 'bg-slate-400')}/>
-            <h2 className="text-sm font-extrabold text-slate-900">{lang==='fr' ? 'Contrôle du moteur' : 'التحكم بالمحرك'}</h2>
-          </div>
-          {capability !== 'available' && <p className="mt-2 text-[11px] text-slate-500">{T.noEngine}</p>}
-          {capability === 'available' && (
-            <EngineCutoffButton
-              lang={lang}
-              engineRunning={engineRunning}
-              onClick={() => setCommand({ turnOff: engineRunning })}
-            />
-          )}
-           {cmdErr && <p role="alert" className="mt-3 text-xs text-red-600">{cmdErr}</p>}
-           {cmdSuccess && <p role="status" className="mt-3 text-xs font-bold text-green-600">{cmdSuccess}</p>}
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
