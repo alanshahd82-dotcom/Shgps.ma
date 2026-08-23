@@ -119,9 +119,9 @@ export default function PublicShare() {
             <GeoapifyTileLayer />
             <Marker position={center} icon={L.divIcon({
               className: 'athar-public-vehicle',
-              html: `<img src="${markerFor(data.type).url}" alt="" style="width:58px;height:40px;object-fit:contain;transform:rotate(${markerFor(data.type).offset}deg);filter:drop-shadow(0 4px 6px rgba(0,0,0,.45))" />`,
-              iconSize: [58, 40],
-              iconAnchor: [29, 40],
+              html: `<img src="${markerFor(data.type).url}" alt="" style="width:96px;height:64px;object-fit:contain;transform:rotate(${markerFor(data.type).offset}deg);filter:drop-shadow(0 4px 6px rgba(0,0,0,.45))" />`,
+              iconSize: [96, 64],
+              iconAnchor: [48, 64],
             })}>
               <Popup>
                 <div className="text-sm font-semibold">{data.deviceName}</div>

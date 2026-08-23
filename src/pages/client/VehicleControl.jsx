@@ -282,8 +282,8 @@ export default function VehicleControl() {
 
   const markerIcon = L.divIcon({
     className: 'athar-vc-marker',
-    html: '<span style="display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#fff;border:3px solid #4F46E5;box-shadow:0 8px 24px rgba(79,70,229,.35)"><img src="' + markerFor(vehicle.type).url + '" alt="" style="width:36px;height:36px;object-fit:contain"/></span>',
-    iconSize:[52,52], iconAnchor:[26,26],
+    html: '<img src="' + markerFor(vehicle.type).url + '" alt="" style="display:block;width:96px;height:64px;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.45))"/>',
+    iconSize:[96,64], iconAnchor:[48,64],
   })
   const displayValue = value => value == null || value === '' ? '—' : String(value)
   const vehicleType = vehicle.type === 'car'
