@@ -24,7 +24,7 @@ const STATUS_LABELS = {
 // Keep these values together so mobile marker sizing is a one-line tune per type.
 // The supplied reference assets are landscape cut-outs. Keep them large enough
 // to read on the fleet map without letting the image dominate the map.
-const MARKER_SIZE = { bike: 58, car: 64, truck: 72 }
+const MARKER_SIZE = { bike: 86, car: 96, truck: 108 }
 const SELECTED_BOOST = 8
 const MARKER_ASPECT_RATIO = 1024 / 1536
 
@@ -60,8 +60,8 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   const vehicleType = device?.type || 'bike'
   const markerWidth = (MARKER_SIZE[vehicleType] || MARKER_SIZE.bike) + (isSelected ? SELECTED_BOOST : 0)
   const markerHeight = Math.round(markerWidth * MARKER_ASPECT_RATIO)
-  const iconWidth = markerWidth + 20
-  const iconHeight = markerHeight + 20
+  const iconWidth = markerWidth + 8
+  const iconHeight = markerHeight + 8
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
