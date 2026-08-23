@@ -3,8 +3,8 @@ import bikeUrl from '../assets/bike-marker.png'
 import truckUrl from '../assets/truck-marker.png'
 
 export const VEHICLE_MARKERS = {
-  // The replacement cut-outs point north in their source artwork, so the
-  // existing bearing rotation can be applied without a heading correction.
+  // All three official assets share the same neutral source orientation.
+  // LiveVehicleMarker applies the real GPS course when one is available.
   car: { url: carUrl, offset: 0 },
   bike: { url: bikeUrl, offset: 0 },
   truck: { url: truckUrl, offset: 0 },

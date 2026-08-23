@@ -22,13 +22,11 @@ const STATUS_LABELS = {
 }
 
 // Keep these values together so mobile marker sizing is a one-line tune per type.
-const MARKER_SIZE = { bike: 42, car: 48, truck: 56 }
+// The supplied reference assets are landscape cut-outs. Keep them large enough
+// to read on the fleet map without letting the image dominate the map.
+const MARKER_SIZE = { bike: 58, car: 64, truck: 72 }
 const SELECTED_BOOST = 8
-const MARKER_ASPECT_RATIO = {
-  bike: 256 / 152,
-  car: 256 / 171,
-  truck: 256 / 150,
-}
+const MARKER_ASPECT_RATIO = 1024 / 1536
 
 function toPoint(device) {
   return toValidLatLng(device)
@@ -50,16 +48,9 @@ function calculateBearing(from, to) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
 }
 
-function getBearing(device, from, to) {
+function getCourse(device) {
   const course = Number(device?.course ?? device?.attributes?.course)
-  return Number.isFinite(course) ? course : calculateBearing(from, to)
-}
-
-function getRenderedBearing(device, from, to) {
-  const speed = Number(device?.speedKmh ?? device?.speed ?? device?.last_speed ?? 0)
-  return getDeviceStatusKey(device) === 'stopped' || speed === 0
-    ? 0
-    : getBearing(device, from, to)
+  return Number.isFinite(course) ? course : null
 }
 
 function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar') {
@@ -68,7 +59,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   const color = STATUS_COLORS[status] || STATUS_COLORS.offline
   const vehicleType = device?.type || 'bike'
   const markerWidth = (MARKER_SIZE[vehicleType] || MARKER_SIZE.bike) + (isSelected ? SELECTED_BOOST : 0)
-  const markerHeight = Math.round(markerWidth * (MARKER_ASPECT_RATIO[vehicleType] || MARKER_ASPECT_RATIO.bike))
+  const markerHeight = Math.round(markerWidth * MARKER_ASPECT_RATIO)
   const iconWidth = markerWidth + 20
   const iconHeight = markerHeight + 20
   return L.divIcon({
@@ -82,7 +73,9 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
       </div>
     `,
     iconSize: [iconWidth, iconHeight],
-    iconAnchor: [iconWidth / 2, markerHeight / 2],
+    // The geographic point is the bottom-center contact point, not the
+    // center of the transparent image canvas.
+    iconAnchor: [iconWidth / 2, markerHeight],
   })
 }
 
@@ -116,8 +109,9 @@ export default function LiveVehicleMarker({
   const trailRef = useRef(firstPositionRef.current ? [firstPositionRef.current] : [])
   const [trail, setTrail] = useState(trailRef.current)
   const point = toPoint(device)
-  const initialBearingRef = useRef(getRenderedBearing(device, firstPositionRef.current, point))
-  const rotationRef = useRef(initialBearingRef.current)
+  const initialCourse = getCourse(device)
+  const initialBearingRef = useRef(initialCourse ?? 0)
+  const rotationRef = useRef(initialCourse ?? 0)
   const status = getDeviceStatusKey(device)
   const icon = useMemo(
     () => createLiveVehicleIcon(device, isSelected, initialBearingRef.current, device?.lang || 'ar'),
@@ -139,22 +133,15 @@ export default function LiveVehicleMarker({
     }
     const start = toValidLatLng([from?.lat, from?.lng])
     if (!start) return
-    const speed = Number(device?.speedKmh ?? device?.speed ?? device?.last_speed ?? 0)
-    const isStopped = status === 'stopped' || speed === 0
-    const bearing = getRenderedBearing(device, previousPointRef.current, point)
+    const course = getCourse(device)
     const distance = distanceBetween(start, point)
     previousPointRef.current = point
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
-    if (isStopped) {
-      rotationRef.current = 0
-      safelyUseMarker(marker, currentMarker => {
-        const image = currentMarker.getElement()?.querySelector('[data-live-vehicle]')
-        if (image) image.style.transform = `rotate(${markerFor(device?.type).offset}deg)`
-      })
-    } else {
-      updateMarkerRotation(marker, bearing, device?.type, rotationRef)
-    }
+    // Course is authoritative when supplied by the GPS stream. When it is
+    // temporarily absent, preserve the last valid course instead of rotating
+    // to zero or inventing movement from screen coordinates.
+    if (course !== null) updateMarkerRotation(marker, course, device?.type, rotationRef)
     if (distance < 0.0000001) {
       safelyUseMarker(marker, currentMarker => currentMarker.setLatLng(point))
       return
@@ -173,7 +160,7 @@ export default function LiveVehicleMarker({
       else frameRef.current = null
     }
     frameRef.current = requestAnimationFrame(animate)
-  }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type, device?.speedKmh, device?.speed, device?.last_speed, status])
+  }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type])
 
   useEffect(() => {
     if (!point) return
