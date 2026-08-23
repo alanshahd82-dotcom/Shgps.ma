@@ -191,7 +191,7 @@ export default function Home() {
         <section ref={vehiclesRef}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base font-bold text-slate-900">{t('myVehicles', lang)}</h3>
-            <button onClick={() => navigate('/client/devices')} className="text-sm font-medium text-indigo-600">{t('viewAll', lang)}</button>
+            <button onClick={() => navigate('/client/map')} className="text-sm font-medium text-indigo-600">{t('viewAll', lang)}</button>
           </div>
           {vehicles.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center text-slate-500">{t('noVehicles', lang)}</div>

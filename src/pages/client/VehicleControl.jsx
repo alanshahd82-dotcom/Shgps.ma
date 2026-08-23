@@ -337,22 +337,17 @@ export default function VehicleControl() {
               >
                 {mapFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
               </button>
-              <div className="vehicle-control-map__engine">
-                <div className="vehicle-control-map__engine-title">
-                  <div className={'h-2.5 w-2.5 rounded-full ' + (capability === 'available' ? 'bg-green-400' : 'bg-slate-400')}/>
-                  <h2>{lang==='fr' ? 'Contrôle du moteur' : 'التحكم بالمحرك'}</h2>
-                </div>
-                {capability !== 'available' && <p>{T.noEngine}</p>}
-                {capability === 'available' && (
+              {!mapFullscreen && capability === 'available' && (
+                <div className="vehicle-control-map__engine">
                   <EngineCutoffButton
                     lang={lang}
                     engineRunning={engineRunning}
                     onClick={() => setCommand({ turnOff: engineRunning })}
                   />
-                )}
-                {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
-                {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
-              </div>
+                  {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
+                  {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex h-40 flex-col items-center justify-center text-slate-400">

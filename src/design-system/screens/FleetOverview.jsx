@@ -104,7 +104,7 @@ export function FleetOverview() {
             <VehicleQuickLink key={vehicle.id} vehicle={vehicle} onClick={id => navigate(`/client/vehicle/${id}`)} />
           ))}
           {alertVehicles.length > 2 && (
-            <button type="button" onClick={() => navigate('/client/vehicles')} className="shrink-0 rounded-xl border border-white/80 bg-white/90 px-3 text-[11px] font-bold text-primary shadow-sm backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            <button type="button" onClick={() => navigate('/client/map')} className="shrink-0 rounded-xl border border-white/80 bg-white/90 px-3 text-[11px] font-bold text-primary shadow-sm backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               عرض الكل
             </button>
           )}

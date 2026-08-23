@@ -34,6 +34,22 @@ function EventFocus({ latitude, longitude }) {
   return null
 }
 
+function FitVehicles({ vehicles, vehicleSetKey }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!vehicles.length) return
+    const points = vehicles.map(vehicle => [vehicle.lat, vehicle.lng])
+    if (points.length === 1) {
+      map.setView(points[0], Math.max(map.getZoom(), 15), { animate: false })
+      return
+    }
+    map.fitBounds(points, { padding: [44, 44], maxZoom: 16, animate: false })
+  }, [map, vehicleSetKey])
+
+  return null
+}
+
 function AlertEventMarker({ latitude, longitude }) {
   if (latitude == null || longitude == null) return null
   return (
@@ -66,6 +82,10 @@ export function MapScreen({
   const vehicles = useMemo(
     () => allVehicles.filter(vehicle => Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0)),
     [allVehicles],
+  )
+  const vehicleSetKey = useMemo(
+    () => vehicles.map(vehicle => String(vehicle.id)).sort().join(','),
+    [vehicles],
   )
   const [internalSelectedId, setInternalSelectedId] = useState(() => searchParams.get('device'))
   const [stage, setStage] = useState('peek')
@@ -105,6 +125,7 @@ export function MapScreen({
         <FleetOverview />
         <MapContainer center={[33.5731, -7.5898]} zoom={13} zoomControl={false} preferCanvas className="h-full w-full">
           <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+          <FitVehicles vehicles={vehicles} vehicleSetKey={vehicleSetKey} />
           <EventFocus latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
           <AlertEventMarker latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
           {vehicles.map(vehicle => (
