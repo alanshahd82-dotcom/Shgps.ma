@@ -129,7 +129,7 @@ export default function PublicMap() {
               className: 'athar-public-vehicle',
               html: `<img src="${markerFor(data.type).url}" alt="" style="width:58px;height:40px;object-fit:contain;transform:rotate(${markerFor(data.type).offset}deg);filter:drop-shadow(0 4px 6px rgba(0,0,0,.45))" />`,
               iconSize: [58, 40],
-              iconAnchor: [29, 20],
+              iconAnchor: [29, 40],
             })}>
               <Popup>
                 <div className="text-sm font-semibold">{data.deviceName}</div>
