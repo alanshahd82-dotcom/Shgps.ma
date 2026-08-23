@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react'
-import { createRoot } from 'react-dom/client'
 import { Marker, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
-import { Car } from 'lucide-react'
+import { markerFor } from '../../utils/vehicleAssets'
 
 function getMarkerState(vehicle) {
   if (!vehicle.charge && vehicle.status === 'offline') return 'danger'
@@ -26,20 +25,21 @@ export function VehicleMarker({ vehicle, onClick }) {
   const selected = Boolean(vehicle.selected)
   const size = selected ? 48 : 40
   const style = stateStyles[markerState]
+  const marker = markerFor(vehicle.type)
 
   const icon = useMemo(() => {
     const element = document.createElement('div')
-    element.className = `flex items-center justify-center rounded-full border-[3px] border-white shadow-md transition-all ${style.background} ${style.text} ${selected ? 'ring-4 ring-accent/30' : ''}`
+    element.className = `flex items-center justify-center transition-all ${selected ? 'ring-4 ring-accent/30' : ''}`
     element.style.width = `${size}px`
     element.style.height = `${size}px`
-    createRoot(element).render(<Car className={selected ? 'h-6 w-6' : 'h-5 w-5'} strokeWidth={2.5} aria-hidden="true" />)
+    element.innerHTML = `<img src="${marker.url}" alt="" style="display:block;width:${size}px;height:${Math.round(size * 2 / 3)}px;object-fit:contain;filter:drop-shadow(0 3px 5px rgba(0,0,0,.5));transform:rotate(${marker.offset}deg)" />`
     return L.divIcon({
       className: 'athar-vehicle-marker',
       html: element,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
     })
-  }, [selected, size, style.background, style.text])
+  }, [marker.url, marker.offset, selected, size, style.background, style.text])
 
   return (
     <Marker position={[vehicle.lat, vehicle.lng]} icon={icon} eventHandlers={{ click: onClick }}>

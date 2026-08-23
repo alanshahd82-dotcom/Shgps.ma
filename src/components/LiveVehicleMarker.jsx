@@ -24,9 +24,15 @@ const STATUS_LABELS = {
 // Keep these values together so mobile marker sizing is a one-line tune per type.
 // The supplied reference assets are landscape cut-outs. Keep them large enough
 // to read on the fleet map without letting the image dominate the map.
-const MARKER_SIZE = { bike: 86, car: 96, truck: 108 }
+const MARKER_SIZE = { bike: 108, car: 124, truck: 140 }
 const SELECTED_BOOST = 8
 const MARKER_ASPECT_RATIO = 1024 / 1536
+
+function markerScaleForZoom(zoom) {
+  // Keep the artwork readable on phones without allowing it to dominate a
+  // close-up map or disappear when the fleet is viewed from farther away.
+  return Math.max(0.72, Math.min(1.25, 0.78 + (Number(zoom) - 10) * 0.065))
+}
 
 function toPoint(device) {
   return toValidLatLng(device)
@@ -53,12 +59,12 @@ function getCourse(device) {
   return Number.isFinite(course) ? course : null
 }
 
-function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar') {
+function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar', zoom = 13) {
   const marker = markerFor(device?.type)
   const status = device?.powerDisconnected ? 'offline' : getDeviceStatusKey(device)
   const color = STATUS_COLORS[status] || STATUS_COLORS.offline
   const vehicleType = device?.type || 'bike'
-  const markerWidth = (MARKER_SIZE[vehicleType] || MARKER_SIZE.bike) + (isSelected ? SELECTED_BOOST : 0)
+  const markerWidth = Math.round(((MARKER_SIZE[vehicleType] || MARKER_SIZE.bike) + (isSelected ? SELECTED_BOOST : 0)) * markerScaleForZoom(zoom))
   const markerHeight = Math.round(markerWidth * MARKER_ASPECT_RATIO)
   const iconWidth = markerWidth + 8
   const iconHeight = markerHeight + 8
@@ -101,6 +107,7 @@ export default function LiveVehicleMarker({
   children = null,
 }) {
   const map = useMap()
+  const [zoom, setZoom] = useState(() => map.getZoom?.() ?? 13)
   const markerRef = useRef(null)
   const firstPositionRef = useRef(toPoint(device))
   const previousPointRef = useRef(firstPositionRef.current)
@@ -113,9 +120,16 @@ export default function LiveVehicleMarker({
   const rotationRef = useRef(initialCourse ?? 0)
   const status = getDeviceStatusKey(device)
   const icon = useMemo(
-    () => createLiveVehicleIcon(device, isSelected, initialBearingRef.current, device?.lang || 'ar'),
-    [device?.type, device?.lang, isSelected, status, device?.speed, device?.last_speed, device?.powerDisconnected]
+    () => createLiveVehicleIcon(device, isSelected, initialBearingRef.current, device?.lang || 'ar', zoom),
+    [device?.type, device?.lang, isSelected, status, device?.powerDisconnected, zoom]
   )
+
+  useEffect(() => {
+    const updateZoom = () => setZoom(map.getZoom?.() ?? 13)
+    updateZoom()
+    map.on?.('zoomend', updateZoom)
+    return () => map.off?.('zoomend', updateZoom)
+  }, [map])
 
   useEffect(() => () => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current)

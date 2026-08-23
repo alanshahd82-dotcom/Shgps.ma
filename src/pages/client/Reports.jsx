@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart2, Clock, Navigation, Gauge, ChevronDown,
-  FileText, Car, Play, Loader2, Route as RouteIcon
+  FileText, Play, Loader2, Route as RouteIcon
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useApp } from '../../context/AppContext'
@@ -12,6 +12,7 @@ import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
 import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 import { bucketMax } from '../../utils/simplify'
+import { VehicleIcon } from '../../components/ui'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
@@ -365,7 +366,7 @@ export default function Reports() {
           className="mb-3 flex w-full items-center justify-between rounded-3xl border border-slate-200 bg-white px-4 py-3.5 text-start shadow-sm transition-all"
         >
           <span className="flex min-w-0 items-center gap-2">
-            <Car size={15} className="shrink-0 text-indigo-600" />
+            <VehicleIcon type={selectedDevice?.type} iconSize={15} className="shrink-0" />
             <span className="truncate text-sm font-bold text-slate-900">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>

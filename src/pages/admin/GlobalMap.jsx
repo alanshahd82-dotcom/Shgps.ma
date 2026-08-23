@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Polyline } from 'react-leaflet'
 import { CalendarRange, Loader2, Play, Wifi, WifiOff } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { VehicleIcon } from '../../components/ui'
 import { t } from '../../i18n/translations'
@@ -13,6 +14,7 @@ import { api } from '../../api/index.js'
 
 export default function GlobalMap() {
   const { devices, clientList, lang, wsConnected } = useApp()
+  const navigate = useNavigate()
   const [selectedDeviceId, setSelectedDeviceId] = useState(null)
   const [replayDevice, setReplayDevice] = useState(null)
   const [replayPositions, setReplayPositions] = useState([])
@@ -188,9 +190,7 @@ export default function GlobalMap() {
             satelliteMode={satelliteMode}
             autoFollow={autoFollow}
             onDeviceClick={device => {
-              setSelectedDeviceId(device.id)
-              setTodayRoute([])
-              setRouteError('')
+              navigate('/client/vehicle/' + device.id)
             }}
             onRouteRequest={showTodayRoute}
             routeLoadingDeviceId={routeLoadingDeviceId}

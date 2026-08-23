@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, ChevronDown, Wrench, AlertTriangle, Calendar, Gauge, X, Car } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, Wrench, AlertTriangle, Calendar, Gauge, X } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
@@ -95,7 +95,7 @@ export default function Maintenance() {
         <button onClick={() => setShowDevices(s => !s)}
           className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-2">
-             <Car size={15} className="text-indigo-600"/>
+             <VehicleIcon type={selectedDevice?.type} iconSize={15} />
              <span className="text-slate-800 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>

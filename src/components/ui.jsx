@@ -4,18 +4,18 @@
  */
 import React from 'react'
 import { Loader2, AlertCircle, WifiOff } from 'lucide-react'
-import { markerFor } from '../utils/vehicleAssets'
+import { markerFor, normalizeVehicleType } from '../utils/vehicleAssets'
 
 // ── Vehicle type icon ─────────────────────────────────────────────────────────
 export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
   const marker = markerFor(type)
   const pad = iconSize + 14
-  const label = type === 'bike' ? 'Motorcycle' : type === 'truck' ? 'Truck' : 'Car'
+  const normalizedType = normalizeVehicleType(type)
+  const label = normalizedType === 'bike' ? 'Motorcycle' : normalizedType === 'truck' ? 'Truck' : 'Car'
   return (
     <div
       className={`flex items-center justify-center rounded-xl flex-shrink-0 ${className}`}
       style={{
-        background: 'linear-gradient(145deg, #102b5b, #08152d)',
         width: pad,
         height: pad,
         overflow: 'hidden',
@@ -29,7 +29,7 @@ export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
         aria-hidden="true"
         style={{
           width: `${Math.max(iconSize + 8, 28)}px`,
-          height: `${Math.max(iconSize + 8, 28)}px`,
+          height: `${Math.round(Math.max(iconSize + 8, 28) * 2 / 3)}px`,
           objectFit: 'contain',
         }}
       />

@@ -1782,8 +1782,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .athar-live-marker-visual {
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  transform: translateX(-50%);
 }
 
 .athar-live-marker-ring {

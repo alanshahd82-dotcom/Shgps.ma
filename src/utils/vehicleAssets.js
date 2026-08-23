@@ -3,13 +3,20 @@ import bikeUrl from '../assets/bike-marker.png'
 import truckUrl from '../assets/truck-marker.png'
 
 export const VEHICLE_MARKERS = {
-  // All three official assets share the same neutral source orientation.
-  // LiveVehicleMarker applies the real GPS course when one is available.
-  car: { url: carUrl, offset: 0 },
-  bike: { url: bikeUrl, offset: 0 },
-  truck: { url: truckUrl, offset: 0 },
+  // The supplied artwork points north-east in its source canvas. The live
+  // marker adds this calibration before applying the GPS course.
+  car: { url: carUrl, offset: -45 },
+  bike: { url: bikeUrl, offset: -45 },
+  truck: { url: truckUrl, offset: -45 },
+}
+
+export function normalizeVehicleType(type) {
+  const normalized = String(type || '').trim().toLowerCase()
+  if (normalized === 'motorcycle' || normalized === 'motorbike' || normalized === 'motor-bike') return 'bike'
+  if (normalized === 'truck' || normalized === 'car' || normalized === 'bike') return normalized
+  return 'car'
 }
 
 export function markerFor(type) {
-  return VEHICLE_MARKERS[type] || VEHICLE_MARKERS.bike
+  return VEHICLE_MARKERS[normalizeVehicleType(type)]
 }

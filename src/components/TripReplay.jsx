@@ -269,15 +269,15 @@ const ReplayStaticLayers = React.memo(function ReplayStaticLayers({ route, route
   )
 })
 
-function vehicleIcon(type, initialBearing = 0) {
+function vehicleIcon(type, initialBearing = 0, scale = 1) {
   const marker = markerFor(type)
-  const width = 54
-  const height = 38
+  const width = Math.round(112 * scale)
+  const height = Math.round(width * 2 / 3)
   return L.divIcon({
     className: 'athar-replay-car',
     html: `<span class="athar-replay-car-body" style="display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;transform-origin:center;transform:rotate(${initialBearing + marker.offset}deg);transition:transform .3s linear"><img src="${marker.url}" alt="" draggable="false" style="display:block;width:${width}px;height:${height}px;object-fit:contain;mix-blend-mode:multiply;filter:drop-shadow(0 5px 10px rgba(0,0,0,.45));pointer-events:none;user-select:none" /></span>`,
     iconSize: [width, height],
-    iconAnchor: [width / 2, height / 2],
+     iconAnchor: [width / 2, height],
   })
 }
 
@@ -293,9 +293,19 @@ function interpolateBearing(first, second, ratio) {
 }
 
 function VehicleMarker({ type, current, degrees, fast, playbackSpeed }) {
+  const map = useMap()
   const markerRef = useRef(null)
   const rotationRef = useRef(degrees)
-  const icon = useMemo(() => vehicleIcon(type, degrees), [type])
+  const [zoom, setZoom] = useState(() => map.getZoom?.() ?? 13)
+  const scale = Math.max(0.72, Math.min(1.25, 0.78 + (Number(zoom) - 10) * 0.065))
+  const icon = useMemo(() => vehicleIcon(type, 0, scale), [type, scale])
+
+  useEffect(() => {
+    const updateZoom = () => setZoom(map.getZoom?.() ?? 13)
+    updateZoom()
+    map.on?.('zoomend', updateZoom)
+    return () => map.off?.('zoomend', updateZoom)
+  }, [map])
 
   useEffect(() => {
     const element = markerRef.current?.getElement()

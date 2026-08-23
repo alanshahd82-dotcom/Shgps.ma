@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle, Bell, ChevronLeft, Car, Truck, Bus, MapPin,
+  AlertTriangle, Bell, ChevronLeft, Car, MapPin,
   Navigation, Zap, Clock, CheckCircle2, Shield, Activity, Gauge
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
+import { VehicleIcon as VehicleAssetIcon } from '../../components/ui'
 
 function useLang() {
   const { lang } = useApp()
@@ -46,12 +47,6 @@ function timeAgo(ts, lang) {
   }
   if (s < 60) return 'الآن'; if (m < 60) return `منذ ${m}د`;
   if (h < 24) return `منذ ${h}س`; return `منذ ${day}ي`
-}
-
-function VehicleIcon({ type, className }) {
-  if (type === 'truck') return <Truck className={className} />
-  if (type === 'van' || type === 'bus') return <Bus className={className} />
-  return <Car className={className} />
 }
 
 function statusInfo(vehicle) {
@@ -204,7 +199,7 @@ export default function Home() {
                   <button key={v.id || v.uniqueId} onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
                     className="flex-shrink-0 w-56 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 text-start hover:shadow-md transition">
                     <div className="h-28 bg-gradient-to-br from-slate-100 to-slate-200 relative flex items-center justify-center">
-                      <VehicleIcon type={v.type || v.category} className="h-14 w-14 text-slate-400" />
+                      <VehicleAssetIcon type={v.type} iconSize={56} className="!h-20 !w-32" />
                       <span className={`absolute top-2 ${dir === 'rtl' ? 'left-2' : 'right-2'} h-3 w-3 rounded-full ${dotColor} ring-2 ring-white`} />
                     </div>
                     <div className="p-3">

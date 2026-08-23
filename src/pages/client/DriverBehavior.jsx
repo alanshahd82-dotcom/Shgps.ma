@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Gauge, Clock, AlertTriangle, ChevronDown, Car, ShieldCheck, Zap, CircleAlert } from 'lucide-react'
+import { Gauge, Clock, AlertTriangle, ChevronDown, ShieldCheck, Zap, CircleAlert } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
+import { VehicleIcon } from '../../components/ui'
 
 const PERIODS = [
   { key: 7,  ar: '7 أيام',  fr: '7 jours'  },
@@ -123,7 +124,7 @@ export default function DriverBehavior() {
           className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm w-full flex items-center justify-between mb-3"
           style={{ padding: '13px 14px' }}>
           <div className="flex items-center gap-2">
-               <Car size={15} className="text-indigo-600"/>
+               <VehicleIcon type={selectedDevice?.type} iconSize={15} />
                <span className="text-sm font-bold text-slate-900">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>

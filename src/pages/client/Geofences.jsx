@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Car, Loader2 } from 'lucide-react'
+import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Loader2 } from 'lucide-react'
 import { MapContainer, Circle as LeafletCircle, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import MapLayers from '../../components/MapLayers'
@@ -9,6 +9,7 @@ import { t } from '../../i18n/translations'
 import { api } from '../../api/index.js'
 import ClientNav from '../../components/ClientNav'
 import ClientHeader from '../../components/ClientHeader'
+import { VehicleIcon } from '../../components/ui'
 
 const centerIcon = L.divIcon({
   className: '',
@@ -101,7 +102,7 @@ export default function Geofences() {
         <button onClick={() => setShowDevices(s => !s)}
           className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="flex items-center gap-2">
-            <Car size={15} className="text-primary-500"/>
+            <VehicleIcon type={selectedDevice?.type} iconSize={15} />
             <span className="text-slate-800 text-sm font-bold">
               {selectedDevice?.name || (isAr ? 'اختر جهازاً' : 'Choisir appareil')}
             </span>

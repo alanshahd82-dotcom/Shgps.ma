@@ -671,7 +671,7 @@ export default function LiveMap() {
                isSelected={selectedDevice?.id === d.id}
                now={clock}
                autoFollow={autoFollow && selectedDevice?.id === d.id}
-              onClick={() => setSelected(d.id)}
+               onClick={() => navigate('/client/vehicle/' + d.id)}
             >
               <Popup>
                 {(() => {
