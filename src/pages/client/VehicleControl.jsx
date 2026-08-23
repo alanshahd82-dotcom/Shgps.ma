@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'rea
 import { useNavigate, useParams } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { ArrowLeft, ArrowRight, Car, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Square, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Car, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Square, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -128,18 +128,20 @@ function ConfirmDialog({ lang, turnOff, name, sending, onCancel, onConfirm }) {
   )
 }
 
-function EngineCutoffButton({ lang, onClick }) {
+function EngineCutoffButton({ lang, engineRunning, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={t(lang, 'cutEngine')}
-      className="engine-cutoff-button mt-4"
+      aria-label={t(lang, engineRunning ? 'cutEngine' : 'startEngine')}
+      className="engine-cutoff-button"
     >
       <span className="engine-cutoff-button__ring" aria-hidden="true">
         <span className="engine-cutoff-button__core">
-          <Square size={31} strokeWidth={2.5} fill="currentColor" />
-          <span>{t(lang, 'cutEngine')}</span>
+          {engineRunning
+            ? <Square size={31} strokeWidth={2.5} fill="currentColor" />
+            : <Zap size={31} strokeWidth={2.5} fill="currentColor" />}
+          <span>{t(lang, engineRunning ? 'cutEngine' : 'startEngine')}</span>
         </span>
       </span>
     </button>
@@ -155,6 +157,7 @@ export default function VehicleControl() {
   const [sending, setSending] = useState(false)
   const [cmdErr, setCmdErr] = useState('')
   const [cmdSuccess, setCmdSuccess] = useState('')
+  const [engineState, setEngineState] = useState(null)
   const [replay, setReplay] = useState(null)
   const [tripLoading, setTripLoading] = useState(false)
   const [tripError, setTripError] = useState('')
@@ -169,6 +172,7 @@ export default function VehicleControl() {
   const vehicle = useMemo(() => vehicles.find(v => String(v.id) === String(id)), [id, vehicles])
   const point = pt(vehicle)
   const capability = cap(vehicle)
+  const engineRunning = engineState !== false
   const lastUp = vehicle?.lastUpdate ?? vehicle?.fixTime
   const online = lastUp && (Date.now() - new Date(lastUp).getTime()) < 15*60*1000
 
@@ -182,6 +186,11 @@ export default function VehicleControl() {
       driverPhone: s.driverPhone || vehicle.driverPhone || vehicle.phone || '',
     })
   }, [vehicle?.id])
+
+  useEffect(() => {
+    if (typeof vehicle?.ignition === 'boolean') setEngineState(vehicle.ignition)
+    else if (vehicle) setEngineState(null)
+  }, [vehicle?.id, vehicle?.ignition])
 
   const T = lang === 'fr' ? {
     details:'Informations du véhicule', vName:'Nom du véhicule', dName:'Nom du conducteur',
@@ -230,12 +239,19 @@ export default function VehicleControl() {
 
   async function confirmCommand() {
     if (!vehicle || sending || !command) return
+    const turnOff = command.turnOff
     setSending(true); setCmdErr(''); setCmdSuccess('')
     try {
-      await api.devices.sendCommand(vehicle.id, command.turnOff ? 'engineStop' : 'engineResume')
+      await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume')
       setCommand(null)
-      setCmdSuccess(t(lang, command.turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
-      await refreshDevices?.()
+      setCmdSuccess(t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
+      // Read the actual state after the command; do not infer it from a
+      // successful request when the tracker has not reported the change yet.
+      try {
+        const refreshed = await api.devices.get(vehicle.id)
+        if (typeof refreshed?.engineOn === 'boolean') setEngineState(refreshed.engineOn)
+      } catch {}
+      try { await refreshDevices?.() } catch {}
     } catch (e) { setCmdErr(t(lang,'vehicleCommandFailed')) } finally { setSending(false) }
   }
 
@@ -337,14 +353,18 @@ export default function VehicleControl() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex items-center gap-2">
             <div className={'h-3 w-3 rounded-full ' + (capability === 'available' ? 'bg-green-500' : 'bg-slate-400')}/>
             <h2 className="text-sm font-extrabold text-slate-900">{lang==='fr' ? 'Contrôle du moteur' : 'التحكم بالمحرك'}</h2>
           </div>
           {capability !== 'available' && <p className="mt-2 text-[11px] text-slate-500">{T.noEngine}</p>}
           {capability === 'available' && (
-            <EngineCutoffButton lang={lang} onClick={() => setCommand({ turnOff: true })} />
+            <EngineCutoffButton
+              lang={lang}
+              engineRunning={engineRunning}
+              onClick={() => setCommand({ turnOff: engineRunning })}
+            />
           )}
            {cmdErr && <p role="alert" className="mt-3 text-xs text-red-600">{cmdErr}</p>}
            {cmdSuccess && <p role="status" className="mt-3 text-xs font-bold text-green-600">{cmdSuccess}</p>}

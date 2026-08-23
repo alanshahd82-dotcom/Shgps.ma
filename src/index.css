@@ -220,6 +220,7 @@
   background: transparent;
   color: #fff;
   cursor: pointer;
+  margin-top: .75rem;
   transition: transform .18s ease, filter .18s ease;
 }
 
@@ -239,7 +240,7 @@
 
 .engine-cutoff-button__ring {
   display: block;
-  width: min(11rem, 58vw);
+  width: min(10rem, 48vw);
   aspect-ratio: 1;
   padding: 9px;
   border: 3px solid #17345c;
@@ -278,7 +279,7 @@
 
 @media (max-width: 380px) {
   .engine-cutoff-button__ring {
-    width: min(9.5rem, 55vw);
+    width: min(8.75rem, 52vw);
   }
 }
 
