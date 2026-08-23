@@ -24,7 +24,7 @@ const STATUS_LABELS = {
 // Keep these values together so mobile marker sizing is a one-line tune per type.
 // The supplied reference assets are landscape cut-outs. Keep them large enough
 // to read on the fleet map without letting the image dominate the map.
-const MARKER_SIZE = { bike: 108, car: 124, truck: 140 }
+const MARKER_SIZE = { bike: 116, car: 132, truck: 148 }
 const SELECTED_BOOST = 8
 const MARKER_ASPECT_RATIO = 1024 / 1536
 
