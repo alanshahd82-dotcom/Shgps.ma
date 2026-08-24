@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   User, Lock, Globe, Moon, Bell, Volume2, LogOut, Eye, EyeOff,
-  Users, Plus, Trash2, X, CheckCircle, Info
+  Users, Plus, Trash2, X, CheckCircle, Info, ChevronLeft
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
@@ -181,11 +181,27 @@ export default function Settings() {
       <ClientHeader />
 
       {/* Header */}
-      <div className="px-5 pt-5 pb-4">
-        <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-indigo-600">
-          {isAr ? 'تخصيص التجربة' : 'Personnalisez votre expérience'}
-        </p>
-        <h1 className="text-slate-900 font-extrabold text-xl mt-1">{t(lang,'settings')}</h1>
+      <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+        <button
+          type="button"
+          onClick={() => {
+            if (window.history.length > 2) {
+              navigate(-1)
+            } else {
+              navigate('/client/more')
+            }
+          }}
+          aria-label={isAr ? 'رجوع' : 'Retour'}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+        >
+          <ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+        </button>
+        <div>
+          <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-indigo-600">
+            {isAr ? 'تخصيص التجربة' : 'Personnalisez votre expérience'}
+          </p>
+          <h1 className="text-slate-900 font-extrabold text-xl mt-0.5">{t(lang,'settings')}</h1>
+        </div>
       </div>
 
       {/* Tab bar */}
