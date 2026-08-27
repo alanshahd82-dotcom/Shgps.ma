@@ -9,7 +9,7 @@ const carouselSlides = [
     title: { ar: 'شارك التطبيق، احصل على شهر مجاني!', fr: 'Partagez l’application, gagnez un mois gratuit !' },
     subtitle: { ar: 'ادع أصدقاءك لتركيب GPS واحصل على خصم حصري', fr: 'Invitez vos amis à installer un GPS et profitez d’une remise exclusive.' },
     bg: 'linear-gradient(135deg, #0F2044 0%, #1a3a6e 100%)',
-    accent: '#00D97E',
+    accent: '#1d4ed8',
     icon: '★',
     cta: { ar: 'شارك الآن', fr: 'Partager' }
   },
@@ -17,7 +17,7 @@ const carouselSlides = [
     id: 2,
     title: { ar: 'تتبع أجهزتك في الوقت الفعلي', fr: 'Suivez vos appareils en temps réel' },
     subtitle: { ar: 'راقب موقع وسرعة جميع مركباتك من مكان واحد', fr: 'Consultez la position et la vitesse de tous vos véhicules au même endroit.' },
-    bg: 'linear-gradient(135deg, #006644 0%, #00D97E 100%)',
+    bg: 'linear-gradient(135deg, #006644 0%, #1d4ed8 100%)',
     accent: '#ffffff',
     icon: '●',
     cta: { ar: 'اكتشف المزيد', fr: 'Découvrir' }
@@ -36,7 +36,7 @@ const carouselSlides = [
     title: { ar: 'قطع المحرك عن بعد', fr: 'Coupez le moteur à distance' },
     subtitle: { ar: 'أوقف مركبتك من أي مكان في حالة السرقة أو الطوارئ', fr: 'Immobilisez votre véhicule à distance en cas de vol ou d’urgence.' },
     bg: 'linear-gradient(135deg, #1a0a2e 0%, #6B21A8 100%)',
-    accent: '#00D97E',
+    accent: '#1d4ed8',
     icon: '✓',
     cta: { ar: 'معرفة المزيد', fr: 'En savoir plus' }
   }

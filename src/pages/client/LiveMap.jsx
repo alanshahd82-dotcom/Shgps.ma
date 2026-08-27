@@ -878,13 +878,13 @@ export default function LiveMap() {
                         className="w-full text-left"
                         style={{
                           background: isSelected
-                            ? 'linear-gradient(135deg, rgba(0,217,126,0.1) 0%, rgba(0,217,126,0.04) 100%)'
+                            ? 'linear-gradient(135deg, rgba(29, 78, 216,0.1) 0%, rgba(29, 78, 216,0.04) 100%)'
                             : 'rgba(255,255,255,0.04)',
-                          border: `1.5px solid ${isSelected ? 'rgba(0,217,126,0.45)' : 'rgba(255,255,255,0.06)'}`,
+                          border: `1.5px solid ${isSelected ? 'rgba(29, 78, 216,0.45)' : 'rgba(255,255,255,0.06)'}`,
                           borderRadius: isSelected && hasPos ? '16px 16px 0 0' : 16,
                           padding: '11px 14px',
                           transition: 'all 0.25s ease',
-                          boxShadow: isSelected ? `0 0 24px rgba(0,217,126,0.12), inset 0 1px 0 rgba(0,217,126,0.15)` : 'none',
+                          boxShadow: isSelected ? `0 0 24px rgba(29, 78, 216,0.12), inset 0 1px 0 rgba(29, 78, 216,0.15)` : 'none',
                         }}
                       >
                         <div className="flex items-center gap-3">
@@ -923,14 +923,14 @@ export default function LiveMap() {
                               {isSelected && (
                                 <span
                                   className="inline-flex items-center gap-1 text-[10px] font-bold"
-                                  style={{ color: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? '#38d39f' : '#9ca3af' }}
+                                  style={{ color: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? '#38bdf8' : '#9ca3af' }}
                                 >
                                   <span
                                     className="rounded-full"
                                     style={{
                                       width: 6,
                                       height: 6,
-                                      background: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? '#38d39f' : '#9ca3af',
+                                      background: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? '#38bdf8' : '#9ca3af',
                                       animation: getFixTime(d) && (clock - new Date(getFixTime(d)).getTime()) < 30000 ? 'ping 2s ease-out infinite' : 'none',
                                     }}
                                   />
@@ -949,7 +949,7 @@ export default function LiveMap() {
                           <div className="flex-shrink-0">
                             {st === 'moving' && d.speed > 0 ? (
                               <div className="flex items-end gap-0.5">
-                                <span className="font-black text-base leading-none" style={{ color: '#00D97E' }}>
+                                <span className="font-black text-base leading-none" style={{ color: '#1d4ed8' }}>
                                   {Math.round(d.speed)}
                                 </span>
                                 <span className="text-[9px] leading-none mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
@@ -996,9 +996,9 @@ export default function LiveMap() {
                             <div
                               className="flex gap-2.5 p-3"
                               style={{
-                                background: 'rgba(0,217,126,0.05)',
-                                border: '1.5px solid rgba(0,217,126,0.3)',
-                                borderTop: '1px solid rgba(0,217,126,0.15)',
+                                background: 'rgba(29, 78, 216,0.05)',
+                                border: '1.5px solid rgba(29, 78, 216,0.3)',
+                                borderTop: '1px solid rgba(29, 78, 216,0.15)',
                                 borderRadius: '0 0 16px 16px',
                               }}
                             >
@@ -1034,9 +1034,9 @@ export default function LiveMap() {
                                 onClick={() => openMaps('waze', d)}
                                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs"
                                 style={{
-                                  background: 'rgba(0,217,126,0.12)',
-                                  border: '1px solid rgba(0,217,126,0.38)',
-                                  color: '#00D97E',
+                                  background: 'rgba(29, 78, 216,0.12)',
+                                  border: '1px solid rgba(29, 78, 216,0.38)',
+                                  color: '#1d4ed8',
                                 }}
                               >
                                 <MapPin size={13} />

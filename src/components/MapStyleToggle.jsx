@@ -24,7 +24,7 @@ export default function MapStyleToggle({ lang, satellite, onSatelliteChange, aut
         title={t(lang, 'map')}
         className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-bold transition-colors"
         style={{
-          background: !satellite ? 'rgba(0,217,126,0.2)' : 'transparent',
+          background: !satellite ? 'rgba(29, 78, 216,0.2)' : 'transparent',
           color: !satellite ? '#7ff3bf' : 'rgba(255,255,255,0.62)',
         }}
       >
@@ -38,7 +38,7 @@ export default function MapStyleToggle({ lang, satellite, onSatelliteChange, aut
         title={t(lang, 'satellite')}
         className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-bold transition-colors"
         style={{
-          background: satellite ? 'rgba(0,217,126,0.2)' : 'transparent',
+          background: satellite ? 'rgba(29, 78, 216,0.2)' : 'transparent',
           color: satellite ? '#7ff3bf' : 'rgba(255,255,255,0.62)',
         }}
       >
@@ -53,7 +53,7 @@ export default function MapStyleToggle({ lang, satellite, onSatelliteChange, aut
           title={t(lang, 'autoFollow')}
           className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-bold transition-colors"
           style={{
-            background: autoFollow ? 'rgba(0,217,126,0.2)' : 'transparent',
+            background: autoFollow ? 'rgba(29, 78, 216,0.2)' : 'transparent',
             color: autoFollow ? '#7ff3bf' : 'rgba(255,255,255,0.62)',
           }}
         >

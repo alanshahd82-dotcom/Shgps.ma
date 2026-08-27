@@ -423,9 +423,9 @@ export default function Reports() {
         ) : (
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-3">
-              <StatCard icon={Navigation} label={isAr ? 'المسافة' : 'Distance'} value={totalDistance} unit="km" color="#1DBF73" empty={!hasReportData} />
+              <StatCard icon={Navigation} label={isAr ? 'المسافة' : 'Distance'} value={totalDistance} unit="km" color="#1e40af" empty={!hasReportData} />
               <StatCard icon={Clock} label={isAr ? 'المدة' : 'Durée'} value={durationHours} unit="h" color="#6FC8FF" empty={!hasReportData} />
-              <StatCard icon={BarChart2} label={isAr ? 'الرحلات' : 'Trajets'} value={trips.length} unit="" color="#E0B36F" empty={!hasReportData} />
+              <StatCard icon={BarChart2} label={isAr ? 'الرحلات' : 'Trajets'} value={trips.length} unit="" color="#38bdf8" empty={!hasReportData} />
               <StatCard icon={Gauge} label={isAr ? 'أقصى سرعة' : 'Vitesse max'} value={maxSpeed} unit="km/h" color="#FF5A5F" empty={!hasReportData} />
             </div>
 
@@ -443,8 +443,8 @@ export default function Reports() {
                   <AreaChart data={chartData} margin={{ top: 4, right: 10, left: -14, bottom: 0 }}>
                     <defs>
                       <linearGradient id="ath-reports-speed-gradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#1DBF73" stopOpacity={0.42} />
-                        <stop offset="100%" stopColor="#1DBF73" stopOpacity={0.02} />
+                        <stop offset="0%" stopColor="#1e40af" stopOpacity={0.42} />
+                        <stop offset="100%" stopColor="#1e40af" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} stroke="rgba(148,180,215,.10)" strokeDasharray="3 4" />
@@ -458,7 +458,7 @@ export default function Reports() {
                     <Area
                       type="monotone"
                       dataKey="speed"
-                      stroke="#1DBF73"
+                      stroke="#1e40af"
                       strokeWidth={2.5}
                       fill="url(#ath-reports-speed-gradient)"
                       dot={false}

@@ -1,17 +1,11 @@
 import React from 'react'
-import { TileLayer } from 'react-leaflet'
+import MapTileLayer from './MapTileLayer'
 
-export default function GeoapifyTileLayer({
-  style = 'osm-bright',
-  onTileError,
-  onTileLoad,
-}) {
-  return (
-    <TileLayer
-      url={`/api/map/tiles/{z}/{x}/{y}.png?style=${encodeURIComponent(style)}`}
-      maxZoom={19}
-      eventHandlers={{ tileerror: onTileError, tileload: onTileLoad }}
-      attribution={'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · © <a href="https://openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a>'}
-    />
-  )
+/**
+ * محفوظ بالاسم القديم باش ما نكسروش الصفحات اللي كاتستوردو،
+ * ولكن دابا كايرجّع طبقة Mapbox الموحّدة.
+ */
+export default function GeoapifyTileLayer({ style, onTileError, onTileLoad }) {
+  const satellite = typeof style === 'string' && /hybrid|satellite/i.test(style)
+  return <MapTileLayer satellite={satellite} onTileError={onTileError} onTileLoad={onTileLoad} />
 }

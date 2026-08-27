@@ -22,4 +22,8 @@ export const config = {
     apiKey: process.env.GEOAPIFY_API_KEY || '',
     style: process.env.GEOAPIFY_MAP_STYLE || 'osm-bright',
   },
+  mapbox: {
+    // Public token (pk.*) — kept in the server .env so it never lands in git.
+    token: process.env.MAPBOX_TOKEN || '',
+  },
 }

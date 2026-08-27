@@ -168,7 +168,7 @@ export default function DriverBehavior() {
           {!hasData ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col items-center text-center py-14 px-5">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-                style={{ background: 'rgba(0,217,126,.10)', border: '1px solid rgba(0,217,126,.18)' }}>
+                style={{ background: 'rgba(29, 78, 216,.10)', border: '1px solid rgba(29, 78, 216,.18)' }}>
                 <ShieldCheck size={30} className="text-indigo-600"/>
               </div>
               <p className="text-sm font-extrabold text-slate-900">

@@ -75,7 +75,7 @@ function RouteMapDisplay({ trip, mapKey }) {
   const end   = positions[positions.length - 1]
 
   const startIcon = L.divIcon({
-    html: '<div style="width:12px;height:12px;border-radius:50%;background:#00D97E;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,.3)"></div>',
+    html: '<div style="width:12px;height:12px;border-radius:50%;background:#1d4ed8;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,.3)"></div>',
     iconSize: [12, 12], iconAnchor: [6, 6], className: '',
   })
   const endIcon = L.divIcon({
@@ -395,7 +395,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                 <div className="mb-5">
                   <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
                     <motion.div className="h-full rounded-full"
-                      style={{ backgroundColor: isExpired ? '#ef4444' : isSoon ? '#f97316' : '#00D97E' }}
+                      style={{ backgroundColor: isExpired ? '#ef4444' : isSoon ? '#f97316' : '#1d4ed8' }}
                       initial={{ width: 0 }}
                       animate={{ width: `${isExpired ? 0 : Math.min(100, Math.round((daysLeft / 365) * 100))}%` }}
                       transition={{ duration: 0.6 }} />

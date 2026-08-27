@@ -132,7 +132,7 @@ export default function Alerts() {
         {filtered.length === 0 ? (
           <div className="ath-card flex flex-col items-center justify-center py-16 gap-3 text-center">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ background: 'rgba(0,217,126,.10)', border: '1px solid rgba(0,217,126,.18)' }}>
+              style={{ background: 'rgba(29, 78, 216,.10)', border: '1px solid rgba(29, 78, 216,.18)' }}>
               <Bell size={27} style={{ color: 'var(--ath-green)' }}/>
             </div>
             <p className="text-sm font-bold" style={{ color: 'var(--ath-txt)' }}>
@@ -156,11 +156,11 @@ export default function Alerts() {
                   className="ath-card relative flex items-start gap-3 cursor-pointer"
                 style={{
                    padding: 14,
-                   borderColor: alert.read ? 'var(--ath-line)' : 'rgba(0,217,126,.34)',
-                   boxShadow: alert.read ? undefined : '0 8px 28px rgba(0,217,126,.08)',
+                   borderColor: alert.read ? 'var(--ath-line)' : 'rgba(29, 78, 216,.34)',
+                   boxShadow: alert.read ? undefined : '0 8px 28px rgba(29, 78, 216,.08)',
                 }}>
                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                   style={{ background: cfg.tone === 'danger' ? 'rgba(255,90,95,.14)' : cfg.tone === 'warning' ? 'rgba(255,176,32,.14)' : 'rgba(0,217,126,.12)' }}>
+                   style={{ background: cfg.tone === 'danger' ? 'rgba(255,90,95,.14)' : cfg.tone === 'warning' ? 'rgba(255,176,32,.14)' : 'rgba(29, 78, 216,.12)' }}>
                   <Icon size={19} style={{ color: cfg.color }}/>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -181,7 +181,7 @@ export default function Alerts() {
                 </div>
                  {!alert.read && (
                    <span aria-label={isAr ? 'غير مقروء' : 'Non lu'} className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                     style={{ [isAr ? 'left' : 'right']: 8, background: 'var(--ath-green)', boxShadow: '0 0 0 4px rgba(0,217,126,.12)' }}/>
+                     style={{ [isAr ? 'left' : 'right']: 8, background: 'var(--ath-green)', boxShadow: '0 0 0 4px rgba(29, 78, 216,.12)' }}/>
                  )}
               </motion.div>
             )

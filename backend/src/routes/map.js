@@ -54,6 +54,13 @@ setInterval(() => {
   }
 }, TILE_WINDOW_MS).unref()
 
+// Map provider config for the browser. The Mapbox public token lives in the
+// server .env only, so it is never committed to the repository.
+mapRouter.get('/config', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300')
+  res.json({ provider: config.mapbox.token ? 'mapbox' : 'osm', mapboxToken: config.mapbox.token })
+})
+
 // Geoapify tile proxy: keep the provider key on the server, never in browser code.
 mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
   const z = Number(req.params.z)

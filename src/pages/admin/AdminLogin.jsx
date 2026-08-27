@@ -40,11 +40,11 @@ export default function AdminLogin() {
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, #00D97E 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 70%)' }} />
         <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full opacity-10"
           style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-5"
-          style={{ background: 'radial-gradient(circle, #00D97E 0%, transparent 60%)' }} />
+          style={{ background: 'radial-gradient(circle, #1d4ed8 0%, transparent 60%)' }} />
       </div>
 
       <motion.div
@@ -61,7 +61,7 @@ export default function AdminLogin() {
           }}
         >
           {/* Top accent bar */}
-          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #00D97E, #0F2044, #00D97E)' }} />
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #1d4ed8, #0F2044, #1d4ed8)' }} />
 
           {/* Header */}
             <div className="px-8 pb-6 pt-8 text-center">
@@ -72,12 +72,12 @@ export default function AdminLogin() {
               transition={{ delay: 0.15, type: 'spring', damping: 14, stiffness: 200 }}
               className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[var(--ath-r)]"
               style={{
-                background: 'rgba(0,217,126,.10)',
-                border: '1px solid rgba(0,217,126,.25)',
-                boxShadow: '0 0 30px rgba(0,217,126,.12)',
+                background: 'rgba(29, 78, 216,.10)',
+                border: '1px solid rgba(29, 78, 216,.25)',
+                boxShadow: '0 0 30px rgba(29, 78, 216,.12)',
               }}
             >
-              <Shield size={30} style={{ color: '#00B366' }} />
+              <Shield size={30} style={{ color: '#1e40af' }} />
             </motion.div>
 
             {/* Logo */}
@@ -108,7 +108,7 @@ export default function AdminLogin() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#00D97E] focus:ring-2 focus:ring-[#00D97E]/20"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#1d4ed8] focus:ring-2 focus:ring-[#1d4ed8]/20"
                 style={{
                   paddingBlock: '0.875rem',
                   paddingInlineStart: '2.75rem',
@@ -116,8 +116,8 @@ export default function AdminLogin() {
                 }}
                 placeholder={t(lang, 'email') || 'البريد الإلكتروني'}
                 onFocus={e => {
-                   e.target.style.borderColor = 'rgba(0,217,126,.65)'
-                   e.target.style.boxShadow = '0 0 0 3px rgba(0,217,126,.12)'
+                   e.target.style.borderColor = 'rgba(29, 78, 216,.65)'
+                   e.target.style.boxShadow = '0 0 0 3px rgba(29, 78, 216,.12)'
                 }}
                 onBlur={e => {
                    e.target.style.borderColor = '#e2e8f0'
@@ -142,7 +142,7 @@ export default function AdminLogin() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#00D97E] focus:ring-2 focus:ring-[#00D97E]/20"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#1d4ed8] focus:ring-2 focus:ring-[#1d4ed8]/20"
                 style={{
                   paddingBlock: '0.875rem',
                   paddingInlineStart: '2.75rem',
@@ -150,8 +150,8 @@ export default function AdminLogin() {
                 }}
                 placeholder={t(lang, 'password') || 'كلمة المرور'}
                 onFocus={e => {
-                   e.target.style.borderColor = 'rgba(0,217,126,.65)'
-                   e.target.style.boxShadow = '0 0 0 3px rgba(0,217,126,.12)'
+                   e.target.style.borderColor = 'rgba(29, 78, 216,.65)'
+                   e.target.style.boxShadow = '0 0 0 3px rgba(29, 78, 216,.12)'
                 }}
                 onBlur={e => {
                    e.target.style.borderColor = '#e2e8f0'

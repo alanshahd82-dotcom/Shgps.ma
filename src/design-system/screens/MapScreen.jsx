@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { LocateFixed } from 'lucide-react'
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, MapContainer, Popup, useMap } from 'react-leaflet'
+import MapTileLayer from '../../components/MapTileLayer'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { ClientLayout, Fab } from '../layout'
@@ -124,7 +125,7 @@ export function MapScreen({
       <div className="relative h-full w-full">
         <FleetOverview />
         <MapContainer center={[33.5731, -7.5898]} zoom={13} zoomControl={false} preferCanvas className="h-full w-full">
-          <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+          <MapTileLayer />
           <FitVehicles vehicles={vehicles} vehicleSetKey={vehicleSetKey} />
           <EventFocus latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
           <AlertEventMarker latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />

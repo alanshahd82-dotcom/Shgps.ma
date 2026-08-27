@@ -70,6 +70,7 @@ services:
       TRACCAR_ADMIN_EMAIL:    ${TRACCAR_ADMIN_EMAIL}
       TRACCAR_ADMIN_PASSWORD: ${TRACCAR_ADMIN_PASSWORD}
       GEOAPIFY_API_KEY:       ${GEOAPIFY_API_KEY}
+      MAPBOX_TOKEN:           ${MAPBOX_TOKEN}
       GEOAPIFY_MAP_STYLE:     ${GEOAPIFY_MAP_STYLE:-osm-bright}
       FRONTEND_URL:           ${FRONTEND_URL}
       NODE_ENV:               production

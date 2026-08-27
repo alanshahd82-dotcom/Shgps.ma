@@ -165,7 +165,7 @@ function SubscriptionCard({ device, lang, contacts, renewOpen, onRenew }) {
     ? { label: isAr ? 'منتهٍ' : 'Expiré', color: '#FF5A5F', bg: 'rgba(255,90,95,.12)' }
     : snapshot.status === 'expiring_soon'
       ? { label: isAr ? 'ينتهي قريباً' : 'Expire bientôt', color: '#FFB020', bg: 'rgba(255,176,32,.12)' }
-      : { label: isAr ? 'نشط' : 'Actif', color: '#00D97E', bg: 'rgba(0,217,126,.12)' }
+      : { label: isAr ? 'نشط' : 'Actif', color: '#1d4ed8', bg: 'rgba(29, 78, 216,.12)' }
   const plate = device.plate || device.licensePlate || device.license_plate
   const remainingLabel = snapshot.status === 'expired'
     ? (isAr ? 'منتهية' : 'Expiré')

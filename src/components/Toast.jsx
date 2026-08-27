@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 const TOAST_STYLES = {
   success: {
     Icon: CheckCircle2,
-    accent: '#38d39f',
+    accent: '#38bdf8',
     background: 'rgba(12, 55, 48, .96)',
   },
   error: {

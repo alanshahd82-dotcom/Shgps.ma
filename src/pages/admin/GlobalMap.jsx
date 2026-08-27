@@ -197,7 +197,7 @@ export default function GlobalMap() {
             children={todayRoute.length > 1 ? (
               <>
                 <Polyline positions={todayRoute} pathOptions={{ color: '#ffffff', weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }} />
-                <Polyline positions={todayRoute} pathOptions={{ color: '#1DBF73', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
+                <Polyline positions={todayRoute} pathOptions={{ color: '#1e40af', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
               </>
             ) : null}
           />

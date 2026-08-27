@@ -110,7 +110,7 @@ export default function ClientWelcome() {
             FLEET INTELLIGENCE PLATFORM
           </p>
           <div className="mt-10 h-0.5 w-32 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-full animate-pulse rounded-full" style={{ background: 'linear-gradient(90deg, #C8843C, #E0B36F, #FFF0C9)' }} />
+            <div className="h-full w-full animate-pulse rounded-full" style={{ background: 'linear-gradient(90deg, #C8843C, #38bdf8, #FFF0C9)' }} />
           </div>
         </div>
         <p className="absolute bottom-8 text-[11px] tracking-wide text-white/30" dir="ltr">

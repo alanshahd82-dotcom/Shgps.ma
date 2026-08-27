@@ -21,7 +21,7 @@ const FILTERS = [
 ]
 
 const STATUS = {
-  moving: { ar: 'تتحرك', fr: 'En mouvement', color: '#38d39f', soft: 'rgba(56,211,159,.12)' },
+  moving: { ar: 'تتحرك', fr: 'En mouvement', color: '#38bdf8', soft: 'rgba(56, 189, 248,.12)' },
   idle: { ar: 'خاملة', fr: 'Au ralenti', color: '#d9ad62', soft: 'rgba(217,173,98,.12)' },
   stopped: { ar: 'متوقفة', fr: 'À l’arrêt', color: '#e46b68', soft: 'rgba(228,107,104,.12)' },
   awaiting_gps: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation', color: '#f59e0b', soft: 'rgba(245,158,11,.12)' },
@@ -75,7 +75,7 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
         </span>
         <span className="flex shrink-0 flex-col items-end gap-2 text-[var(--ath-mut)]">
           {statusKey === 'moving' && speed > 0 && (
-            <span className="rounded-lg bg-[rgba(56,211,159,.12)] px-2 py-1 text-end">
+            <span className="rounded-lg bg-[rgba(56, 189, 248,.12)] px-2 py-1 text-end">
               <span className="block text-lg font-extrabold leading-none tabular-nums text-[var(--ath-green2)]">{Math.round(speed)}</span>
               <small className="text-[9px] font-normal">km/h</small>
             </span>

@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet'
+import { MapContainer, Marker, useMap } from 'react-leaflet'
+import MapTileLayer from '../../components/MapTileLayer'
 import L from 'leaflet'
 import { ArrowLeft, ArrowRight, Car, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Square, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
@@ -323,7 +324,7 @@ export default function VehicleControl() {
               className={'vehicle-control-map' + (mapFullscreen ? ' is-fullscreen' : '')}
             >
               <MapContainer center={point} zoom={15} zoomControl={false} className="h-full w-full">
-                <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap"/>
+                <MapTileLayer/>
                 <ResizeMap fullscreen={mapFullscreen}/>
                 <CenterMap point={point}/>
                 <Marker position={point} icon={markerIcon}/>

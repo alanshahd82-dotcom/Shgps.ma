@@ -67,7 +67,7 @@ export default function SplashScreen() {
       >
         <motion.div
            className="h-full rounded-full"
-           style={{ background: 'linear-gradient(90deg, #C8843C, #E0B36F, #FFF0C9)' }}
+           style={{ background: 'linear-gradient(90deg, #C8843C, #38bdf8, #FFF0C9)' }}
           initial={{ width: '0%' }}
           animate={{ width: '100%' }}
           transition={{ duration: 1.8, delay: 0.5, ease: 'easeInOut' }}

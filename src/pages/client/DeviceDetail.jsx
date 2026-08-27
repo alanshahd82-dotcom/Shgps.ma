@@ -90,7 +90,7 @@ function cleanRoute(points) {
 function speedColor(s) {
   if (s > 120) return '#FF3B30'
   if (s > 80)  return '#FF9500'
-  return '#00D97E'
+  return '#1d4ed8'
 }
 
 function mergeDeviceDetails(current, next) {
@@ -242,7 +242,7 @@ export default function DeviceDetail() {
   }, [customFrom, customRangeTooLong, customTo, rangeBounds, rangePreset])
 
   const st = getDeviceStatusKey(device || {})
-  const stColor = { moving:'#00D97E', idle:'#FF9500', stopped:'#FF3B30', awaiting_gps:'#F59E0B', offline:'#6b7280' }[st] || '#6b7280'
+  const stColor = { moving:'#1d4ed8', idle:'#FF9500', stopped:'#FF3B30', awaiting_gps:'#F59E0B', offline:'#6b7280' }[st] || '#6b7280'
   const stLabel = { moving: isAr?'يتحرك':'En mouvement', idle:isAr?'خمول':'Ralenti', stopped:isAr?'متوقف':'Arrêté', awaiting_gps:isAr?'في انتظار تحديد الموقع':'En attente de localisation', offline:isAr?'غير متصل':'Hors ligne' }[st] || st
 
   useEffect(() => {
@@ -562,7 +562,7 @@ export default function DeviceDetail() {
                 aria-label={isAr ? 'اسم الجهاز' : 'Nom du véhicule'}
                 value={editForm.name}
                 onChange={event => setEditForm(form => ({ ...form, name: event.target.value }))}
-                className="w-full rounded-lg border border-[#38d39f]/50 bg-[#07111f]/70 px-2 py-1 text-base font-extrabold text-white outline-none focus:border-[#38d39f]"
+                className="w-full rounded-lg border border-[#38bdf8]/50 bg-[#07111f]/70 px-2 py-1 text-base font-extrabold text-white outline-none focus:border-[#38bdf8]"
               />
             ) : (
               <h1 className="truncate text-lg font-extrabold text-slate-900">{device?.name || '...'}</h1>
@@ -593,7 +593,7 @@ export default function DeviceDetail() {
       {device && (
         <div className="grid grid-cols-2 gap-2.5 px-5 mb-4">
           {[
-              { Icon:Gauge, label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? `${Math.round(Number(currentSpeed))} km/h` : '—', color:'#38d39f', always: true },
+              { Icon:Gauge, label:isAr?'السرعة':'Vitesse', val: currentSpeed != null ? `${Math.round(Number(currentSpeed))} km/h` : '—', color:'#38bdf8', always: true },
               { Icon:Zap, label:isAr?'الفولطاج':'Tension', val: voltageLabel, color: voltageColor, always: true },
               { Icon:Radio, label:isAr?'الإشارة':'Signal', val: signalStrength != null ? signalStrength + (Number(signalStrength) <= 5 ? '/5' : '%') : '—', color:'#6fc8ff', always: true },
               { Icon:Clock, label:isAr?'آخر تحديث':'Dernière mise à jour', val: lastUpdate ? timeAgo(lastUpdate, lang) : '—', color:'#b49cff', always: true, className:'col-span-2' },
@@ -636,7 +636,7 @@ export default function DeviceDetail() {
           <motion.button key={key} whileTap={{ scale:0.94 }} onClick={() => setTab(key)}
             className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
                style={tab===key
-               ? { background:'transparent', color:'#38d39f', borderBottom:'2px solid #38d39f', borderRadius:0 }
+               ? { background:'transparent', color:'#38bdf8', borderBottom:'2px solid #38bdf8', borderRadius:0 }
                : { background:'transparent', color:'#8da2b5', borderBottom:'2px solid transparent' }}>
              <Icon size={12}/>{labelKey ? t(lang, labelKey) : (isAr ? ar : fr)}
           </motion.button>
@@ -912,7 +912,7 @@ export default function DeviceDetail() {
                         value={customFrom}
                         max={customTo || localDateValue(new Date())}
                         onChange={event => setCustomFrom(event.target.value)}
-                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
+                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1e40af]"
                       />
                     </label>
                     <label className="min-w-0 text-[10px] font-semibold text-slate-400">
@@ -923,7 +923,7 @@ export default function DeviceDetail() {
                         min={customFrom}
                         max={localDateValue(new Date())}
                         onChange={event => setCustomTo(event.target.value)}
-                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1DBF73]"
+                        className="mt-1 block w-full min-w-0 rounded-xl border border-white/10 bg-[#07111f] px-2.5 py-2 text-xs text-white outline-none focus:border-[#1e40af]"
                       />
                     </label>
                   </div>
@@ -955,7 +955,7 @@ export default function DeviceDetail() {
                         </p>
                         <button
                           onClick={() => chooseDay(selectedDay)}
-                          className="text-[10px] font-bold text-[#38d39f]"
+                          className="text-[10px] font-bold text-[#38bdf8]"
                         >
                           {isAr ? 'تغيير اليوم' : 'Changer de jour'}
                         </button>
@@ -969,7 +969,7 @@ export default function DeviceDetail() {
                               onClick={() => chooseDay(day)}
                               className="min-w-[82px] rounded-xl px-2.5 py-2 text-start transition"
                               style={day === selectedDay
-                                ? { background: 'rgba(56,211,159,.16)', border: '1px solid rgba(56,211,159,.55)' }
+                                ? { background: 'rgba(56, 189, 248,.16)', border: '1px solid rgba(56, 189, 248,.55)' }
                                 : { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}
                             >
                               <p className="text-[9px] font-bold text-slate-400">
@@ -987,7 +987,7 @@ export default function DeviceDetail() {
                   {!dayRequest ? (
                 <div className="space-y-3">
                   <div className="rounded-2xl p-4 text-center" style={cardStyle}>
-                    <RouteIcon size={28} className="mx-auto mb-2 text-[#38d39f]" />
+                    <RouteIcon size={28} className="mx-auto mb-2 text-[#38bdf8]" />
                     <p className="text-sm font-bold text-white">
                       {rangePreset === 'today'
                         ? (isAr ? 'اختر تحميل بيانات اليوم عند الحاجة' : 'Chargez les données du jour à la demande')
@@ -1007,7 +1007,7 @@ export default function DeviceDetail() {
                           onClick={() => chooseDay(day)}
                           className="rounded-2xl p-3 text-start transition"
                           style={isSelected
-                            ? { background: 'rgba(56,211,159,.16)', border: '1px solid rgba(56,211,159,.55)' }
+                            ? { background: 'rgba(56, 189, 248,.16)', border: '1px solid rgba(56, 189, 248,.55)' }
                             : { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}
                         >
                           <p className="text-[10px] font-bold text-slate-400">
@@ -1024,7 +1024,7 @@ export default function DeviceDetail() {
                     onClick={loadSelectedDay}
                     disabled={!selectedDay}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-[#07111f] disabled:opacity-50"
-                    style={{ background: '#38d39f' }}
+                    style={{ background: '#38bdf8' }}
                   >
                     <RouteIcon size={14} />
                     {isAr ? 'تحميل هذا اليوم فقط' : 'Charger uniquement ce jour'}
@@ -1056,7 +1056,7 @@ export default function DeviceDetail() {
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-3 bg-slate-50 text-center">
                         {routeLoading ? (
-                          <Loader2 size={22} className="animate-spin text-[#38d39f]" />
+                          <Loader2 size={22} className="animate-spin text-[#38bdf8]" />
                         ) : (
                           <>
                             <Map size={24} className="text-slate-500" />
@@ -1079,8 +1079,8 @@ export default function DeviceDetail() {
                          endTime: routePoints.at(-1).fixTime,
                         route: routePoints,
                       })}
-                      className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-[#07111f] shadow-lg shadow-[#1DBF73]/10 transition hover:brightness-110"
-                      style={{ background: '#1DBF73' }}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold text-[#07111f] shadow-lg shadow-[#1e40af]/10 transition hover:brightness-110"
+                      style={{ background: '#1e40af' }}
                     >
                       <Play size={14} fill="currentColor" />
                          {isAr ? 'إعادة عرض اليوم المحدد' : 'Rejouer le jour sélectionné'}
@@ -1098,7 +1098,7 @@ export default function DeviceDetail() {
                         <NativeAreaChart
                           data={speedData}
                           xKey="time"
-                          series={[{ dataKey: 'speed', color: '#1DBF73' }]}
+                          series={[{ dataKey: 'speed', color: '#1e40af' }]}
                           height={132}
                         />
                       ) : (
@@ -1112,8 +1112,8 @@ export default function DeviceDetail() {
                   <div className="space-y-2">
                     {displayTrips.map(({ trip, index, isStop }) => (
                       <div key={`${getTripStart(trip) || index}-${index}`} className="flex items-center gap-3 rounded-2xl p-3" style={cardStyle}>
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background:'rgba(56,211,159,.12)' }}>
-                          <RouteIcon size={16} style={{ color:'#38d39f' }}/>
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background:'rgba(56, 189, 248,.12)' }}>
+                          <RouteIcon size={16} style={{ color:'#38bdf8' }}/>
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-bold text-white">{formatTripDateTime(getTripStart(trip))}</p>
@@ -1129,7 +1129,7 @@ export default function DeviceDetail() {
                       onClick={() => replaySingleTrip(trip, index)}
                       disabled={replayLoading === String(index)}
                             className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold text-[#07111f]"
-                            style={{ background:'#38d39f' }}
+                            style={{ background:'#38bdf8' }}
                           >
                             {replayLoading === String(index) ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} fill="currentColor" />}{t(lang, 'replay')}
                           </button>
@@ -1148,7 +1148,7 @@ export default function DeviceDetail() {
           {tab === 'commands' && (() => {
             const engineKnown = typeof ignition === 'boolean'
             const engineOn = engineKnown && ignition
-            const cmdColor = engineOn ? '#FF3B30' : '#00D97E'
+            const cmdColor = engineOn ? '#FF3B30' : '#1d4ed8'
             const CmdIcon  = engineOn ? ZapOff : Zap
             const cmdLabel = engineOn ? t(lang, 'cutEngine') : t(lang, 'startEngine')
             const turnOff  = engineOn
@@ -1156,8 +1156,8 @@ export default function DeviceDetail() {
               <motion.div key="cmds" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0 }} className="space-y-3">
                 {/* Engine status indicator */}
                 <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl"
-                  style={{ background: (engineOn ? '#00D97E' : '#6b7280') + '14', border: '1px solid ' + (engineOn ? '#00D97E' : '#6b7280') + '30' }}>
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: engineOn ? '#00D97E' : '#6b7280' }}/>
+                  style={{ background: (engineOn ? '#1d4ed8' : '#6b7280') + '14', border: '1px solid ' + (engineOn ? '#1d4ed8' : '#6b7280') + '30' }}>
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: engineOn ? '#1d4ed8' : '#6b7280' }}/>
                   <p className="text-sm font-bold" style={{ color: engineOn ? '#16866d' : '#6b7280' }}>
                      {t(lang, engineKnown ? (engineOn ? 'engineOn' : 'engineOff') : 'engineUnavailable')}
                    </p>
@@ -1199,18 +1199,18 @@ export default function DeviceDetail() {
                 ) : !shareLink ? (
                   <motion.button whileTap={{ scale:0.96 }} onClick={generateShareLink}
                     className="px-6 py-3 rounded-xl text-sm font-bold text-white"
-                    style={{ background:'linear-gradient(135deg,#00D97E,#00b86a)', boxShadow:'0 4px 16px rgba(0,217,126,0.3)' }}>
+                    style={{ background:'linear-gradient(135deg,#1d4ed8,#00b86a)', boxShadow:'0 4px 16px rgba(29, 78, 216,0.3)' }}>
                     {isAr ? 'إنشاء رابط' : 'Créer le lien'}
                   </motion.button>
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 p-3 rounded-xl text-left break-all"
-                     style={{ background:'rgba(56,211,159,.08)', border:'1px solid rgba(56,211,159,.25)' }}>
+                     style={{ background:'rgba(56, 189, 248,.08)', border:'1px solid rgba(56, 189, 248,.25)' }}>
                        <p className="flex-1 text-xs text-[#a8e6cf] break-all">{shareLink}</p>
                     </div>
                     <button onClick={copyLink}
                       className="flex items-center gap-2 mx-auto px-4 py-2.5 rounded-xl text-xs font-semibold"
-                      style={{ background: copied ? 'rgba(56,211,159,.15)' : 'rgba(255,255,255,.07)', color: copied ? '#38d39f' : '#edf4f2', border: '1px solid rgba(255,255,255,.12)' }}>
+                      style={{ background: copied ? 'rgba(56, 189, 248,.15)' : 'rgba(255,255,255,.07)', color: copied ? '#38bdf8' : '#edf4f2', border: '1px solid rgba(255,255,255,.12)' }}>
                       {copied ? <CheckCheck size={14}/> : <Copy size={14}/>}
                       {copied ? (isAr?'تم النسخ!':'Copié !') : (isAr?'نسخ الرابط':'Copier le lien')}
                     </button>

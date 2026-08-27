@@ -100,7 +100,7 @@ export default function Dashboard() {
   const unread        = alertsList.filter(a => !a.read).length
 
   const deviceStatusData = [
-    { name: lang === 'ar' ? 'متصل' : 'En ligne',    value: online,  color: '#00D97E' },
+    { name: lang === 'ar' ? 'متصل' : 'En ligne',    value: online,  color: '#1d4ed8' },
     { name: lang === 'ar' ? 'غير متصل' : 'Hors ligne', value: offline, color: '#94A3B8' },
   ]
   const deviceStatusTotal = Math.max(1, online + offline)
@@ -161,7 +161,7 @@ export default function Dashboard() {
                   xKey="month"
                   series={[
                     { dataKey: 'clients', color: '#0F2044' },
-                    { dataKey: 'devices', color: '#00D97E' },
+                    { dataKey: 'devices', color: '#1d4ed8' },
                   ]}
                   height={200}
                 />

@@ -241,7 +241,7 @@ const ReplayStaticLayers = React.memo(function ReplayStaticLayers({ route, route
     <>
       {route.length > 1 && <>
         <Polyline positions={routePositions} pathOptions={{ color: '#ffffff', weight: 8, opacity: .85, lineCap: 'round', lineJoin: 'round' }} />
-        <Polyline positions={routePositions} pathOptions={{ color: '#1DBF73', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
+        <Polyline positions={routePositions} pathOptions={{ color: '#1e40af', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round' }} />
       </>}
       {speedingSegments.map((segment, index) => <Polyline key={`speed-${index}`} positions={segment} pathOptions={{ color: '#ff625d', weight: 8, opacity: .95 }} />)}
       {route.length > 0 && <Marker position={leafletPosition(route[0])} icon={labelIcon(isAr ? 'ب' : 'S', '#35a878')} />}
@@ -326,7 +326,7 @@ function VehicleMarker({ type, current, degrees, fast, playbackSpeed }) {
 }
 
 function speedColor(speed) {
-  if (speed < 50) return '#1DBF73'
+  if (speed < 50) return '#1e40af'
   if (speed <= SPEED_LIMIT) return '#F59E0B'
   return '#EF4444'
 }
@@ -874,7 +874,7 @@ export default function TripReplay({ deviceId, deviceName, deviceType = 'bike', 
             :root { color-scheme: light; font-family: Arial, sans-serif; }
             body { margin: 0; padding: 32px; color: #102945; background: #f4f8f7; }
             main { max-width: 820px; margin: 0 auto; background: #fff; border: 1px solid #dce9e4; border-radius: 20px; padding: 32px; }
-             header { display: flex; justify-content: space-between; gap: 20px; align-items: start; border-bottom: 3px solid #1DBF73; padding-bottom: 18px; }
+             header { display: flex; justify-content: space-between; gap: 20px; align-items: start; border-bottom: 3px solid #1e40af; padding-bottom: 18px; }
              .actions { display: flex; justify-content: flex-end; margin: 20px 0 0; }
              .print-button { border: 0; border-radius: 10px; padding: 10px 16px; background: #16866d; color: #fff; font-weight: 700; cursor: pointer; }
             h1 { margin: 0 0 7px; color: #0F2044; font-size: 25px; } h2 { margin: 26px 0 12px; color: #0F2044; font-size: 16px; }

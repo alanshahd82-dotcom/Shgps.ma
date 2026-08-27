@@ -12,21 +12,21 @@ function createDeviceIcon(type, isSelected = false) {
   const configs = {
     car: {
       bg: '#0F2044',
-      border: isSelected ? '#00D97E' : '#1e3a6e',
+      border: isSelected ? '#1d4ed8' : '#1e3a6e',
       svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
       </svg>`,
     },
     bike: {
       bg: '#c2410c',
-      border: isSelected ? '#00D97E' : '#ea580c',
+      border: isSelected ? '#1d4ed8' : '#ea580c',
       svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
         <path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5 2.1V9c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4C7.4 8.8 7 9.5 7 10c0 .6.2 1.2.8 1.6l3.2 2.4V18h2v-5l-3.2-2.5.8-.8-.8-.7zm8.2 1.5c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/>
       </svg>`,
     },
     truck: {
       bg: '#6B21A8',
-      border: isSelected ? '#00D97E' : '#7e22ce',
+      border: isSelected ? '#1d4ed8' : '#7e22ce',
       svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16">
         <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
       </svg>`,
@@ -35,7 +35,7 @@ function createDeviceIcon(type, isSelected = false) {
   const c = configs[type] || configs.car
   const size = isSelected ? 42 : 36
   const pulse = isSelected
-    ? `box-shadow:0 0 0 4px rgba(0,217,126,0.25),0 0 0 8px rgba(0,217,126,0.08),0 4px 14px rgba(0,0,0,0.45);`
+    ? `box-shadow:0 0 0 4px rgba(29, 78, 216,0.25),0 0 0 8px rgba(29, 78, 216,0.08),0 4px 14px rgba(0,0,0,0.45);`
     : `box-shadow:0 2px 8px rgba(0,0,0,0.32);`
 
   const html = `
@@ -136,7 +136,7 @@ function clusterDevices(devs, zoom) {
 
 function createClusterIcon(count, onlineCount) {
   const allOnline = onlineCount === count
-  const bg = allOnline ? '#00D97E' : onlineCount > 0 ? '#f97316' : '#64748b'
+  const bg = allOnline ? '#1d4ed8' : onlineCount > 0 ? '#f97316' : '#64748b'
   return L.divIcon({
     html: `<div style="width:44px;height:44px;border-radius:50%;background:${bg};border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;flex-direction:column;">
       <span style="font-size:15px;font-weight:900;color:white;line-height:1">${count}</span>
@@ -158,7 +158,7 @@ function DevicePopupContent({ device, lang, onRouteRequest, routeLoadingDeviceId
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: '#0F2044' }}>{device.name}</div>
       <div style={{ fontSize: 11, color: '#64748B', marginBottom: 3 }}>{device.plate}</div>
       <div style={{ display: 'flex', gap: 8, fontSize: 11 }}>
-        <span style={{ color: isOffline ? '#94A3B8' : isStopped ? '#DC2626' : '#00D97E', fontWeight: 600 }}>
+        <span style={{ color: isOffline ? '#94A3B8' : isStopped ? '#DC2626' : '#1d4ed8', fontWeight: 600 }}>
           ● {isOffline ? t(lang, 'offline') : isStopped ? t(lang, 'stopped') : t(lang, 'online')}
         </span>
         {!isOffline && (
@@ -313,7 +313,7 @@ export default function MapView({
         <Circle
           center={geofenceCenter}
           radius={geofenceRadius}
-          pathOptions={{ color: '#00D97E', fillColor: '#00D97E', fillOpacity: 0.08, weight: 2, dashArray: '6,4' }}
+          pathOptions={{ color: '#1d4ed8', fillColor: '#1d4ed8', fillOpacity: 0.08, weight: 2, dashArray: '6,4' }}
         />
       )}
 

@@ -40,7 +40,7 @@ export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
 export function getVoltageColor(value) {
   const voltage = Number(value)
   if (!Number.isFinite(voltage) || voltage <= 0) return '#94A3B8'
-  if (voltage >= 12.4) return '#1DBF73'
+  if (voltage >= 12.4) return '#1e40af'
   if (voltage >= 11.8) return '#FF9500'
   return '#FF3B30'
 }

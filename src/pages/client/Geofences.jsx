@@ -13,7 +13,7 @@ import { VehicleIcon } from '../../components/ui'
 
 const centerIcon = L.divIcon({
   className: '',
-  html: '<div style="width:18px;height:18px;border-radius:50%;background:#0F2044;border:3px solid #00D97E;box-shadow:0 0 0 5px rgba(0,217,126,0.22)"></div>',
+  html: '<div style="width:18px;height:18px;border-radius:50%;background:#0F2044;border:3px solid #1d4ed8;box-shadow:0 0 0 5px rgba(29, 78, 216,0.22)"></div>',
   iconSize: [18,18], iconAnchor: [9,9],
 })
 
@@ -189,7 +189,7 @@ export default function Geofences() {
                 {center && (
                   <>
                     <Marker position={center} icon={centerIcon}/>
-                    <LeafletCircle center={center} radius={radius} pathOptions={{ color:'#00D97E', fillColor:'#00D97E', fillOpacity:0.1, weight:2 }}/>
+                    <LeafletCircle center={center} radius={radius} pathOptions={{ color:'#1d4ed8', fillColor:'#1d4ed8', fillOpacity:0.1, weight:2 }}/>
                     <FitBounds center={center} radius={radius}/>
                   </>
                 )}
