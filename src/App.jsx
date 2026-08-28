@@ -179,6 +179,11 @@ export default function App() {
           <Route path="/admin/clients/:id"  element={<AdminRoute><ClientDetail /></AdminRoute>} />
           <Route path="/admin/devices"      element={<AdminRoute><AllDevices /></AdminRoute>} />
           <Route path="/admin/map"          element={<AdminRoute><GlobalMap /></AdminRoute>} />
+          {/* Admin-authorized view of the SAME official vehicle detail screen
+              (src/pages/client/VehicleControl.jsx). No duplicate implementation:
+              the admin session is enforced by AdminRoute, while clients keep
+              using /client/vehicle/:id behind ClientRoute. */}
+          <Route path="/admin/vehicle/:id"  element={<AdminRoute><VehicleControl /></AdminRoute>} />
           <Route path="/admin/alerts"       element={<AdminRoute><AdminAlerts /></AdminRoute>} />
           <Route path="/admin/setup"        element={<AdminRoute><DeviceSetup /></AdminRoute>} />
           <Route path="/admin/support"      element={<AdminRoute><SupportSettings /></AdminRoute>} />

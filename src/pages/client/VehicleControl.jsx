@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, Marker, useMap } from 'react-leaflet'
 import MapTileLayer from '../../components/MapTileLayer'
 import L from 'leaflet'
@@ -154,6 +154,12 @@ function EngineCutoffButton({ lang, engineRunning, onClick }) {
 export default function VehicleControl() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Same component, two authorized entry points: /client/vehicle/:id (ClientRoute)
+  // and /admin/vehicle/:id (AdminRoute). Only the surrounding navigation chrome
+  // differs so an admin is never sent into client-only routes.
+  const isAdminView = location.pathname.startsWith('/admin/')
+  const backRoute = isAdminView ? '/admin/devices' : '/client/vehicles'
   const { lang, refreshDevices } = useApp()
   const { vehicles, loading, error } = useRealVehicles()
   const [command, setCommand] = useState(null)
@@ -279,7 +285,7 @@ export default function VehicleControl() {
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-slate-50 px-6 text-center" dir={lang==='ar'?'rtl':'ltr'}>
       <Car size={28} className="text-slate-400"/>
       <p className="mt-3 text-sm font-extrabold text-slate-700">{t(lang,'vehicleUnavailable')}</p>
-      <button type="button" onClick={() => navigate('/client/vehicles')} className="mt-4 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-extrabold text-white">{t(lang,'back')}</button>
+      <button type="button" onClick={() => navigate(backRoute)} className="mt-4 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-extrabold text-white">{t(lang,'back')}</button>
     </div>
   )
 
@@ -486,7 +492,7 @@ export default function VehicleControl() {
         </section>
       </main>
 
-      <BottomNav navigate={navigate} lang={lang}/>
+      {!isAdminView && <BottomNav navigate={navigate} lang={lang}/>}
       {command && <ConfirmDialog lang={lang} name={meta.name || vehicle.name} turnOff={command.turnOff} sending={sending} onCancel={() => setCommand(null)} onConfirm={confirmCommand}/>}
       {replay && <Suspense fallback={<div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80"><Loader2 className="animate-spin text-indigo-400" size={40}/></div>}><TripReplay deviceId={vehicle.id} deviceName={vehicle.name} deviceType={vehicle.type} startTime={replay.startTime} endTime={replay.endTime} onClose={() => setReplay(null)} allowSatellite={false}/></Suspense>}
     </div>

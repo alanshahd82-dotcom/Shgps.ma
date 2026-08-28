@@ -190,7 +190,7 @@ export default function GlobalMap() {
             satelliteMode={satelliteMode}
             autoFollow={autoFollow}
             onDeviceClick={device => {
-              navigate('/client/vehicle/' + device.id)
+              navigate('/admin/vehicle/' + device.id)
             }}
             onRouteRequest={showTodayRoute}
             routeLoadingDeviceId={routeLoadingDeviceId}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Wifi, WifiOff, Plus, X, AlertCircle,
@@ -235,6 +236,10 @@ function SyncResultModal({ open, onClose, result, lang }) {
 }
 
 export default function AllDevices() {
+  const navigate = useNavigate()
+  // Opens the official vehicle detail screen through the admin-authorized
+  // route, using the application device id (never Traccar id / IMEI / index).
+  const openVehicle = device => { if (device?.id != null) navigate('/admin/vehicle/' + device.id) }
   const { devices, clientList, addDeviceDirect, deleteDevice, lang, clientsError, refreshClients } = useApp()
   const [search, setSearch]         = useState('')
   const [showAdd, setShowAdd]       = useState(false)
@@ -354,7 +359,8 @@ export default function AllDevices() {
                   const isOnline = device.status === 'online'
                   return (
                     <motion.tr key={device.id}
-                      className="hover:bg-slate-50 transition-colors"
+                      onClick={() => openVehicle(device)}
+                      className="hover:bg-slate-50 transition-colors cursor-pointer"
                       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
                     >
@@ -424,7 +430,7 @@ export default function AllDevices() {
               const client   = getClient(device.clientId || device.user_id)
               const isOnline = device.status === 'online'
               return (
-                <motion.div key={device.id} className="p-4 flex items-center gap-3"
+                <motion.div key={device.id} onClick={() => openVehicle(device)} className="p-4 flex items-center gap-3 cursor-pointer"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}>
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${isOnline ? 'bg-primary-50' : 'bg-gray-100'}`}>
                     <VehicleIcon type={device.type} iconSize={18} />
@@ -443,13 +449,13 @@ export default function AllDevices() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setRenewDevice(device)}
+                    onClick={e => { e.stopPropagation(); setRenewDevice(device) }}
                     className="px-2.5 py-2 rounded-xl bg-primary-50 text-primary-500 text-[10px] font-bold flex-shrink-0"
                   >
                     {lang === 'ar' ? 'تجديد' : 'Renouv.'}
                   </button>
                   <button
-                    onClick={() => setToDelete(device)}
+                    onClick={e => { e.stopPropagation(); setToDelete(device) }}
                     className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors flex-shrink-0"
                   >
                     <Trash2 size={15} className="text-red-500" />
