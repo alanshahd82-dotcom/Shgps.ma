@@ -17,9 +17,17 @@ L.Icon.Default.mergeOptions({
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
+// Public page has no auth session, so it follows the same language signal the
+// rest of the app persists: the "athargps_lang" localStorage key. Default is
+// Arabic to match the page's Arabic-first public presentation.
+function currentLang() {
+  return typeof window !== 'undefined' && window.localStorage.getItem('athargps_lang') === 'fr' ? 'fr' : 'ar'
+}
+
 function formatSpeed(value) {
   const speed = Number(value)
-  return Number.isFinite(speed) ? `${Math.round(speed)} km/h` : 'السرعة غير متاحة / Vitesse indisponible'
+  if (Number.isFinite(speed)) return `${Math.round(speed)} km/h`
+  return currentLang() === 'fr' ? 'Vitesse indisponible' : 'السرعة غير متاحة'
 }
 
 export default function PublicMap() {
@@ -28,13 +36,17 @@ export default function PublicMap() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
   const intervalRef = useRef(null)
+  const lang = currentLang()
+
+  const connectionError = lang === 'fr' ? 'Erreur de connexion' : 'خطأ في الاتصال'
+  const invalidLink = lang === 'fr' ? 'Lien invalide' : 'رابط غير صالح'
 
   const fetchData = async () => {
     try {
       const res = await fetch(`${API_URL}/sharing/${token}`)
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        setError(d.error || 'Lien invalide / رابط غير صالح')
+        setError(d.error || invalidLink)
         setLoading(false)
         return
       }
@@ -42,7 +54,7 @@ export default function PublicMap() {
       setData(d)
       setLoading(false)
     } catch {
-      setError('خطأ في الاتصال / Erreur de connexion')
+      setError(connectionError)
       setLoading(false)
     }
   }
@@ -57,7 +69,7 @@ export default function PublicMap() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1628' }}>
       <div className="text-center">
         <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin mx-auto mb-3" />
-        <p className="text-slate-400 text-sm">جاري التحميل... / Chargement...</p>
+        <p className="text-slate-400 text-sm">{lang === 'fr' ? 'Chargement...' : 'جاري التحميل...'}</p>
       </div>
     </div>
   )
@@ -68,8 +80,7 @@ export default function PublicMap() {
         <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto">
           <AlertTriangle size={28} className="text-red-400" />
         </div>
-        <p className="text-white font-semibold">الرابط منتهي أو غير صالح</p>
-        <p className="text-slate-400 text-sm">Lien expiré ou invalide</p>
+        <p className="text-white font-semibold">{lang === 'fr' ? 'Lien expiré ou invalide' : 'الرابط منتهي أو غير صالح'}</p>
         <p className="text-red-400 text-xs">{error}</p>
       </div>
     </div>
@@ -97,7 +108,7 @@ export default function PublicMap() {
         </div>
         {expired && (
           <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded-full font-medium">
-            منتهي / Expiré
+            {lang === 'fr' ? 'Expiré' : 'منتهي'}
           </span>
         )}
       </div>
@@ -115,7 +126,7 @@ export default function PublicMap() {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse inline-block" />
-            <span>مباشر / En direct</span>
+            <span>{lang === 'fr' ? 'En direct' : 'مباشر'}</span>
           </div>
         </div>
       )}
@@ -141,7 +152,7 @@ export default function PublicMap() {
           <div className="flex items-center justify-center h-full">
             <div className="text-center space-y-2">
               <img src={markerFor(data.type).url} alt="" className="h-16 w-24 object-contain opacity-30 mx-auto" />
-              <p className="text-slate-400 text-sm">لا يوجد موقع حالي / Position indisponible</p>
+              <p className="text-slate-400 text-sm">{lang === 'fr' ? 'Position indisponible' : 'لا يوجد موقع حالي'}</p>
             </div>
           </div>
         )}
