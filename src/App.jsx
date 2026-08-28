@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { AppProvider, useApp } from './context/AppContext'
 
@@ -127,6 +127,13 @@ function ClientEntry() {
 /* ────────────────────────────────────────────────────────────────
    ROUTER
 ───────────────────────────────────────────────────────────────── */
+
+// Compatibility redirect: /client/device/:id -> /client/vehicle/:id
+// Preserves the local application device id and keeps ClientRoute protection.
+function LegacyDeviceRedirect() {
+  const { id } = useParams()
+  return <Navigate to={`/client/vehicle/${id}`} replace />
+}
 export default function App() {
   return (
     <AppProvider>
@@ -156,7 +163,7 @@ export default function App() {
           <Route path="/subscriptions"          element={<ClientRoute><Subscriptions /></ClientRoute>} />
           <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
           <Route path="/client/vehicles"        element={<ClientRoute><VehiclesScreen /></ClientRoute>} />
-          <Route path="/client/device/:id"      element={<ClientRoute><DeviceDetail /></ClientRoute>} />
+          <Route path="/client/device/:id"      element={<ClientRoute><LegacyDeviceRedirect /></ClientRoute>} />
           <Route path="/client/vehicle/:id"     element={<ClientRoute><VehicleControl /></ClientRoute>} />
           <Route path="/client/alerts"          element={<ClientRoute><AlertsScreen /></ClientRoute>} />
           <Route path="/client/settings"        element={<ClientRoute><Settings /></ClientRoute>} />
