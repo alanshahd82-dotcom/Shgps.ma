@@ -19,7 +19,7 @@ export default function Logo({ size = 'md', white = false }) {
       />
       <div className="flex flex-col leading-none">
         <span className={`font-bold ${s.text} ${white ? 'text-white' : 'text-slate-900'} tracking-tight`}>
-          ATHAR <span className={`${white ? 'text-emerald-400' : 'text-emerald-500'}`}>GPS</span>
+          ATHAR <span className={`${white ? 'text-primary-300' : 'text-primary-600'}`}>GPS</span>
         </span>
         {size !== 'sm' && (
           <span className={`text-xs font-medium ${white ? 'text-white/60' : 'text-slate-400'}`}>
