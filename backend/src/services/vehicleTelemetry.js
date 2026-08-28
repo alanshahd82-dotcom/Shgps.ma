@@ -125,6 +125,16 @@ export function detectExternalPowerLoss(position) {
     if (key !== 'externalPower' && isLossLike(attributes[key])) return { source: key }
   }
 
+  // GT06 (the protocol used by this fleet) never sends externalPower/powerCut.
+  // It reports the external supply through `charge`. An explicit charge:false
+  // is real electrical feedback, so it is treated like the other loss keys.
+  // Note: it must be present AND explicitly false — a missing/undefined
+  // `charge` field stays meaningless (sleeping devices omit it).
+  if (attributes.charge !== undefined && attributes.charge !== null
+    && isFalseLike(attributes.charge)) {
+    return { source: 'charge:false' }
+  }
+
   // Generic Traccar alarm names are not electrical feedback. Production
   // devices have emitted alarm:powerCut while the tracker remained online,
   // so an alarm alone must never create a battery-disconnect alert.
@@ -170,9 +180,10 @@ export function detectExternalPowerRestored(position) {
 /**
  * Apply one position to the power episode state.
  *
- * `charge` is intentionally absent from the loss detector above: it can
- * fluctuate or disappear on sleeping GT06 devices. Only explicit loss
- * attributes and total silence may create a disconnect episode.
+ * A missing/undefined `charge` field is intentionally ignored: it can
+ * disappear on sleeping GT06 devices. Only explicit loss attributes
+ * (including an explicit charge:false) may create a disconnect episode;
+ * silence alone never does.
  */
 export function reducePowerTelemetryState(current, {
   signature,
