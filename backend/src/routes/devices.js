@@ -165,7 +165,7 @@ import {
           ? {
               latitude: Number(d.last_lat),
               longitude: Number(d.last_lng),
-              speed: d.last_speed ?? 0,
+              speed: Math.round(speedKmh(d.last_speed)),
               fixTime: d.last_update ?? null,
             }
           : null
