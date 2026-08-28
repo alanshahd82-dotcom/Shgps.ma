@@ -72,12 +72,39 @@ async function call(path, opts = {}, _retried = false) {
   return res.json()
 }
 
-export const getAllPositions  = ()            => call('/api/positions')
-export const getAllDevices    = ()            => call('/api/devices')
+// ── Short-lived cache + in-flight de-duplication ──
+// Many clients poll /api/devices and /api/map at the same time. Without this,
+// every request hit Traccar twice, which is heavy on a 1GB server.
+const TRACCAR_CACHE_TTL_MS = Number(process.env.TRACCAR_CACHE_TTL_MS || 4000)
+const _listCache = new Map()
+
+function cachedCall(key, path) {
+  const now = Date.now()
+  const hit = _listCache.get(key)
+  if (hit && now < hit.expiresAt) return hit.promise
+  const entry = { promise: null, expiresAt: now + TRACCAR_CACHE_TTL_MS }
+  entry.promise = call(path)
+    .then((data) => {
+      const current = _listCache.get(key)
+      if (current === entry) current.expiresAt = Date.now() + TRACCAR_CACHE_TTL_MS
+      return data
+    })
+    .catch((err) => {
+      if (_listCache.get(key) === entry) _listCache.delete(key)
+      throw err
+    })
+  _listCache.set(key, entry)
+  return entry.promise
+}
+
+export function invalidateTraccarCache() { _listCache.clear() }
+
+export const getAllPositions  = ()            => cachedCall('positions', '/api/positions')
+export const getAllDevices    = ()            => cachedCall('devices', '/api/devices')
 export const getDevice        = (id)          => call(`/api/devices/${id}`, { signal: AbortSignal.timeout(3000) })
 export const getDevicesByUser = (uid)        => call(`/api/devices?userId=${uid}`)
-export const createDevice     = (name, imei) => call('/api/devices', { method:'POST', body: JSON.stringify({ name, uniqueId: imei }) })
-export const deleteDevice     = (id)         => call(`/api/devices/${id}`, { method:'DELETE' })
+export const createDevice     = (name, imei) => call('/api/devices', { method:'POST', body: JSON.stringify({ name, uniqueId: imei }) }).then((r) => { invalidateTraccarCache(); return r })
+export const deleteDevice     = (id)         => call(`/api/devices/${id}`, { method:'DELETE' }).then((r) => { invalidateTraccarCache(); return r })
 export const createUser = (name, email, pw) =>
   call('/api/users', { method:'POST', body: JSON.stringify({ name, email, password: pw, deviceLimit:100, administrator:false }) })
 export const deleteUser  = (id) => call(`/api/users/${id}`,  { method:'DELETE' })
