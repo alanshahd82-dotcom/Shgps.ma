@@ -5,10 +5,8 @@ import { Router } from 'express'
 import { deviceAccessScope } from '../middleware/deviceAccess.js'
 import { getSubscriptionSnapshot } from '../services/subscriptions.js'
 import {
-  hasKnownVehicleVoltage,
   isVehicleDisconnected,
   positionIsFresh,
-  positionIsSilent,
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readVehicleVoltage,
@@ -138,15 +136,15 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null
         const freshPosition = positionIsFresh(position, POWER_SILENCE_WINDOW_MS)
-        const inferredDisconnect = !freshPosition
-          && positionIsSilent(position, POWER_SILENCE_WINDOW_MS)
-          && hasKnownVehicleVoltage(d.traccar_id)
+        // Silence is NOT proof of an electrical disconnect. A stale or
+        // missing position only means the device is offline; the power
+        // state comes exclusively from the persisted disconnect state
+        // (same source as GET /devices). Do not infer it here.
         const electrical = readElectricalTelemetry(
           freshPosition ? position : null,
           d.traccar_id,
           freshPosition,
         )
-        electrical.powerDisconnected = electrical.powerDisconnected || inferredDisconnect
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
           lat: freshPosition ? position.latitude : null, lng: freshPosition ? position.longitude : null,
