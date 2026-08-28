@@ -1,5 +1,6 @@
 import './tokens.css'
 import './identity.css'
+import './identity-admin.css'
 
 export {
   Button,
