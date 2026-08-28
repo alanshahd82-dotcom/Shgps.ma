@@ -1,14 +1,13 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { MapContainer, Marker, useMap } from 'react-leaflet'
+import { MapContainer, useMap } from 'react-leaflet'
+import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import MapTileLayer from '../../components/MapTileLayer'
-import L from 'leaflet'
 import { ArrowLeft, ArrowRight, Car, CheckCheck, Copy, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Share2, Square, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
 import { t } from '../../i18n/translations'
-import { markerFor } from '../../utils/vehicleAssets'
 import { APP_TZ } from '../../utils/datetime.js'
 import { formatVoltage } from '../../components/ui'
 
@@ -376,11 +375,6 @@ export default function VehicleControl() {
     </div>
   )
 
-  const markerIcon = L.divIcon({
-    className: 'athar-vc-marker',
-    html: '<img src="' + markerFor(vehicle.type).url + '" alt="" style="display:block;width:96px;height:64px;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.45))"/>',
-    iconSize:[96,64], iconAnchor:[48,64],
-  })
   const displayValue = value => value == null || value === '' ? '—' : String(value)
   const vehicleType = vehicle.type === 'car'
     ? (lang === 'fr' ? 'Voiture' : 'سيارة')
@@ -423,7 +417,7 @@ export default function VehicleControl() {
                 <MapTileLayer/>
                 <ResizeMap fullscreen={mapFullscreen}/>
                 <CenterMap point={point}/>
-                <Marker position={point} icon={markerIcon}/>
+                <LiveVehicleMarker device={{ ...vehicle, lat: point[0], lng: point[1], lang }} isSelected autoFollow/>
               </MapContainer>
               <button
                 type="button"
@@ -434,21 +428,21 @@ export default function VehicleControl() {
               >
                 {mapFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
               </button>
-              {!mapFullscreen && capability === 'available' && (
-                <div className="vehicle-control-map__engine">
-                  <EngineCutoffButton
-                    lang={lang}
-                    engineRunning={engineRunning}
-                    onClick={() => setCommand({ turnOff: engineRunning })}
-                  />
-                  {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
-                  {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
-                </div>
-              )}
             </div>
           ) : (
             <div className="flex h-40 flex-col items-center justify-center text-slate-400">
               <Car size={32}/><p className="mt-2 text-xs">{t(lang,'locationUnavailable')}</p>
+            </div>
+          )}
+          {capability === 'available' && (
+            <div className="vehicle-control-engine flex flex-col items-center gap-2 border-t border-slate-100 px-3 pt-4">
+              <EngineCutoffButton
+                lang={lang}
+                engineRunning={engineRunning}
+                onClick={() => setCommand({ turnOff: engineRunning })}
+              />
+              {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
+              {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
             </div>
           )}
           <div className="grid grid-cols-2 gap-2 p-3">

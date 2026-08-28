@@ -15,12 +15,12 @@ function SkeletonCard() {
 }
 
 function VehicleCard({ vehicle, lang, onOpen }) {
-  return <SharedVehicleCard vehicle={vehicle} lang={lang} compact onClick={onOpen} />
+  return <SharedVehicleCard vehicle={vehicle} lang={lang} compact onClick={onOpen} onToggleEngine={toggleEngine} />
 }
 
 export function VehiclesScreen({ vehicles: providedVehicles, alertCount = 0, onTabChange }) {
   const navigate = useNavigate()
-  const { lang } = useApp()
+  const { lang, toggleEngine } = useApp()
   const { vehicles: realVehicles, alertCount: realAlertCount, loading, error } = useRealVehicles()
   const vehicles = providedVehicles ?? realVehicles
   const [query, setQuery] = useState('')

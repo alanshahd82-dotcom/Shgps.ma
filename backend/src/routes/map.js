@@ -158,6 +158,9 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
           powerDisconnected: electrical.powerDisconnected,
           signal: position?.attributes?.rssi ?? position?.attributes?.gsm ?? position?.attributes?.signal ?? position?.attributes?.signalStrength ?? null,
           fuel: position?.attributes?.fuel ?? position?.attributes?.fuelLevel ?? null,
+          course: freshPosition ? (position.course ?? position.attributes?.course ?? null) : null,
+          address: freshPosition ? (position.address ?? null) : null,
+          totalDistance: freshPosition ? (position.attributes?.totalDistance ?? null) : null,
           subscriptionStatus: subscription.subscriptionStatus,
           trackingEnabled: subscription.trackingEnabled,
         }

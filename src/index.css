@@ -2822,3 +2822,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: linear-gradient(90deg, #1e40af, #8ceac5);
   box-shadow: 0 0 12px rgba(53, 211, 154, .35);
 }
+
+
+/* Live speed badge floating above the vehicle artwork on every map */
+.athar-live-speed {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  z-index: 5;
+  transform: translate(-50%, -100%);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, .95);
+  color: #ffffff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .35);
+  pointer-events: none;
+}
+
+.athar-live-speed.is-hidden { display: none; }
+
+.athar-premium-map .athar-live-speed { display: inline-block; }

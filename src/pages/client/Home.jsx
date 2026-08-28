@@ -89,7 +89,7 @@ function BottomNav({ active, lang, navigate }) {
 }
 
 export default function Home() {
-  const { clientAuth, devices = [], positions = {}, alerts = [] } = useApp()
+  const { clientAuth, devices = [], positions = {}, alerts = [], toggleEngine } = useApp()
   const navigate = useNavigate()
   const lang = useLang()
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
@@ -212,6 +212,7 @@ export default function Home() {
                   lang={lang}
                   compact
                   onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
+                  onToggleEngine={toggleEngine}
                 />
               ))}
             </div>

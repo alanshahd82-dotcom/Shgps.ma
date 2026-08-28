@@ -151,6 +151,8 @@ export function AppProvider({ children }) {
             powerDisconnected,
             signal:     pos.attributes?.rssi       ?? current.signal,
             fuel:       pos.attributes?.fuel       ?? current.fuel,
+            address:    pos.address                ?? current.address,
+            totalDistance: pos.attributes?.totalDistance ?? current.totalDistance,
           }
         }
       }

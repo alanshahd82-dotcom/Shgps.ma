@@ -5,7 +5,7 @@ import { getDeviceStatusKey } from './ui'
 import { markerFor } from '../utils/vehicleAssets'
 import { isMapReadyAndSized, safelyUseMap, safelyUseMarker, toValidLatLng } from '../utils/mapSafety'
 
-const ANIMATION_MS = 800
+const ANIMATION_MS = 1400
 const TRAIL_LIMIT = 20
 const STATUS_COLORS = {
   moving: 'var(--ds-color-primary)',
@@ -59,6 +59,14 @@ function getCourse(device) {
   return Number.isFinite(course) ? course : null
 }
 
+function speedText(device) {
+  const raw = Number(device?.speed)
+  if (!Number.isFinite(raw)) return ''
+  const kmh = Math.round(raw)
+  if (kmh < 1) return ''
+  return `${kmh} ${device?.lang === 'fr' ? 'km/h' : 'كم/س'}`
+}
+
 function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar', zoom = 13) {
   const marker = markerFor(device?.type)
   const status = device?.powerDisconnected ? 'offline' : getDeviceStatusKey(device)
@@ -72,6 +80,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
     className: 'athar-live-marker-icon',
     html: `
       <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color}">
+        <span data-live-speed class="athar-live-speed${speedText(device) ? '' : ' is-hidden'}">${speedText(device)}</span>
         <span class="athar-live-marker-visual" style="width:${markerWidth}px;height:${markerHeight}px">
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
         </span>
@@ -163,7 +172,7 @@ export default function LiveVehicleMarker({
     const startedAt = performance.now()
     const animate = now => {
       const progress = Math.min(1, (now - startedAt) / ANIMATION_MS)
-      const eased = 1 - Math.pow(1 - progress, 3)
+      const eased = progress
       const next = [
         start[0] + (point[0] - start[0]) * eased,
         start[1] + (point[1] - start[1]) * eased,
@@ -174,6 +183,16 @@ export default function LiveVehicleMarker({
     }
     frameRef.current = requestAnimationFrame(animate)
   }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type])
+
+  useEffect(() => {
+    safelyUseMarker(markerRef.current, marker => {
+      const badge = marker.getElement()?.querySelector('[data-live-speed]')
+      if (!badge) return
+      const text = speedText(device)
+      badge.textContent = text
+      badge.classList.toggle('is-hidden', !text)
+    })
+  }, [device?.speed, device?.lang])
 
   useEffect(() => {
     if (!point) return
