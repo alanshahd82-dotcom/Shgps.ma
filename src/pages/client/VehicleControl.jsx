@@ -10,6 +10,7 @@ import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
 import { t } from '../../i18n/translations'
 import { markerFor } from '../../utils/vehicleAssets'
 import { APP_TZ } from '../../utils/datetime.js'
+import { formatVoltage } from '../../components/ui'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 const META_KEY = id => 'athargps_vehicle_meta_' + id
@@ -295,10 +296,11 @@ export default function VehicleControl() {
       : vehicle.type === 'bike' || vehicle.type === 'motorcycle'
         ? (lang === 'fr' ? 'Moto' : 'دراجة')
         : '—'
-  const voltageValue = Number(vehicle.voltage)
-  const voltageLabel = Number.isFinite(voltageValue) && voltageValue > 0
-    ? `${voltageValue.toFixed(1)} V`
-    : '—'
+  // Use the shared voltage formatter (src/components/ui.jsx) so this surface
+  // stays consistent with the rest of the app: same value source
+  // (vehicle.voltage), same empty/disconnected handling, and no fabricated
+  // number. Never falls back to batteryLevel as voltage.
+  const voltageLabel = formatVoltage(vehicle.voltage, lang, vehicle?.lastUpdate ?? vehicle?.last_update, vehicle?.powerDisconnected)
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-24" dir={lang==='ar'?'rtl':'ltr'}>
