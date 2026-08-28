@@ -75,3 +75,21 @@
 .ds-error-state.ds-error-state {
   color: var(--ds-color-danger);
 }
+
+/* رسائل النجاح فـ الإعدادات: كانت باهتة فوق الخلفية البيضة */
+.text-emerald-400 { color: #059669; }
+.dark .text-emerald-400 { color: #34d399; }
+
+/* توحيد خلفية صفحات العميل: بعض الصفحات عندها خلفية مكتوبة باليد */
+.client-app,
+.bg-\[\#F5F6F8\],
+.bg-\[\#f5f6f8\],
+.bg-\[\#f5f7f8\],
+.bg-\[\#07111f\] {
+  background-color: var(--ds-color-page) !important;
+}
+
+/* الصفحات اللى كانت داكنة: النص الأبيض ما كان يتقرا فوق خلفية فاتحة */
+.bg-\[\#07111f\] .text-white {
+  color: var(--ds-color-text) !important;
+}
