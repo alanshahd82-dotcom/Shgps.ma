@@ -5,6 +5,7 @@
 import React from 'react'
 import { Loader2, AlertCircle, WifiOff } from 'lucide-react'
 import { markerFor, normalizeVehicleType } from '../utils/vehicleAssets'
+import { isMoving } from '../utils/motion'
 
 // ── Vehicle type icon ─────────────────────────────────────────────────────────
 export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
@@ -97,7 +98,7 @@ export function getDeviceStatusKey(device) {
   if (device.status !== 'online') return 'offline'
   if (!hasGpsPosition(device)) return 'awaiting_gps'
   const speed = device.speed ?? device.last_speed
-  if (speed > 2) return 'moving'
+  if (isMoving(device)) return 'moving'
   const eng = device.engineOn ?? device.ignition
   if (eng === true) return 'idle'
   if (speed === 0 || eng === false) return 'stopped'

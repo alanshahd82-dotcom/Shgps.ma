@@ -60,6 +60,7 @@ export function useRealVehicles() {
 
       // Motion & speed
       speed: speed,
+      motion: device.motion ?? null,
       course: device.course,
 
       // Connection status

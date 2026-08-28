@@ -154,6 +154,7 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
           status: freshPosition ? 'online' : 'offline',
           lastUpdate: position?.fixTime ?? null,
           engineOn: freshPosition ? (position.attributes?.ignition ?? null) : null,
+          motion: freshPosition ? (position.attributes?.motion ?? null) : null,
           voltage: electrical.voltage,
           batteryLevel: electrical.batteryLevel,
           powerDisconnected: electrical.powerDisconnected,

@@ -214,6 +214,7 @@ import {
            speed:     trackingEnabled && p ? Math.round(speedKmh(p.speed)) : null,
           lastUpdate:trackingEnabled ? (p?.fixTime   ?? null) : null,
            engineOn:  trackingEnabled && p ? (p.attributes?.ignition ?? null) : null,
+           motion:    trackingEnabled && p ? (p.attributes?.motion ?? null) : null,
           voltage:   electrical.voltage,
           batteryLevel: electrical.batteryLevel,
           powerDisconnected: electrical.powerDisconnected,
