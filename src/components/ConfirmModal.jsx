@@ -39,8 +39,8 @@ export default function ConfirmModal({ open, title, message, confirmLabel, cance
           >
             <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-6">
               {/* Icon */}
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-100' : 'bg-emerald-50'}`}>
-                <AlertTriangle className={`w-7 h-7 ${danger ? 'text-red-500' : 'text-emerald-500'}`} />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-100' : 'bg-primary-50'}`}>
+                <AlertTriangle className={`w-7 h-7 ${danger ? 'text-red-500' : 'text-primary-600'}`} />
               </div>
 
               {/* Title */}
