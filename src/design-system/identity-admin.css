@@ -1,0 +1,35 @@
+/* ===== الدفعة 3: توحيد لوحة الأدمين وصفحة الهبوط على هوية Indigo ===== */
+/* الألوان غير الدلالية (بنفسجي/تركوازي) كايتحولو للون الهوية */
+.text-purple-400, .text-purple-500, .text-purple-600, .text-purple-700,
+.text-violet-500, .text-violet-600,
+.text-teal-500, .text-teal-600, .text-teal-700 {
+  color: var(--ds-color-primary) !important;
+}
+
+.bg-purple-400, .bg-purple-500, .bg-purple-600,
+.bg-violet-500, .bg-violet-600,
+.bg-teal-500, .bg-teal-600 {
+  background-color: var(--ds-color-primary) !important;
+}
+
+.bg-purple-50, .bg-purple-100,
+.bg-violet-50, .bg-violet-100,
+.bg-teal-50, .bg-teal-100 {
+  background-color: var(--ds-color-primary-soft, rgba(79, 70, 229, 0.1)) !important;
+}
+
+.border-purple-200, .border-teal-200, .border-violet-200 {
+  border-color: rgba(79, 70, 229, 0.28) !important;
+}
+
+.from-purple-500, .from-teal-500, .from-violet-500 {
+  --tw-gradient-from: #4f46e5 !important;
+}
+.to-purple-600, .to-teal-600, .to-violet-600 {
+  --tw-gradient-to: #4338ca !important;
+}
+
+/* خلفيات لوحة الأدمين: توحيد الرمادي القديم مع خلفية الهوية */
+.admin-app, .admin-app .bg-gray-50 {
+  background-color: var(--ds-color-page) !important;
+}
