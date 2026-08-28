@@ -5,7 +5,7 @@ import {
   Navigation, Zap, Clock, CheckCircle2, Shield, Activity, Gauge
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
-import { VehicleIcon as VehicleAssetIcon } from '../../components/ui'
+import { VehicleIcon as VehicleAssetIcon, formatVoltage } from '../../components/ui'
 
 function useLang() {
   const { lang } = useApp()
@@ -101,7 +101,11 @@ export default function Home() {
     const p = positions?.[d.id] || positions?.[d.uniqueId] || {}
     const speed = p.speed ?? d.speed ?? 0
     const lastUpdate = p.fixTime || p.serverTime || p.deviceTime || d.lastUpdate
-    return { ...d, speed: Math.round(speed), lastUpdate, lat: p.latitude, lng: p.longitude }
+    // Voltage comes from the backend device snapshot; a live position may
+    // carry a fresher one. Never fabricated, never derived from batteryLevel.
+    const voltage = p.voltage ?? d.voltage ?? null
+    const powerDisconnected = p.powerDisconnected ?? d.powerDisconnected ?? false
+    return { ...d, speed: Math.round(speed), lastUpdate, voltage, powerDisconnected, lat: p.latitude, lng: p.longitude }
   }), [devices, positions])
 
   const fleet = useMemo(() => {
@@ -207,6 +211,9 @@ export default function Home() {
                       <p className="text-xs text-slate-500 mb-2">{v.plate || v.uniqueId}</p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-600 flex items-center gap-1"><Gauge className="h-3.5 w-3.5" />{v.speed} {t('kmh', lang)}</span>
+                        <span className="text-xs text-slate-600 flex items-center gap-1"><Zap className="h-3.5 w-3.5" />{formatVoltage(v.voltage, lang, v.lastUpdate, v.powerDisconnected)}</span>
+                      </div>
+                      <div className="mt-1 text-end">
                         <span className="text-[10px] text-slate-400">{timeAgo(v.lastUpdate, lang)}</span>
                       </div>
                     </div>
