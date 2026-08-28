@@ -1,7 +1,7 @@
 import React from 'react'
 
 const VARIANTS = {
-  primary:     'bg-accent text-primary-500 hover:bg-emerald-400 active:scale-95 shadow-sm',
+  primary:     'bg-primary-600 text-white hover:bg-primary-700 active:scale-95 shadow-sm',
   secondary:   'bg-white text-primary-500 border border-primary-200 hover:bg-primary-50 active:scale-95',
   destructive: 'bg-danger text-white hover:bg-red-600 active:scale-95',
   ghost:       'bg-transparent text-primary-500 hover:bg-primary-50 active:scale-95',
