@@ -18,7 +18,7 @@ const t = (key, lang) => ({
     greeting: 'مرحباً', subtitle: 'إليك حالة مركباتك اليوم',
     heroTitle: 'أسطولك تحت السيطرة', heroSub: 'تابع مركباتك لحظة بلحظة بكل أمان وراحة بال',
     heroCta: 'عرض المركبات', fleet: 'حالة الأسطول',
-    connected: 'متصلة', stopped: 'متوقفة', attention: 'تحتاج انتباه',
+    connected: 'متصلة', stopped: 'متوقفة', offline: 'غير متصلة', attention: 'تحتاج انتباه',
     myVehicles: 'مركباتي', viewAll: 'عرض الكل', latestAlert: 'آخر تنبيه',
     noAlerts: 'لا توجد تنبيهات', noVehicles: 'لا توجد مركبات',
     quick: 'الوصول السريع', vehicles: 'المركبات', alerts: 'التنبيهات', trips: 'الرحلات',
@@ -29,7 +29,7 @@ const t = (key, lang) => ({
     greeting: 'Bonjour', subtitle: 'Voici l\'état de votre flotte',
     heroTitle: 'Votre flotte sous contrôle', heroSub: 'Suivez vos véhicules en temps réel',
     heroCta: 'Voir les véhicules', fleet: 'État de la flotte',
-    connected: 'Connectés', stopped: 'Arrêtés', attention: 'Attention',
+    connected: 'Connectés', stopped: 'Arrêtés', offline: 'Hors ligne', attention: 'Attention',
     myVehicles: 'Mes véhicules', viewAll: 'Voir tout', latestAlert: 'Dernière alerte',
     noAlerts: 'Aucune alerte', noVehicles: 'Aucun véhicule',
     quick: 'Accès rapide', vehicles: 'Véhicules', alerts: 'Alertes', trips: 'Trajets',
@@ -50,13 +50,15 @@ function timeAgo(ts, lang) {
 }
 
 function statusInfo(vehicle) {
-  const last = vehicle?.lastUpdate ? Date.now() - new Date(vehicle.lastUpdate).getTime() : Infinity
-  const online = last < 15 * 60 * 1000
   const attention = vehicle?.status === 'alarm' || vehicle?.alertType
   if (attention) return { color: 'orange', label: 'attention', dot: 'bg-orange-500' }
-  if (online && (vehicle?.speed || 0) > 0) return { color: 'green', label: 'connected', dot: 'bg-green-500' }
-  if (online) return { color: 'slate', label: 'stopped', dot: 'bg-slate-400' }
-  return { color: 'slate', label: 'stopped', dot: 'bg-slate-400' }
+  // Connectivity is the authoritative `vehicle.status` produced by the
+  // backend (5-minute freshness logic). Home must not recompute it.
+  if (vehicle?.status === 'online') {
+    if ((vehicle?.speed || 0) > 0) return { color: 'green', label: 'connected', dot: 'bg-green-500' }
+    return { color: 'slate', label: 'stopped', dot: 'bg-slate-400' }
+  }
+  return { color: 'offline', label: 'offline', dot: 'bg-slate-300' }
 }
 
 function BottomNav({ active, lang, navigate }) {
@@ -109,7 +111,7 @@ export default function Home() {
   }), [devices, positions])
 
   const fleet = useMemo(() => {
-    const counts = { connected: 0, stopped: 0, attention: 0 }
+    const counts = { connected: 0, stopped: 0, offline: 0, attention: 0 }
     vehicles.forEach(v => { const s = statusInfo(v); counts[s.label]++ })
     return counts
   }, [vehicles])
@@ -161,7 +163,7 @@ export default function Home() {
         {/* Fleet Overview */}
         <section className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
           <h3 className="text-sm font-semibold text-slate-900 mb-4">{t('fleet', lang)}</h3>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="text-center py-3 px-2 rounded-xl bg-green-50">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <span className="h-2 w-2 rounded-full bg-green-500" />
@@ -175,6 +177,13 @@ export default function Home() {
                 <span className="text-2xl font-bold text-slate-700">{fleet.stopped}</span>
               </div>
               <p className="text-[11px] text-slate-600 font-medium">{t('stopped', lang)}</p>
+            </div>
+            <div className="text-center py-3 px-2 rounded-xl bg-slate-100/60">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <span className="h-2 w-2 rounded-full bg-slate-300 ring-1 ring-slate-400" />
+                <span className="text-2xl font-bold text-slate-500">{fleet.offline}</span>
+              </div>
+              <p className="text-[11px] text-slate-600 font-medium">{t('offline', lang)}</p>
             </div>
             <div className="text-center py-3 px-2 rounded-xl bg-orange-50">
               <div className="flex items-center justify-center gap-1.5 mb-1">
@@ -198,7 +207,11 @@ export default function Home() {
             <div className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-2 scrollbar-hide">
               {vehicles.map(v => {
                 const s = statusInfo(v)
-                const dotColor = s.color === 'green' ? 'bg-green-500' : s.color === 'orange' ? 'bg-orange-500' : 'bg-slate-400'
+                const dotColor = s.dot
+                const labelColor = s.color === 'green' ? 'text-green-600'
+                  : s.color === 'orange' ? 'text-orange-600'
+                  : s.color === 'offline' ? 'text-slate-400'
+                  : 'text-slate-500'
                 return (
                   <button key={v.id || v.uniqueId} onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
                     className="flex-shrink-0 w-56 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 text-start hover:shadow-md transition">
@@ -213,7 +226,8 @@ export default function Home() {
                         <span className="text-xs text-slate-600 flex items-center gap-1"><Gauge className="h-3.5 w-3.5" />{v.speed} {t('kmh', lang)}</span>
                         <span className="text-xs text-slate-600 flex items-center gap-1"><Zap className="h-3.5 w-3.5" />{formatVoltage(v.voltage, lang, v.lastUpdate, v.powerDisconnected)}</span>
                       </div>
-                      <div className="mt-1 text-end">
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className={`text-[10px] font-semibold ${labelColor}`}>{t(s.label, lang)}</span>
                         <span className="text-[10px] text-slate-400">{timeAgo(v.lastUpdate, lang)}</span>
                       </div>
                     </div>
