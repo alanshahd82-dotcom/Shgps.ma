@@ -340,6 +340,7 @@ app.use(cors({
 // ── Security Headers ────────────────────────────────────────────────────
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN')
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=63072000')
@@ -359,6 +360,32 @@ app.use('/api', (req, res, next) => {
 })
 
 app.use(express.json({ limit: '1mb' }))
+
+// ── Login brute-force protection (in-memory, no extra deps) ──
+const AUTH_WINDOW_MS = Number(process.env.AUTH_RATE_WINDOW_MS || 15 * 60 * 1000)
+const AUTH_MAX_TRIES = Number(process.env.AUTH_RATE_MAX || 10)
+const _authHits = new Map()
+setInterval(() => {
+  const now = Date.now()
+  for (const [k, v] of _authHits) if (now > v.resetAt) _authHits.delete(k)
+}, 60_000).unref?.()
+
+app.use('/api/auth', (req, res, next) => {
+  const sensitive = ['/login', '/forgot-password', '/reset-password', '/change-password']
+  if (req.method !== 'POST' || !sensitive.some((s) => req.path.startsWith(s))) return next()
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown'
+  const key = ip + ':' + req.path
+  const now = Date.now()
+  let entry = _authHits.get(key)
+  if (!entry || now > entry.resetAt) { entry = { count: 0, resetAt: now + AUTH_WINDOW_MS }; _authHits.set(key, entry) }
+  entry.count++
+  if (entry.count > AUTH_MAX_TRIES) {
+    const retry = Math.ceil((entry.resetAt - now) / 1000)
+    res.setHeader('Retry-After', String(retry))
+    return res.status(429).json({ error: 'too_many_attempts', retryAfter: retry })
+  }
+  next()
+})
 
 app.use('/api/auth',        authRouter)
 app.use('/api/devices',     devicesRouter)
