@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, Marker, useMap } from 'react-leaflet'
 import MapTileLayer from '../../components/MapTileLayer'
 import L from 'leaflet'
-import { ArrowLeft, ArrowRight, Car, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Square, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Car, CheckCheck, Copy, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Share2, Square, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -13,7 +13,7 @@ import { APP_TZ } from '../../utils/datetime.js'
 import { formatVoltage } from '../../components/ui'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
-const META_KEY = id => 'athargps_vehicle_meta_' + id
+const VEHICLE_TYPES = ['car', 'bike', 'truck']
 
 function numOrNull(v) { const n = Number(v); return Number.isFinite(n) ? n : null }
 function pt(v) {
@@ -172,29 +172,52 @@ export default function VehicleControl() {
   const [tripError, setTripError] = useState('')
   const [tripOptions, setTripOptions] = useState(null)
   const [replayRange, setReplayRange] = useState(1)
-  const [meta, setMeta] = useState({ name:'', driverName:'', driverPhone:'' })
+  // Editable vehicle information. The backend (PATCH /devices/:id/info) is the
+  // single source of truth; this form is only the local draft before saving.
+  const [form, setForm] = useState({ name:'', driver:'', phone:'', plate:'', type:'car' })
+  // Authoritative fields returned by the API after a successful save, merged on
+  // top of the context vehicle until the shared device list refreshes.
+  const [infoOverride, setInfoOverride] = useState(null)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
+  const [shareLink, setShareLink] = useState('')
+  const [shareExpiresAt, setShareExpiresAt] = useState(null)
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareErr, setShareErr] = useState('')
+  const [copied, setCopied] = useState(false)
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const vehicleMapRef = useRef(null)
   const [infoOpen, setInfoOpen] = useState(false)
 
-  const vehicle = useMemo(() => vehicles.find(v => String(v.id) === String(id)), [id, vehicles])
+  const baseVehicle = useMemo(() => vehicles.find(v => String(v.id) === String(id)), [id, vehicles])
+  const vehicle = useMemo(
+    () => (baseVehicle && infoOverride ? { ...baseVehicle, ...infoOverride } : baseVehicle),
+    [baseVehicle, infoOverride]
+  )
   const point = pt(vehicle)
   const capability = cap(vehicle)
   const engineRunning = engineState !== false
   const lastUp = vehicle?.lastUpdate ?? vehicle?.fixTime
   const online = lastUp && (Date.now() - new Date(lastUp).getTime()) < 15*60*1000
 
+  // Reset the draft (and the share state) whenever another vehicle is opened.
+  useEffect(() => {
+    setInfoOverride(null)
+    setShareLink(''); setShareExpiresAt(null); setShareErr(''); setCopied(false)
+    setSaveErr('')
+  }, [id])
+
   useEffect(() => {
     if (!vehicle) return
-    let s = {}
-    try { s = JSON.parse(localStorage.getItem(META_KEY(vehicle.id)) || '{}') } catch (e) { s = {} }
-    setMeta({
-      name: s.name || vehicle.name || '',
-      driverName: s.driverName || vehicle.driverName || '',
-      driverPhone: s.driverPhone || vehicle.driverPhone || vehicle.phone || '',
+    setForm({
+      name: vehicle.name || '',
+      driver: vehicle.driver || vehicle.driverName || '',
+      phone: vehicle.phone || vehicle.driverPhone || '',
+      plate: vehicle.plate || vehicle.licensePlate || '',
+      type: VEHICLE_TYPES.includes(vehicle.type) ? vehicle.type : (vehicle.type === 'motorcycle' ? 'bike' : 'car'),
     })
-  }, [vehicle?.id])
+  }, [vehicle?.id, vehicle?.name, vehicle?.driver, vehicle?.phone, vehicle?.plate, vehicle?.type])
 
   useEffect(() => {
     if (typeof vehicle?.ignition === 'boolean') setEngineState(vehicle.ignition)
@@ -211,6 +234,15 @@ export default function VehicleControl() {
     plate:'Plaque', type:'Type', voltage:'Tension', status:'Statut',
     replayRanges:['Aujourd’hui', '2 jours', '3 jours', '7 jours', '30 jours'],
     showAll:'Afficher tout',
+    share:'Partager la position', shareCreate:'Générer un lien', shareCopy:'Copier le lien',
+    shareCopied:'Lien copié', shareHint:'Lien public valable 24 heures.',
+    shareExpires:'Expire le', shareForbidden:"Vous n'êtes pas autorisé à partager ce véhicule.",
+    shareExpired:"L'abonnement de cet appareil est expiré. Renouvelez-le avant de partager.",
+    shareFailed:'Impossible de créer le lien. Réessayez.',
+    saveFailed:'Impossible d’enregistrer. Réessayez.',
+    saveForbidden:"Vous n'êtes pas autorisé à modifier ce véhicule.",
+    saveInvalid:'Données invalides. Vérifiez les champs.',
+    types:{ car:'Voiture', bike:'Moto', truck:'Camion' },
   } : {
     details:'معلومات المركبة', vName:'اسم المركبة', dName:'اسم السائق',
     dPhone:'هاتف السائق', devId:'رقم الجهاز',
@@ -221,6 +253,15 @@ export default function VehicleControl() {
     plate:'اللوحة', type:'النوع', voltage:'الفولطاج', status:'الحالة',
     replayRanges:['اليوم', 'يومان', '3 أيام', '7 أيام', '30 يومًا'],
     showAll:'عرض الكل',
+    share:'مشاركة الموقع', shareCreate:'إنشاء رابط', shareCopy:'نسخ الرابط',
+    shareCopied:'تم نسخ الرابط', shareHint:'رابط عمومي صالح لمدة 24 ساعة.',
+    shareExpires:'ينتهي في', shareForbidden:'ليس لديك صلاحية مشاركة هذه المركبة.',
+    shareExpired:'اشتراك هذا الجهاز منتهي. جدّده قبل مشاركة الموقع.',
+    shareFailed:'تعذّر إنشاء الرابط. حاول مرة أخرى.',
+    saveFailed:'تعذّر الحفظ. حاول مرة أخرى.',
+    saveForbidden:'ليس لديك صلاحية تعديل هذه المركبة.',
+    saveInvalid:'بيانات غير صالحة. تحقق من الحقول.',
+    types:{ car:'سيارة', bike:'دراجة', truck:'شاحنة' },
   }
 
   useEffect(() => {
@@ -273,11 +314,57 @@ export default function VehicleControl() {
     setTripLoading(false)
   }
 
-  function saveDetails() {
-    if (!vehicle) return
-    localStorage.setItem(META_KEY(vehicle.id), JSON.stringify(meta))
-    try { if (api.devices && typeof api.devices.update === 'function') { api.devices.update(vehicle.id, { name: meta.name, driverName: meta.driverName, driverPhone: meta.driverPhone }).catch(function(){}) } } catch (e) {}
-    setSaved(true); setTimeout(() => setSaved(false), 1500)
+  // Vehicle information edit — migrated from the legacy DeviceDetail page.
+  // Uses the existing PATCH /api/devices/:id/info endpoint (unchanged) with the
+  // local application device id, then refetches the device from the backend.
+  async function saveDetails() {
+    if (!vehicle || saving) return
+    setSaving(true); setSaveErr(''); setSaved(false)
+    try {
+      const payload = {
+        name: form.name.trim(),
+        driver: form.driver.trim(),
+        phone: form.phone.trim(),
+        plate: form.plate.trim(),
+        type: form.type,
+      }
+      const updated = await api.devices.updateInfo(vehicle.id, payload)
+      if (updated && typeof updated === 'object') setInfoOverride(updated)
+      // The server is authoritative: read the device back instead of trusting
+      // the local draft.
+      try {
+        const refreshed = await api.devices.get(vehicle.id)
+        if (refreshed && typeof refreshed === 'object') setInfoOverride(refreshed)
+      } catch {}
+      try { await refreshDevices?.() } catch {}
+      setSaved(true); setTimeout(() => setSaved(false), 1500)
+    } catch (e) {
+      setSaveErr(e?.status === 403 ? T.saveForbidden : e?.status === 400 ? T.saveInvalid : T.saveFailed)
+    } finally { setSaving(false) }
+  }
+
+  // Sharing — migrated from the legacy DeviceDetail page. Backend, token and
+  // expiration logic stay exactly as they are (POST /api/sharing).
+  async function generateShareLink() {
+    if (!vehicle || shareLoading) return
+    setShareLoading(true); setShareErr(''); setCopied(false)
+    try {
+      const data = await api.sharing.create(vehicle.id, 24)
+      const token = data?.token || data?.share_token || data?.shareToken
+      if (!token) throw new Error('no token')
+      setShareLink(window.location.origin + '/share/' + token)
+      setShareExpiresAt(data?.expiresAt || data?.expires_at || null)
+    } catch (e) {
+      setShareLink(''); setShareExpiresAt(null)
+      setShareErr(e?.status === 403 ? T.shareForbidden : e?.status === 409 ? T.shareExpired : T.shareFailed)
+    } finally { setShareLoading(false) }
+  }
+
+  function copyShareLink() {
+    if (!shareLink) return
+    navigator.clipboard.writeText(shareLink)
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+      .catch(() => setShareErr(T.shareFailed))
   }
 
   if (loading && !vehicle) return <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50"><div className="h-8 w-8 animate-pulse rounded-full border-2 border-indigo-200 border-t-indigo-600"/></div>
@@ -316,7 +403,7 @@ export default function VehicleControl() {
             {lang==='ar' ? <ArrowRight size={18}/> : <ArrowLeft size={18}/>}
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-extrabold text-slate-900">{meta.name || vehicle.name}</h1>
+            <h1 className="truncate text-lg font-extrabold text-slate-900">{vehicle.name}</h1>
             <p className="text-[11px] font-medium text-slate-500">
               <span className={'inline-block h-2 w-2 rounded-full ' + (online ? 'bg-green-500' : 'bg-slate-400')}/>
               <span className="ms-1.5">{online ? T.online : T.offline}</span>
@@ -450,10 +537,10 @@ export default function VehicleControl() {
           {infoOpen && <div className="space-y-3 border-t border-slate-100 p-4">
             <div className="grid grid-cols-2 gap-2">
               {[
-                [T.dName, meta.driverName],
+                [T.dName, vehicle.driver ?? vehicle.driverName],
                 [T.plate, vehicle.plate ?? vehicle.licensePlate],
                 [T.type, vehicleType],
-                [T.dPhone, meta.driverPhone],
+                [T.dPhone, vehicle.phone ?? vehicle.driverPhone],
                 [T.devId, vehicle.uniqueId || vehicle.id],
                 [T.voltage, voltageLabel],
                 [T.status, online ? T.online : T.offline],
@@ -466,34 +553,89 @@ export default function VehicleControl() {
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.vName}</label>
-              <input type="text" value={meta.name} onChange={e => setMeta(Object.assign({}, meta, { name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.dName}</label>
-              <input type="text" value={meta.driverName} onChange={e => setMeta(Object.assign({}, meta, { driverName: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+              <input type="text" value={form.driver} onChange={e => setForm(f => ({ ...f, driver: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.dPhone}</label>
-              <input type="tel" dir="ltr" value={meta.driverPhone} onChange={e => setMeta(Object.assign({}, meta, { driverPhone: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+              <input type="tel" dir="ltr" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.plate}</label>
+              <input type="text" value={form.plate} onChange={e => setForm(f => ({ ...f, plate: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.type}</label>
+              <div className="grid grid-cols-3 gap-2">
+                {VEHICLE_TYPES.map(value => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, type: value }))}
+                    aria-pressed={form.type === value}
+                    className={'rounded-xl border px-2 py-2.5 text-[11px] font-extrabold transition ' + (
+                      form.type === value
+                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300'
+                    )}
+                  >
+                    {T.types[value]}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.devId}</label>
               <div className="flex items-center gap-2">
                 <input type="text" value={vehicle.uniqueId || String(vehicle.id)} readOnly className="flex-1 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500"/>
-                {meta.driverPhone ? (
-                  <a href={'tel:' + meta.driverPhone} className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500 text-white"><Phone size={16}/></a>
+                {form.phone ? (
+                  <a href={'tel:' + form.phone} className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500 text-white"><Phone size={16}/></a>
                 ) : null}
               </div>
             </div>
-            <button type="button" onClick={saveDetails} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
-              {saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
+            <button type="button" onClick={saveDetails} disabled={saving} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition disabled:opacity-60 ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
+              {saving ? <><Loader2 size={14} className="animate-spin"/> {T.loading}</> : saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
             </button>
+            {saveErr && <p role="alert" className="text-center text-[11px] font-bold text-red-600">{saveErr}</p>}
           </div>}
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Share2 size={16} className="text-indigo-600"/>
+            <span className="text-sm font-extrabold text-slate-900">{T.share}</span>
+          </div>
+          <p className="mb-3 text-[11px] font-medium text-slate-500">{T.shareHint}</p>
+          {shareLink ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <p dir="ltr" className="min-w-0 flex-1 break-all text-[11px] font-semibold text-slate-700">{shareLink}</p>
+                <button type="button" onClick={copyShareLink} aria-label={T.shareCopy} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                  {copied ? <CheckCheck size={15}/> : <Copy size={15}/>}
+                </button>
+              </div>
+              {copied && <p role="status" className="text-[11px] font-bold text-green-600">{T.shareCopied}</p>}
+              {shareExpiresAt && (
+                <p className="text-[11px] font-medium text-slate-500">
+                  {T.shareExpires} {new Date(shareExpiresAt).toLocaleString(lang === 'ar' ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <button type="button" onClick={generateShareLink} disabled={shareLoading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-3 text-xs font-extrabold text-white transition hover:bg-indigo-700 disabled:opacity-60">
+              {shareLoading ? <Loader2 size={14} className="animate-spin"/> : <Share2 size={14}/>}
+              {shareLoading ? T.loading : T.shareCreate}
+            </button>
+          )}
+          {shareErr && <p role="alert" className="mt-2 text-center text-[11px] font-bold text-red-600">{shareErr}</p>}
         </section>
       </main>
 
       {!isAdminView && <BottomNav navigate={navigate} lang={lang}/>}
-      {command && <ConfirmDialog lang={lang} name={meta.name || vehicle.name} turnOff={command.turnOff} sending={sending} onCancel={() => setCommand(null)} onConfirm={confirmCommand}/>}
+      {command && <ConfirmDialog lang={lang} name={vehicle.name} turnOff={command.turnOff} sending={sending} onCancel={() => setCommand(null)} onConfirm={confirmCommand}/>}
       {replay && <Suspense fallback={<div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80"><Loader2 className="animate-spin text-indigo-400" size={40}/></div>}><TripReplay deviceId={vehicle.id} deviceName={vehicle.name} deviceType={vehicle.type} startTime={replay.startTime} endTime={replay.endTime} onClose={() => setReplay(null)} allowSatellite={false}/></Suspense>}
     </div>
   )
