@@ -2,11 +2,12 @@ import React, { useMemo } from 'react'
 import { Marker, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import { markerFor } from '../../utils/vehicleAssets'
+import { isMoving } from '../../utils/motion'
 
 function getMarkerState(vehicle) {
   if (!vehicle.charge && vehicle.status === 'offline') return 'danger'
   if (vehicle.alerts?.length > 0) return 'alert'
-  if (vehicle.speed > 5) return 'moving'
+  if (isMoving(vehicle)) return 'moving'
   if (vehicle.status === 'online') return 'idle-online'
   return 'offline'
 }

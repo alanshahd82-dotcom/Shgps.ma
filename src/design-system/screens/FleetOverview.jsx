@@ -3,6 +3,7 @@ import { AlertTriangle, Car, ChevronLeft, Gauge, Radio, WifiOff } from 'lucide-r
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../hooks/useRealVehicles'
+import { isMoving } from '../../utils/motion'
 
 function Metric({ icon: Icon, label, value, tone = 'neutral' }) {
   const toneClasses = {
@@ -27,7 +28,7 @@ function Metric({ icon: Icon, label, value, tone = 'neutral' }) {
 }
 
 function VehicleQuickLink({ vehicle, onClick }) {
-  const moving = vehicle.status === 'online' && Number.isFinite(vehicle.speed) && vehicle.speed > 5
+  const moving = vehicle.status === 'online' && isMoving(vehicle)
   const hasAlert = Array.isArray(vehicle.alerts) && vehicle.alerts.length > 0
 
   return (
@@ -57,9 +58,9 @@ export function FleetOverview() {
   const summary = useMemo(() => {
     const statusIsReliable = vehicles.length > 0 && vehicles.every(vehicle => vehicle.status === 'online' || vehicle.status === 'offline')
     const speedIsReliable = vehicles.length > 0 && vehicles.every(vehicle => vehicle.status !== 'online' || Number.isFinite(vehicle.speed))
-    const moving = speedIsReliable ? vehicles.filter(vehicle => vehicle.status === 'online' && vehicle.speed > 5).length : null
+    const moving = speedIsReliable ? vehicles.filter(vehicle => vehicle.status === 'online' && isMoving(vehicle)).length : null
     const importantVehicles = vehicles
-      .filter(vehicle => (Array.isArray(vehicle.alerts) && vehicle.alerts.length > 0) || (vehicle.status === 'online' && Number.isFinite(vehicle.speed) && vehicle.speed > 5))
+      .filter(vehicle => (Array.isArray(vehicle.alerts) && vehicle.alerts.length > 0) || (vehicle.status === 'online' && isMoving(vehicle)))
       .slice(0, 2)
 
     return {
