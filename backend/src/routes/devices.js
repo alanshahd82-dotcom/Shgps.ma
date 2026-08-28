@@ -14,7 +14,6 @@ import {
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
 import {
-  hasKnownVehicleVoltage,
   isVehicleDisconnected,
   positionIsFresh,
   positionIsSilent,
@@ -175,9 +174,6 @@ import {
         const freshLivePosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
         const telemetryId = d.traccar_id ?? td?.id
         const telemetrySilent = positionIsSilent(livePosition ?? storedPosition, POWER_SILENCE_WINDOW_MS)
-        const inferredDisconnect = !freshLivePosition
-          && telemetrySilent
-          && hasKnownVehicleVoltage(telemetryId)
         // Stored coordinates keep the map useful, but must never count as
         // current telemetry for voltage or disconnect decisions.
         const telemetryPosition = freshLivePosition ? livePosition : null
@@ -196,7 +192,6 @@ import {
         const electrical = trackingEnabled
           ? readElectricalTelemetry(telemetryPosition, telemetryId, {
               connected: freshLivePosition,
-              powerDisconnected: inferredDisconnect,
             })
           : { voltage: null, batteryLevel: null, powerDisconnected: false }
         return {
@@ -515,14 +510,11 @@ import {
         livePosition = positions.find(position => position.deviceId === dev.traccar_id) || null
       } catch {}
       const freshPosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
-      const inferredDisconnect = !freshPosition
-        && positionIsSilent(livePosition ?? { lastUpdate: dev.last_update }, POWER_SILENCE_WINDOW_MS)
-        && hasKnownVehicleVoltage(dev.traccar_id)
       const electrical = subscription.trackingEnabled
         ? readElectricalTelemetry(
             freshPosition ? livePosition : null,
             dev.traccar_id,
-            { connected: freshPosition, powerDisconnected: inferredDisconnect },
+            { connected: freshPosition },
           )
         : { voltage: null, batteryLevel: null, powerDisconnected: false }
       // Load geofence state from local DB
