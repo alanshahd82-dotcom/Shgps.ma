@@ -38,12 +38,29 @@ export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
   )
 }
 
+// Voltage health is relative to the vehicle electrical system: 12V (cars,
+// bikes) or 24V (trucks, buses). Thresholds scale, never hardcoded to 12V.
+export function getVoltageSystem(voltage) {
+  return Number(voltage) >= 17 ? 24 : 12
+}
+
 export function getVoltageColor(value) {
   const voltage = Number(value)
   if (!Number.isFinite(voltage) || voltage <= 0) return '#94A3B8'
-  if (voltage >= 12.4) return '#1e40af'
-  if (voltage >= 11.8) return '#FF9500'
+  const scale = getVoltageSystem(voltage) === 24 ? 2 : 1
+  if (voltage >= 12.4 * scale) return '#1e40af'
+  if (voltage >= 11.8 * scale) return '#FF9500'
   return '#FF3B30'
+}
+
+// Percentage of a healthy resting battery, scaled to the detected system.
+// 11.8V (23.6V) => 0%, 12.7V (25.4V) => 100%.
+export function getBatteryPercent(value) {
+  const voltage = Number(value)
+  if (!Number.isFinite(voltage) || voltage <= 0) return null
+  const scale = getVoltageSystem(voltage) === 24 ? 2 : 1
+  const pct = ((voltage / scale) - 11.8) / (12.7 - 11.8) * 100
+  return Math.max(0, Math.min(100, Math.round(pct)))
 }
 
 // Shows the same backend-provided voltage state everywhere. The formatter

@@ -243,8 +243,15 @@ export const VOLTAGE_DISCONNECT_GRACE_MS = 10 * 60 * 1000
 const lastKnownVoltage = new Map()
 const disconnectedVehicles = new Set()
 
+// Accept both 12V systems (cars, bikes) and 24V systems (trucks, buses).
+export const VOLTAGE_RANGE_12V = { min: 9, max: 15 }
+export const VOLTAGE_RANGE_24V = { min: 18, max: 30 }
+
 function isBatteryVoltage(value) {
-  return value >= 9 && value <= 15
+  return (
+    (value >= VOLTAGE_RANGE_12V.min && value <= VOLTAGE_RANGE_12V.max)
+    || (value >= VOLTAGE_RANGE_24V.min && value <= VOLTAGE_RANGE_24V.max)
+  )
 }
 
 /**
