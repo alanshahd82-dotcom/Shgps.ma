@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react'
 import { AlertCircle, CarFront, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
-import { StatusBadge, VehicleIcon, getDeviceStatusKey, timeAgo } from '../../components/ui'
+import { getDeviceStatusKey } from '../../components/ui'
+import SharedVehicleCard from '../../components/VehicleCard'
 import { t } from '../../i18n/translations'
 import { ClientLayout } from '../layout'
 import { useRealVehicles } from '../hooks/useRealVehicles'
@@ -14,20 +15,7 @@ function SkeletonCard() {
 }
 
 function VehicleCard({ vehicle, lang, onOpen }) {
-  const status = getDeviceStatusKey(vehicle)
-  const hasSpeed = vehicle.speed != null && Number.isFinite(Number(vehicle.speed))
-  return (
-    <button type="button" onClick={onOpen} className="ath-card flex w-full items-center gap-3 text-start transition-transform active:scale-[.99]" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <VehicleIcon type={vehicle.type} iconSize={25} className="h-14 w-14 rounded-2xl" />
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-2"><span className="truncate text-sm font-extrabold">{vehicle.name}</span><StatusBadge status={status} lang={lang} /></span>
-        <span className="mt-1 block truncate text-[10px] font-semibold" style={{ color: 'var(--ath-mut)' }}>{vehicle.plate || t(lang, 'plateUnavailable')}</span>
-        <span className="mt-1 block truncate text-[10px]" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'lastUpdate')}: {vehicle.lastUpdate ? timeAgo(vehicle.lastUpdate, lang) : t(lang, 'dataUnavailable')}</span>
-      </span>
-      <span className="shrink-0 text-end">{hasSpeed ? <><strong className="block text-sm font-black">{Math.round(Number(vehicle.speed))}</strong><span className="text-[9px]" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'kmh')}</span></> : <span className="text-[10px]" style={{ color: 'var(--ath-mut)' }}>{t(lang, 'dataUnavailable')}</span>}</span>
-      <span style={{ color: 'var(--ath-mut)' }}>{lang === 'ar' ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}</span>
-    </button>
-  )
+  return <SharedVehicleCard vehicle={vehicle} lang={lang} compact onClick={onOpen} />
 }
 
 export function VehiclesScreen({ vehicles: providedVehicles, alertCount = 0, onTabChange }) {

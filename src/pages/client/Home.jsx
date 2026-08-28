@@ -5,7 +5,7 @@ import {
   Navigation, Zap, Clock, CheckCircle2, Shield, Activity, Gauge
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
-import { VehicleIcon as VehicleAssetIcon, formatVoltage } from '../../components/ui'
+import VehicleCard from '../../components/VehicleCard'
 
 function useLang() {
   const { lang } = useApp()
@@ -204,36 +204,16 @@ export default function Home() {
           {vehicles.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center text-slate-500">{t('noVehicles', lang)}</div>
           ) : (
-            <div className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-2 scrollbar-hide">
-              {vehicles.map(v => {
-                const s = statusInfo(v)
-                const dotColor = s.dot
-                const labelColor = s.color === 'green' ? 'text-green-600'
-                  : s.color === 'orange' ? 'text-orange-600'
-                  : s.color === 'offline' ? 'text-slate-400'
-                  : 'text-slate-500'
-                return (
-                  <button key={v.id || v.uniqueId} onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
-                    className="flex-shrink-0 w-56 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 text-start hover:shadow-md transition">
-                    <div className="h-28 bg-gradient-to-br from-slate-100 to-slate-200 relative flex items-center justify-center">
-                      <VehicleAssetIcon type={v.type} iconSize={56} className="!h-20 !w-32" />
-                      <span className={`absolute top-2 ${dir === 'rtl' ? 'left-2' : 'right-2'} h-3 w-3 rounded-full ${dotColor} ring-2 ring-white`} />
-                    </div>
-                    <div className="p-3">
-                      <p className="font-bold text-slate-900 text-sm truncate">{v.name || v.uniqueId}</p>
-                      <p className="text-xs text-slate-500 mb-2">{v.plate || v.uniqueId}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-600 flex items-center gap-1"><Gauge className="h-3.5 w-3.5" />{v.speed} {t('kmh', lang)}</span>
-                        <span className="text-xs text-slate-600 flex items-center gap-1"><Zap className="h-3.5 w-3.5" />{formatVoltage(v.voltage, lang, v.lastUpdate, v.powerDisconnected)}</span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between">
-                        <span className={`text-[10px] font-semibold ${labelColor}`}>{t(s.label, lang)}</span>
-                        <span className="text-[10px] text-slate-400">{timeAgo(v.lastUpdate, lang)}</span>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {vehicles.map(v => (
+                <VehicleCard
+                  key={v.id || v.uniqueId}
+                  vehicle={v}
+                  lang={lang}
+                  compact
+                  onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
+                />
+              ))}
             </div>
           )}
         </section>
