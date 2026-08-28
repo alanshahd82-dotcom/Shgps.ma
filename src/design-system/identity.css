@@ -1,0 +1,77 @@
+/*
+ * ATHAR GPS — الهوية البصرية الموحّدة (Indigo / Slate)
+ * مصدر الحقيقة: صفحة العميل الرئيسية (src/pages/client/Home.jsx)
+ * ملاحظة: نستعمل :root:root لضمان أولوية القيم فوق tokens.css بلا حاجة لتعديله.
+ */
+
+:root:root {
+  --ds-color-primary: #4f46e5;        /* indigo-600 */
+  --ds-color-primary-strong: #4338ca; /* indigo-700 */
+  --ds-color-primary-soft: rgba(79, 70, 229, 0.1);
+  --ds-color-navy: #0f172a;           /* slate-900 */
+  --ds-color-navy-deep: #f8fafc;      /* slate-50 */
+  --ds-color-surface: #ffffff;
+  --ds-color-surface-raised: #ffffff;
+  --ds-color-surface-sunken: #f8fafc;
+  --ds-color-page: #f8fafc;           /* slate-50 */
+  --ds-color-surface-soft: #f1f5f9;   /* slate-100 */
+  --ds-color-text: #0f172a;           /* slate-900 */
+  --ds-color-text-muted: #64748b;     /* slate-500 */
+  --ds-color-cool-gray: #94a3b8;      /* slate-400 */
+
+  --ds-radius-lg: 1rem;               /* rounded-2xl */
+  --ds-radius-xl: 1.25rem;
+
+  --ds-border: #f1f5f9;               /* slate-100 */
+  --ds-border-strong: #e2e8f0;        /* slate-200 */
+  --ds-border-subtle: #f1f5f9;
+  --ds-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --ds-focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.28);
+}
+
+.dark.dark {
+  --ds-color-primary: #818cf8;        /* indigo-400 */
+  --ds-color-primary-strong: #6366f1; /* indigo-500 */
+  --ds-color-primary-soft: rgba(129, 140, 248, 0.16);
+  --ds-color-navy: #e2e8f0;
+  --ds-color-navy-deep: #060f1f;
+  --ds-color-surface: #101a2e;
+  --ds-color-surface-raised: #16223a;
+  --ds-color-surface-sunken: #0b1424;
+  --ds-color-page: #060f1f;
+  --ds-color-surface-soft: #1b2740;
+  --ds-color-text: #f1f5f9;
+  --ds-color-text-muted: #94a3b8;
+  --ds-border: rgba(148, 163, 184, 0.22);
+  --ds-border-strong: rgba(148, 163, 184, 0.4);
+  --ds-border-subtle: rgba(148, 163, 184, 0.12);
+  --ds-focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.36);
+}
+
+/* تصحيحات بقايا الهوية القديمة داخل المكوّنات */
+.ds-card.ds-card {
+  background: var(--ds-color-surface);
+}
+
+.ds-card--interactive.ds-card--interactive:hover {
+  background: var(--ds-color-surface-sunken);
+}
+
+.ds-button--primary.ds-button--primary {
+  background: var(--ds-color-primary);
+  color: #ffffff;
+}
+
+.ds-sheet.ds-sheet,
+.ds-bottom-sheet.ds-bottom-sheet {
+  background: var(--ds-color-surface);
+}
+
+.ds-sheet__handle.ds-sheet__handle,
+.ds-bottom-sheet__handle.ds-bottom-sheet__handle {
+  background: var(--ds-border-strong);
+}
+
+.ds-error-state.ds-error-state {
+  color: var(--ds-color-danger);
+}
