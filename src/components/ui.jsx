@@ -66,11 +66,13 @@ export function getBatteryPercent(value) {
 // Shows the same backend-provided voltage state everywhere. The formatter
 // never infers disconnection from a missing voltage or from a stale UI clock.
 export function formatVoltage(value, lang = 'ar', _lastUpdate = null, powerDisconnected = false) {
+  // A confirmed external-power disconnect wins over any voltage still held in
+  // a client cache: the vehicle supply is cut, so presenting the previous
+  // reading as a normal voltage would be wrong.
+  if (powerDisconnected) return lang === 'ar' ? 'مفصول' : 'Déconnecté'
   const voltage = Number(value)
   if (Number.isFinite(voltage) && voltage > 0) return `${voltage.toFixed(1)} V`
-  return powerDisconnected
-    ? (lang === 'ar' ? 'مفصول' : 'Déconnecté')
-    : '—'
+  return '—'
 }
 
 export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', className = '' }) {

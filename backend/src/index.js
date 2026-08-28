@@ -426,10 +426,6 @@ const server = createServer(app)
 const wss = new WebSocketServer({ server, path: '/api/socket' })
 const frontendClients = new Set()
 
-function readVehicleVoltage(position) {
-  return readCachedVehicleVoltage(position, position?.deviceId, { connected: true })
-}
-
 // The stored snapshot in devices.last_* used to be refreshed only by a manual
 // sync, so a page load served coordinates that were days old until the first
 // live WebSocket frame arrived. Persist the real live position here (throttled
@@ -669,7 +665,9 @@ async function connectTraccar() {
         return {
           ...p,
           speed: Math.round(speedKmh(p.speed)),
-          voltage: readVehicleVoltage(p),
+          // While the disconnect is confirmed, never fall back to the cached
+          // vehicle voltage - the supply that produced it is cut.
+          voltage: readCachedVehicleVoltage(p, p.deviceId, { connected: !powerDisconnected }),
           powerDisconnected,
         }
       })

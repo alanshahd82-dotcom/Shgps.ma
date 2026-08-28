@@ -174,6 +174,17 @@ export function detectExternalPowerRestored(position) {
     return { source: `alarm:${alarm}` }
   }
 
+  // Real electrical evidence: a reported voltage inside a vehicle-battery
+  // range (12V or 24V systems) can only come from the external supply - the
+  // internal backup cell reads far below it (DACIA measured 4.7V while cut).
+  // GT06 packets often omit `charge` on the first frames after the tracker
+  // reboots on restored power, so without this the episode would stay
+  // disconnected forever and block every later disconnect alert.
+  const reportedVoltage = extractReportedVoltage(position)
+  if (reportedVoltage !== null && isBatteryVoltage(reportedVoltage)) {
+    return { source: `voltage:${reportedVoltage}` }
+  }
+
   return null
 }
 
@@ -344,6 +355,11 @@ export function readVehicleVoltage(position, deviceId = position?.deviceId, { co
   }
 
   if (!connected) return null
+
+  // A confirmed external-power disconnect must not keep serving the last
+  // known vehicle voltage: that reading belongs to the supply that is now
+  // cut. Only a freshly reported value (handled above) may appear again.
+  if (isVehicleDisconnected(deviceId)) return null
 
   const cached = expireVoltage(deviceId, now)
   if (!cached) return null
