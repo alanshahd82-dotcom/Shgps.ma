@@ -4,6 +4,7 @@ import { Bell, Zap, MapPin, Battery, AlertTriangle, CheckCheck, Filter } from 'l
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
+import { APP_TZ } from '../../utils/datetime.js'
 
 const alertIcons = {
   // Generic / legacy
@@ -44,7 +45,7 @@ function timeAgo(iso, lang) {
   if (diff < 1) return t(lang, 'just_now')
   if (diff < 60) return `${diff} ${t(lang, 'minutes')} ${t(lang, 'ago')}`
   if (diff < 1440) return `${Math.floor(diff / 60)} ${t(lang, 'hours')} ${t(lang, 'ago')}`
-  return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA')
+  return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ })
 }
 
 export default function AdminAlerts() {

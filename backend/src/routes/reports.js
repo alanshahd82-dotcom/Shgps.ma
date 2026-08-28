@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { dayKey, startOfDay, addDays } from '../utils/timezone.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireRole } from '../middleware/requireRole.js'
 import { db } from '../db.js'
@@ -237,16 +238,12 @@ reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
     }
 
     const now = new Date()
-    const todayStart = new Date(now)
-    todayStart.setHours(0, 0, 0, 0)
+    const todayStart = startOfDay(now)
 
     // Build daily buckets
     const dailyData = []
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now)
-      d.setDate(d.getDate() - i)
-      d.setHours(0, 0, 0, 0)
-      dailyData.push({ date: d.toISOString().split('T')[0], km: 0 })
+      dailyData.push({ date: dayKey(addDays(now, -i)), km: 0 })
     }
 
     let todayKm = 0
@@ -266,7 +263,7 @@ reportsRouter.get('/daily-summary', requireAuth, async (req, res) => {
             const prev = sorted[i - 1]
             const cur  = sorted[i]
             const dist = haversine(prev.latitude, prev.longitude, cur.latitude, cur.longitude)
-            const dayStr = new Date(cur.fixTime).toISOString().split('T')[0]
+            const dayStr = dayKey(cur.fixTime)
             const bucket = dailyData.find(d => d.date === dayStr)
             if (bucket) bucket.km += dist
             if (new Date(cur.fixTime) >= todayStart) todayKm += dist

@@ -8,6 +8,7 @@ import { Card } from '../components/Card'
 import { Select } from '../components/Select'
 import { ClientLayout } from '../layout'
 import { useRealVehicles } from '../hooks/useRealVehicles'
+import { APP_TZ } from '../../utils/datetime.js'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
@@ -43,13 +44,13 @@ function validDate(value) {
 function formatDate(value, lang) {
   const date = validDate(value)
   return date
-    ? date.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { day: 'numeric', month: 'short', year: 'numeric' })
+    ? date.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { timeZone: APP_TZ, day: 'numeric', month: 'short', year: 'numeric' })
     : lang === 'fr' ? 'Date indisponible' : 'التاريخ غير متوفر'
 }
 
 function formatTime(value, lang) {
   const date = validDate(value)
-  return date ? date.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { hour: '2-digit', minute: '2-digit' }) : lang === 'fr' ? 'Indisponible' : 'غير متوفر'
+  return date ? date.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { timeZone: APP_TZ, hour: '2-digit', minute: '2-digit' }) : lang === 'fr' ? 'Indisponible' : 'غير متوفر'
 }
 
 function formatNumber(value, suffix = '', unavailable = 'غير متوفر') {

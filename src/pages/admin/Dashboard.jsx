@@ -8,6 +8,7 @@ import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import MapView from '../../components/MapView'
 import NativeAreaChart from '../../components/NativeAreaChart'
+import { APP_TZ } from '../../utils/datetime.js'
 
 // Animated count-up hook
 function useCountUp(target, duration = 1200) {
@@ -118,7 +119,7 @@ export default function Dashboard() {
           <div>
             <h1 className="text-2xl font-black text-primary-500">{t(lang, 'adminDashboard')}</h1>
             <p className="text-slate-400 text-sm mt-0.5">
-              {new Date().toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', {
+              {new Date().toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ,
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
               })}
             </p>

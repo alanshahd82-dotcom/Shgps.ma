@@ -3,6 +3,7 @@ import { Inbox, Phone, Mail, MessageSquare, Package, Clock } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import AdminLayout from './AdminLayout'
+import { APP_TZ } from '../../utils/datetime.js'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -10,7 +11,7 @@ function timeAgo(iso, lang) {
   if (diff < 1) return lang === 'ar' ? 'الآن' : "À l'instant"
   if (diff < 60) return `${diff} ${lang === 'ar' ? 'د' : 'min'}`
   if (diff < 1440) return `${Math.floor(diff / 60)} ${lang === 'ar' ? 'س' : 'h'}`
-  return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA')
+  return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ })
 }
 
 export default function Leads() {

@@ -8,6 +8,7 @@ import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import ConfirmModal from '../../components/ConfirmModal'
 import Button from '../../components/ui/Button'
+import { APP_TZ } from '../../utils/datetime.js'
 
 function AddClientModal({ open, onClose, onAdd, lang }) {
   const [form, setForm]         = useState({ name: '', email: '', phone: '', subscription: 'Basic' })
@@ -473,7 +474,7 @@ export default function Clients() {
   }
   const expiryLabel = (date) => {
     if (!date) return lang === 'ar' ? 'غير محدد' : 'Non définie'
-    return new Date(date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-FR')
+    return new Date(date).toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ })
   }
 
   return (

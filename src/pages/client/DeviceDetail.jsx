@@ -22,6 +22,7 @@ import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import MapLayers from '../../components/MapLayers'
 import Toast from '../../components/Toast'
 import { bucketMax, downsample, simplifyPath } from '../../utils/simplify'
+import { APP_TZ } from '../../utils/datetime.js'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
@@ -506,7 +507,7 @@ export default function DeviceDetail() {
       return {
         index,
         xIndex: index,
-        time: date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        time: date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ, hour: '2-digit', minute: '2-digit' }),
         speed: Math.max(0, Math.round(Number(point.speed) || 0)),
       }
     }),
@@ -516,7 +517,7 @@ export default function DeviceDetail() {
     if (!value) return isAr ? 'لا توجد بيانات' : 'Aucune donnée'
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return isAr ? 'لا توجد بيانات' : 'Aucune donnée'
-    return `${date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-MA', { day: 'numeric', month: 'short', year: 'numeric' })} · ${date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+    return `${date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ, day: 'numeric', month: 'short', year: 'numeric' })} · ${date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ, hour: '2-digit', minute: '2-digit' })}`
   }
   const getTripStart = trip => trip.startTime || trip.start_time || trip.start
   const getTripEnd = trip => trip.endTime || trip.end_time || trip.end
@@ -973,10 +974,10 @@ export default function DeviceDetail() {
                                 : { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}
                             >
                               <p className="text-[9px] font-bold text-slate-400">
-                                {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { weekday: 'short' })}
+                                {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ, weekday: 'short' })}
                               </p>
                               <p className="mt-1 text-xs font-black text-white">
-                                {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { day: 'numeric', month: 'short' })}
+                                {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ, day: 'numeric', month: 'short' })}
                               </p>
                             </button>
                           )
@@ -1011,10 +1012,10 @@ export default function DeviceDetail() {
                             : { background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}
                         >
                           <p className="text-[10px] font-bold text-slate-400">
-                            {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { weekday: 'short' })}
+                            {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ, weekday: 'short' })}
                           </p>
                           <p className="mt-1 text-sm font-black text-white">
-                            {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { day: 'numeric', month: 'short' })}
+                            {date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ, day: 'numeric', month: 'short' })}
                           </p>
                         </button>
                       )

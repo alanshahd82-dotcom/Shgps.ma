@@ -9,6 +9,7 @@ import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
 import { t } from '../../i18n/translations'
 import { markerFor } from '../../utils/vehicleAssets'
+import { APP_TZ } from '../../utils/datetime.js'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 const META_KEY = id => 'athargps_vehicle_meta_' + id
@@ -413,7 +414,7 @@ export default function VehicleControl() {
                   className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-start text-xs font-bold"
                 >
                   <span>
-                    {day.date.toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-FR', {
+                    {day.date.toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ,
                       weekday: 'long', day: 'numeric', month: 'long',
                     })}
                   </span>

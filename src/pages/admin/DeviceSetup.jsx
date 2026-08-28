@@ -10,6 +10,7 @@ import { api } from '../../api/index.js'
 import AdminLayout from './AdminLayout'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 import { VehicleTypeControl } from '../../components/ui'
+import { APP_TZ } from '../../utils/datetime.js'
 
 // ── Device Type Cards ─────────────────────────────────────────────────────
 const DEVICE_TYPES = [
@@ -424,7 +425,7 @@ export default function DeviceSetup() {
                     {testData?.lastUpdate && (
                       <p className="text-xs text-slate-400">
                         {isAr ? 'آخر إشارة: ' : 'Dernier signal : '}
-                        {new Date(testData.lastUpdate).toLocaleString(isAr ? 'ar-MA' : 'fr-FR')}
+                        {new Date(testData.lastUpdate).toLocaleString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ })}
                       </p>
                     )}
                   </div>
@@ -450,7 +451,7 @@ export default function DeviceSetup() {
                     {testData?.lastUpdate && (
                       <p className="text-xs text-slate-400">
                         {isAr ? 'آخر اتصال معروف: ' : 'Dernière communication connue : '}
-                        {new Date(testData.lastUpdate).toLocaleString(isAr ? 'ar-MA' : 'fr-FR')}
+                        {new Date(testData.lastUpdate).toLocaleString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ })}
                       </p>
                     )}
                     <button onClick={startConnectionTest}

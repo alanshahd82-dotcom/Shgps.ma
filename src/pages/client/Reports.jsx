@@ -13,6 +13,7 @@ import ClientHeader from '../../components/ClientHeader'
 import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 import { bucketMax } from '../../utils/simplify'
 import { VehicleIcon } from '../../components/ui'
+import { APP_TZ } from '../../utils/datetime.js'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
@@ -228,7 +229,7 @@ function formatTripDate(value, isAr) {
   if (!value) return isAr ? 'لا توجد بيانات' : 'Aucune donnée'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return isAr ? 'لا توجد بيانات' : 'Aucune donnée'
-  return date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', {
+  return date.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ,
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -239,7 +240,7 @@ function formatTripTime(value, isAr) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', {
+  return date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ,
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -292,7 +293,7 @@ export default function Reports() {
       ...point,
       label: Number.isNaN(date.getTime())
         ? point.time
-        : date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        : date.toLocaleTimeString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ, hour: '2-digit', minute: '2-digit' }),
     }
   })
   const trips = Array.isArray(data?.trips) ? data.trips : []

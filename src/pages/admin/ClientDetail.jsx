@@ -20,6 +20,7 @@ import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
 import { formatVoltage, getVoltageColor, VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import { APP_TZ } from '../../utils/datetime.js'
 
 /* ─── helpers ──────────────────────────────────────────────────────────────── */
 function getRangeDates(preset, customFrom, customTo) {
@@ -340,7 +341,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                         ? (isAr ? 'سيارة' : 'Voiture')
                         : (isAr ? 'دراجة نارية' : 'Moto'),
                   },
-                  { icon: Clock, label: isAr ? 'آخر تحديث' : 'Dernier update', val: live.lastUpdate ? new Date(live.lastUpdate).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA') : '—' },
+                  { icon: Clock, label: isAr ? 'آخر تحديث' : 'Dernier update', val: live.lastUpdate ? new Date(live.lastUpdate).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ }) : '—' },
                   { icon: Navigation, label: isAr ? 'اللوحة' : 'Plaque', val: live.plate || '—' },
                 ].map((row, i) => (
                   <div key={i} className="bg-gray-50 rounded-2xl p-3">
@@ -381,7 +382,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                 {[
                   { label: isAr ? 'الخطة' : 'Forfait', val: subPlan },
                   { label: isAr ? 'الحالة' : 'Statut', val: subStatus === 'active' ? (isAr ? 'نشط' : 'Actif') : (isAr ? 'منتهي' : 'Expiré') },
-                  { label: isAr ? 'الانتهاء' : 'Expiration', val: expiry ? expiry.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR') : '—' },
+                  { label: isAr ? 'الانتهاء' : 'Expiration', val: expiry ? expiry.toLocaleDateString(isAr ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ }) : '—' },
                 ].map((s, i) => (
                   <div key={i} className="bg-gray-50 rounded-xl p-3 text-center">
                     <p className="text-sm font-black text-primary-500">{s.val}</p>
@@ -502,9 +503,9 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                             <div className="flex items-center justify-between mb-1" dir="ltr">
                               <div className="flex items-center gap-1.5 text-xs text-slate-500">
                                 <Calendar size={11}/>
-                                {new Date(trip.startTime).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(trip.startTime).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ, hour: '2-digit', minute: '2-digit' })}
                                 {' → '}
-                                {new Date(trip.endTime).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA', { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(trip.endTime).toLocaleTimeString(isAr ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ, hour: '2-digit', minute: '2-digit' })}
                               </div>
                               <ChevronRight size={13} className={`text-primary-400 transition-transform ${selectedTrip?.index === trip.index ? 'rotate-90' : ''}`}/>
                             </div>

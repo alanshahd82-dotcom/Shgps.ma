@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { dayKey } from '../utils/timezone.js'
 import { requireAuth } from '../middleware/auth.js'
 import { validateBody, schemas } from '../validation/schemas.js'
 import { db } from '../db.js'
@@ -19,7 +20,7 @@ driverBehaviorRouter.post('/scores', requireAuth, validateBody(schemas.driverBeh
     if (!dev) return res.status(404).json({ error: 'Device not found or access denied' })
 
     // Upsert: one score per device per day
-    const today = new Date().toISOString().split('T')[0]
+    const today = dayKey()
     const { rows } = await db.query(
       `INSERT INTO driver_behavior_scores
          (device_id, user_id, score, speeding_events, idle_min, trip_count, recorded_date)

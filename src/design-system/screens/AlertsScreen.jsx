@@ -21,6 +21,7 @@ import { ClientLayout } from '../layout'
 import VehicleBottomSheet from './VehicleBottomSheet'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../hooks/useRealVehicles'
+import { APP_TZ } from '../../utils/datetime.js'
 
 const TYPE_META = {
   speeding: { Icon: Gauge, title: 'سرعة مرتفعة', variant: 'alert', label: 'تنبيه' },
@@ -143,8 +144,8 @@ function AlertRow({ alert, vehicle, onOpen, onOpenVehicle, onOpenMap, onDelete, 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
             <span>{vehicleName || L.vehicleUnavailable}</span>
             {timestamp ? (
-              <time dateTime={timestamp.toISOString()} title={timestamp.toLocaleString(lang === 'fr' ? 'fr-FR' : 'ar-MA')}>
-                {timestamp.toLocaleString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { dateStyle: 'medium', timeStyle: 'short' })}
+              <time dateTime={timestamp.toISOString()} title={timestamp.toLocaleString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { timeZone: APP_TZ })}>
+                {timestamp.toLocaleString(lang === 'fr' ? 'fr-FR' : 'ar-MA', { timeZone: APP_TZ, dateStyle: 'medium', timeStyle: 'short' })}
               </time>
             ) : <span>{L.timeUnavailable}</span>}
           </div>
