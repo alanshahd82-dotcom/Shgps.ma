@@ -430,6 +430,39 @@ function readVehicleVoltage(position) {
   return readCachedVehicleVoltage(position, position?.deviceId, { connected: true })
 }
 
+// The stored snapshot in devices.last_* used to be refreshed only by a manual
+// sync, so a page load served coordinates that were days old until the first
+// live WebSocket frame arrived. Persist the real live position here (throttled
+// per device) — same data, no new source, no schema change.
+const LIVE_POSITION_PERSIST_INTERVAL_MS = 60 * 1000
+const lastPersistedPositionAt = new Map()
+
+function persistLivePosition(position) {
+  const traccarId = position?.deviceId
+  if (traccarId == null) return
+  const latitude = Number(position.latitude)
+  const longitude = Number(position.longitude)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return
+  if (Math.abs(latitude) < 0.01 && Math.abs(longitude) < 0.01) return
+
+  const key = String(traccarId)
+  const now = Date.now()
+  const last = lastPersistedPositionAt.get(key)
+  if (last && now - last < LIVE_POSITION_PERSIST_INTERVAL_MS) return
+  lastPersistedPositionAt.set(key, now)
+
+  // last_speed keeps Traccar's native knots; every reader converts via speedKmh().
+  const speedRaw = Number(position.speed)
+  const stamp = position.serverTime ?? position.deviceTime ?? position.fixTime ?? new Date().toISOString()
+
+  db.query(
+    `UPDATE devices
+        SET last_lat = $2, last_lng = $3, last_speed = $4, last_update = $5, updated_at = NOW()
+      WHERE traccar_id = $1`,
+    [traccarId, latitude, longitude, Number.isFinite(speedRaw) ? speedRaw : 0, stamp],
+  ).catch(error => console.warn('[WS] Live position persist skipped:', error.message))
+}
+
 function sendPowerDisconnectEvent(device, alert) {
   const message = JSON.stringify({
     type: 'device:power-disconnected',
@@ -616,7 +649,31 @@ async function connectTraccar() {
 
     if (parsed && Array.isArray(parsed.positions)) {
       parsed.positions.forEach(observePowerTelemetry)
+      parsed.positions.forEach(persistLivePosition)
     }
+
+    // Normalise every live position once, for every audience (admin included).
+    // Traccar sends knots and raw attributes; the UI contract is km/h plus the
+    // resolved voltage / power flag. Admin sockets used to receive the raw
+    // payload, which is why admin screens showed knots and no voltage.
+    const normalisedPositions = parsed && Array.isArray(parsed.positions)
+      ? parsed.positions.map(p => {
+        // Forward the same explicit power-loss signal that the observer
+        // uses. The alert insert is asynchronous, so waiting for the
+        // database event would leave the live UI briefly showing a
+        // connected vehicle after the last packet already said power
+        // was lost.
+        const powerDisconnected = Boolean(
+          detectExternalPowerLoss(p) || isVehicleDisconnected(p.deviceId),
+        )
+        return {
+          ...p,
+          speed: Math.round(speedKmh(p.speed)),
+          voltage: readVehicleVoltage(p),
+          powerDisconnected,
+        }
+      })
+      : null
 
     for (const client of frontendClients) {
       if (client.readyState !== WebSocket.OPEN) continue
@@ -645,26 +702,11 @@ async function connectTraccar() {
         : new Set([...deviceIds].filter(tid => client.allowedTraccarIds?.has(tid)))
       if (allowedIds.size > 0) {
         let outMsg = msg
-        if (!client.isAdmin && (Array.isArray(parsed.positions) || Array.isArray(parsed.devices) || Array.isArray(parsed.events))) {
+        if (Array.isArray(parsed.positions) || Array.isArray(parsed.devices) || Array.isArray(parsed.events)) {
           const patched = {
             ...parsed,
-            ...(Array.isArray(parsed.positions) ? {
-              positions: parsed.positions.filter(p => allowedIds.has(p.deviceId)).map(p => {
-              // Forward the same explicit power-loss signal that the observer
-              // uses. The alert insert is asynchronous, so waiting for the
-              // database event would leave the live UI briefly showing a
-              // connected vehicle after the last packet already said power
-              // was lost.
-              const powerDisconnected = Boolean(
-                detectExternalPowerLoss(p) || isVehicleDisconnected(p.deviceId),
-              )
-              return {
-                ...p,
-                speed: Math.round(speedKmh(p.speed)),
-                voltage: readVehicleVoltage(p),
-                powerDisconnected,
-              }
-              }),
+            ...(normalisedPositions ? {
+              positions: normalisedPositions.filter(p => allowedIds.has(p.deviceId)),
             } : {}),
             ...(Array.isArray(parsed.devices) ? {
               devices: parsed.devices.filter(d => allowedIds.has(d.id)),

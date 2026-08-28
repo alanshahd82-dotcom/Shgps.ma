@@ -8,10 +8,25 @@ function loadFromStorage(key) {
   try { return JSON.parse(localStorage.getItem(key)) } catch { return null }
 }
 
+// A tracker can keep sending packets while its GPS fix time stays unchanged
+// (idle vehicle, weak sky view). Ranking a live position by fixTime alone made
+// those frames look "older" than the stored snapshot, so they were discarded
+// and the map stopped moving. Use the most recent timestamp Traccar provides.
 function positionTimestamp(position) {
-  const value = position?.fixTime ?? position?.lastUpdate ?? position?.last_update
-  const timestamp = value ? new Date(value).getTime() : NaN
-  return Number.isFinite(timestamp) ? timestamp : null
+  const candidates = [
+    position?.serverTime,
+    position?.deviceTime,
+    position?.fixTime,
+    position?.lastUpdate,
+    position?.last_update,
+  ]
+  let latest = null
+  for (const value of candidates) {
+    if (!value) continue
+    const timestamp = new Date(value).getTime()
+    if (Number.isFinite(timestamp) && (latest === null || timestamp > latest)) latest = timestamp
+  }
+  return latest
 }
 
 function validLivePosition(position) {
@@ -117,7 +132,11 @@ export function AppProvider({ children }) {
             lat:        latitude,
             lng:        longitude,
             speed:      pos.speed ?? 0,
-            lastUpdate: pos.fixTime ?? current.lastUpdate,
+            // "Last update" means last contact with the tracker, not last GPS
+            // lock: serverTime is the packet arrival, fixTime stays for the map.
+            lastUpdate: pos.serverTime ?? pos.deviceTime ?? pos.fixTime ?? current.lastUpdate,
+            serverTime: pos.serverTime ?? current.serverTime,
+            deviceTime: pos.deviceTime ?? current.deviceTime,
             fixTime:    pos.fixTime ?? current.fixTime,
             course:     pos.course ?? pos.attributes?.course ?? current.course,
             // A fresh position proves the tracker is connected. External
