@@ -10,6 +10,7 @@ import {
 import { MapContainer, Polyline, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
+import { useEngineControl } from '../../hooks/useEngineControl'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
@@ -165,12 +166,11 @@ function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
 
 /* ─── Device Detail Drawer ──────────────────────────────────────────────────── */
 function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
-  const { toggleEngine, devices } = useApp()
+  const { devices } = useApp()
   const isAr = lang === 'ar'
   const [tab, setTab]             = useState('info')   // 'info' | 'sub' | 'route'
   const [editingType, setEditingType] = useState(false)
   const [typeSaving, setTypeSaving] = useState(false)
-  const [engineLoading, setEngineLoading] = useState(false)
   const [showRenew, setShowRenew] = useState(false)
 
   // Route state
@@ -184,6 +184,9 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
 
   // live device from context
   const live = devices.find(d => d.id === device.id) || device
+  // Same engine logic as the vehicle detail page.
+  const engine = useEngineControl(live, lang)
+  const engineLoading = engine.sending
 
   const saveType = async (type) => {
     setTypeSaving(true)
@@ -196,12 +199,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
     }
   }
 
-  const handleEngine = async () => {
-    setEngineLoading(true)
-    try { await toggleEngine(live.id, live.engineOn) }
-    catch {}
-    finally { setEngineLoading(false) }
-  }
+  const handleEngine = async () => { await engine.send(engine.engineRunning) }
 
   const fetchRoute = async () => {
     setRouteLoading(true); setRouteError(''); setRouteData(null); setSelectedTrip(null)
@@ -267,17 +265,17 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
             {/* Engine toggle */}
             <button
               onClick={handleEngine}
-              disabled={engineLoading}
+              disabled={engineLoading || !engine.canControl}
               className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all disabled:opacity-50 ${
-                live.engineOn
+                engine.engineRunning
                   ? 'bg-red-500/80 text-white hover:bg-red-500'
                   : 'bg-emerald-500/80 text-white hover:bg-emerald-500'
               }`}
             >
               {engineLoading
                 ? <Loader2 size={12} className="animate-spin"/>
-                : live.engineOn ? <ZapOff size={12}/> : <Zap size={12}/>}
-              {live.engineOn ? (isAr ? 'قطع المحرك' : 'Couper moteur') : (isAr ? 'تشغيل المحرك' : 'Démarrer')}
+                : engine.engineRunning ? <ZapOff size={12}/> : <Zap size={12}/>}
+              {engine.engineRunning ? (isAr ? 'قطع المحرك' : 'Couper moteur') : (isAr ? 'تشغيل المحرك' : 'Démarrer')}
             </button>
           </div>
         </div>

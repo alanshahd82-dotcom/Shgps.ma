@@ -7,6 +7,7 @@ import {
   formatVoltage, getBatteryPercent, getVoltageColor, timeAgo,
 } from './ui'
 import { useReverseGeocode } from '../utils/reverseGeocode'
+import { useEngineControl } from '../hooks/useEngineControl'
 import carArt from '../assets/vehicle-car.webp'
 import bikeArt from '../assets/vehicle-bike.webp'
 import truckArt from '../assets/vehicle-truck.webp'
@@ -161,7 +162,7 @@ export function VehicleCard({
   vehicle = {},
   lang = 'ar',
   onClick,
-  onToggleEngine,
+  onOpen,
   compact = false,
   overspeedThreshold = 120,
   className = '',
@@ -180,15 +181,14 @@ export function VehicleCard({
   const typeLabel = TYPE_LABEL[type][lang === 'fr' ? 'fr' : 'ar']
   const floatDur = moving ? (fast ? '1.6s' : '2.4s') : '3.6s'
 
-  // Engine control state (two-click confirm)
-  const engineOn = vehicle.engineOn
-  // Many GT06 trackers never report `ignition`; a null engine state must
-  // not hide the relay control. Unknown state is treated as running.
-  const engineRunning = engineOn !== false
-  const canControlEngine = online && !!onToggleEngine
+  // Engine control — shared logic with the vehicle detail page (single source
+  // of truth). Two-click confirm stays local to the card UI.
+  const engine = useEngineControl(vehicle, lang)
+  const engineRunning = engine.engineRunning
+  const canControlEngine = engine.canControl
+  const engineLoading = engine.sending
+  const engineErr = !!engine.error
   const [engineConfirm, setEngineConfirm] = useState(false)
-  const [engineLoading, setEngineLoading] = useState(false)
-  const [engineErr, setEngineErr] = useState(false)
   const engineTimerRef = useRef(null)
 
   function handleEngineClick(e) {
@@ -201,15 +201,9 @@ export function VehicleCard({
     }
     clearTimeout(engineTimerRef.current)
     setEngineConfirm(false)
-    setEngineLoading(true)
     const turnOff = engineRunning
-    setEngineErr(false)
-    Promise.resolve(onToggleEngine(vehicle.id, turnOff))
-      .catch(() => {
-        setEngineErr(true)
-        setTimeout(() => setEngineErr(false), 4000)
-      })
-      .finally(() => setEngineLoading(false))
+    Promise.resolve(engine.send(turnOff))
+      .finally(() => { setTimeout(() => engine.clearFeedback(), 4000) })
   }
 
   useEffect(() => () => clearTimeout(engineTimerRef.current), [])
@@ -224,8 +218,8 @@ export function VehicleCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
-      onKeyDown={e => { if (e.key === 'Enter' && onClick) onClick() }}
+      onClick={onClick || onOpen}
+      onKeyDown={e => { const open = onClick || onOpen; if (e.key === 'Enter' && open) open() }}
       dir={dir}
       aria-label={`${vehicle.name || vehicle.uniqueId || ''} — ${typeLabel}`}
       className={`group relative w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 bg-white text-start shadow-sm transition hover:shadow-lg hover:shadow-indigo-100 active:scale-[.99] ${className}`}

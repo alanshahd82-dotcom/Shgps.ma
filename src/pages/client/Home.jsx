@@ -94,7 +94,7 @@ export default function Home() {
   // websocket snapshot into it), and alerts live in `alertsList` — the old
   // `positions` / `alerts` names do not exist on the context, which is why the
   // bell badge and the "latest alert" card used to stay permanently empty.
-  const { clientAuth, devices = [], alertsList = [], unreadCount = 0, toggleEngine } = useApp()
+  const { clientAuth, devices = [], alertsList = [], unreadCount = 0 } = useApp()
   const navigate = useNavigate()
   const lang = useLang()
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
@@ -218,7 +218,7 @@ export default function Home() {
                   lang={lang}
                   compact
                   onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
-                  onToggleEngine={toggleEngine}
+                 
                 />
               ))}
             </div>

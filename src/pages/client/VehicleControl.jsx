@@ -10,6 +10,7 @@ import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
 import { t } from '../../i18n/translations'
 import { APP_TZ } from '../../utils/datetime.js'
 import { formatVoltage } from '../../components/ui'
+import { useEngineControl } from '../../hooks/useEngineControl'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 const VEHICLE_TYPES = ['car', 'bike', 'truck']
@@ -162,10 +163,6 @@ export default function VehicleControl() {
   const { lang, refreshDevices } = useApp()
   const { vehicles, loading, error } = useRealVehicles()
   const [command, setCommand] = useState(null)
-  const [sending, setSending] = useState(false)
-  const [cmdErr, setCmdErr] = useState('')
-  const [cmdSuccess, setCmdSuccess] = useState('')
-  const [engineState, setEngineState] = useState(null)
   const [replay, setReplay] = useState(null)
   const [tripLoading, setTripLoading] = useState(false)
   const [tripError, setTripError] = useState('')
@@ -194,9 +191,13 @@ export default function VehicleControl() {
     () => (baseVehicle && infoOverride ? { ...baseVehicle, ...infoOverride } : baseVehicle),
     [baseVehicle, infoOverride]
   )
+  const engine = useEngineControl(vehicle, lang)
+  const sending = engine.sending
+  const cmdErr = engine.error
+  const cmdSuccess = engine.success
   const point = pt(vehicle)
   const capability = cap(vehicle)
-  const engineRunning = engineState !== false
+  const engineRunning = engine.engineRunning
   const lastUp = vehicle?.lastUpdate ?? vehicle?.fixTime
   const online = lastUp && (Date.now() - new Date(lastUp).getTime()) < 15*60*1000
 
@@ -217,11 +218,6 @@ export default function VehicleControl() {
       type: VEHICLE_TYPES.includes(vehicle.type) ? vehicle.type : (vehicle.type === 'motorcycle' ? 'bike' : 'car'),
     })
   }, [vehicle?.id, vehicle?.name, vehicle?.driver, vehicle?.phone, vehicle?.plate, vehicle?.type])
-
-  useEffect(() => {
-    if (typeof vehicle?.ignition === 'boolean') setEngineState(vehicle.ignition)
-    else if (vehicle) setEngineState(null)
-  }, [vehicle?.id, vehicle?.ignition])
 
   const T = lang === 'fr' ? {
     details:'Informations du véhicule', vName:'Nom du véhicule', dName:'Nom du conducteur',
@@ -289,26 +285,8 @@ export default function VehicleControl() {
   async function confirmCommand() {
     if (!vehicle || sending || !command) return
     const turnOff = command.turnOff
-    setSending(true); setCmdErr(''); setCmdSuccess('')
-    try {
-      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume')
-      // Traccar answers with a command id when the tracker is not connected:
-      // the relay order is stored and delivered on the next session.
-      const queued = response?.queueState === 'queued'
-      setCommand(null)
-      setCmdSuccess(queued
-        ? (lang === 'ar'
-            ? 'تم تسجيل الأمر — سيصل إلى الجهاز عند أول اتصال'
-            : "Commande enregistrée — elle sera transmise à la prochaine connexion")
-        : t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
-      // Read the actual state after the command; do not infer it from a
-      // successful request when the tracker has not reported the change yet.
-      try {
-        const refreshed = await api.devices.get(vehicle.id)
-        if (typeof refreshed?.engineOn === 'boolean') setEngineState(refreshed.engineOn)
-      } catch {}
-      try { await refreshDevices?.() } catch {}
-    } catch (e) { setCmdErr(t(lang,'vehicleCommandFailed')) } finally { setSending(false) }
+    setCommand(null)
+    await engine.send(turnOff)
   }
 
   async function openReplay() {
