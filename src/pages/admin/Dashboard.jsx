@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { localizeAlertMessage } from '../../utils/alertMessage'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, Cpu, Wifi, Bell, WifiOff, AlertTriangle } from 'lucide-react'
+import { Users, Cpu, Wifi, Bell } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
@@ -94,18 +94,22 @@ export default function Dashboard() {
   }, [])
 
   const online  = liveStats?.onlineDevices  ?? devices.filter(d => d.status === 'online').length
+  const stale   = liveStats?.staleDevices   ?? 0
   const offline = liveStats?.offlineDevices ?? devices.filter(d => d.status !== 'online').length
   const totalDevices  = liveStats?.totalDevices  ?? devices.length
   const totalClients  = liveStats?.totalClients  ?? clientList.length
-  const todayAlerts   = liveStats?.todayAlerts   ?? alertsList.filter(a => !a.read).length
-  const noSignal      = liveStats?.noSignalDevices ?? 0
+  // Single source of truth for the 24h counter: the backend. The list widget
+  // below only shows the latest few, so it must not advertise its own total.
+  const todayAlerts   = liveStats?.todayAlerts   ?? alertsList.length
   const unread        = alertsList.filter(a => !a.read).length
+  const onlineRate    = totalDevices > 0 ? Math.round((online / totalDevices) * 100) : 0
 
   const deviceStatusData = [
     { name: lang === 'ar' ? 'متصل' : 'En ligne',    value: online,  color: '#1d4ed8' },
+    { name: lang === 'ar' ? 'صامت' : 'Silencieux',  value: stale,   color: '#F59E0B' },
     { name: lang === 'ar' ? 'غير متصل' : 'Hors ligne', value: offline, color: '#94A3B8' },
   ]
-  const deviceStatusTotal = Math.max(1, online + offline)
+  const deviceStatusTotal = Math.max(1, online + stale + offline)
   const deviceStatusGradient = `conic-gradient(${deviceStatusData.map((item, index) => {
     const start = deviceStatusData.slice(0, index).reduce((sum, entry) => sum + entry.value, 0) / deviceStatusTotal * 100
     const end = (start + item.value / deviceStatusTotal * 100).toFixed(2)
@@ -134,13 +138,18 @@ export default function Dashboard() {
         </div>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <StatCard icon={Users}        label={t(lang, 'totalClients')}  value={totalClients} color="blue"   delay={0} />
-          <StatCard icon={Cpu}          label={t(lang, 'totalDevices')}  value={totalDevices} color="purple" delay={1} />
-          <StatCard icon={Wifi}         label={t(lang, 'onlineDevices')} value={online}       color="green"  delay={2} />
-          <StatCard icon={WifiOff}      label={t(lang, 'offlineDevices')}value={offline}      color="slate"  delay={3} onClick={() => navigate('/admin/devices')} />
-          <StatCard icon={Bell}         label={t(lang, 'todayAlerts')}   value={todayAlerts}  color="orange" delay={4} />
-          <StatCard icon={AlertTriangle} label={lang === 'ar' ? 'بدون إشارة > 24س' : 'Sans signal > 24h'} value={noSignal} color="red" delay={5} />
+        {/* 4 cards only: the online/stale/offline split lives in the donut below,
+            repeating it here was pure duplication. */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard icon={Users} label={t(lang, 'totalClients')} value={totalClients} color="blue" delay={0}
+            onClick={() => navigate('/admin/clients')} />
+          <StatCard icon={Cpu} label={t(lang, 'totalDevices')} value={totalDevices} color="purple" delay={1}
+            onClick={() => navigate('/admin/devices')} />
+          <StatCard icon={Wifi} label={t(lang, 'onlineDevices')} value={online} color="green" delay={2}
+            sub={`${onlineRate}%`} onClick={() => navigate('/admin/devices')} />
+          <StatCard icon={Bell} label={lang === 'ar' ? 'تنبيهات 24 ساعة' : 'Alertes 24h'} value={todayAlerts} color="orange" delay={3}
+            sub={unread > 0 ? (lang === 'ar' ? `${unread} غير مقروء` : `${unread} non lues`) : null}
+            onClick={() => navigate('/admin/alerts')} />
         </div>
 
         {/* Charts + map */}
