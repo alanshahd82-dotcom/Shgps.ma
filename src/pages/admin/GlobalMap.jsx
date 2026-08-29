@@ -76,7 +76,7 @@ export default function GlobalMap() {
     <AdminLayout>
       <div className="flex flex-col lg:flex-row h-[calc(100dvh-3.5rem)] lg:h-screen overflow-hidden">
         {/* Sidebar */}
-        <div className="order-2 lg:order-1 lg:w-72 flex-shrink-0 bg-white border-t lg:border-t-0 lg:border-r border-gray-100 overflow-y-auto max-h-[42%] lg:max-h-none">
+        <div className="order-2 lg:order-1 lg:w-72 flex-shrink-0 relative z-30 bg-white border-t lg:border-t-0 lg:border-r border-gray-100 overflow-y-auto max-h-[42%] lg:max-h-none">
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 z-10">
             <h2 className="font-bold text-primary-500">{t(lang, 'globalMap')}</h2>
@@ -167,7 +167,7 @@ export default function GlobalMap() {
         </div>
 
         {/* Map */}
-        <div className="order-1 lg:order-2 relative flex-1 min-h-[52%] lg:min-h-0">
+        <div className="order-1 lg:order-2 relative z-0 isolate flex-1 min-h-[52%] lg:min-h-0">
           {/* Live badge */}
            <div className={`absolute top-4 right-4 z-20 rounded-xl px-3 py-2 flex items-center gap-2 shadow-sm ${wsConnected ? 'bg-emerald-50' : 'bg-amber-50'}`}>
              <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-pulse'}`} />
