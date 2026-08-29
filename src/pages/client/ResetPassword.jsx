@@ -85,7 +85,7 @@ export default function ResetPassword() {
           className="mb-10 flex flex-col items-center"
         >
           <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
-            <img src="/athar-gps-mark.svg" alt="ATHAR GPS" width="52" height="52" draggable={false} />
+            <img src="/athar-gps-mark.png" alt="ATHAR GPS" width="52" height="52" draggable={false} />
           </div>
           <h1 className="text-3xl font-extrabold tracking-widest text-primary-500">ATHAR GPS</h1>
         </motion.div>

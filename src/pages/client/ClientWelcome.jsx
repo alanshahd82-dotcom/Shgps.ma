@@ -95,7 +95,7 @@ export default function ClientWelcome() {
       >
         <div className="relative z-10 flex flex-col items-center">
           <img
-            src="/athar-gps-mark.svg"
+            src="/athar-gps-mark.png"
             alt="ATHAR GPS"
             className="h-[104px] w-[104px] rounded-[28px]"
             style={{
@@ -128,7 +128,7 @@ export default function ClientWelcome() {
             <button type="button" onClick={() => setLang(isAr ? 'fr' : 'ar')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold shadow-sm">
               {copy.language}
             </button>
-            <img src="/athar-gps-mark.svg" alt="" className="h-10 w-10 rounded-xl" />
+            <img src="/athar-gps-mark.png" alt="" className="h-10 w-10 rounded-xl" />
           </div>
 
           <section className="overflow-hidden rounded-3xl border border-primary-100 bg-white shadow-xl shadow-primary-500/10">

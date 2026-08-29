@@ -10,7 +10,7 @@ export default function Logo({ size = 'md', white = false }) {
   return (
     <div className="flex items-center gap-2 select-none" dir="ltr">
       <img
-        src="/athar-gps-mark.svg"
+        src="/athar-gps-mark.png"
         alt="ATHAR GPS"
         width={s.img}
         height={s.img}
