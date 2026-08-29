@@ -291,9 +291,16 @@ export default function VehicleControl() {
     const turnOff = command.turnOff
     setSending(true); setCmdErr(''); setCmdSuccess('')
     try {
-      await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume')
+      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume')
+      // Traccar answers with a command id when the tracker is not connected:
+      // the relay order is stored and delivered on the next session.
+      const queued = response?.queueState === 'queued'
       setCommand(null)
-      setCmdSuccess(t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
+      setCmdSuccess(queued
+        ? (lang === 'ar'
+            ? 'تم تسجيل الأمر — سيصل إلى الجهاز عند أول اتصال'
+            : "Commande enregistrée — elle sera transmise à la prochaine connexion")
+        : t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
       // Read the actual state after the command; do not infer it from a
       // successful request when the tracker has not reported the change yet.
       try {

@@ -28,14 +28,14 @@ const L = {
     speed: 'السرعة', status: 'الحالة', kmh: 'كم/س', lastUpdate: 'آخر تحديث', na: '—',
     overspeed: 'تجاوز السرعة', battery: 'البطارية', signal: 'الإشارة',
     cutEngine: 'قطع', restoreEngine: 'تشغيل', confirm: 'تأكيد؟',
-    address: 'العنوان', km: 'كم', loading: '...',
+    address: 'العنوان', km: 'كم', loading: '...', failed: 'فشل',
   },
   fr: {
     online: 'En ligne', offline: 'Hors ligne', moving: 'En marche', stopped: 'Arrêté',
     speed: 'Vitesse', status: 'Statut', kmh: 'km/h', lastUpdate: 'Dernière maj', na: '—',
     overspeed: 'Excès de vitesse', battery: 'Batterie', signal: 'Signal',
     cutEngine: 'Couper', restoreEngine: 'Démarrer', confirm: 'Confirmer?',
-    address: 'Adresse', km: 'km', loading: '...',
+    address: 'Adresse', km: 'km', loading: '...', failed: 'Échec',
   },
 }
 
@@ -182,9 +182,13 @@ export function VehicleCard({
 
   // Engine control state (two-click confirm)
   const engineOn = vehicle.engineOn
-  const canControlEngine = online && onToggleEngine && engineOn != null
+  // Many GT06 trackers never report `ignition`; a null engine state must
+  // not hide the relay control. Unknown state is treated as running.
+  const engineRunning = engineOn !== false
+  const canControlEngine = online && !!onToggleEngine
   const [engineConfirm, setEngineConfirm] = useState(false)
   const [engineLoading, setEngineLoading] = useState(false)
+  const [engineErr, setEngineErr] = useState(false)
   const engineTimerRef = useRef(null)
 
   function handleEngineClick(e) {
@@ -198,9 +202,13 @@ export function VehicleCard({
     clearTimeout(engineTimerRef.current)
     setEngineConfirm(false)
     setEngineLoading(true)
-    const turnOff = engineOn !== false
+    const turnOff = engineRunning
+    setEngineErr(false)
     Promise.resolve(onToggleEngine(vehicle.id, turnOff))
-      .catch(() => {})
+      .catch(() => {
+        setEngineErr(true)
+        setTimeout(() => setEngineErr(false), 4000)
+      })
       .finally(() => setEngineLoading(false))
   }
 
@@ -383,14 +391,14 @@ export function VehicleCard({
             className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors disabled:opacity-60 ${
               engineConfirm
                 ? 'animate-pulse bg-red-500 text-white'
-                : engineOn
+                : engineRunning
                   ? 'bg-red-50 text-red-600 hover:bg-red-100'
                   : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
             }`}
-            aria-label={engineOn ? l.cutEngine : l.restoreEngine}
+            aria-label={engineRunning ? l.cutEngine : l.restoreEngine}
           >
             <Power size={12} />
-            {engineLoading ? l.loading : engineConfirm ? l.confirm : engineOn ? l.cutEngine : l.restoreEngine}
+            {engineLoading ? l.loading : engineErr ? l.failed : engineConfirm ? l.confirm : engineRunning ? l.cutEngine : l.restoreEngine}
           </button>
         )}
       </div>

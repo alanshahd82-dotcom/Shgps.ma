@@ -38,28 +38,38 @@ export function VehicleIcon({ type = 'car', iconSize = 18, className = '' }) {
   )
 }
 
-// Voltage health is relative to the vehicle electrical system: 12V (cars,
-// bikes) or 24V (trucks, buses). Thresholds scale, never hardcoded to 12V.
+// Voltage health is relative to the electrical system behind the reading:
+// ~4V = tracker internal backup battery, 12V = car/bike, 24V = truck/bus.
 export function getVoltageSystem(voltage) {
-  return Number(voltage) >= 17 ? 24 : 12
+  const v = Number(voltage)
+  if (!Number.isFinite(v) || v <= 0) return 12
+  if (v < 9) return 4
+  return v >= 17 ? 24 : 12
+}
+
+// empty/full drive the gauge fill, warn/low drive the colour.
+const VOLTAGE_RANGE = {
+  4:  { empty: 3.30, full: 4.20,  low: 3.50,  warn: 3.70  },
+  12: { empty: 10.50, full: 12.80, low: 11.00, warn: 11.80 },
+  24: { empty: 21.00, full: 25.60, low: 22.00, warn: 23.60 },
 }
 
 export function getVoltageColor(value) {
   const voltage = Number(value)
   if (!Number.isFinite(voltage) || voltage <= 0) return '#94A3B8'
-  const scale = getVoltageSystem(voltage) === 24 ? 2 : 1
-  if (voltage >= 12.4 * scale) return '#1e40af'
-  if (voltage >= 11.8 * scale) return '#FF9500'
+  const range = VOLTAGE_RANGE[getVoltageSystem(voltage)]
+  if (voltage >= range.warn) return '#1e40af'
+  if (voltage >= range.low) return '#FF9500'
   return '#FF3B30'
 }
 
-// Percentage of a healthy resting battery, scaled to the detected system.
-// 11.8V (23.6V) => 0%, 12.7V (25.4V) => 100%.
+// Percentage of a healthy resting battery on the detected system, so an 11V
+// car battery reads as a low-but-real charge instead of a flat 0%.
 export function getBatteryPercent(value) {
   const voltage = Number(value)
   if (!Number.isFinite(voltage) || voltage <= 0) return null
-  const scale = getVoltageSystem(voltage) === 24 ? 2 : 1
-  const pct = ((voltage / scale) - 11.8) / (12.7 - 11.8) * 100
+  const range = VOLTAGE_RANGE[getVoltageSystem(voltage)]
+  const pct = ((voltage - range.empty) / (range.full - range.empty)) * 100
   return Math.max(0, Math.min(100, Math.round(pct)))
 }
 
