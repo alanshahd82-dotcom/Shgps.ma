@@ -562,7 +562,7 @@ export default function Clients() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-gray-100">
                 <tr>
-                  {[t(lang, 'name'), t(lang, 'email'), t(lang, 'phone'), t(lang, 'subscription'), t(lang, 'devices'), t(lang, 'expiryDate'), t(lang, 'status'), t(lang, 'actions')].map((h, i) => (
+                  {[t(lang, 'name'), t(lang, 'email'), t(lang, 'phone'), t(lang, 'subscription'), (lang === 'ar' ? 'الأجهزة' : 'Appareils'), t(lang, 'expiryDate'), t(lang, 'status'), t(lang, 'actions')].map((h, i) => (
                     <th key={i} className="px-4 py-3 text-start text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>

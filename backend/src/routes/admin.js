@@ -8,35 +8,55 @@ export const adminRouter = Router()
 // GET /api/admin/stats — live dashboard stats
 adminRouter.get('/stats', requireAuth, requireAdmin, async (_req, res) => {
   try {
-    const [usersRes, devicesRes, alertsTodayRes, noSignalRes] = await Promise.all([
+    const [usersRes, devicesRes, alertsTodayRes] = await Promise.all([
       db.query(`SELECT COUNT(*)::int AS total_clients FROM users WHERE is_admin=false`),
-      db.query(`SELECT COUNT(*)::int AS total FROM devices`),
+      db.query(`SELECT id, traccar_id FROM devices`),
       db.query(`SELECT COUNT(*)::int AS today FROM alerts WHERE created_at >= NOW() - INTERVAL '24 hours'`),
-      db.query(`SELECT COUNT(*)::int AS no_signal
-                FROM devices
-                WHERE traccar_id IS NOT NULL
-                  AND (updated_at < NOW() - INTERVAL '24 hours' OR updated_at IS NULL)`),
     ])
 
-    // Get live device statuses from Traccar (best-effort)
-    let onlineCount  = 0
+    const localDevices = devicesRes.rows
+    const totalDevices = localDevices.length
+
+    // Freshness rule shared with the client app: a device counts as "en ligne"
+    // only when Traccar holds it online AND it actually sent data recently.
+    // A socket that stays open while the tracker has been mute for hours used
+    // to be counted as online, which contradicted the "last update" column.
+    const FRESH_MS   = 15 * 60 * 1000
+    const NO_SIG_MS  = 24 * 60 * 60 * 1000
+    const now = Date.now()
+
+    let onlineCount = 0
+    let staleCount = 0
     let offlineCount = 0
+    let noSignalCount = 0
+
     try {
       const traccarDevices = await traccar.getAllDevices()
-      onlineCount  = traccarDevices.filter(d => d.status === 'online').length
-      offlineCount = traccarDevices.filter(d => d.status !== 'online').length
+      const byId = new Map(traccarDevices.map(d => [String(d.id), d]))
+      for (const local of localDevices) {
+        const remote = local.traccar_id != null ? byId.get(String(local.traccar_id)) : null
+        const lastUpdate = remote?.lastUpdate ? new Date(remote.lastUpdate).getTime() : null
+        const age = Number.isFinite(lastUpdate) ? now - lastUpdate : null
+        if (age === null || age > NO_SIG_MS) noSignalCount++
+
+        if (!remote || remote.status !== 'online') offlineCount++
+        else if (age !== null && age <= FRESH_MS) onlineCount++
+        else staleCount++
+      }
     } catch {
-      // fallback to DB count
-      offlineCount = devicesRes.rows[0].total
+      // Traccar unreachable: every device is unknown, never fake "online".
+      offlineCount = totalDevices
+      noSignalCount = totalDevices
     }
 
     res.json({
       totalClients: usersRes.rows[0].total_clients,
-      totalDevices: devicesRes.rows[0].total,
+      totalDevices,
       onlineDevices: onlineCount,
+      staleDevices: staleCount,
       offlineDevices: offlineCount,
       todayAlerts: alertsTodayRes.rows[0].today,
-      noSignalDevices: noSignalRes.rows[0].no_signal,
+      noSignalDevices: noSignalCount,
     })
   } catch (err) {
     console.error('[admin/stats]', err)

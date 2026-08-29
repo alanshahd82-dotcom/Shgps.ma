@@ -45,6 +45,16 @@ test('TEST 1 — charge:false is an external power loss', () => {
   assert.deepEqual(detectExternalPowerLoss(pos({ charge: false })), { source: 'charge:false' })
 })
 
+test('charge:false with a healthy vehicle voltage is NOT a power loss', () => {
+  // Parked GT06 vehicles report charge:false (alternator idle) on every packet
+  // while still delivering 12.7 V from the vehicle battery. That must not be
+  // treated as a battery disconnect, otherwise alerts flap endlessly.
+  assert.equal(detectExternalPowerLoss(pos({ charge: false, power: 12.7 })), null)
+  assert.equal(detectExternalPowerLoss(pos({ charge: false, voltage: 24.2 })), null)
+  // A cut supply reads far below the vehicle-battery range → still an alert.
+  assert.deepEqual(detectExternalPowerLoss(pos({ charge: false, power: 4.7 })), { source: 'charge:false' })
+})
+
 test('TEST 2 — charge:true is an affirmative restore signal', () => {
   assert.deepEqual(detectExternalPowerRestored(pos({ charge: true })), { source: 'charge:true' })
 })

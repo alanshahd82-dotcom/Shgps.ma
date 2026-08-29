@@ -56,9 +56,11 @@ function CopyBtn({ text }) {
 }
 
 // ── Stepper ────────────────────────────────────────────────────────────────
-const STEPS = ['النوع', 'البيانات', 'بطاقة SIM', 'العميل', 'الاتصال', 'تأكيد']
+const STEPS_AR = ['النوع', 'البيانات', 'بطاقة SIM', 'العميل', 'الاتصال', 'تأكيد']
+const STEPS_FR = ['Type', 'Données', 'Carte SIM', 'Client', 'Connexion', 'Confirmation']
 
-function Stepper({ step }) {
+function Stepper({ step, isAr }) {
+  const STEPS = isAr ? STEPS_AR : STEPS_FR
   return (
     <div className="flex items-center justify-between px-2 mb-8">
       {STEPS.map((label, i) => (
@@ -215,7 +217,7 @@ export default function DeviceSetup() {
           </div>
         </div>
 
-        <Stepper step={step} />
+        <Stepper step={step} isAr={isAr} />
 
         <AnimatePresence mode="wait">
           <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}

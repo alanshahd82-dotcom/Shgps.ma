@@ -131,11 +131,16 @@ export function detectExternalPowerLoss(position) {
 
   // GT06 (the protocol used by this fleet) never sends externalPower/powerCut.
   // It reports the external supply through `charge`. An explicit charge:false
-  // is real electrical feedback, so it is treated like the other loss keys.
-  // Note: it must be present AND explicitly false — a missing/undefined
-  // `charge` field stays meaningless (sleeping devices omit it).
+  // is electrical feedback, BUT on GT06 charge:false only means "the alternator
+  // is not charging right now" (engine off). Parked vehicles emit it on every
+  // packet, which produced a disconnect/restore alert storm on perfectly
+  // healthy vehicles. So it counts as a loss signal only when the SAME packet
+  // reports no vehicle-battery voltage: a packet carrying 12.7 V proves the
+  // vehicle battery is still wired to the tracker.
   if (attributes.charge !== undefined && attributes.charge !== null
     && isFalseLike(attributes.charge)) {
+    const chargeVoltage = extractReportedVoltage(position)
+    if (chargeVoltage !== null && isBatteryVoltage(chargeVoltage)) return null
     return { source: 'charge:false' }
   }
 
