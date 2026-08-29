@@ -107,19 +107,19 @@ function FlyToUser({ target }) {
   return null
 }
 
-function FlyTo({ lat, lng, zoom = 15 }) {
-  const map  = useMap()
-  const prev = useRef(null)
+function FlyTo({ lat, lng, zoom = 15, triggerKey }) {
+  const map = useMap()
+
   useEffect(() => {
     const point = toValidLatLng([lat, lng])
-    if (!point || !isMapReadyAndSized(map)) return
-    const key = point.join(',')
-    if (prev.current === key) return
-    prev.current = key
+    if (!point || triggerKey == null || !isMapReadyAndSized(map)) return
+
     safelyUseMap(map, currentMap => {
-      currentMap.flyTo(point, zoom, { duration: 1.2 })
+      const currentZoom = currentMap.getZoom?.() ?? zoom
+      currentMap.flyTo(point, Math.max(currentZoom, zoom), { duration: 0.8 })
     })
-  }, [lat, lng, map, zoom])
+  }, [triggerKey, map])
+
   return null
 }
 
@@ -671,6 +671,7 @@ export default function LiveMap() {
                isSelected={selectedDevice?.id === d.id}
                now={clock}
                autoFollow={autoFollow && selectedDevice?.id === d.id}
+               onToggleFollow={setAutoFollow}
                onClick={() => navigate('/client/vehicle/' + d.id)}
             >
               <Popup>
@@ -728,6 +729,7 @@ export default function LiveMap() {
             {selectedDevice && <FlyTo
               lat={toValidLatLng(selectedDevice)?.[0]}
               lng={toValidLatLng(selectedDevice)?.[1]}
+              triggerKey={selectedDevice.id}
             />}
           <FlyToUser target={locateTarget} />
            <MapZoomControls
