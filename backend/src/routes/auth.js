@@ -44,6 +44,59 @@ function recordAttempt(ip) {
   }
 }
 function clearAttempts(ip) { loginAttempts.delete(ip) }
+const ATHARG_REFRESH_COOKIE = 'athargps_refresh'
+const REFRESH_SESSION_DAYS = 365
+const REFRESH_SESSION_MS = REFRESH_SESSION_DAYS * 24 * 60 * 60 * 1000
+
+function hashRefreshToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+function readRefreshCookie(req) {
+  const raw = req.headers.cookie || ''
+  for (const part of raw.split(';')) {
+    const [key, ...rest] = part.trim().split('=')
+    if (key === ATHARG_REFRESH_COOKIE) {
+      return decodeURIComponent(rest.join('='))
+    }
+  }
+  return null
+}
+
+function setRefreshCookie(res, token) {
+  const cookie = [
+    `${ATHARG_REFRESH_COOKIE}=${encodeURIComponent(token)}`,
+    'HttpOnly',
+    'Secure',
+    'SameSite=Lax',
+    'Path=/api/auth',
+    `Max-Age=${REFRESH_SESSION_DAYS * 24 * 60 * 60}`,
+  ].join('; ')
+  res.setHeader('Set-Cookie', cookie)
+}
+
+function clearRefreshCookie(res) {
+  res.setHeader(
+    'Set-Cookie',
+    `${ATHARG_REFRESH_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/api/auth; Max-Age=0`
+  )
+}
+
+async function createRefreshSession(userId, res) {
+  const refreshToken = crypto.randomBytes(48).toString('base64url')
+  const tokenHash = hashRefreshToken(refreshToken)
+  const expiresAt = new Date(Date.now() + REFRESH_SESSION_MS)
+
+  await db.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userId, tokenHash, expiresAt],
+  )
+
+  setRefreshCookie(res, refreshToken)
+}
+
+
 
 // ── POST /api/auth/login ───────────────────────────────────────────────────
 authRouter.post('/login', validateBody(schemas.login), async (req, res) => {
@@ -72,6 +125,7 @@ authRouter.post('/login', validateBody(schemas.login), async (req, res) => {
     }
 
     clearAttempts(ip)
+    await createRefreshSession(user.id, res)
     const token = jwt.sign(
       { userId: user.id, isAdmin: user.is_admin },
       config.jwtSecret,
@@ -91,6 +145,99 @@ authRouter.post('/login', validateBody(schemas.login), async (req, res) => {
       },
     })
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
+})
+
+
+// ── POST /api/auth/refresh ────────────────────────────────────────────────
+// Uses the persistent HttpOnly refresh cookie to issue a new access JWT.
+// Refresh-token rotation makes the session survive access-token expiry and
+// backend restarts without putting the refresh token into localStorage.
+authRouter.post('/refresh', async (req, res) => {
+  const rawRefreshToken = readRefreshCookie(req)
+
+  if (!rawRefreshToken) {
+    clearRefreshCookie(res)
+    return res.status(401).json({ error: 'Refresh session missing' })
+  }
+
+  const tokenHash = hashRefreshToken(rawRefreshToken)
+
+  try {
+    await db.query('BEGIN')
+
+    const { rows } = await db.query(
+      `SELECT
+         rt.id,
+         rt.user_id,
+         rt.expires_at,
+         u.is_active
+       FROM refresh_tokens rt
+       JOIN users u ON u.id = rt.user_id
+       WHERE rt.token_hash = $1
+         AND rt.revoked_at IS NULL
+         AND rt.expires_at > NOW()
+       FOR UPDATE`,
+      [tokenHash],
+    )
+
+    if (!rows.length || !rows[0].is_active) {
+      await db.query('ROLLBACK')
+      clearRefreshCookie(res)
+      return res.status(401).json({ error: 'Invalid or expired refresh session' })
+    }
+
+    const session = rows[0]
+    const newRefreshToken = crypto.randomBytes(48).toString('base64url')
+    const newTokenHash = hashRefreshToken(newRefreshToken)
+    const newExpiresAt = new Date(Date.now() + REFRESH_SESSION_MS)
+
+    const inserted = await db.query(
+      `INSERT INTO refresh_tokens
+         (user_id, token_hash, expires_at)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [session.user_id, newTokenHash, newExpiresAt],
+    )
+
+    await db.query(
+      `UPDATE refresh_tokens
+       SET revoked_at = NOW(),
+           replaced_by = $2,
+           last_used_at = NOW()
+       WHERE id = $1`,
+      [session.id, inserted.rows[0].id],
+    )
+
+    await db.query('COMMIT')
+
+    const accessToken = jwt.sign(
+      { userId: session.user_id, isAdmin: false },
+      config.jwtSecret,
+      { expiresIn: config.jwtExpiry },
+    )
+
+    const { rows: users } = await db.query(
+      'SELECT is_admin FROM users WHERE id=$1',
+      [session.user_id],
+    )
+
+    const correctedToken = jwt.sign(
+      {
+        userId: session.user_id,
+        isAdmin: !!users[0]?.is_admin,
+      },
+      config.jwtSecret,
+      { expiresIn: config.jwtExpiry },
+    )
+
+    setRefreshCookie(res, newRefreshToken)
+    res.json({ token: correctedToken })
+  } catch (err) {
+    try { await db.query('ROLLBACK') } catch {}
+    console.error('[auth/refresh]', err.message)
+    clearRefreshCookie(res)
+    res.status(401).json({ error: 'Refresh session failed' })
+  }
 })
 
 // ── POST /api/auth/change-password ────────────────────────────────────────
@@ -302,11 +449,30 @@ authRouter.post('/reset-password', async (req, res) => {
   }
 })
 
-authRouter.post('/logout', requireAuth, (req, res) => {
-  const token   = req.headers.authorization?.split(' ')[1]
-  const decoded = jwt.decode(token)
-  if (token && decoded?.exp) {
-    revokeToken(token, decoded.exp) // يُضاف للقائمة السوداء حتى انتهاء صلاحيته الطبيعي
+authRouter.post('/logout', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1]
+  const decoded = token ? jwt.decode(token) : null
+
+  try {
+    if (token && decoded?.exp) {
+      revokeToken(token, decoded.exp)
+    }
+
+    const refreshToken = readRefreshCookie(req)
+
+    if (refreshToken) {
+      await db.query(
+        `UPDATE refresh_tokens
+         SET revoked_at = COALESCE(revoked_at, NOW()),
+             last_used_at = NOW()
+         WHERE token_hash = $1`,
+        [hashRefreshToken(refreshToken)],
+      )
+    }
+  } catch (err) {
+    console.warn('[auth/logout]', err.message)
   }
+
+  clearRefreshCookie(res)
   res.json({ success: true })
 })

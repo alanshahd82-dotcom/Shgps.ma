@@ -323,6 +323,28 @@ async function runMigrations() {
         updated_at        TIMESTAMP DEFAULT NOW()
       )
     `)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ NULL,
+        replaced_by BIGINT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_used_at TIMESTAMPTZ NULL
+      )
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user
+      ON refresh_tokens(user_id)
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_active
+      ON refresh_tokens(token_hash)
+      WHERE revoked_at IS NULL
+    `)
+
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)

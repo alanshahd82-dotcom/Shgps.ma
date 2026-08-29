@@ -4,16 +4,46 @@ export const BOOT_TIMEOUT_MS = 8000
 
 function getToken() { return localStorage.getItem('athargps_token') }
 
-async function apiFetch(path, options = {}, timeoutMs = 0, onProgress) {
+let refreshPromise = null
+
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+    })
+      .then(async res => {
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data.token) {
+          const error = new Error(data.error || `HTTP ${res.status}`)
+          error.status = res.status
+          throw error
+        }
+        localStorage.setItem('athargps_token', data.token)
+        return data.token
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+
+  return refreshPromise
+}
+
+async function apiFetch(path, options = {}, timeoutMs = 0, onProgress, allowRefresh = true) {
   const token = getToken()
   const controller = timeoutMs > 0 && typeof AbortController !== 'undefined'
     ? new AbortController()
     : null
-  const timeoutId = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null
+  const timeoutId = controller
+    ? window.setTimeout(() => controller.abort(), timeoutMs)
+    : null
 
   try {
     const res = await fetch(`${API_URL}${path}`, {
       ...options,
+      credentials: options.credentials || 'same-origin',
       ...(controller && !options.signal ? { signal: controller.signal } : {}),
       headers: {
         'Content-Type': 'application/json',
@@ -21,18 +51,44 @@ async function apiFetch(path, options = {}, timeoutMs = 0, onProgress) {
         ...options.headers,
       },
     })
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       const error = new Error(data.error || `HTTP ${res.status}`)
       error.code = data.code
       error.status = res.status
+
+      const isAuthRoute =
+        path === '/auth/login' ||
+        path === '/auth/refresh' ||
+        path === '/auth/logout'
+
+      if (
+        res.status === 401 &&
+        allowRefresh &&
+        !isAuthRoute &&
+        getToken()
+      ) {
+        try {
+          const newToken = await refreshAccessToken()
+          if (newToken) {
+            return apiFetch(path, options, timeoutMs, onProgress, false)
+          }
+        } catch {
+          // Preserve the original 401. AppContext already distinguishes
+          // real authentication failure from network/bootstrap failures.
+        }
+      }
+
       throw error
     }
+
     if (typeof onProgress === 'function' && res.body && typeof res.body.getReader === 'function') {
       const total = Number(res.headers.get('Content-Length'))
       const reader = res.body.getReader()
       const chunks = []
       let received = 0
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -42,17 +98,23 @@ async function apiFetch(path, options = {}, timeoutMs = 0, onProgress) {
           stage: 'download',
           loadedBytes: received,
           totalBytes: Number.isFinite(total) && total > 0 ? total : null,
-          percent: Number.isFinite(total) && total > 0 ? Math.round((received / total) * 100) : null,
+          percent: Number.isFinite(total) && total > 0
+            ? Math.round((received / total) * 100)
+            : null,
         })
       }
+
       const bytes = new Uint8Array(received)
       let offset = 0
+
       for (const chunk of chunks) {
         bytes.set(chunk, offset)
         offset += chunk.byteLength
       }
+
       return JSON.parse(new TextDecoder().decode(bytes))
     }
+
     return res.json()
   } catch (error) {
     if (controller?.signal.aborted && !options.signal?.aborted) {
