@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { localizeAlertMessage } from '../../utils/alertMessage'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Users, Cpu, Wifi, Bell, WifiOff, AlertTriangle } from 'lucide-react'
@@ -254,7 +255,7 @@ export default function Dashboard() {
                   }`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-primary-500 truncate">{alert.deviceName}</p>
-                    <p className="text-[10px] text-slate-400 leading-relaxed truncate">{alert.message}</p>
+                    <p className="text-[10px] text-slate-400 leading-relaxed truncate">{localizeAlertMessage(alert.message, lang)}</p>
                   </div>
                   {!alert.read && (
                     <span className="w-1.5 h-1.5 bg-red-500 rounded-full mt-1.5 flex-shrink-0" />

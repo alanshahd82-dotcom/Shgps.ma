@@ -22,8 +22,8 @@ function LocateControl() {
   return locate
 }
 
-function MapActions({ onLocate }) {
-  return <Fab icon={<LocateFixed className="h-6 w-6" aria-hidden="true" />} onClick={onLocate} label="تحديد موقعي" variant="white" />
+function MapActions({ onLocate, isAr = true }) {
+  return <Fab icon={<LocateFixed className="h-6 w-6" aria-hidden="true" />} onClick={onLocate} label={isAr ? 'تحديد موقعي' : 'Ma position'} variant="white" />
 }
 
 function EventFocus({ latitude, longitude }) {
@@ -51,12 +51,12 @@ function FitVehicles({ vehicles, vehicleSetKey }) {
   return null
 }
 
-function AlertEventMarker({ latitude, longitude }) {
+function AlertEventMarker({ latitude, longitude, isAr = true }) {
   if (latitude == null || longitude == null) return null
   return (
     <CircleMarker center={[latitude, longitude]} radius={10} pathOptions={{ color: '#dc2626', fillColor: '#ef4444', fillOpacity: 0.75, weight: 3 }}>
       <Popup>
-        <span className="text-xs font-semibold">موقع التنبيه</span>
+        <span className="text-xs font-semibold">{isAr ? 'موقع التنبيه' : "Lieu de l'alerte"}</span>
       </Popup>
     </CircleMarker>
   )
@@ -68,9 +68,11 @@ export function MapScreen({
   alertCount = 0,
   onTabChange,
   showTopBar = true,
-  title = 'الخريطة',
+  title,
 }) {
-  const { unreadCount } = useApp()
+  const { unreadCount, lang } = useApp()
+  const isAr = lang !== 'fr'
+  const screenTitle = title ?? (isAr ? 'الخريطة' : 'Carte')
   const { vehicles: allVehicles, loading, error } = useRealVehicles()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -117,7 +119,7 @@ export function MapScreen({
       onTabChange={onTabChange}
       alertCount={finalAlertCount}
       showTopBar={showTopBar}
-      title={title}
+      title={screenTitle}
       topBarTransparent
       onBack={searchParams.get('alert') ? () => navigate(-1) : undefined}
       sheet={selectedVehicle ? <VehicleBottomSheet vehicle={selectedVehicle} stage={stage} onStageChange={setStage} onClose={handleClose} /> : null}
@@ -128,34 +130,34 @@ export function MapScreen({
           <MapTileLayer />
           <FitVehicles vehicles={vehicles} vehicleSetKey={vehicleSetKey} />
           <EventFocus latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
-          <AlertEventMarker latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
+          <AlertEventMarker isAr={isAr} latitude={hasEventLocation ? eventLatitude : null} longitude={hasEventLocation ? eventLongitude : null} />
           {vehicles.map(vehicle => (
             <VehicleMarker key={vehicle.id} vehicle={{ ...vehicle, selected: vehicle.id === selectedId }} onClick={() => handleSelect(vehicle.id)} />
           ))}
-          <LocateButton />
+          <LocateButton isAr={isAr} />
         </MapContainer>
           {loading && (
-            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir="rtl">
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir={isAr ? 'rtl' : 'ltr'}>
               <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-accent" aria-hidden="true" />
-              <p className="mt-3 text-sm font-semibold text-primary">جاري تحميل المركبات</p>
+              <p className="mt-3 text-sm font-semibold text-primary">{isAr ? 'جاري تحميل المركبات' : 'Chargement des véhicules'}</p>
             </div>
           )}
           {!loading && error && (
-            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-red-200 bg-red-50/95 p-5 text-center shadow-lg" role="alert" dir="rtl">
-              <p className="text-sm font-semibold text-red-700">تعذّر تحميل المركبات</p>
-              <p className="mt-1 text-xs text-red-600">تحقق من الاتصال وحاول مرة أخرى.</p>
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-red-200 bg-red-50/95 p-5 text-center shadow-lg" role="alert" dir={isAr ? 'rtl' : 'ltr'}>
+              <p className="text-sm font-semibold text-red-700">{isAr ? 'تعذّر تحميل المركبات' : 'Impossible de charger les véhicules'}</p>
+              <p className="mt-1 text-xs text-red-600">{isAr ? 'تحقق من الاتصال وحاول مرة أخرى.' : 'Vérifiez la connexion et réessayez.'}</p>
             </div>
           )}
           {!loading && !error && allVehicles.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir="rtl">
-              <p className="text-sm font-semibold text-primary">لا توجد مركبات مرتبطة</p>
-              <p className="mt-1 text-xs text-slate-500">ستظهر المركبات هنا عند توفر أجهزة تتبع مرتبطة بحسابك.</p>
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir={isAr ? 'rtl' : 'ltr'}>
+              <p className="text-sm font-semibold text-primary">{isAr ? 'لا توجد مركبات مرتبطة' : 'Aucun véhicule associé'}</p>
+              <p className="mt-1 text-xs text-slate-500">{isAr ? 'ستظهر المركبات هنا عند توفر أجهزة تتبع مرتبطة بحسابك.' : 'Les véhicules apparaîtront ici dès qu’un traceur sera lié à votre compte.'}</p>
             </div>
           )}
           {!loading && !error && allVehicles.length > 0 && vehicles.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir="rtl">
-              <p className="text-sm font-semibold text-primary">الموقع غير متاح</p>
-              <p className="mt-1 text-xs text-slate-500">لا تتوفر إحداثيات صالحة للمركبات حالياً.</p>
+            <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir={isAr ? 'rtl' : 'ltr'}>
+              <p className="text-sm font-semibold text-primary">{isAr ? 'الموقع غير متاح' : 'Position indisponible'}</p>
+              <p className="mt-1 text-xs text-slate-500">{isAr ? 'لا تتوفر إحداثيات صالحة للمركبات حالياً.' : 'Aucune coordonnée valide pour le moment.'}</p>
             </div>
           )}
       </div>
@@ -163,9 +165,9 @@ export function MapScreen({
   )
 }
 
-function LocateButton() {
+function LocateButton({ isAr = true }) {
   const locate = LocateControl()
-  return <MapActions onLocate={locate} />
+  return <MapActions onLocate={locate} isAr={isAr} />
 }
 
 export default MapScreen

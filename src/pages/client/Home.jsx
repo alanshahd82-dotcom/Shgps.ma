@@ -19,7 +19,7 @@ const t = (key, lang) => ({
     greeting: 'مرحباً', subtitle: 'إليك حالة مركباتك اليوم',
     heroTitle: 'أسطولك تحت السيطرة', heroSub: 'تابع مركباتك لحظة بلحظة بكل أمان وراحة بال',
     heroCta: 'عرض المركبات', fleet: 'حالة الأسطول',
-    connected: 'متصلة', stopped: 'متوقفة', offline: 'غير متصلة', attention: 'تحتاج انتباه',
+    connected: 'في حركة', stopped: 'متوقفة', offline: 'غير متصلة', attention: 'تحتاج انتباه',
     myVehicles: 'مركباتي', viewAll: 'عرض الكل', latestAlert: 'آخر تنبيه',
     noAlerts: 'لا توجد تنبيهات', noVehicles: 'لا توجد مركبات',
     quick: 'الوصول السريع', vehicles: 'المركبات', alerts: 'التنبيهات', trips: 'الرحلات',
@@ -30,7 +30,7 @@ const t = (key, lang) => ({
     greeting: 'Bonjour', subtitle: 'Voici l\'état de votre flotte',
     heroTitle: 'Votre flotte sous contrôle', heroSub: 'Suivez vos véhicules en temps réel',
     heroCta: 'Voir les véhicules', fleet: 'État de la flotte',
-    connected: 'Connectés', stopped: 'Arrêtés', offline: 'Hors ligne', attention: 'Attention',
+    connected: 'En mouvement', stopped: 'Arrêtés', offline: 'Hors ligne', attention: 'Attention',
     myVehicles: 'Mes véhicules', viewAll: 'Voir tout', latestAlert: 'Dernière alerte',
     noAlerts: 'Aucune alerte', noVehicles: 'Aucun véhicule',
     quick: 'Accès rapide', vehicles: 'Véhicules', alerts: 'Alertes', trips: 'Trajets',
@@ -58,7 +58,7 @@ function statusInfo(vehicle) {
   if (attention) return { color: 'orange', label: 'attention', dot: 'bg-orange-500' }
   const key = getDeviceStatusKey(vehicle)
   if (key === 'moving' || key === 'online') return { color: 'green', label: 'connected', dot: 'bg-green-500' }
-  if (key === 'idle' || key === 'stopped') return { color: 'slate', label: 'stopped', dot: 'bg-slate-400' }
+  if (key === 'idle' || key === 'stopped' || key === 'awaiting_gps') return { color: 'slate', label: 'stopped', dot: 'bg-slate-400' }
   return { color: 'offline', label: 'offline', dot: 'bg-slate-300' }
 }
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { localizeAlertMessage } from '../../utils/alertMessage'
 import { motion } from 'framer-motion'
 import { Bell, Zap, MapPin, Battery, AlertTriangle, CheckCheck, Filter } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
@@ -173,7 +174,7 @@ export default function AdminAlerts() {
 
                         </div>
                       </div>
-                      <p className="text-sm text-slate-600 leading-relaxed mb-2">{alert.message}</p>
+                      <p className="text-sm text-slate-600 leading-relaxed mb-2">{localizeAlertMessage(alert.message, lang)}</p>
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-slate-400">{timeAgo(alert.time, lang)}</p>
                         {alert.read && (

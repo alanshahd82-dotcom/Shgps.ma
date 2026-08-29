@@ -271,7 +271,7 @@ const ReplayStaticLayers = React.memo(function ReplayStaticLayers({ route, route
 
 function vehicleIcon(type, initialBearing = 0, scale = 1) {
   const marker = markerFor(type)
-  const width = Math.round(112 * scale)
+  const width = Math.round(64 * scale)
   const height = Math.round(width * 2 / 3)
   return L.divIcon({
     className: 'athar-replay-car',

@@ -1,4 +1,5 @@
 import { api } from '../../api/index.js'
+import { localizeAlertMessage } from '../../utils/alertMessage'
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -123,7 +124,7 @@ function alertDeviceId(alert) {
 function AlertRow({ alert, vehicle, onOpen, onOpenVehicle, onOpenMap, onDelete, lang, L }) {
   const { Icon, title, variant, label } = alertMeta(alert, lang, L)
   const timestamp = alertTimestamp(alert)
-  const message = alert?.message || alert?.description || null
+  const message = localizeAlertMessage(alert?.message || alert?.description || null, lang)
   const vehicleName = vehicle?.name || alert?.vehicleName || alert?.deviceName || null
   const coordinates = alertCoordinates(alert)
   return (

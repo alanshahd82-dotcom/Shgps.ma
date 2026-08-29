@@ -220,11 +220,16 @@ export function getCommandDeliveryMeta(response) {
   const commandId = response && typeof response === 'object'
     ? response.id ?? response.commandId ?? null
     : null
-  const queueState = commandId !== null
+  // Traccar answers with id = 0 when the tracker is connected and the relay
+  // order was pushed straight away. A positive id means the command was stored
+  // in the database and will only reach the device on its next session.
+  const queueState = Number(commandId) > 0
     ? 'queued'
-    : response === null
-      ? 'accepted-no-body'
-      : 'accepted-response-without-id'
+    : commandId !== null
+      ? 'sent'
+      : response === null
+        ? 'accepted-no-body'
+        : 'accepted-response-without-id'
   return { commandId, queueState }
 }
 

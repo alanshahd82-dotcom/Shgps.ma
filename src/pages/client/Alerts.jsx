@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { localizeAlertMessage } from '../../utils/alertMessage'
 import { motion } from 'framer-motion'
 import {
   Gauge, MapPin, BatteryLow, Zap, Activity, Wifi, WifiOff,
@@ -147,7 +148,7 @@ export default function Alerts() {
               const cfg = ALERT_CFG[alert.type] || { Icon: Bell, color: 'var(--ath-green)', tone: 'ok' }
             const Icon = cfg.Icon
               const title = alert.title || alert.device_name || alert.deviceName || (isAr ? 'تنبيه جديد' : 'Nouvelle alerte')
-              const body = alert.message || alert.description || alert.type
+              const body = localizeAlertMessage(alert.message || alert.description || alert.type, isAr ? 'ar' : 'fr')
             return (
               <motion.div key={alert.id || i}
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
