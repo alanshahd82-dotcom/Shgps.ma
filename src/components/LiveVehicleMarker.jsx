@@ -111,6 +111,7 @@ export default function LiveVehicleMarker({
   device,
   isSelected = false,
   autoFollow = false,
+  onToggleFollow,
   onClick,
   now = Date.now(),
   children = null,
@@ -203,12 +204,53 @@ export default function LiveVehicleMarker({
     setTrail(nextTrail)
   }, [point?.[0], point?.[1]])
 
+  // Smart follow:
+  // Keep the vehicle inside a central dead-zone instead of moving the
+  // camera on every GPS packet. User zoom/drag takes priority.
   useEffect(() => {
     if (!autoFollow || !point || !isMapReadyAndSized(map)) return
+
+    const pauseFollow = () => onToggleFollow?.(false)
+
+    map.on?.('dragstart', pauseFollow)
+    map.on?.('zoomstart', pauseFollow)
+
     safelyUseMap(map, currentMap => {
-      currentMap.panTo(point, { animate: true, duration: 0.45, noMoveStart: true })
+      const size = currentMap.getSize?.()
+      const projected = currentMap.latLngToContainerPoint?.(
+        L.latLng(point[0], point[1])
+      )
+
+      if (!size || !projected) return
+
+      const left = size.x * 0.28
+      const right = size.x * 0.72
+      const top = size.y * 0.28
+      const bottom = size.y * 0.72
+
+      let dx = 0
+      let dy = 0
+
+      if (projected.x < left) dx = projected.x - left
+      else if (projected.x > right) dx = projected.x - right
+
+      if (projected.y < top) dy = projected.y - top
+      else if (projected.y > bottom) dy = projected.y - bottom
+
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
+
+      currentMap.panBy([dx, dy], {
+        animate: true,
+        duration: 0.45,
+        noMoveStart: true,
+      })
     })
-  }, [autoFollow, point?.[0], point?.[1], map])
+
+    return () => {
+      map.off?.('dragstart', pauseFollow)
+      map.off?.('zoomstart', pauseFollow)
+    }
+  }, [autoFollow, point?.[0], point?.[1], map, onToggleFollow])
 
   if (!point) return null
 
