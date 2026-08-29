@@ -332,7 +332,11 @@ export function createPowerAlertEngine({
     const signature = positionSignature(position)
     const powerAlertSuppressed = isPowerAlertSuppressed(traccarId, nowMs)
     const powerLossSignal = powerAlertSuppressed ? null : detectExternalPowerLoss(position)
-    const powerRestoredSignal = powerAlertSuppressed ? null : detectExternalPowerRestored(position)
+    // A restore signal is never suppressed: the engine-command cooldown exists
+    // to avoid a false DISCONNECT alert echoed by the relay. Dropping the
+    // restore signal during that window used to leave the vehicle stuck in a
+    // "power cut" state long after the supply came back.
+    const powerRestoredSignal = detectExternalPowerRestored(position)
     const transition = reducePowerTelemetryState(current, {
       signature,
       observedAt: positionTimestamp(position, nowMs),

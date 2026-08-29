@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import VehicleCard from '../../components/VehicleCard'
+import { getDeviceStatusKey } from '../../components/ui'
 
 function useLang() {
   const { lang } = useApp()
@@ -49,15 +50,15 @@ function timeAgo(ts, lang) {
   if (h < 24) return `منذ ${h}س`; return `منذ ${day}ي`
 }
 
+// Home shows the same four fleet tiles as before, but the underlying status
+// now comes from the single shared `getDeviceStatusKey` helper so Home never
+// disagrees with the vehicles list, the map or the admin panel.
 function statusInfo(vehicle) {
   const attention = vehicle?.status === 'alarm' || vehicle?.alertType
   if (attention) return { color: 'orange', label: 'attention', dot: 'bg-orange-500' }
-  // Connectivity is the authoritative `vehicle.status` produced by the
-  // backend (5-minute freshness logic). Home must not recompute it.
-  if (vehicle?.status === 'online') {
-    if ((vehicle?.speed || 0) > 0) return { color: 'green', label: 'connected', dot: 'bg-green-500' }
-    return { color: 'slate', label: 'stopped', dot: 'bg-slate-400' }
-  }
+  const key = getDeviceStatusKey(vehicle)
+  if (key === 'moving' || key === 'online') return { color: 'green', label: 'connected', dot: 'bg-green-500' }
+  if (key === 'idle' || key === 'stopped') return { color: 'slate', label: 'stopped', dot: 'bg-slate-400' }
   return { color: 'offline', label: 'offline', dot: 'bg-slate-300' }
 }
 
@@ -89,7 +90,11 @@ function BottomNav({ active, lang, navigate }) {
 }
 
 export default function Home() {
-  const { clientAuth, devices = [], positions = {}, alerts = [], toggleEngine } = useApp()
+  // `devices` already carries the live merged position (AppContext merges the
+  // websocket snapshot into it), and alerts live in `alertsList` — the old
+  // `positions` / `alerts` names do not exist on the context, which is why the
+  // bell badge and the "latest alert" card used to stay permanently empty.
+  const { clientAuth, devices = [], alertsList = [], unreadCount = 0, toggleEngine } = useApp()
   const navigate = useNavigate()
   const lang = useLang()
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
@@ -99,16 +104,17 @@ export default function Home() {
   const name = user?.name || user?.email?.split('@')[0] || (lang === 'ar' ? 'ضيف' : 'Invité')
   const initials = (name || 'U').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()
 
-  const vehicles = useMemo(() => (devices || []).map(d => {
-    const p = positions?.[d.id] || positions?.[d.uniqueId] || {}
-    const speed = p.speed ?? d.speed ?? 0
-    const lastUpdate = p.fixTime || p.serverTime || p.deviceTime || d.lastUpdate
-    // Voltage comes from the backend device snapshot; a live position may
-    // carry a fresher one. Never fabricated, never derived from batteryLevel.
-    const voltage = p.voltage ?? d.voltage ?? null
-    const powerDisconnected = p.powerDisconnected ?? d.powerDisconnected ?? false
-    return { ...d, speed: Math.round(speed), lastUpdate, voltage, powerDisconnected, lat: p.latitude, lng: p.longitude }
-  }), [devices, positions])
+  // AppContext already merges the live websocket position into each device
+  // (lat / lng / speed / voltage / lastUpdate), so Home only normalises here.
+  const vehicles = useMemo(() => (devices || []).map(d => ({
+    ...d,
+    speed: Math.round(Number(d.speed) || 0),
+    lastUpdate: d.lastUpdate,
+    voltage: d.voltage ?? null,
+    powerDisconnected: d.powerDisconnected ?? false,
+    lat: d.lat ?? d.last_lat ?? null,
+    lng: d.lng ?? d.last_lng ?? null,
+  })), [devices])
 
   const fleet = useMemo(() => {
     const counts = { connected: 0, stopped: 0, offline: 0, attention: 0 }
@@ -117,12 +123,12 @@ export default function Home() {
   }, [vehicles])
 
   const latestAlert = useMemo(() => {
-    const arr = Array.isArray(alerts) ? alerts : Object.values(alerts || {})
+    const arr = Array.isArray(alertsList) ? [...alertsList] : []
     if (!arr.length) return null
-    return arr.sort((a,b) => new Date(b.time || b.eventTime || 0) - new Date(a.time || a.eventTime || 0))[0]
-  }, [alerts])
+    return arr.sort((a, b) => new Date(b.time || b.eventTime || 0) - new Date(a.time || a.eventTime || 0))[0]
+  }, [alertsList])
 
-  const unreadAlerts = Array.isArray(alerts) ? alerts.filter(a => !a.read).length : 0
+  const unreadAlerts = unreadCount
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-20" dir={dir}>

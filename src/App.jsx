@@ -12,7 +12,6 @@ import ResetPassword from './pages/client/ResetPassword'
 import ClientHome from './pages/client/Home'
 import Subscriptions from './pages/client/Subscriptions'
 import DeviceList from './pages/client/DeviceList'
-import DeviceDetail from './pages/client/DeviceDetail'
 import Alerts from './pages/client/Alerts'
 import Settings from './pages/client/Settings'
 const Reports = lazy(() => import('./pages/client/Reports'))

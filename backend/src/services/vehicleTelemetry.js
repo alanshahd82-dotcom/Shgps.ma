@@ -16,6 +16,10 @@ export const POWER_SILENCE_WINDOW_MS = 5 * 60 * 1000
 // even though the vehicle battery is still connected. Suppress only the
 // resulting power alert briefly; normal telemetry and device state continue.
 export const ENGINE_COMMAND_POWER_SUPPRESSION_MS = 60 * 1000
+// Number of consecutive new packets with no power-loss attribute that prove
+// the external supply is back when the tracker never sends an explicit
+// restore flag. Kept small so the UI recovers within a couple of minutes.
+export const CLEAN_TELEMETRY_RESTORE_COUNT = 3
 // Timestamp of the last successful engine command, keyed by Traccar device ID.
 // This is intentionally in-memory: it protects only the short-lived relay echo
 // window and must not become a persisted battery-disconnect state.
@@ -213,13 +217,27 @@ export function reducePowerTelemetryState(current, {
       : Math.max(next.lastPositionAt, observedAt)
   }
 
+  // Clean-telemetry probation: a GT06 that really lost the vehicle supply keeps
+  // repeating its loss attribute on every packet. So a device that is in a
+  // disconnect episode and then sends several consecutive NEW packets with no
+  // loss signal at all is electrically back, even when the tracker never sends
+  // an affirmative `charge:true`. This can never be triggered by silence
+  // (it requires new packets) and it is what stops an episode from getting
+  // stuck forever after the supply is reconnected.
+  if (next.disconnected && isNewTelemetry && !powerLossSignal) {
+    next.cleanTelemetryCount = (next.cleanTelemetryCount || 0) + 1
+  } else if (powerLossSignal) {
+    next.cleanTelemetryCount = 0
+  }
+
   const confirmedRestore = next.disconnected
     && isNewTelemetry
     && !powerLossSignal
-    // A telemetry-triggered episode stays disconnected until the tracker
-    // sends an affirmative restore signal. Missing/fluctuating charge fields
-    // are common on sleeping GT06 devices and must not reopen the episode.
-    && (Boolean(powerRestoredSignal) || next.disconnectTrigger === 'silence')
+    && (
+      Boolean(powerRestoredSignal)
+      || next.disconnectTrigger === 'silence'
+      || (next.cleanTelemetryCount || 0) >= CLEAN_TELEMETRY_RESTORE_COUNT
+    )
 
   if (confirmedRestore) {
     next.disconnected = false
@@ -227,6 +245,7 @@ export function reducePowerTelemetryState(current, {
     next.powerLossSignal = null
     next.missingSince = null
     next.alerting = false
+    next.cleanTelemetryCount = 0
   }
 
   if (powerLossSignal) {
