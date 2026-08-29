@@ -31,9 +31,16 @@ export default function AdminLogin() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center overflow-hidden p-4"
+      className="relative flex items-center justify-center overflow-x-hidden p-4"
       style={{
         background: 'linear-gradient(135deg, #F3F5F9 0%, #E9EDF4 100%)',
+        minHeight: '100dvh',
+        height: '100dvh',
+        overflowY: 'auto',
+        overscrollBehavior: 'none',
+        WebkitOverflowScrolling: 'touch',
+        paddingTop: 'calc(env(safe-area-inset-top) + 1rem)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)',
       }}
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >
@@ -48,9 +55,9 @@ export default function AdminLogin() {
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
         className="relative w-full max-w-sm"
       >
         {/* Card */}
@@ -64,21 +71,23 @@ export default function AdminLogin() {
           <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #1d4ed8, #0F2044, #1d4ed8)' }} />
 
           {/* Header */}
-            <div className="px-8 pb-6 pt-8 text-center">
+            <div className="px-6 pb-6 pt-8 text-center sm:px-8">
             {/* Shield icon */}
-            <motion.div
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.15, type: 'spring', damping: 14, stiffness: 200 }}
-              className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[var(--ath-r)]"
+            <div
+              className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] bg-white"
               style={{
-                background: 'rgba(29, 78, 216,.10)',
-                border: '1px solid rgba(29, 78, 216,.25)',
-                boxShadow: '0 0 30px rgba(29, 78, 216,.12)',
+                border: '1px solid rgba(79,70,229,.16)',
+                boxShadow: '0 10px 28px rgba(15,32,68,.12)',
               }}
             >
-              <Shield size={30} style={{ color: '#1e40af' }} />
-            </motion.div>
+              <img src="/athar-gps-mark.png" alt="ATHAR GPS" width="72" height="72" draggable={false} style={{ width: 72, height: 72, objectFit: 'contain' }} />
+              <span
+                className="absolute -bottom-0 -end-0 flex h-6 w-6 items-center justify-center rounded-full"
+                style={{ background: '#4F46E5', boxShadow: '0 0 0 3px #fff' }}
+              >
+                <Shield size={13} style={{ color: '#fff' }} />
+              </span>
+            </div>
 
             {/* Logo */}
             <div className="flex justify-center mb-2">
@@ -91,7 +100,7 @@ export default function AdminLogin() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="px-8 pb-8 space-y-4">
+          <form onSubmit={handleLogin} className="px-6 pb-8 space-y-4 sm:px-8">
             {/* Email field */}
             <div className="relative">
               <Mail
@@ -108,7 +117,7 @@ export default function AdminLogin() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#1d4ed8] focus:ring-2 focus:ring-[#1d4ed8]/20"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-base text-slate-800 outline-none transition-all duration-200 focus:border-[#1d4ed8] focus:ring-2 focus:ring-[#1d4ed8]/20"
                 style={{
                   paddingBlock: '0.875rem',
                   paddingInlineStart: '2.75rem',
@@ -142,7 +151,7 @@ export default function AdminLogin() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition-all duration-200 focus:border-[#1d4ed8] focus:ring-2 focus:ring-[#1d4ed8]/20"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 text-base text-slate-800 outline-none transition-all duration-200 focus:border-[#1d4ed8] focus:ring-2 focus:ring-[#1d4ed8]/20"
                 style={{
                   paddingBlock: '0.875rem',
                   paddingInlineStart: '2.75rem',
@@ -182,7 +191,7 @@ export default function AdminLogin() {
                 style={{
                   background: 'rgba(239,68,68,0.12)',
                   border: '1px solid rgba(239,68,68,0.25)',
-                  color: '#fca5a5',
+                  color: '#b91c1c',
                 }}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />

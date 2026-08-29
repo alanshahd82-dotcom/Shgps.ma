@@ -49,12 +49,21 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex flex-col overflow-x-hidden text-slate-800"
-      style={{ background: '#F5F6F8' }}
+      className="flex flex-col overflow-x-hidden text-slate-800"
+      style={{
+        background: '#F5F6F8',
+        minHeight: '100dvh',
+        height: '100dvh',
+        overflowY: 'auto',
+        overscrollBehavior: 'none',
+        WebkitOverflowScrolling: 'touch',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Top bar */}
-      <div className="flex justify-between items-center px-4 pt-12 pb-4">
+      <div className="flex justify-between items-center px-4 pt-5 pb-2">
         <button
           onClick={() => setLang(isAr ? 'fr' : 'ar')}
           className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-indigo-600 shadow-sm transition-colors hover:border-indigo-500/60"
@@ -69,16 +78,16 @@ export default function Login() {
 
         {/* Logo */}
         <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 180, damping: 18 }}
-          className="mb-10 flex flex-col items-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="mb-7 flex flex-col items-center"
         >
           <div
-            className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-[var(--ath-rs)] bg-white"
-            style={{ border: '1px solid rgba(224,179,111,.55)', boxShadow: '0 0 0 5px rgba(224,179,111,.06), 0 14px 30px rgba(15,32,68,.12)' }}
+            className="relative mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] bg-white"
+            style={{ border: '1px solid rgba(79,70,229,.16)', boxShadow: '0 10px 28px rgba(15,32,68,.12)' }}
           >
-            <img src="/athar-gps-mark.png" alt="ATHAR GPS" width="52" height="52" draggable={false}/>
+            <img src="/athar-gps-mark.png" alt="ATHAR GPS" width="72" height="72" draggable={false} style={{ width: 72, height: 72, objectFit: 'contain' }} />
           </div>
           <h1 className="text-2xl font-extrabold tracking-wider text-indigo-600" dir="ltr">
             ATHAR <span style={{ color: 'var(--ath-teal)' }}>GPS</span>
@@ -88,9 +97,9 @@ export default function Login() {
 
         {/* Card */}
         <motion.div
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.15, type: 'spring', stiffness: 120 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.08, duration: 0.35, ease: 'easeOut' }}
           className="w-full max-w-sm"
         >
           <div
@@ -150,7 +159,7 @@ export default function Login() {
                   <input
                     type="email" value={email} onChange={e => setEmail(e.target.value)}
                     placeholder={t(lang, 'emailPlaceholder')} required dir="ltr"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pe-4 ps-11 text-sm text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pe-4 ps-11 text-base text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>
               </div>
@@ -165,7 +174,7 @@ export default function Login() {
                   <input
                     type={showPass ? 'text' : 'password'} value={password}
                     onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pe-11 ps-11 text-sm text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pe-11 ps-11 text-base text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   />
                   <button
                     type="button" onClick={() => setShowPass(p => !p)}
