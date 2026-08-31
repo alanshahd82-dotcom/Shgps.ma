@@ -1,9 +1,9 @@
-import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, useMap } from 'react-leaflet'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import MapTileLayer from '../../components/MapTileLayer'
-import { ArrowLeft, ArrowRight, Car, CheckCheck, Copy, Loader2, Maximize2, Minimize2, Pencil, Phone, Play, Route, Save, Share2, Square, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Car, CheckCheck, Copy, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -12,7 +12,6 @@ import { APP_TZ } from '../../utils/datetime.js'
 import { formatVoltage } from '../../components/ui'
 import { useEngineControl } from '../../hooks/useEngineControl'
 
-const TripReplay = lazy(() => import('../../components/TripReplay'))
 const VEHICLE_TYPES = ['car', 'bike', 'truck']
 
 function numOrNull(v) { const n = Number(v); return Number.isFinite(n) ? n : null }
@@ -50,27 +49,6 @@ function dirUrl(type, p) {
   const [la, lo] = p
   return type === 'waze' ? `https://waze.com/ul?ll=${la},${lo}&navigate=yes` : `https://www.google.com/maps/dir/?api=1&destination=${la},${lo}`
 }
-const REPLAY_RANGES = [1, 2, 3, 7, 30]
-
-function replayDayWindow(date, isToday = false) {
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(start)
-  if (isToday) return { startTime: start.toISOString(), endTime: new Date().toISOString() }
-  end.setDate(end.getDate() + 1)
-  return { startTime: start.toISOString(), endTime: new Date(end.getTime() - 1).toISOString() }
-}
-
-function replayDays(count) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Array.from({ length: count }, (_, index) => {
-    const date = new Date(today)
-    date.setDate(today.getDate() - index)
-    return { date, ...replayDayWindow(date, index === 0) }
-  })
-}
-
 function GIcon() {
   return (
     <svg viewBox="0 0 48 48" className="h-5 w-5 flex-shrink-0">
@@ -163,11 +141,6 @@ export default function VehicleControl() {
   const { lang, refreshDevices } = useApp()
   const { vehicles, loading, error } = useRealVehicles()
   const [command, setCommand] = useState(null)
-  const [replay, setReplay] = useState(null)
-  const [tripLoading, setTripLoading] = useState(false)
-  const [tripError, setTripError] = useState('')
-  const [tripOptions, setTripOptions] = useState(null)
-  const [replayRange, setReplayRange] = useState(1)
   // Editable vehicle information. The backend (PATCH /devices/:id/info) is the
   // single source of truth; this form is only the local draft before saving.
   const [form, setForm] = useState({ name:'', driver:'', phone:'', plate:'', type:'car' })
@@ -224,11 +197,9 @@ export default function VehicleControl() {
     dPhone:'Téléphone du conducteur', devId:"ID de l'appareil",
     save:'Enregistrer', saved:'Enregistré', online:'En ligne', offline:'Hors ligne',
     noEngine:"Le contrôle du moteur n'est pas disponible pour ce véhicule",
-    replay:"Rejouer l'itinéraire", loading:'Chargement...',
+    loading:'Chargement...',
     fullscreen:'Plein écran', exitFullscreen:'Quitter le plein écran',
     plate:'Plaque', type:'Type', voltage:'Tension', status:'Statut',
-    replayRanges:['Aujourd’hui', '2 jours', '3 jours', '7 jours', '30 jours'],
-    showAll:'Afficher tout',
     share:'Partager la position', shareCreate:'Générer un lien', shareCopy:'Copier le lien',
     shareCopied:'Lien copié', shareHint:'Lien public valable 24 heures.',
     shareExpires:'Expire le', shareForbidden:"Vous n'êtes pas autorisé à partager ce véhicule.",
@@ -243,11 +214,9 @@ export default function VehicleControl() {
     dPhone:'هاتف السائق', devId:'رقم الجهاز',
     save:'حفظ', saved:'تم الحفظ', online:'متصلة', offline:'غير متصلة',
     noEngine:'التحكم بالمحرك غير متاح حتى يؤكد النظام دعمه لهذه المركبة',
-    replay:'إعادة المسار', loading:'جاري التحميل...',
+    loading:'جاري التحميل...',
     fullscreen:'ملء الشاشة', exitFullscreen:'الخروج من ملء الشاشة',
     plate:'اللوحة', type:'النوع', voltage:'الفولطاج', status:'الحالة',
-    replayRanges:['اليوم', 'يومان', '3 أيام', '7 أيام', '30 يومًا'],
-    showAll:'عرض الكل',
     share:'مشاركة الموقع', shareCreate:'إنشاء رابط', shareCopy:'نسخ الرابط',
     shareCopied:'تم نسخ الرابط', shareHint:'رابط عمومي صالح لمدة 24 ساعة.',
     shareExpires:'ينتهي في', shareForbidden:'ليس لديك صلاحية مشاركة هذه المركبة.',
@@ -287,15 +256,6 @@ export default function VehicleControl() {
     const turnOff = command.turnOff
     setCommand(null)
     await engine.send(turnOff)
-  }
-
-  async function openReplay() {
-    if (!vehicle || tripLoading) return
-    setTripLoading(true); setTripError('')
-    // The replay component loads the recorded positions for this exact window.
-    // Keep the selector day-based even when a day contains several trip segments.
-    setTripOptions(replayDays(replayRange))
-    setTripLoading(false)
   }
 
   // Vehicle information edit — migrated from the legacy DeviceDetail page.
@@ -419,7 +379,7 @@ export default function VehicleControl() {
               <Car size={32}/><p className="mt-2 text-xs">{t(lang,'locationUnavailable')}</p>
             </div>
           )}
-          {capability === 'available' && (
+          {isAdminView && capability === 'available' && (
             <div className="vehicle-control-engine flex flex-col items-center gap-2 border-t border-slate-100 px-3 pt-4">
               <EngineCutoffButton
                 lang={lang}
@@ -438,66 +398,6 @@ export default function VehicleControl() {
               <WIcon/>Waze
             </button>
           </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3">
-            <p className="mb-2 text-[11px] font-extrabold text-slate-500">{lang === 'fr' ? 'Période' : 'الفترة الزمنية'}</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {REPLAY_RANGES.map((days, index) => (
-                <button
-                  key={days}
-                  type="button"
-                  onClick={() => { setReplayRange(days); setTripOptions(null); setTripError('') }}
-                  aria-pressed={replayRange === days}
-                  className={'rounded-xl border px-2 py-2.5 text-[11px] font-extrabold transition ' + (
-                    replayRange === days
-                      ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300'
-                  )}
-                >
-                  {T.replayRanges[index]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button type="button" onClick={openReplay} disabled={tripLoading} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-extrabold text-slate-700 disabled:opacity-50">
-            {tripLoading ? <Loader2 className="animate-spin" size={15}/> : <Play size={15}/>}
-            {tripLoading ? T.loading : T.replay}
-          </button>
-          {tripOptions && (
-            <div className="mt-3 space-y-2">
-              {tripOptions.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const first = tripOptions.at(-1)
-                    const last = tripOptions[0]
-                    if (first && last) setReplay({ startTime: first.startTime, endTime: last.endTime })
-                  }}
-                  className="flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 text-xs font-black text-indigo-700"
-                >
-                  {T.showAll}
-                </button>
-              )}
-              {tripOptions.map((day, index) => (
-                <button
-                  key={day.startTime}
-                  type="button"
-                  onClick={() => setReplay({ startTime: day.startTime, endTime: day.endTime })}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-start text-xs font-bold"
-                >
-                  <span>
-                    {day.date.toLocaleDateString(lang === 'ar' ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ,
-                      weekday: 'long', day: 'numeric', month: 'long',
-                    })}
-                  </span>
-                  <span className="text-slate-400">{index + 1}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {tripError && <p className="mt-2 text-center text-[11px] text-orange-600">{tripError}</p>}
         </section>
 
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -615,7 +515,6 @@ export default function VehicleControl() {
 
       {!isAdminView && <BottomNav navigate={navigate} lang={lang}/>}
       {command && <ConfirmDialog lang={lang} name={vehicle.name} turnOff={command.turnOff} sending={sending} onCancel={() => setCommand(null)} onConfirm={confirmCommand}/>}
-      {replay && <Suspense fallback={<div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80"><Loader2 className="animate-spin text-indigo-400" size={40}/></div>}><TripReplay deviceId={vehicle.id} deviceName={vehicle.name} deviceType={vehicle.type} startTime={replay.startTime} endTime={replay.endTime} onClose={() => setReplay(null)} allowSatellite={false}/></Suspense>}
     </div>
   )
 }
