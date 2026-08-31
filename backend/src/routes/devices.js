@@ -4,6 +4,7 @@ import { logAudit }    from '../services/auditLog.js'
 import { validateBody, schemas } from '../validation/schemas.js'
     import { db }          from '../db.js'
     import * as traccar    from '../services/traccar.js'
+    import * as engineCommands from '../services/engineCommands.js'
 import { deviceAccessScope, getAccessibleClient, getAccessibleDevice, requireDeviceOwner } from '../middleware/deviceAccess.js'
 import {
   addMonths,
@@ -564,7 +565,7 @@ import {
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
     })
 
-    devicesRouter.post('/:id/command', requireAuth, requireDeviceOwner, async (req, res) => {
+        devicesRouter.post('/:id/command', requireAuth, requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
         const type = req.body.type
@@ -575,75 +576,55 @@ import {
           return res.status(400).json({ error: 'Device has no Traccar mapping' })
         }
 
-        // Resolve the protocol when Traccar exposes it, but never let an
-        // optional lookup prevent the command from being sent. Known GT06
-        // devices use Traccar's standard encoder; an unknown protocol falls
-        // back to the documented one-argument GS900 relay command.
-        let protocol = ''
-        let traccarDevice = null
+        const idempotencyKey = req.headers['idempotency-key'] || null
+
+        let command
         try {
-          traccarDevice = await traccar.getDevice(dev.traccar_id)
-          protocol = String(traccarDevice?.protocol || '').toLowerCase()
-        } catch (lookupError) {
-          console.warn('[engine] protocol lookup failed; defaulting to RELAY:', lookupError.message)
+          command = await engineCommands.createRequest({
+            deviceId: dev.id,
+            userId: req.user.id,
+            commandType: type,
+            idempotencyKey,
+            ip: req.ip,
+            traccarDeviceId: dev.traccar_id,
+          })
+        } catch (e) {
+          if (e.code === 'COMMAND_CONFLICT') {
+            return res.status(409).json({ error: e.message, code: e.code, activeCommand: e.activeCommand })
+          }
+          if (e.code === 'INVALID_COMMAND') {
+            return res.status(400).json({ error: e.message, code: e.code })
+          }
+          throw e
         }
-        const knownNonRelay = /^(?:teltonika|t55|h02|tk103|meiligao|suntech|wondex)/i.test(protocol)
-        const isRelayProtocol = protocol ? !knownNonRelay : true
-        const command = isRelayProtocol
-          ? traccar.resolveEngineCommand({
-              type,
-              protocol,
-              deviceAttributes: traccarDevice?.attributes || {},
-            })
-          : { type, attributes: {}, profile: 'traccar-standard' }
 
-        console.log('[engine] dispatch', JSON.stringify({
-          deviceId: dev.traccar_id,
-          protocol: protocol || null,
-          profile: command.profile,
-          type: command.type,
-          attributes: command.attributes,
-        }))
-        const traccarResponse = await traccar.sendCommand(
-          dev.traccar_id,
-          command.type,
-          command.attributes,
-        )
-        // Some relay-capable trackers echo externalPower:false/powerCut:true
-        // after a successful engine command. That is command telemetry, not a
-        // battery pull; suppress only the resulting power alert for 60 seconds.
-        registerEngineCommandCooldown(dev.traccar_id, dev.id)
-        const delivery = traccar.getCommandDeliveryMeta(traccarResponse)
-
-        await db.query(
-          `INSERT INTO device_commands (device_id, user_id, command, traccar_id, result, ip_address)
-           VALUES ($1,$2,$3,$4,'sent',$5)`,
-          [dev.id, req.user.id, type, dev.traccar_id, req.ip]
-        ).catch(e => console.error('[device_commands insert]', e.message))
+        // Attempt delivery only when the command is still pending and has not
+        // yet been accepted by Traccar. Idempotent retries (same key) return the
+        // existing command and never re-send; the in-flight guard inside
+        // deliverOnce also protects against the worker / WS hook racing us.
+        if (command.status === 'pending' && command.traccar_command_id == null) {
+          command = await engineCommands.deliverOnce(command, dev)
+        }
 
         await logAudit(req.user.id, `engine_${type}`, 'device', dev.id, {
           imei: dev.imei,
           command: type,
-          relay: isRelayProtocol,
-          commandProfile: command.profile,
-        }).catch(()=>{})
+          commandId: command?.id,
+          status: command?.status,
+          traccarCommandId: command?.traccar_command_id,
+        }).catch(() => {})
+
         res.json({
           ok: true,
           type,
-          relay: isRelayProtocol,
-          commandProfile: command.profile,
-          commandId: delivery.commandId,
-          queueState: delivery.queueState,
-          traccarResponse: traccarResponse ?? null,
+          command,
+          // Backward-compatible fields for older clients.
+          commandId: command?.traccar_command_id ?? null,
+          queueState: command?.status === 'pending' ? 'queued' : 'sent',
         })
       } catch (err) {
         console.error('[command error]', err.message)
-        await db.query(
-          `INSERT INTO device_commands (device_id, user_id, command, traccar_id, result, error_msg, ip_address)
-           VALUES ($1,$2,$3,$4,'failed',$5,$6)`,
-          [req.device?.id, req.user.id, req.body.type, req.device?.traccar_id, err.message, req.ip]
-        ).catch(()=>{})
-        res.status(502).json({ error: 'Failed to send command: ' + err.message })
+        res.status(500).json({ error: 'Failed to process command: ' + err.message })
       }
     })
 

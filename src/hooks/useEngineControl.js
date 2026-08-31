@@ -3,11 +3,14 @@ import { api } from '../api/index.js'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
 
-// Single source of truth for the engine relay control.
-// The vehicle detail page (the button that is known to work in production) is
-// the reference behaviour; every other place — cards, admin drawer, maps —
-// must use this hook so the availability rules, the relay command and the
-// feedback messages are identical everywhere.
+// Single source of truth for the engine relay control. The vehicle detail
+// page button is the reference behaviour; every other place must use this hook
+// so the availability rules, the relay command and the feedback messages are
+// identical everywhere.
+//
+// Phase 2B: the backend persists every command before delivery and returns a
+// truthful command state. We never claim the engine physically stopped — only
+// what the evidence supports (pending / sent / unconfirmed).
 
 const ONLINE_WINDOW_MS = 15 * 60 * 1000
 
@@ -18,11 +21,39 @@ export function isVehicleReachable(vehicle) {
   return fresh || vehicle.status === 'online'
 }
 
-// Many GT06 trackers never report `ignition`; an unknown state must not hide
-// or invert the relay control — unknown is treated as running.
 export function isEngineRunning(vehicle) {
   const raw = vehicle?.engineOn ?? vehicle?.ignition
   return raw !== false
+}
+
+// Truthful status wording. GT06 cannot confirm the physical relay state, so
+// 'unconfirmed' is the strongest claim we make after delivery. We never show
+// "Engine stopped".
+function statusMessage(status, lang) {
+  const ar = lang === 'ar'
+  const fr = lang === 'fr'
+  switch (status) {
+    case 'pending':
+      return ar ? 'بانتظار اتصال المركبة' : fr ? 'En attente de connexion du véhicule' : 'Waiting for vehicle connection'
+    case 'sent':
+      return ar ? 'تم إرسال الأمر إلى الجهاز' : fr ? 'Commande envoyée au périphérique' : 'Command sent to device'
+    case 'delivered':
+      return ar ? 'تم تسليم الأمر إلى الجهاز' : fr ? 'Commande livrée au périphérique' : 'Command delivered to device'
+    case 'unconfirmed':
+      return ar ? 'استلم الجهاز الأمر؛ لا يمكن تأكيد حالة المحرك الفعلية' : fr ? "Le périphérique a reçu la commande ; l'état physique du moteur ne peut être confirmé" : 'Device received the command; physical engine state cannot be confirmed'
+    case 'failed':
+      return ar ? 'فشل إرسال الأمر' : fr ? "Échec de l'envoi de la commande" : 'Command failed to send'
+    case 'cancelled':
+      return ar ? 'تم إلغاء الأمر' : fr ? 'Commande annulée' : 'Command cancelled'
+    default:
+      return ''
+  }
+}
+
+function conflictMessage(lang) {
+  const ar = lang === 'ar'
+  const fr = lang === 'fr'
+  return ar ? 'يوجد أمر محرك نشط ومتعارض لهذه المركبة' : fr ? 'Une commande moteur active et conflictuelle existe pour ce véhicule' : 'A conflicting engine command is already active for this vehicle'
 }
 
 export function useEngineControl(vehicle, lang = 'ar') {
@@ -42,17 +73,16 @@ export function useEngineControl(vehicle, lang = 'ar') {
   const send = useCallback(async (turnOff) => {
     if (!vehicle?.id || sending) return false
     setSending(true); setError(''); setSuccess('')
+    // Idempotency-Key: the backend is the final authority. A fresh key per
+    // logical request; the backend conflict check prevents duplicate physical
+    // commands across tabs / reloads even with different keys.
+    const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random())
     try {
-      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume')
-      // Traccar answers with a command id when the tracker is not connected:
-      // the relay order is stored and delivered on the next session.
-      const queued = response?.queueState === 'queued'
+      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey })
+      const status = response?.command?.status || response?.status
       if (mounted.current) {
-        setSuccess(queued
-          ? (lang === 'ar'
-              ? 'تم تسجيل الأمر — سيصل إلى الجهاز عند أول اتصال'
-              : 'Commande enregistrée — elle sera transmise à la prochaine connexion')
-          : t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
+        if (status) setSuccess(statusMessage(status, lang))
+        else setSuccess(t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
       }
       // Read the actual state after the command instead of inferring it.
       try {
@@ -61,8 +91,11 @@ export function useEngineControl(vehicle, lang = 'ar') {
       } catch {}
       try { await refreshDevices?.() } catch {}
       return true
-    } catch {
-      if (mounted.current) setError(t(lang, 'vehicleCommandFailed'))
+    } catch (e) {
+      if (mounted.current) {
+        if (e?.status === 409) setError(conflictMessage(lang))
+        else setError(t(lang, 'vehicleCommandFailed'))
+      }
       return false
     } finally {
       if (mounted.current) setSending(false)

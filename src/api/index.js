@@ -164,7 +164,7 @@ export const api = {
     renewSubscription: (id, subscriptionPlanId) =>
       apiFetch(`/devices/${id}/subscription`, { method: 'PATCH', body: JSON.stringify({ subscriptionPlanId }) }),
     delete:         (id)            => apiFetch(`/devices/${id}`,    { method: 'DELETE' }),
-    sendCommand:    (id, type)      => apiFetch(`/devices/${id}/command`, { method: 'POST', body: JSON.stringify({ type }) }),
+    sendCommand:    (id, type, headers = {}) => apiFetch(`/devices/${id}/command`, { method: 'POST', body: JSON.stringify({ type }), ...(Object.keys(headers).length ? { headers } : {}) }),
     setGeofence:    (id, data)      => apiFetch(`/devices/${id}/geofence`, { method: 'POST', body: JSON.stringify(data) }),
     removeGeofence:    (id, geofenceId) => apiFetch(`/devices/${id}/geofence`, { method: 'DELETE', body: JSON.stringify({ geofenceId }) }),
     testConnection:    (imei)           => apiFetch(`/devices/test-connection?imei=${encodeURIComponent(imei)}`),

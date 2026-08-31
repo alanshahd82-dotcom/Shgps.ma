@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
+import { startCommandWorker, onDeviceActivity } from './services/engineCommands.js'
 import jwt from 'jsonwebtoken'
 import { authRouter }        from './routes/auth.js'
 import { devicesRouter }     from './routes/devices.js'
@@ -717,6 +718,14 @@ async function connectTraccar() {
     if (parsed && Array.isArray(parsed.positions)) {
       parsed.positions.forEach(observePowerTelemetry)
       parsed.positions.forEach(persistLivePosition)
+    // Phase 2B: a live position means the device is online — resume delivery of
+    // any pending engine command for these devices (fire-and-forget, never
+    // blocks the bridge). No auto-restore: only explicitly-requested pending
+    // commands are delivered.
+    if (parsed && Array.isArray(parsed.positions) && parsed.positions.length) {
+      const tids = parsed.positions.map(p => p.deviceId).filter(Boolean)
+      onDeviceActivity(tids).catch(e => console.warn('[engine-worker] WS hook failed:', e.message))
+    }
     }
 
     // Normalise every live position once, for every audience (admin included).
@@ -825,6 +834,7 @@ server.listen(PORT, async () => {
   setInterval(runSubscriptionCheck, 6 * 60 * 60 * 1000)
   await refreshTraccarOwnerCache()
   setInterval(refreshTraccarOwnerCache, 60 * 60 * 1000)
+  startCommandWorker()
   if (config.traccar.email && config.traccar.password) {
     connectTraccar()
   } else {
