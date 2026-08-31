@@ -81,8 +81,13 @@ export function useEngineControl(vehicle, lang = 'ar') {
       const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey })
       const status = response?.command?.status || response?.status
       if (mounted.current) {
-        if (status) setSuccess(statusMessage(status, lang))
-        else setSuccess(t(lang, turnOff ? 'engineCutSuccess' : 'engineStartSuccess'))
+        if (status) {
+          setSuccess(statusMessage(status, lang))
+        } else {
+          // P0-1: no authoritative command.status must NEVER read as success.
+          // Unknown / malformed response -> explicit unknown/error state.
+          setError(t(lang, 'engineCommandUnknown'))
+        }
       }
       // Read the actual state after the command instead of inferring it.
       try {

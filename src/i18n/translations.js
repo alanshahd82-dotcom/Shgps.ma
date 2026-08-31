@@ -118,6 +118,7 @@ export const translations = {
     engineStartConfirmMsg: 'هل تريد تشغيل محرك هذه المركبة عن بعد؟',
     engineCutSuccess: 'تم قطع المحرك بنجاح',
     engineStartSuccess: 'تم تشغيل المحرك بنجاح',
+    engineCommandUnknown: 'تعذر تأكيد حالة الأمر',
 
     // Geofence
     geofence: 'السياج الجغرافي',
@@ -586,6 +587,7 @@ export const translations = {
     engineStartConfirmMsg: 'Voulez-vous démarrer le moteur de ce véhicule à distance ?',
     engineCutSuccess: 'Moteur coupé avec succès',
     engineStartSuccess: 'Moteur démarré avec succès',
+    engineCommandUnknown: "Impossible de confirmer l'état de la commande",
 
     // Geofence
     geofence: 'Géofence',

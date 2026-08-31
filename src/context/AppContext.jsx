@@ -731,15 +731,13 @@ export function AppProvider({ children }) {
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
+  // P0-2: a command request must NEVER mutate the authoritative vehicle
+  // state. Actual engine state is derived from telemetry reconciliation only;
+  // the command status is returned for callers to display separately (see
+  // useEngineControl). pending/sent/unconfirmed/failed do not flip engineOn.
   const toggleEngine = async (deviceId, turnOff) => {
-    const normalizedDeviceId = String(deviceId)
-    setDevices(prev => prev.map(d => String(d.id) === normalizedDeviceId ? { ...d, engineOn: !turnOff } : d))
-    try {
-      await api.devices.sendCommand(deviceId, turnOff ? 'engineStop' : 'engineResume')
-    } catch (err) {
-      setDevices(prev => prev.map(d => String(d.id) === normalizedDeviceId ? { ...d, engineOn: !!turnOff } : d))
-      throw err
-    }
+    const response = await api.devices.sendCommand(deviceId, turnOff ? 'engineStop' : 'engineResume')
+    return response
   }
 
   const saveGeofence = async (deviceId, data) => {
