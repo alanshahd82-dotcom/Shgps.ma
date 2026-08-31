@@ -102,6 +102,7 @@ export function AppProvider({ children }) {
   const wsLastActivityRef = useRef(0)
   const wsPollingRef = useRef(null)
   const wsEventSequenceRef = useRef(0)
+  const seenEventIdsRef = useRef(new Set()) // dedup notifications across WS reconnects
   const devicesRef = useRef([]) // mirror of devices — readable inside stale WS closures
   const positionPendingRef = useRef(new Map())
   const positionFlushTimerRef = useRef(null)
@@ -331,6 +332,7 @@ export function AppProvider({ children }) {
             const key = String(stableId)
             if (seen.has(key)) continue
             seen.add(key)
+            seenEventIdsRef.current.add(key)
           }
           result.push(alert)
         }
@@ -458,9 +460,16 @@ export function AppProvider({ children }) {
               seenIds.add(alert._stableId)
               return true
             })
-            // Fire browser notifications for new alerts (if enabled)
+            // Fire browser notifications for genuinely new alerts only.
+            // seenEventIdsRef survives WS reconnects and the 100-item list cap,
+            // so events re-sent on reconnect (or that fell out of the list) are
+            // not re-notified - fixes false notifications on duplicate events.
             if (localStorage.getItem('athargps_push') === 'true' && Notification.permission === 'granted') {
               for (const alert of uniqueAlerts) {
+                if (alert._stableId != null) {
+                  if (seenEventIdsRef.current.has(alert._stableId)) continue
+                  seenEventIdsRef.current.add(alert._stableId)
+                }
                 try {
                   new Notification('ATHAR GPS', {
                     body: alert.message || alert.type || 'تنبيه جديد',
