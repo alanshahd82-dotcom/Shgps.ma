@@ -2,23 +2,25 @@ import { randomUUID } from 'crypto'
 import { db } from '../db.js'
 
 /**
- * deviceCommands — Engine relay command state machine (Phase 2A).
+ * engineCommands — Engine relay command state machine (Phase 2A.1).
  *
- * Safety guarantees (see Phase 2 audit):
+ * Operates on the `engine_commands` table. The legacy `device_commands`
+ * table (508 historical rows) is intentionally left untouched and is NOT read
+ * or written by this module.
+ *
+ * Safety guarantees (see Phase 2 audit + 2A.1 design):
  *  - A command is persisted BEFORE any physical delivery. Phase 2B will wire
  *    Traccar; this module only owns the database/state model.
- *  - Idempotency: the same logical request retried returns the existing
- *    command and never creates a duplicate physical command. The database
- *    UNIQUE(idempotency_key) is the source of truth.
- *  - Conflict protection (option A): an active STOP blocks a new RESTORE and
- *    vice-versa; an equivalent active command blocks a duplicate. Conflicting
- *    requests are REJECTED (409) with the active command info — nothing is
- *    cancelled or replaced automatically.
- *  - No automatic restore, ever. RESTORE is created only by an explicit
- *    authorized request. This module has NO auto-restore code path.
- *  - Truthful states for GT06: REQUESTED -> PENDING -> SENT -> DELIVERED ->
- *    UNCONFIRMED. EXECUTED is intentionally NOT produced — GT06 provides no
- *    reliable relay-execution evidence.
+ *  - Idempotency: UNIQUE(idempotency_key). Exact retry returns existing row.
+ *  - Conflict protection (option A): active STOP blocks new RESTORE (409) and
+ *    vice-versa; equivalent active command returns existing (no duplicate).
+ *  - No automatic restore, ever. RESTORE only via explicit authorized request.
+ *  - Truthful GT06 states: requested -> pending -> sent -> delivered ->
+ *    unconfirmed. EXECUTED is intentionally NOT produced.
+ *  - historical_unverified: conservative terminal state for backfilled legacy
+ *    rows whose original result='sent' cannot be trusted as delivery/execution
+ *    evidence. Never transitions; excluded from the active-command index so it
+ *    never blocks new commands.
  *
  * This module performs NO Traccar calls and changes NO engine behavior.
  * Authorization (requireAuth + requireDeviceOwner) is enforced by the route
@@ -36,13 +38,14 @@ export const COMMAND_STATUSES = [
   'failed',
   'expired',
   'cancelled',
+  'historical_unverified',
 ]
 
 export const ACTIVE_STATUSES = ['requested', 'pending', 'sent', 'delivered', 'unconfirmed']
-export const TERMINAL_STATUSES = ['unconfirmed', 'failed', 'expired', 'cancelled']
+export const TERMINAL_STATUSES = ['unconfirmed', 'failed', 'expired', 'cancelled', 'historical_unverified']
 
 const IDEMPOTENCY_KEY_MAX = 160
-const ADVISORY_KEY_NAMESPACE = 'athar_device_commands'
+const ADVISORY_KEY_NAMESPACE = 'athar_engine_commands'
 
 export class CommandConflictError extends Error {
   constructor(activeCommand) {
@@ -88,6 +91,7 @@ function mapRow(row) {
     requested_state: row.requested_state,
     status: row.status,
     idempotency_key: row.idempotency_key,
+    legacy_id: row.legacy_id ?? null,
     traccar_command_id: row.traccar_command_id ?? null,
     traccar_device_id: row.traccar_device_id ?? null,
     protocol: row.protocol ?? null,
@@ -104,8 +108,7 @@ function mapRow(row) {
 
 /**
  * Create a command request (idempotent + conflict-protected).
- *
- * Returns the command row (newly inserted OR the existing retained row for an
+ * Returns the command row (newly inserted OR existing retained row for an
  * exact retry). Throws CommandConflictError (409) when a conflicting command
  * is active. Throws InvalidCommandError (400) for a bad type/input.
  */
@@ -145,7 +148,7 @@ export async function createRequest({
 
     // 1) Exact retry: same idempotency key already exists -> return untouched.
     const existing = await client.query(
-      'SELECT * FROM device_commands WHERE idempotency_key = $1 LIMIT 1',
+      'SELECT * FROM engine_commands WHERE idempotency_key = $1 LIMIT 1',
       [key]
     )
     if (existing.rowCount > 0) {
@@ -155,7 +158,7 @@ export async function createRequest({
 
     // 2) Conflict check: any active command for this device? (row-locked)
     const active = await client.query(
-      'SELECT * FROM device_commands ' +
+      'SELECT * FROM engine_commands ' +
         'WHERE device_id = $1 AND status = ANY($2) ' +
         'ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
       [deviceId, ACTIVE_STATUSES]
@@ -175,7 +178,7 @@ export async function createRequest({
     // 3) Insert the new request as 'pending' (offline-safe default; Phase 2B
     //    transitions to sent/delivered after Traccar delivery).
     const insert = await client.query(
-      'INSERT INTO device_commands ' +
+      'INSERT INTO engine_commands ' +
         '(device_id, user_id, command_type, requested_state, status, ' +
         'idempotency_key, protocol, command_profile, traccar_device_id, ip_address) ' +
         'VALUES ($1,$2,$3,$4,\'pending\',$5,$6,$7,$8,$9) RETURNING *',
@@ -195,7 +198,7 @@ export async function createRequest({
 /** Return the active command for a device, if any (no lock). */
 export async function getActiveCommand(deviceId) {
   const r = await db.query(
-    'SELECT * FROM device_commands ' +
+    'SELECT * FROM engine_commands ' +
       'WHERE device_id = $1 AND status = ANY($2) ' +
       'ORDER BY created_at DESC LIMIT 1',
     [deviceId, ACTIVE_STATUSES]
@@ -206,8 +209,8 @@ export async function getActiveCommand(deviceId) {
 /** Return a command by id (optionally scoped to deviceId for auth safety). */
 export async function getCommand(commandId, deviceId = null) {
   const q = deviceId
-    ? 'SELECT * FROM device_commands WHERE id = $1 AND device_id = $2 LIMIT 1'
-    : 'SELECT * FROM device_commands WHERE id = $1 LIMIT 1'
+    ? 'SELECT * FROM engine_commands WHERE id = $1 AND device_id = $2 LIMIT 1'
+    : 'SELECT * FROM engine_commands WHERE id = $1 LIMIT 1'
   const params = deviceId ? [commandId, deviceId] : [commandId]
   const r = await db.query(q, params)
   return r.rowCount > 0 ? mapRow(r.rows[0]) : null
@@ -222,6 +225,7 @@ const ALLOWED_TRANSITIONS = {
   failed: ['cancelled'],
   expired: ['cancelled'],
   cancelled: [],
+  historical_unverified: [],
 }
 
 function isAllowedTransition(from, to) {
@@ -241,7 +245,7 @@ export async function transition(commandId, nextStatus, { error = null, traccarC
   try {
     await client.query('BEGIN')
     const cur = await client.query(
-      'SELECT * FROM device_commands WHERE id = $1 FOR UPDATE',
+      'SELECT * FROM engine_commands WHERE id = $1 FOR UPDATE',
       [commandId]
     )
     if (cur.rowCount === 0) {
@@ -262,7 +266,7 @@ export async function transition(commandId, nextStatus, { error = null, traccarC
     if (error !== null) { sets.push('error = $' + pi); params.push(error); pi++ }
     if (traccarCommandId !== null) { sets.push('traccar_command_id = $' + pi); params.push(traccarCommandId); pi++ }
     const r = await client.query(
-      'UPDATE device_commands SET ' + sets.join(', ') + ' WHERE id = $1 RETURNING *',
+      'UPDATE engine_commands SET ' + sets.join(', ') + ' WHERE id = $1 RETURNING *',
       params
     )
     await client.query('COMMIT')

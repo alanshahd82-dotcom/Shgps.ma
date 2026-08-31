@@ -345,20 +345,21 @@ async function runMigrations() {
       WHERE revoked_at IS NULL
     `)
 
-    // ── device_commands: engine relay command state machine (Phase 2A) ──
-    // Persists every engine command request with an idempotency key and a
-    // truthful state machine. Phase 2B wires Traccar delivery; this table is
-    // created now so audit/state infrastructure exists before any change to
-    // the command route. Non-destructive + idempotent (CREATE ... IF NOT EXISTS).
+    // ── engine_commands: engine relay command state machine (Phase 2A.1) ──
+    // New table. Does NOT touch the legacy device_commands table (508 historical
+    // rows), which remains the frozen archive. Idempotent + non-destructive
+    // (CREATE ... IF NOT EXISTS). Phase 2B wires Traccar delivery; this table is
+    // created now so audit/state infrastructure exists before any route change.
     await db.query(`
-      CREATE TABLE IF NOT EXISTS device_commands (
+      CREATE TABLE IF NOT EXISTS engine_commands (
         id                  BIGSERIAL PRIMARY KEY,
-        device_id           INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-        user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        device_id           INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        user_id             INTEGER REFERENCES users(id) ON DELETE SET NULL,
         command_type        VARCHAR(20)  NOT NULL,
         requested_state     VARCHAR(20)  NOT NULL,
-        status              VARCHAR(24)  NOT NULL DEFAULT 'pending',
+        status              VARCHAR(32)  NOT NULL DEFAULT 'pending',
         idempotency_key     VARCHAR(160) NOT NULL,
+        legacy_id           BIGINT,
         traccar_command_id  BIGINT,
         traccar_device_id   BIGINT,
         protocol            VARCHAR(50),
@@ -370,23 +371,27 @@ async function runMigrations() {
         sent_at             TIMESTAMPTZ,
         delivered_at        TIMESTAMPTZ,
         resolved_at         TIMESTAMPTZ,
-        CONSTRAINT device_commands_status_chk CHECK (status IN
-          ('requested','pending','sent','delivered','unconfirmed','failed','expired','cancelled')),
-        CONSTRAINT device_commands_type_chk CHECK (command_type IN ('engineStop','engineResume')),
-        CONSTRAINT device_commands_state_chk CHECK (requested_state IN ('stopped','running'))
+        CONSTRAINT engine_commands_status_chk CHECK (status IN
+          ('requested','pending','sent','delivered','unconfirmed','failed','expired','cancelled','historical_unverified')),
+        CONSTRAINT engine_commands_type_chk CHECK (command_type IN ('engineStop','engineResume')),
+        CONSTRAINT engine_commands_state_chk CHECK (requested_state IN ('stopped','running'))
       )
     `)
     await db.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS uq_device_commands_idempotency_key
-      ON device_commands(idempotency_key)
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_engine_commands_idempotency_key
+      ON engine_commands(idempotency_key)
     `)
     await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_device_commands_device_created
-      ON device_commands(device_id, created_at DESC)
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_engine_commands_legacy_id
+      ON engine_commands(legacy_id) WHERE legacy_id IS NOT NULL
     `)
     await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_device_commands_active
-      ON device_commands(device_id)
+      CREATE INDEX IF NOT EXISTS idx_engine_commands_device_created
+      ON engine_commands(device_id, created_at DESC)
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_engine_commands_active
+      ON engine_commands(device_id)
       WHERE status IN ('requested','pending','sent','delivered','unconfirmed')
     `)
     console.log('[DB] Migrations OK')
