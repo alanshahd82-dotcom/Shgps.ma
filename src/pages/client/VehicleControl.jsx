@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, useMap } from 'react-leaflet'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import MapTileLayer from '../../components/MapTileLayer'
-import { ArrowLeft, ArrowRight, Car, CheckCheck, Copy, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -19,7 +19,32 @@ function pt(v) {
   const la = numOrNull(v?.lat ?? v?.latitude), lo = numOrNull(v?.lng ?? v?.longitude)
   return la != null && lo != null && la >= -90 && la <= 90 && lo >= -180 && lo <= 180 && !(Math.abs(la) < 0.01 && Math.abs(lo) < 0.01) ? [la, lo] : null
 }
-function CenterMap({ point }) { const m = useMap(); useEffect(() => { if (point) m.setView(point, 15, { animate: false }) }, [m, point]); return null }
+// Camera state machine for the vehicle detail map.
+// INITIAL_CENTER: center once per vehicle when its position first resolves,
+//   preserving the user's current zoom. Does NOT recenter on every GPS packet.
+// FOLLOW: LiveVehicleMarker's dead-zone autoFollow only pans when the vehicle
+//   leaves a central safe area; user drag/zoom pauses it via onToggleFollow.
+// RE-CENTER: the explicit control below smoothly flies to the vehicle.
+function InitialCenter({ point, vehicleId }) {
+  const m = useMap()
+  const lastCenteredRef = useRef(null)
+  useEffect(() => {
+    if (!point || lastCenteredRef.current === vehicleId) return
+    lastCenteredRef.current = vehicleId
+    m.setView(point, m.getZoom?.() ?? 15, { animate: false })
+  }, [m, point, vehicleId])
+  return null
+}
+function Recenter({ point, trigger }) {
+  const m = useMap()
+  const firstRef = useRef(true)
+  useEffect(() => {
+    if (firstRef.current) { firstRef.current = false; return }
+    if (!point) return
+    m.flyTo(point, m.getZoom?.() ?? 15, { duration: 0.5 })
+  }, [m, trigger]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
 function ResizeMap({ fullscreen }) {
   const map = useMap()
   useEffect(() => {
@@ -174,6 +199,17 @@ export default function VehicleControl() {
   const lastUp = vehicle?.lastUpdate ?? vehicle?.fixTime
   const online = lastUp && (Date.now() - new Date(lastUp).getTime()) < 15*60*1000
 
+  // Camera follow state: starts on, paused by user drag/zoom (via
+  // LiveVehicleMarker's onToggleFollow). Recenter resumes follow + smoothly
+  // re-centers the vehicle. Reset follow when a different vehicle is opened.
+  const [follow, setFollow] = useState(true)
+  const [recenterTrigger, setRecenterTrigger] = useState(0)
+  useEffect(() => { setFollow(true) }, [id])
+  const handleRecenter = () => {
+    setRecenterTrigger(n => n + 1)
+    setFollow(true)
+  }
+
   // Reset the draft (and the share state) whenever another vehicle is opened.
   useEffect(() => {
     setInfoOverride(null)
@@ -199,6 +235,7 @@ export default function VehicleControl() {
     noEngine:"Le contrôle du moteur n'est pas disponible pour ce véhicule",
     loading:'Chargement...',
     fullscreen:'Plein écran', exitFullscreen:'Quitter le plein écran',
+    recenter:'Recentrer sur le véhicule',
     plate:'Plaque', type:'Type', voltage:'Tension', status:'Statut',
     share:'Partager la position', shareCreate:'Générer un lien', shareCopy:'Copier le lien',
     shareCopied:'Lien copié', shareHint:'Lien public valable 24 heures.',
@@ -216,6 +253,7 @@ export default function VehicleControl() {
     noEngine:'التحكم بالمحرك غير متاح حتى يؤكد النظام دعمه لهذه المركبة',
     loading:'جاري التحميل...',
     fullscreen:'ملء الشاشة', exitFullscreen:'الخروج من ملء الشاشة',
+    recenter:'تمركز على المركبة',
     plate:'اللوحة', type:'النوع', voltage:'الفولطاج', status:'الحالة',
     share:'مشاركة الموقع', shareCreate:'إنشاء رابط', shareCopy:'نسخ الرابط',
     shareCopied:'تم نسخ الرابط', shareHint:'رابط عمومي صالح لمدة 24 ساعة.',
@@ -361,8 +399,9 @@ export default function VehicleControl() {
               <MapContainer center={point} zoom={15} zoomControl={false} className="h-full w-full">
                 <MapTileLayer/>
                 <ResizeMap fullscreen={mapFullscreen}/>
-                <CenterMap point={point}/>
-                <LiveVehicleMarker device={{ ...vehicle, lat: point[0], lng: point[1], lang }} isSelected autoFollow/>
+                <InitialCenter point={point} vehicleId={id}/>
+                <LiveVehicleMarker device={{ ...vehicle, lat: point[0], lng: point[1], lang }} isSelected autoFollow={follow} onToggleFollow={setFollow}/>
+                <Recenter point={point} trigger={recenterTrigger}/>
               </MapContainer>
               <button
                 type="button"
@@ -372,6 +411,15 @@ export default function VehicleControl() {
                 title={mapFullscreen ? T.exitFullscreen : T.fullscreen}
               >
                 {mapFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
+              </button>
+              <button
+                type="button"
+                onClick={handleRecenter}
+                className="vehicle-control-map__recenter"
+                aria-label={T.recenter}
+                title={T.recenter}
+              >
+                <LocateFixed size={18}/>
               </button>
             </div>
           ) : (
