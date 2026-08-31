@@ -395,6 +395,26 @@ async function runMigrations() {
       ON engine_commands(device_id)
       WHERE status IN ('requested','pending','sent','delivered','unconfirmed')
     `)
+
+    // Phase 2F: engine command supersession + cancellation gate (migration 005).
+    // Additive, idempotent. Existing rows (incl. command #1) are not touched.
+    await db.query(`
+      ALTER TABLE engine_commands
+        ADD COLUMN IF NOT EXISTS superseded_by_command_id BIGINT REFERENCES engine_commands(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS cancellation_state VARCHAR(16),
+        ADD COLUMN IF NOT EXISTS cancellation_confirmed_at TIMESTAMPTZ
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_engine_commands_current_intent
+      ON engine_commands(device_id)
+      WHERE superseded_by_command_id IS NULL
+        AND status IN ('requested','pending','sent','unconfirmed','delivered')
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_engine_commands_cancel_pending
+      ON engine_commands(device_id)
+      WHERE cancellation_state = 'pending' AND traccar_command_id > 0
+    `)
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)

@@ -56,6 +56,15 @@ function conflictMessage(lang) {
   return ar ? 'يوجد أمر محرك نشط ومتعارض لهذه المركبة' : fr ? 'Une commande moteur active et conflictuelle existe pour ce véhicule' : 'A conflicting engine command is already active for this vehicle'
 }
 
+// Phase 2F: a previous queued command is being cancelled in Traccar; the new
+// command is held pending until cancellation is confirmed. Never claim the
+// engine physically changed state.
+function reconciliationMessage(lang) {
+  const ar = lang === 'ar'
+  const fr = lang === 'fr'
+  return ar ? 'جارٍ إلغاء أمر سابق في النظام؛ سيُرسل أمرك الجديد عند تأكيد الإلغاء' : fr ? "Annulation d'une commande précédente en cours ; la nouvelle commande sera envoyée après confirmation" : 'Cancelling a previous queued command; your new command will be sent once cancellation is confirmed'
+}
+
 export function useEngineControl(vehicle, lang = 'ar') {
   const { refreshDevices } = useApp()
   const [sending, setSending] = useState(false)
@@ -80,8 +89,13 @@ export function useEngineControl(vehicle, lang = 'ar') {
     try {
       const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey })
       const status = response?.command?.status || response?.status
+      const gateHeld = !!response?.command?.gateHeld || !!response?.gateHeld
       if (mounted.current) {
-        if (status) {
+        if (gateHeld) {
+          // A previous queued command is being cancelled in Traccar; the new
+          // command is held pending until that resolves. Truthful display.
+          setSuccess(reconciliationMessage(lang))
+        } else if (status) {
           setSuccess(statusMessage(status, lang))
         } else {
           // P0-1: no authoritative command.status must NEVER read as success.
@@ -98,8 +112,10 @@ export function useEngineControl(vehicle, lang = 'ar') {
       return true
     } catch (e) {
       if (mounted.current) {
-        if (e?.status === 409) setError(conflictMessage(lang))
-        else setError(t(lang, 'vehicleCommandFailed'))
+        // Phase 2F: 409 conflicts no longer occur for explicit opposite commands
+        // (the old command is superseded). Show a truthful error; never claim
+        // physical execution for GT06.
+        setError(t(lang, 'vehicleCommandFailed'))
       }
       return false
     } finally {

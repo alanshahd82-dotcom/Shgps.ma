@@ -589,9 +589,6 @@ import {
             traccarDeviceId: dev.traccar_id,
           })
         } catch (e) {
-          if (e.code === 'COMMAND_CONFLICT') {
-            return res.status(409).json({ error: e.message, code: e.code, activeCommand: e.activeCommand })
-          }
           if (e.code === 'INVALID_COMMAND') {
             return res.status(400).json({ error: e.message, code: e.code })
           }
@@ -612,12 +609,15 @@ import {
           commandId: command?.id,
           status: command?.status,
           traccarCommandId: command?.traccar_command_id,
+          supersededCommandId: command?.superseded_by_command_id ?? null,
+          gateHeld: !!command?.gateHeld,
         }).catch(() => {})
 
         res.json({
           ok: true,
           type,
           command,
+          gateHeld: !!command?.gateHeld,
           // Backward-compatible fields for older clients.
           commandId: command?.traccar_command_id ?? null,
           queueState: command?.status === 'pending' ? 'queued' : 'sent',
@@ -625,6 +625,31 @@ import {
       } catch (err) {
         console.error('[command error]', err.message)
         res.status(500).json({ error: 'Failed to process command: ' + err.message })
+      }
+    })
+
+    // Cancel a pending engine command. Only pre-delivery states (requested /
+    // pending) may be cancelled. If still queued in Traccar, a best-effort
+    // DELETE is attempted; the device gate stays held until Traccar confirms.
+    // No automatic opposite command is ever issued (no auto-restore).
+    devicesRouter.post('/:id/command/:commandId/cancel', requireAuth, requireDeviceOwner, async (req, res) => {
+      try {
+        const dev = req.device
+        const commandId = Number(req.params.commandId)
+        if (!Number.isInteger(commandId) || commandId <= 0) {
+          return res.status(400).json({ error: 'Invalid command id' })
+        }
+        const command = await engineCommands.cancel(commandId, dev.id)
+        await logAudit(req.user.id, 'engine_cancel', 'device', dev.id, {
+          imei: dev.imei,
+          commandId,
+          status: command?.status,
+          traccarCommandId: command?.traccar_command_id ?? null,
+        }).catch(() => {})
+        res.json({ ok: true, command })
+      } catch (err) {
+        console.error('[cancel error]', err.message)
+        res.status(500).json({ error: 'Failed to cancel command: ' + err.message })
       }
     })
 

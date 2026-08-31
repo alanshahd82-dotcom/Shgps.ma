@@ -246,6 +246,17 @@ export async function sendCommand(deviceId, type, attributes = {}) {
   return response
 }
 
+// Cancel a queued Traccar command. Uses the same session-authenticated transport
+// as sendCommand. Returns null on 204 (removed / no longer queued). Throws with
+// .status on non-2xx (404 = not currently in queue; 5xx = unknown). IMPORTANT:
+// 404 is NOT interpreted as "delivered" -- only as "not currently present in
+// the Traccar queue".
+export async function cancelQueuedCommand(traccarCommandId) {
+  if (traccarCommandId == null || traccarCommandId <= 0) return null
+  console.log('[Traccar] DELETE /api/commands/' + traccarCommandId)
+  return await call('/api/commands/' + traccarCommandId, { method: 'DELETE' })
+}
+
 // ─── المرحلة 2 (Draft): دوال السياج الجغرافي ──────────────────
 //
 // Traccar يستخدم صيغة WKT لتعريف المنطقة:

@@ -39,8 +39,14 @@ export const COMMAND_STATUSES = [
   'failed', 'expired', 'cancelled', 'historical_unverified',
 ]
 
-export const ACTIVE_STATUSES = ['requested', 'pending', 'sent', 'delivered', 'unconfirmed']
+// Phase 2F: supersession-based conflict model. 'unconfirmed' no longer blocks a
+// new explicit opposite command; the old command is superseded instead.
+export const IN_FLIGHT_STATUSES = ['requested', 'pending', 'sent']
+export const DELIVERED_STATUSES = ['unconfirmed', 'delivered']
+export const ACTIONABLE_STATUSES = [...IN_FLIGHT_STATUSES, ...DELIVERED_STATUSES]
 export const TERMINAL_STATUSES = ['unconfirmed', 'failed', 'expired', 'cancelled', 'historical_unverified']
+// Backward-compat alias. Semantics changed: 'unconfirmed' is historical, not a lock.
+export const ACTIVE_STATUSES = ACTIONABLE_STATUSES
 
 const IDEMPOTENCY_KEY_MAX = 160
 const ADVISORY_KEY_NAMESPACE = 'athar_engine_commands'
@@ -107,7 +113,69 @@ function mapRow(row) {
     sent_at: row.sent_at ?? null,
     delivered_at: row.delivered_at ?? null,
     resolved_at: row.resolved_at ?? null,
+    superseded_by_command_id: row.superseded_by_command_id ?? null,
+    cancellation_state: row.cancellation_state ?? null,
+    cancellation_confirmed_at: row.cancellation_confirmed_at ?? null,
   }
+}
+
+// Phase 2F helpers
+// A command is QUEUED_LIVE when it is still physically queued in Traccar
+// (pending + a real Traccar command id > 0). Only such a command can fire
+// later and reverse a newer intent; 'unconfirmed'/'sent' have already left
+// the queue and are historical.
+function isQueuedLive(cmd) {
+  return !!cmd && cmd.status === 'pending' && cmd.traccar_command_id != null && cmd.traccar_command_id > 0
+}
+
+// Device gate: is there a pending Traccar cancellation for this device? While
+// true, no new command for this device may enter Traccar.
+async function isDeviceGated(client, deviceId) {
+  const r = await client.query(
+    "SELECT 1 FROM engine_commands WHERE device_id = $1 AND cancellation_state = 'pending' AND traccar_command_id > 0 LIMIT 1",
+    [deviceId]
+  )
+  return r.rowCount > 0
+}
+
+// Latest non-superseded, actionable command for a device (current intent).
+async function getLatestCurrent(client, deviceId) {
+  const r = await client.query(
+    "SELECT * FROM engine_commands WHERE device_id = $1 AND superseded_by_command_id IS NULL AND status = ANY($2) ORDER BY id DESC LIMIT 1",
+    [deviceId, ACTIONABLE_STATUSES]
+  )
+  return r.rowCount > 0 ? r.rows[0] : null
+}
+
+// Idempotent, conservative Traccar cancellation. Called AFTER the PostgreSQL
+// commit, never inside a transaction. 204/404 -> confirmed; 5xx/unknown -> the
+// gate stays 'pending' and the worker retries. 404 is treated only as "not
+// currently in the Traccar queue" (NOT as "delivered").
+async function attemptCancellation(oldCmd) {
+  if (!oldCmd || !oldCmd.traccar_command_id || oldCmd.traccar_command_id <= 0) return
+  try {
+    await traccar.cancelQueuedCommand(oldCmd.traccar_command_id)
+    await db.query(
+      "UPDATE engine_commands SET cancellation_state = 'confirmed', cancellation_confirmed_at = NOW(), updated_at = NOW() WHERE id = $1 AND cancellation_state = 'pending'",
+      [oldCmd.id]
+    )
+    console.log('[engine] cancellation confirmed (204)', JSON.stringify({ id: oldCmd.id, traccarCommandId: oldCmd.traccar_command_id }))
+  } catch (e) {
+    if (e && e.status === 404) {
+      await db.query(
+        "UPDATE engine_commands SET cancellation_state = 'confirmed', cancellation_confirmed_at = NOW(), updated_at = NOW() WHERE id = $1 AND cancellation_state = 'pending'",
+        [oldCmd.id]
+      )
+      console.log('[engine] cancellation resolved (404: not currently queued)', JSON.stringify({ id: oldCmd.id }))
+    } else {
+      console.warn('[engine] cancellation pending (will retry)', JSON.stringify({ id: oldCmd.id, status: e && e.status, message: e && e.message }))
+    }
+  }
+}
+
+// Public hook for the route/worker to drive a pending cancellation explicitly.
+export async function reconcileCancellation(oldCmd) {
+  return attemptCancellation(oldCmd)
 }
 
 // ── Create (idempotent + conflict-protected) ──────────────────────────────
@@ -123,6 +191,9 @@ export async function createRequest({
   const requestedState = requestedStateFor(commandType)
 
   const client = await db.connect()
+  let latestRow = null
+  let wasQueuedLive = false
+  let outCmd = null
   try {
     await client.query('BEGIN')
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1), $2)', [ADVISORY_KEY_NAMESPACE, deviceId])
@@ -131,36 +202,53 @@ export async function createRequest({
     const existing = await client.query('SELECT * FROM engine_commands WHERE idempotency_key = $1 LIMIT 1', [key])
     if (existing.rowCount > 0) { await client.query('COMMIT'); return mapRow(existing.rows[0]) }
 
-    // 2) Conflict check: any active command for this device? (row-locked)
-    const active = await client.query(
-      'SELECT * FROM engine_commands WHERE device_id = $1 AND status = ANY($2) ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
-      [deviceId, ACTIVE_STATUSES]
-    )
-    if (active.rowCount > 0) {
-      const activeCmd = mapRow(active.rows[0])
-      if (activeCmd.command_type === commandType) { await client.query('COMMIT'); return activeCmd }
-      await client.query('COMMIT'); throw new CommandConflictError(activeCmd)
+    // 2) Current intent: latest non-superseded, actionable command.
+    latestRow = await getLatestCurrent(client, deviceId)
+
+    // 3) Dedup: same requested state, still actionable -> return existing.
+    if (latestRow && latestRow.requested_state === requestedState && ACTIONABLE_STATUSES.includes(latestRow.status)) {
+      await client.query('COMMIT')
+      return mapRow(latestRow)
     }
+
+    // 4) Supersession path: fall through to insert (handled below).
 
     // 3) Insert PENDING (offline-safe default; delivery attempted next).
     const insert = await client.query(
       'INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, idempotency_key, protocol, command_profile, traccar_device_id, ip_address) VALUES ($1,$2,$3,$4,\'pending\',$5,$6,$7,$8,$9) RETURNING *',
       [deviceId, userId, commandType, requestedState, key, protocol, commandProfile, traccarDeviceId, ip]
     )
+    if (latestRow) {
+      await client.query('UPDATE engine_commands SET superseded_by_command_id = $1, updated_at = NOW() WHERE id = $2', [insert.rows[0].id, latestRow.id])
+      wasQueuedLive = isQueuedLive(mapRow(latestRow))
+      if (wasQueuedLive) {
+        await client.query("UPDATE engine_commands SET cancellation_state = 'pending', updated_at = NOW() WHERE id = $1", [latestRow.id])
+      }
+    }
     await client.query('COMMIT')
-    console.log('[engine] created command', JSON.stringify({ id: insert.rows[0].id, device: deviceId, type: commandType, status: 'pending' }))
-    return mapRow(insert.rows[0])
+    console.log('[engine] created command', JSON.stringify({ id: insert.rows[0].id, device: deviceId, type: commandType, status: 'pending', superseded: latestRow ? latestRow.id : null, queuedLive: wasQueuedLive }))
+    outCmd = mapRow(insert.rows[0])
+    outCmd.gateHeld = wasQueuedLive
   } catch (err) {
     try { await client.query('ROLLBACK') } catch (_) {}
     throw err
   } finally {
     client.release()
   }
+  // Post-commit external side effect (outside any transaction): cancel the old
+  // queued Traccar command so it cannot fire later and reverse this intent.
+  if (wasQueuedLive && latestRow) {
+    await attemptCancellation(mapRow(latestRow)).catch(() => { /* logged inside */ })
+  }
+  return outCmd
 }
 
 // ── Reads ──────────────────────────────────────────────────────────────────
 export async function getActiveCommand(deviceId) {
-  const r = await db.query('SELECT * FROM engine_commands WHERE device_id = $1 AND status = ANY($2) ORDER BY created_at DESC LIMIT 1', [deviceId, ACTIVE_STATUSES])
+  const r = await db.query(
+    "SELECT * FROM engine_commands WHERE device_id = $1 AND superseded_by_command_id IS NULL AND status = ANY($2) ORDER BY id DESC LIMIT 1",
+    [deviceId, ACTIONABLE_STATUSES]
+  )
   return r.rowCount > 0 ? mapRow(r.rows[0]) : null
 }
 export async function getCommand(commandId, deviceId = null) {
@@ -220,7 +308,16 @@ export async function cancel(commandId, deviceId = null) {
   const cmd = await getCommand(commandId, deviceId)
   if (!cmd) return null
   if (cmd.status === 'cancelled') return cmd
-  if (TERMINAL_STATUSES.includes(cmd.status)) return cmd
+  // Only pre-delivery states may be cancelled. A command already
+  // sent/unconfirmed/delivered has left the server and cannot be recalled;
+  // an explicit opposite command (supersession) is the only way to change
+  // state then. No automatic restore is ever issued.
+  if (!['requested', 'pending'].includes(cmd.status)) return cmd
+  // If still queued in Traccar, attempt cancellation there first (best-effort,
+  // outside any transaction). The gate stays held until Traccar confirms.
+  if (isQueuedLive(cmd)) {
+    await attemptCancellation(cmd)
+  }
   return transition(commandId, 'cancelled')
 }
 
@@ -274,10 +371,32 @@ export async function deliverOnce(command, dev) {
   if (_inflight.has(command.id)) return command
   _inflight.add(command.id)
   try {
-    const cur = await getCommand(command.id)
-    if (!cur) return null
-    if (cur.traccar_command_id != null) return cur           // already in Traccar's hands
-    if (cur.status !== 'pending' && cur.status !== 'requested') return cur
+    // Re-validate under the per-device advisory lock immediately before any
+    // physical send. A stale command object must never bypass the gate.
+    const client = await db.connect()
+    let cur
+    try {
+      await client.query('BEGIN')
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1), $2)', [ADVISORY_KEY_NAMESPACE, command.device_id])
+      const r = await client.query('SELECT * FROM engine_commands WHERE id = $1 FOR UPDATE', [command.id])
+      if (r.rowCount === 0) { await client.query('COMMIT'); return null }
+      const row = r.rows[0]
+      if (row.superseded_by_command_id != null) { await client.query('COMMIT'); return mapRow(row) }
+      if (row.status !== 'pending' && row.status !== 'requested') { await client.query('COMMIT'); return mapRow(row) }
+      if (row.traccar_command_id != null) { await client.query('COMMIT'); return mapRow(row) }
+      if (await isDeviceGated(client, command.device_id)) {
+        await client.query('COMMIT')
+        console.log('[engine] delivery deferred (cancellation gate held)', JSON.stringify({ id: command.id, device: command.device_id }))
+        return mapRow(row)
+      }
+      await client.query('COMMIT')
+      cur = mapRow(row)
+    } catch (e) {
+      try { await client.query('ROLLBACK') } catch (_) {}
+      throw e
+    } finally {
+      client.release()
+    }
 
     let protocol = cur.protocol || ''
     let traccarDevice = null
@@ -335,9 +454,24 @@ export async function deliverOnce(command, dev) {
  * explicitly-requested pending commands. No auto-restore, ever.
  */
 export async function processPendingCommands() {
+  // Stage 1: reconcile pending Traccar cancellations (crash recovery). Must
+  // always run before delivery so a superseded queued command is removed from
+  // Traccar before any new command for the same device is sent.
+  try {
+    const pend = await db.query("SELECT * FROM engine_commands WHERE cancellation_state = 'pending' AND traccar_command_id > 0 ORDER BY updated_at ASC LIMIT $1", [WORKER_BATCH])
+    for (const row of pend.rows) {
+      try { await attemptCancellation(mapRow(row)) } catch (e) { console.warn('[engine-worker] cancellation retry failed', row.id, e.message) }
+    }
+  } catch (e) { console.error('[engine-worker] cancellation query failed:', e.message) }
+
+  // Stage 2: deliver eligible latest non-superseded pending commands whose
+  // device gate is not held.
   let pending
   try {
-    pending = await db.query('SELECT id FROM engine_commands WHERE status = \'pending\' ORDER BY created_at ASC LIMIT $1', [WORKER_BATCH])
+    pending = await db.query(
+      "SELECT e.id FROM engine_commands e WHERE e.status = 'pending' AND e.superseded_by_command_id IS NULL AND NOT EXISTS (SELECT 1 FROM engine_commands c WHERE c.device_id = e.device_id AND c.cancellation_state = 'pending' AND c.traccar_command_id > 0) ORDER BY e.created_at ASC LIMIT $1",
+      [WORKER_BATCH]
+    )
   } catch (e) { console.error('[engine-worker] pending query failed:', e.message); return }
   for (const row of pending.rows) {
     try {
@@ -362,9 +496,18 @@ export async function processPendingCommands() {
 // Called by the Traccar WS bridge when a live position arrives (device online).
 export async function processPendingCommandsForDevice(deviceId) {
   if (!deviceId) return
+  // Reconcile cancellations for this device first (same ordering as the poll).
+  try {
+    const pend = await db.query("SELECT * FROM engine_commands WHERE device_id = $1 AND cancellation_state = 'pending' AND traccar_command_id > 0", [deviceId])
+    for (const row of pend.rows) { try { await attemptCancellation(mapRow(row)) } catch (e) { /* logged */ } }
+  } catch (e) { /* ignore */ }
+
   let pending
   try {
-    pending = await db.query('SELECT id FROM engine_commands WHERE device_id = $1 AND status = \'pending\' ORDER BY created_at ASC LIMIT 10', [deviceId])
+    pending = await db.query(
+      "SELECT id FROM engine_commands WHERE device_id = $1 AND status = 'pending' AND superseded_by_command_id IS NULL AND NOT EXISTS (SELECT 1 FROM engine_commands c WHERE c.device_id = $1 AND c.cancellation_state = 'pending' AND c.traccar_command_id > 0) ORDER BY created_at ASC LIMIT 10",
+      [deviceId]
+    )
   } catch (e) { return }
   for (const row of pending.rows) {
     try {
@@ -400,6 +543,7 @@ export async function onDeviceActivity(traccarIds) {
 
 async function maybeConfirmQueued(cmd, dev) {
   try {
+    if (cmd.superseded_by_command_id != null) return // stale; do not advance
     const positions = await traccar.getAllPositions()   // cached
     const pos = (positions || []).find(p => p.deviceId === dev.traccar_id)
     if (pos && positionIsFresh(pos)) {
