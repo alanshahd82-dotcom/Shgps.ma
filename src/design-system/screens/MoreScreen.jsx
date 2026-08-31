@@ -89,10 +89,15 @@ export function MoreScreen({ user: providedUser, alertCount = 0, onTabChange, on
   return (
     <ClientLayout activeTab="more" onTabChange={onTabChange} alertCount={alertCount || unreadCount} showTopBar title={isAr ? 'المزيد' : 'Plus'}>
       <div className="h-full overflow-y-auto bg-white" dir={isAr ? 'rtl' : 'ltr'}>
-        <div className="flex items-center gap-4 border-b border-slate-200 bg-white p-4">
+        <button
+          type="button"
+          onClick={() => navigate('/client/settings')}
+          className="flex w-full items-center gap-4 border-b border-slate-200 bg-white p-4 text-start transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-600"
+        >
           <Avatar name={user.name || user.email || (isAr ? 'المستخدم' : 'Utilisateur')} size="xl" />
           <div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold text-slate-900">{user.name || (isAr ? 'حسابي' : 'Mon compte')}</h2><p className="mt-1 truncate text-xs text-slate-600">{user.email || (isAr ? 'بيانات الحساب غير متاحة' : 'Données du compte indisponibles')}</p>{(user.subscription || user.plan) && <Badge variant="default" size="sm" className="mt-2">{String(user.subscription || user.plan).toUpperCase()}</Badge>}</div>
-        </div>
+          <ChevronLeft className="h-5 w-5 shrink-0 text-slate-400 rtl:rotate-180" aria-hidden="true" />
+        </button>
         <div className="space-y-6 bg-white p-4">
           {GROUPS.map(group => <Section key={group.ar} title={isAr ? group.ar : group.fr}>{group.items.map(item => <MenuItem key={item[1]} Icon={item[0]} label={isAr ? item[2] : item[3]} variant={item[4]} onClick={() => handleMenuItemClick(item)} />)}</Section>)}
         </div>
