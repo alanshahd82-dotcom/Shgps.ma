@@ -104,7 +104,7 @@ export function isPowerAlertSuppressed(deviceId, now = Date.now()) {
  * Missing voltage is intentionally not considered a signal: GT06 devices
  * commonly omit that field while still sending valid positions.
  */
-export function detectExternalPowerLoss(position) {
+export function detectExternalPowerLoss(position, { everSeenBatteryVoltage = true } = {}) {
   // Suppress a relay echo if an engine command was sent to this device
   // recently; this protects every caller, including the WebSocket bridge.
   if (position?.deviceId != null && isPowerAlertSuppressed(position.deviceId)) {
@@ -140,7 +140,17 @@ export function detectExternalPowerLoss(position) {
   if (attributes.charge !== undefined && attributes.charge !== null
     && isFalseLike(attributes.charge)) {
     const chargeVoltage = extractReportedVoltage(position)
+    // A packet carrying a battery-range voltage proves the vehicle battery
+    // is still wired to the tracker, so charge:false just means "not charging".
     if (chargeVoltage !== null && isBatteryVoltage(chargeVoltage)) return null
+    // FIX 1: charge:false can only mean the vehicle battery was disconnected
+    // for a device that has previously reported a vehicle-battery voltage. A
+    // standalone tracker (no vehicle) never does, so it must never fire a
+    // disconnect from charge:false alone. everSeenBatteryVoltage defaults to
+    // true so callers without per-device state (the WS UI normalisation in
+    // index.js) keep the legacy behaviour; the alert engine passes the tracked
+    // per-device flag.
+    if (!everSeenBatteryVoltage) return null
     return { source: 'charge:false' }
   }
 
@@ -183,17 +193,14 @@ export function detectExternalPowerRestored(position) {
     return { source: `alarm:${alarm}` }
   }
 
-  // Real electrical evidence: a reported voltage inside a vehicle-battery
-  // range (12V or 24V systems) can only come from the external supply - the
-  // internal backup cell reads far below it (DACIA measured 4.7V while cut).
-  // GT06 packets often omit `charge` on the first frames after the tracker
-  // reboots on restored power, so without this the episode would stay
-  // disconnected forever and block every later disconnect alert.
-  const reportedVoltage = extractReportedVoltage(position)
-  if (reportedVoltage !== null && isBatteryVoltage(reportedVoltage)) {
-    return { source: `voltage:${reportedVoltage}` }
-  }
-
+  // FIX 2: a bare voltage reading is NOT an affirmative restoration signal.
+  // GT06 reports the supply voltage on every connected packet; treating
+  // "voltage appeared" as "power restored" fired a restore on every
+  // voltage-bearing packet and flapped against charge:false disconnects.
+  // Restoration now requires an explicit affirmative signal above
+  // (charge:true, externalPower:true, an explicit powerCut/lossKey:false, or
+  // a powerRestored alarm). The clean-telemetry probation in the reducer still
+  // recovers episodes where the tracker never sends charge:true.
   return null
 }
 
@@ -261,7 +268,7 @@ export function reducePowerTelemetryState(current, {
       state: next,
       isNewTelemetry,
       restored: confirmedRestore,
-      shouldAlertImmediately: !next.disconnected && !next.alerting,
+      shouldAlertImmediately: isNewTelemetry && !next.disconnected && !next.alerting,
       shouldScheduleSilence: false,
     }
   }
@@ -293,7 +300,7 @@ const disconnectedVehicles = new Set()
 export const VOLTAGE_RANGE_12V = { min: 9, max: 15 }
 export const VOLTAGE_RANGE_24V = { min: 18, max: 30 }
 
-function isBatteryVoltage(value) {
+export function isBatteryVoltage(value) {
   return (
     (value >= VOLTAGE_RANGE_12V.min && value <= VOLTAGE_RANGE_12V.max)
     || (value >= VOLTAGE_RANGE_24V.min && value <= VOLTAGE_RANGE_24V.max)

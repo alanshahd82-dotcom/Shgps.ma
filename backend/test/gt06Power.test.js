@@ -162,6 +162,9 @@ const typed = (db, type) => db.alerts.filter((a) => a.type === type)
 
 test('TEST 9 — repeated charge:false produces ONE disconnect transition', async () => {
   const h = createHarness()
+  // Establish vehicle-battery context first: a standalone tracker that never
+  // reported a vehicle voltage must never disconnect from charge:false (FIX 1).
+  await feed(h, { charge: true, batteryLevel: 100, adc1: 13.6 })
   await feed(h, { charge: false, alarm: 'lowBattery', batteryLevel: 16 })
   await feed(h, { charge: false, batteryLevel: 15 })
   await feed(h, { charge: false, batteryLevel: 14 })
@@ -176,6 +179,8 @@ test('TEST 9 — repeated charge:false produces ONE disconnect transition', asyn
 
 test('TEST 10 — repeated charge:true after restore produces ONE restore transition', async () => {
   const h = createHarness()
+  // Establish vehicle-battery context first (FIX 1).
+  await feed(h, { charge: true, batteryLevel: 100, adc1: 13.6 })
   await feed(h, { charge: false })
   assert.equal(typed(h.db, 'power_disconnected').length, 1)
 

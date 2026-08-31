@@ -109,7 +109,8 @@ test('signal detection: only explicit electrical feedback counts', () => {
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: {} }), null)
 
   assert.equal(detectExternalPowerRestored({ attributes: { charge: true } })?.source, 'charge:true')
-  assert.equal(detectExternalPowerRestored({ attributes: { adc1: 13.4 } })?.source, 'voltage:13.4')
+  // FIX 2: a bare voltage reading is NOT an affirmative restoration signal.
+  assert.equal(detectExternalPowerRestored({ attributes: { adc1: 13.4 } }), null)
   // The internal backup cell (≈4.7V measured on DACIA) is NOT a restore proof.
   assert.equal(detectExternalPowerRestored({ attributes: { adc1: 4.7 } }), null)
   assert.equal(detectExternalPowerRestored({ attributes: {} }), null)
@@ -159,7 +160,11 @@ test('three real disconnect episodes each produce exactly one alert pair', async
   assert.equal(h.alerts.filter(a => a === 'power_disconnected').length, 2)
   assert.equal(h.powerStates.get(TRACCAR_ID), 'telemetry')
 
-  // Restore #2 WITHOUT a charge field — real 12V reading closes the episode.
+  // Restore #2 WITHOUT a charge field — three clean packets (no loss signal)
+  // close the episode via the clean-telemetry probation. A single bare voltage
+  // reading no longer restores by itself (FIX 2).
+  await h.send(RESTORED_NO_CHARGE)
+  await h.send(RESTORED_NO_CHARGE)
   await h.send(RESTORED_NO_CHARGE)
   assert.equal(h.alerts.filter(a => a === 'power_restored').length, 2)
   assert.equal(h.state().disconnected, false)

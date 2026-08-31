@@ -15,6 +15,7 @@ import {
   detectExternalPowerRestored,
   reducePowerTelemetryState,
   observeVehicleVoltage,
+  isBatteryVoltage,
   POWER_SILENCE_WINDOW_MS,
   isPowerAlertSuppressed,
 } from './vehicleTelemetry.js'
@@ -168,6 +169,7 @@ export function createPowerAlertEngine({
             invalidPositionCount: 0,
             disconnected: true,
             alerting: false,
+            everSeenBatteryVoltage: false,
           })
         }
         markVehicleDisconnected(row.traccar_id)
@@ -328,10 +330,17 @@ export function createPowerAlertEngine({
       invalidPositionCount: 0,
       disconnected: false,
       alerting: false,
+      everSeenBatteryVoltage: false,
     }
+    // FIX 1: a standalone tracker (no vehicle battery) never reports a
+    // battery-range voltage. charge:false can only be an electrical disconnect
+    // for a device that has previously reported one, so track that per device
+    // and pass it to the loss detector.
+    const everSeenBatteryVoltage = current.everSeenBatteryVoltage
+      || (voltage !== null && isBatteryVoltage(voltage))
     const signature = positionSignature(position)
     const powerAlertSuppressed = isPowerAlertSuppressed(traccarId, nowMs)
-    const powerLossSignal = powerAlertSuppressed ? null : detectExternalPowerLoss(position)
+    const powerLossSignal = powerAlertSuppressed ? null : detectExternalPowerLoss(position, { everSeenBatteryVoltage })
     // A restore signal is never suppressed: the engine-command cooldown exists
     // to avoid a false DISCONNECT alert echoed by the relay. Dropping the
     // restore signal during that window used to leave the vehicle stuck in a
@@ -345,6 +354,7 @@ export function createPowerAlertEngine({
       powerRestoredSignal,
     })
     const next = transition.state
+    next.everSeenBatteryVoltage = everSeenBatteryVoltage
 
     // A healthy position after a confirmed disconnect episode: transition back to connected.
     // Fire ONE restore alert, clear the in-memory disconnect state, and remove the device
