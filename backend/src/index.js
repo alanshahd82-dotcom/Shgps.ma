@@ -35,6 +35,7 @@ import {
   readVehicleVoltage as readCachedVehicleVoltage,
 } from './services/vehicleTelemetry.js'
 import { createPowerAlertEngine } from './services/powerAlerts.js'
+import { isUserAlertEvent } from './services/eventPolicy.js'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -810,7 +811,7 @@ async function connectTraccar() {
               devices: parsed.devices.filter(d => allowedIds.has(d.id)),
             } : {}),
             ...(Array.isArray(parsed.events) ? {
-              events: parsed.events.filter(e => allowedIds.has(e.deviceId)),
+              events: parsed.events.filter(e => allowedIds.has(e.deviceId) && isUserAlertEvent(e)),
             } : {}),
           }
           try { outMsg = JSON.stringify(patched) } catch {}

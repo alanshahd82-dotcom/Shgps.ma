@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { api } from '../api/index.js'
+import { isUserAlertEvent } from '../utils/eventPolicy.js'
 
 const AppContext = createContext(null)
 
@@ -422,12 +423,17 @@ export function AppProvider({ children }) {
           })
         }
 
-        if (data.events && data.events.length > 0) {
+        // Phase 2H-1: only genuine user-facing alerts may enter the
+        // notification stream. Raw Traccar connectivity/alarm/ignition
+        // events are dropped here (defensive - the backend WS bridge
+        // already filters them) so they can never become notifications.
+        const alertEvents = (data.events || []).filter(isUserAlertEvent)
+        if (alertEvents.length > 0) {
           // Stable server IDs are safe to deduplicate. Events without one are
           // kept conservatively because their distinct identity is unknown.
           setAlertsList(prev => {
             const seenIds = new Set(prev.map(item => item.id).filter(id => id != null).map(String))
-            const newAlerts = data.events.map(ev => {
+            const newAlerts = alertEvents.map(ev => {
               const stableId = ev.id ?? ev.eventId ?? ev.event_id ?? null
               const eventId = stableId != null
                 ? String(stableId)
