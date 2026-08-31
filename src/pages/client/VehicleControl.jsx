@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, useMap } from 'react-leaflet'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import MapTileLayer from '../../components/MapTileLayer'
-import { ArrowLeft, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, X, Zap } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, User, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -182,7 +182,6 @@ export default function VehicleControl() {
   const [copied, setCopied] = useState(false)
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const vehicleMapRef = useRef(null)
-  const [infoOpen, setInfoOpen] = useState(false)
 
   const baseVehicle = useMemo(() => vehicles.find(v => String(v.id) === String(id)), [id, vehicles])
   const vehicle = useMemo(
@@ -237,6 +236,8 @@ export default function VehicleControl() {
     fullscreen:'Plein écran', exitFullscreen:'Quitter le plein écran',
     recenter:'Recentrer sur le véhicule',
     plate:'Plaque', type:'Type', voltage:'Tension', status:'Statut',
+    secVehicle:'Véhicule', secDriver:'Conducteur', secDevice:'Appareil GPS', secStatus:'État actuel',
+    speed:'Vitesse', lastUpdate:'Dernière mise à jour', call:'Appeler',
     share:'Partager la position', shareCreate:'Générer un lien', shareCopy:'Copier le lien',
     shareCopied:'Lien copié', shareHint:'Lien public valable 24 heures.',
     shareExpires:'Expire le', shareForbidden:"Vous n'êtes pas autorisé à partager ce véhicule.",
@@ -255,6 +256,8 @@ export default function VehicleControl() {
     fullscreen:'ملء الشاشة', exitFullscreen:'الخروج من ملء الشاشة',
     recenter:'تمركز على المركبة',
     plate:'اللوحة', type:'النوع', voltage:'الفولطاج', status:'الحالة',
+    secVehicle:'المركبة', secDriver:'السائق', secDevice:'جهاز التتبع', secStatus:'الحالة الحالية',
+    speed:'السرعة', lastUpdate:'آخر تحديث', call:'اتصال',
     share:'مشاركة الموقع', shareCreate:'إنشاء رابط', shareCopy:'نسخ الرابط',
     shareCopied:'تم نسخ الرابط', shareHint:'رابط عمومي صالح لمدة 24 ساعة.',
     shareExpires:'ينتهي في', shareForbidden:'ليس لديك صلاحية مشاركة هذه المركبة.',
@@ -359,18 +362,16 @@ export default function VehicleControl() {
   )
 
   const displayValue = value => value == null || value === '' ? '—' : String(value)
-  const vehicleType = vehicle.type === 'car'
-    ? (lang === 'fr' ? 'Voiture' : 'سيارة')
-    : vehicle.type === 'truck'
-      ? (lang === 'fr' ? 'Camion' : 'شاحنة')
-      : vehicle.type === 'bike' || vehicle.type === 'motorcycle'
-        ? (lang === 'fr' ? 'Moto' : 'دراجة')
-        : '—'
   // Use the shared voltage formatter (src/components/ui.jsx) so this surface
   // stays consistent with the rest of the app: same value source
   // (vehicle.voltage), same empty/disconnected handling, and no fabricated
   // number. Never falls back to batteryLevel as voltage.
   const voltageLabel = formatVoltage(vehicle.voltage, lang, vehicle?.lastUpdate ?? vehicle?.last_update, vehicle?.powerDisconnected)
+  // Real saved driver phone — the Call action uses this, never the unsaved
+  // form draft, so the user always dials the number currently on record.
+  const realPhone = vehicle?.phone ?? vehicle?.driverPhone ?? ''
+  const speedLabel = (() => { const s = Number(vehicle?.speed); return Number.isFinite(s) ? Math.round(s) + ' km/h' : null })()
+  const lastUpLabel = lastUp ? new Date(lastUp).toLocaleString(lang === 'ar' ? 'ar-MA' : 'fr-FR', { timeZone: APP_TZ }) : null
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 pb-24" dir={lang==='ar'?'rtl':'ltr'}>
@@ -448,87 +449,116 @@ export default function VehicleControl() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <button
-            type="button"
-            onClick={() => setInfoOpen(value => !value)}
-            aria-expanded={infoOpen}
-            className="flex w-full items-center justify-between gap-3 p-4 text-start"
-          >
-            <span className="flex items-center gap-2">
-              <Pencil size={16} className="text-indigo-600"/>
-              <span className="text-sm font-extrabold text-slate-900">{T.details}</span>
-            </span>
-            <span className="text-lg leading-none text-slate-400" aria-hidden="true">{infoOpen ? '−' : '+'}</span>
-          </button>
-          {infoOpen && <div className="space-y-3 border-t border-slate-100 p-4">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                [T.dName, vehicle.driver ?? vehicle.driverName],
-                [T.plate, vehicle.plate ?? vehicle.licensePlate],
-                [T.type, vehicleType],
-                [T.dPhone, vehicle.phone ?? vehicle.driverPhone],
-                [T.devId, vehicle.uniqueId || vehicle.id],
-                [T.voltage, voltageLabel],
-                [T.status, online ? T.online : T.offline],
-              ].map(([label, value]) => (
-                <div key={label} className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-                  <p className="truncate text-[10px] font-bold text-slate-500">{label}</p>
-                  <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(value)}</p>
-                </div>
-              ))}
-            </div>
+        {/* Vehicle information */}
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Car size={16} className="text-indigo-600"/>
+            <span className="text-sm font-extrabold text-slate-900">{T.secVehicle}</span>
+          </div>
+          <div className="space-y-3">
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.vName}</label>
-              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.plate}</label>
+                <input type="text" value={form.plate} onChange={e => setForm(f => ({ ...f, plate: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.type}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {VEHICLE_TYPES.map(value => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, type: value }))}
+                      aria-pressed={form.type === value}
+                      className={'rounded-xl border px-2 py-2.5 text-[11px] font-extrabold transition ' + (
+                        form.type === value
+                          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'
+                      )}
+                    >
+                      {T.types[value]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Driver information */}
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <User size={16} className="text-indigo-600"/>
+            <span className="text-sm font-extrabold text-slate-900">{T.secDriver}</span>
+          </div>
+          <div className="space-y-3">
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.dName}</label>
-              <input type="text" value={form.driver} onChange={e => setForm(f => ({ ...f, driver: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+              <input type="text" value={form.driver} onChange={e => setForm(f => ({ ...f, driver: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.dPhone}</label>
-              <input type="tel" dir="ltr" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.plate}</label>
-              <input type="text" value={form.plate} onChange={e => setForm(f => ({ ...f, plate: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.type}</label>
-              <div className="grid grid-cols-3 gap-2">
-                {VEHICLE_TYPES.map(value => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, type: value }))}
-                    aria-pressed={form.type === value}
-                    className={'rounded-xl border px-2 py-2.5 text-[11px] font-extrabold transition ' + (
-                      form.type === value
-                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm'
-                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300'
-                    )}
-                  >
-                    {T.types[value]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.devId}</label>
               <div className="flex items-center gap-2">
-                <input type="text" value={vehicle.uniqueId || String(vehicle.id)} readOnly className="flex-1 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500"/>
-                {form.phone ? (
-                  <a href={'tel:' + form.phone} className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500 text-white"><Phone size={16}/></a>
+                <input type="tel" dir="ltr" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
+                {realPhone ? (
+                  <a href={'tel:' + realPhone} aria-label={T.call} title={T.call} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-green-500 text-white hover:bg-green-600">
+                    <Phone size={16}/>
+                  </a>
                 ) : null}
               </div>
             </div>
-            <button type="button" onClick={saveDetails} disabled={saving} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition disabled:opacity-60 ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
-              {saving ? <><Loader2 size={14} className="animate-spin"/> {T.loading}</> : saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
-            </button>
-            {saveErr && <p role="alert" className="text-center text-[11px] font-bold text-red-600">{saveErr}</p>}
-          </div>}
+          </div>
         </section>
+
+        {/* GPS device — read-only identifiers */}
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Zap size={16} className="text-indigo-600"/>
+            <span className="text-sm font-extrabold text-slate-900">{T.secDevice}</span>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.devId}</label>
+            <input type="text" value={vehicle.uniqueId || '—'} readOnly className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500"/>
+          </div>
+        </section>
+
+        {/* Current status — read-only telemetry */}
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Activity size={16} className="text-indigo-600"/>
+            <span className="text-sm font-extrabold text-slate-900">{T.secStatus}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
+              <p className="truncate text-[10px] font-bold text-slate-500">{T.status}</p>
+              <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-extrabold text-slate-800">
+                <span className={'inline-block h-2 w-2 flex-shrink-0 rounded-full ' + (online ? 'bg-green-500' : 'bg-slate-400')}/>
+                {online ? T.online : T.offline}
+              </p>
+            </div>
+            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
+              <p className="truncate text-[10px] font-bold text-slate-500">{T.speed}</p>
+              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(speedLabel)}</p>
+            </div>
+            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
+              <p className="truncate text-[10px] font-bold text-slate-500">{T.lastUpdate}</p>
+              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(lastUpLabel)}</p>
+            </div>
+            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
+              <p className="truncate text-[10px] font-bold text-slate-500">{T.voltage}</p>
+              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(voltageLabel)}</p>
+            </div>
+          </div>
+        </section>
+
+        <button type="button" onClick={saveDetails} disabled={saving} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition disabled:opacity-60 ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
+          {saving ? <><Loader2 size={14} className="animate-spin"/> {T.loading}</> : saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
+        </button>
+        {saveErr && <p role="alert" className="text-center text-[11px] font-bold text-red-600">{saveErr}</p>}
 
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
