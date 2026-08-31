@@ -74,9 +74,18 @@ async function apiFetch(path, options = {}, timeoutMs = 0, onProgress, allowRefr
           if (newToken) {
             return apiFetch(path, options, timeoutMs, onProgress, false)
           }
-        } catch {
-          // Preserve the original 401. AppContext already distinguishes
-          // real authentication failure from network/bootstrap failures.
+        } catch (refreshError) {
+          // If refresh failed for a non-auth reason (network/server error),
+          // the original 401 may be transient. Surface a transient error so
+          // AppContext keeps the persisted session instead of forcing a
+          // false logout. Only a confirmed 401 from refresh means the token
+          // is genuinely unusable.
+          if (refreshError?.status !== 401) {
+            const transient = new Error(refreshError?.message || 'Session refresh unavailable')
+            transient.code = 'AUTH_REFRESH_UNAVAILABLE'
+            transient.name = 'TypeError'
+            throw transient
+          }
         }
       }
 
