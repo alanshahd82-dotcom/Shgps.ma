@@ -12,7 +12,7 @@ import { APP_TZ } from '../../utils/datetime.js'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
-const RANGES = ['today', 'yesterday', 'week']
+const RANGES = ['today', 'yesterday', 'last3', 'custom']
 
 function Chip({ active, onClick, children }) {
   return (
@@ -81,10 +81,36 @@ function getPeriodBounds(range) {
     end.setHours(0, 0, 0, 0)
     start.setDate(start.getDate() - 1)
     start.setHours(0, 0, 0, 0)
+  } else if (range === 'last3') {
+    start.setDate(start.getDate() - 2)
+    start.setHours(0, 0, 0, 0)
   } else {
-    start.setDate(start.getDate() - 7)
+    start.setHours(0, 0, 0, 0)
   }
   return { from: start.toISOString(), to: end.toISOString() }
+}
+
+function getCustomBounds(fromDate, toDate, fromTime, toTime) {
+  if (!fromDate || !toDate) return { from: null, to: null }
+  const start = new Date(fromDate)
+  const end = new Date(toDate)
+  if (fromTime) {
+    const [h, m] = fromTime.split(':').map(Number)
+    start.setHours(h || 0, m || 0, 0, 0)
+  } else {
+    start.setHours(0, 0, 0, 0)
+  }
+  if (toTime) {
+    const [h, m] = toTime.split(':').map(Number)
+    end.setHours(h || 0, m || 0, 59, 999)
+  } else {
+    end.setHours(23, 59, 59, 999)
+  }
+  return { from: start.toISOString(), to: end.toISOString() }
+}
+
+function getTripLocation(trip, prefix) {
+  return trip?.[prefix + 'Address'] ?? trip?.[prefix + '_address'] ?? trip?.[prefix + 'Location'] ?? trip?.[prefix + '_location'] ?? null
 }
 
 function Stat({ Icon, label, value }) {
@@ -125,6 +151,26 @@ function TripCard({ trip, vehicle, replaying, onPlay, lang, L }) {
           <Stat Icon={Gauge} label={L.averageSpeed} value={formatNumber(trip?.avgSpeed ?? trip?.avg_speed, lang === 'fr' ? ' km/h' : ' كم/س', L.unavailable)} />
           <Stat Icon={Gauge} label={L.maxSpeed} value={formatNumber(trip?.maxSpeed ?? trip?.max_speed, lang === 'fr' ? ' km/h' : ' كم/س', L.unavailable)} />
           <Stat Icon={MapPin} label={L.stops} value={formatDuration(trip?.stopMin ?? trip?.stop_min, lang)} />
+        </div>
+        {(getTripLocation(trip, 'start') || getTripLocation(trip, 'end')) && (
+          <div className="mt-3 space-y-2 border-t border-border pt-3">
+            {getTripLocation(trip, 'start') && (
+              <div className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                <span className="text-xs text-slate-500">{L.startLocation}</span>
+                <span className="ms-auto text-right text-xs font-medium text-primary">{getTripLocation(trip, 'start')}</span>
+              </div>
+            )}
+            {getTripLocation(trip, 'end') && (
+              <div className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                <span className="text-xs text-slate-500">{L.endLocation}</span>
+                <span className="ms-auto text-right text-xs font-medium text-primary">{getTripLocation(trip, 'end')}</span>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="mt-3">
           <Button
             variant="secondary"
             size="sm"
@@ -164,7 +210,9 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
   const { lang } = useApp()
   const L = lang === 'fr' ? {
     title: 'Trajets', vehicle: 'Véhicule', unnamedVehicle: 'Véhicule sans nom', timeRange: 'Période',
-    ranges: { today: 'Aujourd’hui', yesterday: 'Hier', week: '7 derniers jours' },
+    ranges: { today: 'Aujourd’hui', yesterday: 'Hier', last3: '3 derniers jours', custom: 'Période personnalisée' },
+    customFrom: 'Date de début', customTo: 'Date de fin', customFromTime: 'Heure de début (optionnel)', customToTime: 'Heure de fin (optionnel)',
+    startLocation: 'Lieu de départ', endLocation: 'Lieu d’arrivée',
     loadingTrips: 'Chargement des trajets', loadError: 'Impossible de charger les trajets', retry: 'Réessayer',
     unavailable: 'Indisponible', noTrips: 'Aucune donnée de trajet disponible', noVehicles: 'Aucun véhicule associé',
     noTripsHint: 'Les trajets apparaîtront lorsque des positions valides seront disponibles pour le véhicule sélectionné.', routeUnavailable: 'Itinéraire indisponible',
@@ -174,7 +222,9 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
     openVehicle: 'Ouvrir le véhicule', unavailableVehicle: 'Véhicule indisponible',
   } : {
     title: 'الرحلات', vehicle: 'المركبة', unnamedVehicle: 'مركبة غير مسماة', timeRange: 'الفترة الزمنية',
-    ranges: { today: 'اليوم', yesterday: 'الأمس', week: 'آخر 7 أيام' },
+    ranges: { today: 'اليوم', yesterday: 'الأمس', last3: 'آخر 3 أيام', custom: 'فترة مخصة' },
+    customFrom: 'تاريخ البداية', customTo: 'تاريخ النهاية', customFromTime: 'وقت البداية (اختياري)', customToTime: 'وقت النهاية (اختياري)',
+    startLocation: 'موقع البداية', endLocation: 'موقع النهاية',
     loadingTrips: 'جاري تحميل الرحلات', loadError: 'تعذّر تحميل الرحلات', retry: 'إعادة المحاولة',
     unavailable: 'غير متوفر', noTrips: 'لا توجد بيانات رحلات متاحة حالياً', noVehicles: 'لا توجد مركبات مرتبطة',
     noTripsHint: 'ستظهر الرحلات هنا عندما تتوفر سجلات مواقع صالحة للمركبة المحددة.', routeUnavailable: 'المسار غير متوفر',
@@ -187,6 +237,10 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
   const hasProvidedTrips = Array.isArray(providedTrips)
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [range, setRange] = useState('today')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [customFromTime, setCustomFromTime] = useState('')
+  const [customToTime, setCustomToTime] = useState('')
   const [trips, setTrips] = useState(hasProvidedTrips ? providedTrips : [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -209,11 +263,21 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
 
   useEffect(() => {
     if (hasProvidedTrips || !selectedVehicleId) return undefined
+    let from, to
+    if (range === 'custom') {
+      const bounds = getCustomBounds(customFrom, customTo, customFromTime, customToTime)
+      from = bounds.from
+      to = bounds.to
+      if (!from || !to) return undefined
+    } else {
+      const bounds = getPeriodBounds(range)
+      from = bounds.from
+      to = bounds.to
+    }
     let cancelled = false
     setLoading(true)
     setError('')
     setReplayError('')
-    const { from, to } = getPeriodBounds(range)
     api.reports.get(selectedVehicleId, from, to)
       .then(data => {
         if (!cancelled) setTrips(Array.isArray(data?.trips) ? data.trips : [])
@@ -228,7 +292,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [hasProvidedTrips, range, reloadKey, selectedVehicleId])
+  }, [hasProvidedTrips, range, reloadKey, selectedVehicleId, customFrom, customTo, customFromTime, customToTime])
 
   async function openReplay(trip, tripKey) {
     const start = getTripStart(trip)
@@ -271,6 +335,30 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
               <Chip key={id} active={range === id} onClick={() => setRange(id)}>{L.ranges[id]}</Chip>
             ))}
           </div>
+          {range === 'custom' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs">
+                  <span className="block text-slate-500">{L.customFrom}</span>
+                  <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                </label>
+                <label className="text-xs">
+                  <span className="block text-slate-500">{L.customTo}</span>
+                  <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs">
+                  <span className="block text-slate-500">{L.customFromTime}</span>
+                  <input type="time" dir="ltr" value={customFromTime} onChange={e => setCustomFromTime(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                </label>
+                <label className="text-xs">
+                  <span className="block text-slate-500">{L.customToTime}</span>
+                  <input type="time" dir="ltr" value={customToTime} onChange={e => setCustomToTime(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                </label>
+              </div>
+            </div>
+          )}
         </div>
         <div className="space-y-3 p-4">
           {loading && (
