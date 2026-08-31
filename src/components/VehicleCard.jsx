@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  AlertTriangle, Clock, Gauge, MapPin, Navigation, Power,
+  AlertTriangle, Clock, Gauge, Loader2, MapPin, Navigation, Power,
 } from 'lucide-react'
 import { normalizeVehicleType } from '../utils/vehicleAssets'
 import {
@@ -376,26 +376,29 @@ export function VehicleCard({
           · {vehicle.lastUpdate ? timeAgo(vehicle.lastUpdate, lang) : l.na}
         </span>
 
-        {/* engine cut / restore button */}
-        {canControlEngine && (
+      </div>
+
+      {/* Engine control — the primary action */}
+      {canControlEngine && (
+        <div className="border-t border-slate-100 p-2.5">
           <button
             type="button"
             onClick={handleEngineClick}
             disabled={engineLoading}
-            className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors disabled:opacity-60 ${
+            className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-extrabold transition-colors disabled:opacity-70 ${
               engineConfirm
-                ? 'animate-pulse bg-red-500 text-white'
+                ? 'animate-pulse bg-red-600 text-white'
                 : engineRunning
-                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                  ? 'bg-red-50 text-red-700 hover:bg-red-100 ring-1 ring-inset ring-red-200'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 ring-1 ring-inset ring-emerald-200'
             }`}
             aria-label={engineRunning ? l.cutEngine : l.restoreEngine}
           >
-            <Power size={12} />
+            {engineLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power size={16} />}
             {engineLoading ? l.loading : engineErr ? l.failed : engineConfirm ? l.confirm : engineRunning ? l.cutEngine : l.restoreEngine}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* keyframes scoped via emotion-free inline <style> */}
       <style>{`
