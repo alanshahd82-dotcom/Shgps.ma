@@ -22,6 +22,7 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: "1.0"
 
   traccar:
     image: traccar/traccar:ubuntu
@@ -58,6 +59,7 @@ services:
       resources:
         limits:
           memory: 384M
+          cpus: "1.0"
 
   backend:
     build: ./backend
@@ -92,6 +94,7 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: "1.0"
 
   nginx:
     image: nginx:alpine
@@ -113,6 +116,7 @@ services:
       resources:
         limits:
           memory: 64M
+          cpus: "0.25"
 
   certbot:
     image: certbot/certbot
@@ -153,6 +157,7 @@ services:
       resources:
         limits:
           memory: 64M
+          cpus: "0.25"
 
 volumes:
   postgres_data:
