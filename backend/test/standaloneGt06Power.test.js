@@ -27,12 +27,19 @@ import {
 const TRACCAR_ID = 70
 const DEVICE_ROW = { id: 16, traccar_id: TRACCAR_ID, user_id: 3, name: 'DACIA' }
 
-function makeHarness() {
+function makeHarness(opts = {}) {
   const alerts = []
   const powerStates = new Map()
+  const legacyRow = opts.legacyDisconnect
+    ? { traccar_id: TRACCAR_ID, disconnect_trigger: opts.legacyTrigger || 'telemetry' }
+    : null
+  if (legacyRow) powerStates.set(String(TRACCAR_ID), legacyRow.disconnect_trigger)
   const db = {
     query: async (sql, params = []) => {
       if (/FROM devices WHERE traccar_id/.test(sql)) return { rows: [DEVICE_ROW] }
+      if (/FROM device_power_states WHERE disconnected/.test(sql)) {
+        return { rows: legacyRow ? [legacyRow] : [] }
+      }
       if (/INSERT INTO alerts/.test(sql)) {
         const type = /power_restored/.test(sql) ? 'power_restored' : 'power_disconnected'
         alerts.push(type)
@@ -202,7 +209,7 @@ test('7. real vehicle context then validated loss -> one disconnect', async () =
   await h.send(STANDALONE_LOSS)
   assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 1)
   assert.equal(h.state()?.disconnected, true)
-  assert.equal(h.powerStates.get(TRACCAR_ID), 'telemetry')
+  assert.equal(h.powerStates.get(String(TRACCAR_ID)), 'telemetry')
 })
 
 // 8. Real restoration after genuine disconnect -> exactly ONE restore
@@ -232,4 +239,70 @@ test('10. engine-command code unchanged: cooldown API + isBatteryVoltage intact'
   assert.equal(ENGINE_COMMAND_POWER_SUPPRESSION_MS, 60 * 1000)
   assert.equal(isBatteryVoltage(12.6), true)
   assert.equal(isBatteryVoltage(4.7), false)
+})
+
+// ── Phase 2G-FIX-2: legacy false-restore suppression ─────────────────────────────
+// A standalone tracker (everSeenBatteryVoltage=false) that holds a stale
+// disconnected=true row written by the pre-gate code must be restored SILENTLY:
+// clear the device_power_states row, fire NO power_restored alert.
+
+// 11. Legacy false-disconnect (trigger=telemetry) + standalone clean -> silent clear
+test('11. legacy false-disconnect (trigger=telemetry) + standalone clean -> silent clear, zero restore', async () => {
+  const h = makeHarness({ legacyDisconnect: true, legacyTrigger: 'telemetry' })
+  await h.engine.loadPersistedPowerStates()
+  assert.equal(h.state()?.disconnected, true)
+  assert.equal(h.state()?.everSeenBatteryVoltage, false)
+  assert.equal(h.powerStates.get(String(TRACCAR_ID)), 'telemetry')
+  await h.send({ charge: false, batteryLevel: 83, adc1: 6.4 })
+  await h.send({ charge: false, batteryLevel: 83, adc1: 6.4 })
+  await h.send({ charge: false, batteryLevel: 83, adc1: 6.4 })
+  assert.equal(h.alerts.filter((a) => a === 'power_restored').length, 0)
+  assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 0)
+  assert.equal(h.state()?.disconnected, false)
+  assert.equal(h.powerStates.size, 0)
+})
+
+// 12. Real vehicle (everSeenBatteryVoltage=true) genuine disconnect + restore -> exactly one restore
+test('12. real vehicle everSeenBatteryVoltage=true + genuine disconnect + restore -> exactly one power_restored', async () => {
+  const h = makeHarness()
+  await h.send(CONNECTED)
+  await h.send({ externalPower: false })
+  assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 1)
+  await h.send({ charge: true, batteryLevel: 100, adc1: 13.6 })
+  assert.equal(h.alerts.filter((a) => a === 'power_restored').length, 1)
+  assert.equal(h.state()?.disconnected, false)
+  assert.equal(h.powerStates.size, 0)
+})
+
+// 13. Standalone GT06 charge:false + no vehicle battery -> zero disconnect AND zero restore
+test('13. standalone GT06 charge:false + no vehicle battery -> zero disconnect, zero restore', async () => {
+  const h = makeHarness()
+  for (let i = 0; i < 8; i += 1) await h.send({ charge: false, batteryLevel: 83, adc1: 6.4 })
+  assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 0)
+  assert.equal(h.alerts.filter((a) => a === 'power_restored').length, 0)
+  assert.equal(h.alerts.length, 0)
+  assert.equal(h.powerStates.size, 0)
+})
+
+// 14. Repeated clean packets after legacy stale state -> no restore flapping
+test('14. repeated clean packets after legacy stale state -> no restore flapping', async () => {
+  const h = makeHarness({ legacyDisconnect: true, legacyTrigger: 'telemetry' })
+  await h.engine.loadPersistedPowerStates()
+  for (let i = 0; i < 10; i += 1) await h.send({ charge: false, batteryLevel: 83, adc1: 6.4 })
+  assert.equal(h.alerts.filter((a) => a === 'power_restored').length, 0)
+  assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 0)
+  assert.equal(h.state()?.disconnected, false)
+  assert.equal(h.powerStates.size, 0)
+})
+
+// 15. Restart (loadPersistedPowerStates) + clean standalone -> no false restore (exact #1247 path)
+test('15. restart with legacy silence-trigger + first clean standalone packet -> silent clear, no false restore', async () => {
+  const h = makeHarness({ legacyDisconnect: true, legacyTrigger: 'silence' })
+  await h.engine.loadPersistedPowerStates()
+  assert.equal(h.state()?.disconnectTrigger, 'silence')
+  await h.send({ charge: false, batteryLevel: 83, adc1: 6.4 })
+  assert.equal(h.alerts.filter((a) => a === 'power_restored').length, 0)
+  assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 0)
+  assert.equal(h.state()?.disconnected, false)
+  assert.equal(h.powerStates.size, 0)
 })

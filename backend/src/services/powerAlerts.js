@@ -357,13 +357,16 @@ export function createPowerAlertEngine({
     next.everSeenBatteryVoltage = everSeenBatteryVoltage
 
     // A healthy position after a confirmed disconnect episode: transition back to connected.
-    // Fire ONE restore alert, clear the in-memory disconnect state, and remove the device
-    // from the disconnectedVehicles Set so the WebSocket bridge stops marking it disconnected.
+    // Always clear the in-memory disconnect state and the persisted device_power_states row.
+    // The restore USER ALERT is emitted only for a real vehicle — one that has reported a
+    // vehicle-battery voltage (everSeenBatteryVoltage). A standalone tracker that never had
+    // a vehicle battery can only hold a legacy false-disconnect row (written by the pre-gate
+    // code), so restoring it must be SILENT: clear the row, fire no power_restored alert.
     if (transition.restored) {
       powerTelemetry.set(key, next)
       markVehicleConnected(traccarId)
       void persistPowerConnected(traccarId)
-      if (!powerAlertSuppressed) void createPowerRestoredAlert(traccarId)
+      if (!powerAlertSuppressed && everSeenBatteryVoltage) void createPowerRestoredAlert(traccarId)
       // Fall through to process this healthy position normally (voltage cache, silence timer).
     }
 
