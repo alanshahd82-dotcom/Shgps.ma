@@ -23,6 +23,7 @@ import {
   readLastKnownVehicleVoltage,
   readVehicleVoltage,
   registerEngineCommandCooldown,
+  resolveDeviceStatus,
 } from '../services/vehicleTelemetry.js'
 
     export const devicesRouter = Router()
