@@ -73,15 +73,28 @@ export function getBatteryPercent(value) {
   return Math.max(0, Math.min(100, Math.round(pct)))
 }
 
+// Localized "last reading" caption shown after a stale voltage value.
+const VOLTAGE_STALE_LABEL = {
+  ar: 'آخر قراءة',
+  fr: 'dernière lecture',
+}
+
 // Shows the same backend-provided voltage state everywhere. The formatter
 // never infers disconnection from a missing voltage or from a stale UI clock.
-export function formatVoltage(value, lang = 'ar', _lastUpdate = null, powerDisconnected = false) {
+// voltageStale=true renders the last-known value with a clear stale marker.
+export function formatVoltage(value, lang = 'ar', _lastUpdate = null, powerDisconnected = false, voltageStale = false) {
   // A confirmed external-power disconnect wins over any voltage still held in
   // a client cache: the vehicle supply is cut, so presenting the previous
   // reading as a normal voltage would be wrong.
   if (powerDisconnected) return lang === 'ar' ? 'مفصول' : 'Déconnecté'
   const voltage = Number(value)
-  if (Number.isFinite(voltage) && voltage > 0) return `${voltage.toFixed(1)} V`
+  if (Number.isFinite(voltage) && voltage > 0) {
+    if (voltageStale) {
+      const label = VOLTAGE_STALE_LABEL[lang] || VOLTAGE_STALE_LABEL.ar
+      return `${voltage.toFixed(1)} V · ${label}`
+    }
+    return `${voltage.toFixed(1)} V`
+  }
   return '—'
 }
 

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { AlertTriangle, X } from 'lucide-react'
 import { api } from '../api/index.js'
 import { isUserAlertEvent } from '../utils/eventPolicy.js'
+import { mergeVoltageFields } from '../utils/voltageMerge.js'
 
 const AppContext = createContext(null)
 
@@ -56,11 +57,16 @@ function mergeDeviceSnapshots(previous, next) {
     const incomingIsNewer = incomingHasPosition &&
       (currentTime === null || incomingTime === null || incomingTime >= currentTime)
 
-    if (incomingIsNewer) return { ...current, ...incoming }
+    // Phase 2H-2: preserve last-known vehicle voltage across the 30 s poll.
+    // mergeVoltageFields (../utils/voltageMerge.js) keeps a known voltage when
+    // the backend reports stale (incoming.voltage=null) and lets a fresh
+    // non-null voltage win.
+    if (incomingIsNewer) return { ...current, ...incoming, ...mergeVoltageFields(current, incoming) }
 
     return {
       ...current,
       ...incoming,
+      ...mergeVoltageFields(current, incoming),
       lat: current.lat ?? current.last_lat,
       lng: current.lng ?? current.last_lng,
       speed: current.speed,
@@ -150,6 +156,9 @@ export function AppProvider({ children }) {
               ?? pos.attributes?.power
               ?? current.voltage
               ?? null,
+            // A live WS position is fresh by definition.
+            voltageStale: false,
+            lastVoltageAt: null,
             powerDisconnected,
             signal:     pos.attributes?.rssi       ?? current.signal,
             fuel:       pos.attributes?.fuel       ?? current.fuel,
@@ -519,6 +528,8 @@ export function AppProvider({ children }) {
                   ...item,
                   status: silenceConfirmed ? 'offline' : 'online',
                   voltage: null,
+                  voltageStale: false,
+                  lastVoltageAt: null,
                   powerDisconnected: true,
                 }
               : item

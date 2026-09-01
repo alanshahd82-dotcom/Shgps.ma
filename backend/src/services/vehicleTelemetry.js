@@ -382,7 +382,9 @@ export function readVehicleVoltage(position, deviceId = position?.deviceId, { co
   const now = Date.now()
   if (reported !== null) {
     rememberVoltage(deviceId, reported, now)
-    return reported
+    // Phase 2H-2: only a valid vehicle-battery voltage is surfaced; a generic
+    // adc1 reading (e.g. 6.4 V) is rejected at the read boundary.
+    return isBatteryVoltage(reported) ? reported : null
   }
 
   if (!connected) return null
@@ -395,7 +397,21 @@ export function readVehicleVoltage(position, deviceId = position?.deviceId, { co
   const cached = expireVoltage(deviceId, now)
   if (!cached) return null
   cached.lastSeenAt = now
-  return cached.voltage
+  return isBatteryVoltage(cached.voltage) ? cached.voltage : null
+}
+
+/**
+ * Peek the last-known vehicle-battery voltage without refreshing the grace
+ * window. Used to serve a stale reading when telemetry is silent but the
+ * device is not confirmed disconnected. Returns null unless the cached value
+ * passes isBatteryVoltage, so a generic adc1 reading (e.g. 6.4 V) is never
+ * surfaced as a vehicle-battery voltage.
+ */
+export function readLastKnownVehicleVoltage(deviceId, now = Date.now()) {
+  const cached = expireVoltage(deviceId, now)
+  if (!cached) return null
+  if (!isBatteryVoltage(cached.voltage)) return null
+  return { voltage: cached.voltage, lastSeenAt: cached.lastSeenAt }
 }
 
 export function clearVehicleVoltage(deviceId) {

@@ -20,6 +20,7 @@ import {
   positionIsSilent,
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
+  readLastKnownVehicleVoltage,
   readVehicleVoltage,
   registerEngineCommandCooldown,
 } from '../services/vehicleTelemetry.js'
@@ -190,11 +191,44 @@ import {
         const localGeo = geofenceMap[d.id] || null
         const subscription = getSubscriptionSnapshot(d)
         const trackingEnabled = subscription.trackingEnabled
-        const electrical = trackingEnabled
+        let electrical = trackingEnabled
           ? readElectricalTelemetry(telemetryPosition, telemetryId, {
               connected: freshLivePosition,
             })
           : { voltage: null, batteryLevel: null, powerDisconnected: false }
+
+        // Phase 2H-2: last-known vehicle-voltage contract.
+        // Fresh telemetry  -> current valid battery voltage, voltageStale=false.
+        // Stale/silent      -> serve the last-known VALID battery voltage
+        //                      (re-validated through isBatteryVoltage) with
+        //                      voltageStale=true, but only when no confirmed
+        //                      external-power disconnect.
+        // Confirmed disconnect -> voltage stays null; telemetry silence is
+        //                      never reinterpreted as a power loss here.
+        if (trackingEnabled) {
+          if (freshLivePosition) {
+            electrical.voltageStale = false
+            electrical.lastVoltageAt = null
+          } else if (!electrical.powerDisconnected) {
+            const lastKnown = readLastKnownVehicleVoltage(telemetryId)
+            if (lastKnown) {
+              electrical.voltage = lastKnown.voltage
+              electrical.lastVoltageAt = new Date(lastKnown.lastSeenAt).toISOString()
+              electrical.voltageStale = true
+            } else {
+              electrical.voltage = null
+              electrical.lastVoltageAt = null
+              electrical.voltageStale = true
+            }
+          } else {
+            electrical.voltage = null
+            electrical.voltageStale = false
+            electrical.lastVoltageAt = null
+          }
+        } else {
+          electrical.voltageStale = false
+          electrical.lastVoltageAt = null
+        }
         return {
           id:        d.id,
           traccarId: d.traccar_id ?? td?.id ?? null,
@@ -212,6 +246,8 @@ import {
            engineOn:  trackingEnabled && p ? (p.attributes?.ignition ?? null) : null,
            motion:    trackingEnabled && p ? (p.attributes?.motion ?? null) : null,
           voltage:   electrical.voltage,
+          voltageStale: electrical.voltageStale,
+          lastVoltageAt: electrical.lastVoltageAt,
           batteryLevel: electrical.batteryLevel,
           powerDisconnected: electrical.powerDisconnected,
           signal:    trackingEnabled ? (p?.attributes?.rssi ?? p?.attributes?.gsm ?? p?.attributes?.signal ?? p?.attributes?.signalStrength ?? null) : null,
