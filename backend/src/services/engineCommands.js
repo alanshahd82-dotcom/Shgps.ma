@@ -52,6 +52,9 @@ const IDEMPOTENCY_KEY_MAX = 160
 const ADVISORY_KEY_NAMESPACE = 'athar_engine_commands'
 const WORKER_BATCH = 50
 const WORKER_INTERVAL_MS = Number(process.env.ENGINE_WORKER_INTERVAL_MS || 30000)
+// Pending commands older than this TTL are expired by the worker to prevent
+// stale delivery on a future device reconnect (Phase 2 — stale command fix).
+const COMMAND_TTL_MS = Number(process.env.ENGINE_COMMAND_TTL_MS || 24 * 60 * 60 * 1000) // 24h default
 
 // In-flight delivery guard (single process): prevents the route, the poll
 // worker and the WS hook from sending the same command twice.
@@ -530,6 +533,22 @@ export async function processPendingCommandsForDevice(deviceId) {
 }
 
 // Resolve Traccar device ids from a WS message to local device ids and process.
+
+  // Stage 3: expire pending commands older than TTL. A command pending for hours
+  // means the device is offline or Traccar is unreachable; delivering it days or
+  // weeks later on an unexpected reconnect is almost never the user's intent and
+  // has been linked to unsolicited relay activations. Expiring removes it from
+  // the delivery queue safely (terminal 'expired' state, never physically sent).
+  try {
+    const cutoff = new Date(Date.now() - COMMAND_TTL_MS)
+    const exp = await db.query(
+      'UPDATE engine_commands SET status = \'expired\', updated_at = NOW(), resolved_at = NOW() WHERE status = \'pending\' AND superseded_by_command_id IS NULL AND created_at < $1',
+      [cutoff]
+    )
+    if (exp.rowCount > 0) console.log('[engine-worker] expired', exp.rowCount, 'stale pending commands (TTL=' + COMMAND_TTL_MS + 'ms)')
+  } catch (e) { console.error('[engine-worker] expiration failed:', e.message) }
+}
+
 export async function onDeviceActivity(traccarIds) {
   if (!Array.isArray(traccarIds) || traccarIds.length === 0) return
   let rows
