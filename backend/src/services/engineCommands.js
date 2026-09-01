@@ -547,9 +547,6 @@ export async function processPendingCommandsForDevice(deviceId) {
 }
 
 // Resolve Traccar device ids from a WS message to local device ids and process.
-
-}
-
 export async function onDeviceActivity(traccarIds) {
   if (!Array.isArray(traccarIds) || traccarIds.length === 0) return
   let rows
