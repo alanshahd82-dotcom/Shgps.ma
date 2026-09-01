@@ -36,6 +36,7 @@ import {
 } from './services/vehicleTelemetry.js'
 import { createPowerAlertEngine } from './services/powerAlerts.js'
 import { isUserAlertEvent } from './services/eventPolicy.js'
+import { getClientIp } from './utils/clientIp.js'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -482,7 +483,10 @@ setInterval(() => {
 app.use('/api/auth', (req, res, next) => {
   const sensitive = ['/login', '/forgot-password', '/reset-password', '/change-password']
   if (req.method !== 'POST' || !sensitive.some((s) => req.path.startsWith(s))) return next()
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown'
+  // Prefer X-Real-IP (nginx overwrites it with the real client IP, so it cannot
+  // be spoofed). Fall back to the LAST X-Forwarded-For entry (nginx appends the
+  // real client IP at the end); the first entry is client-supplied and spoofable.
+  const ip = getClientIp(req.headers) || req.ip || 'unknown'
   const key = ip + ':' + req.path
   const now = Date.now()
   let entry = _authHits.get(key)
