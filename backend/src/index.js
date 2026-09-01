@@ -23,7 +23,7 @@ import { subAdminsRouter }      from './routes/subAdmins.js'
 import { settingsRouter }       from './routes/settings.js'
 import { config }        from './config.js'
 import { getAllPositions, getAllDevices } from './services/traccar.js'
-import { isRevoked }    from './services/tokenBlacklist.js'
+import { isRevoked, initRevocationStore } from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
@@ -416,6 +416,21 @@ async function runMigrations() {
       ON engine_commands(device_id)
       WHERE cancellation_state = 'pending' AND traccar_command_id > 0
     `)
+    // Durable JWT revocation store (security hardening). Hashed tokens only.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS revoked_tokens (
+        id         SERIAL PRIMARY KEY,
+        token_hash CHAR(64) NOT NULL UNIQUE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires
+      ON revoked_tokens(expires_at)
+    `)
+    await db.query(`DELETE FROM revoked_tokens WHERE expires_at < NOW() - INTERVAL '7 days'`)
+    await initRevocationStore()
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)
@@ -423,6 +438,7 @@ async function runMigrations() {
 }
 
 const app  = express()
+app.disable('x-powered-by') // hide Express server fingerprint
 const PORT = process.env.PORT || 3001
 
 app.use(cors({
