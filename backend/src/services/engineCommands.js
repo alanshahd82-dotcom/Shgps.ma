@@ -494,6 +494,20 @@ export async function processPendingCommands() {
       console.error('[engine-worker] command', row.id, 'failed:', e.message)
     }
   }
+
+  // Stage 3: expire pending commands older than TTL. A command pending for hours
+  // means the device is offline or Traccar is unreachable; delivering it days or
+  // weeks later on an unexpected reconnect is almost never the user's intent and
+  // has been linked to unsolicited relay activations. Expiring removes it from
+  // the delivery queue safely (terminal 'expired' state, never physically sent).
+  try {
+    const cutoff = new Date(Date.now() - COMMAND_TTL_MS)
+    const exp = await db.query(
+      "UPDATE engine_commands SET status = 'expired', updated_at = NOW(), resolved_at = NOW() WHERE status = 'pending' AND superseded_by_command_id IS NULL AND created_at < $1",
+      [cutoff]
+    )
+    if (exp.rowCount > 0) console.log('[engine-worker] expired', exp.rowCount, 'stale pending commands (TTL=' + COMMAND_TTL_MS + 'ms)')
+  } catch (e) { console.error('[engine-worker] expiration failed:', e.message) }
 }
 
 // Called by the Traccar WS bridge when a live position arrives (device online).
@@ -530,20 +544,6 @@ export async function processPendingCommandsForDevice(deviceId) {
       console.error('[engine-worker] device', deviceId, 'cmd', row.id, 'failed:', e.message)
     }
   }
-  // Stage 3: expire pending commands older than TTL. A command pending for hours
-  // means the device is offline or Traccar is unreachable; delivering it days or
-  // weeks later on an unexpected reconnect is almost never the user's intent and
-  // has been linked to unsolicited relay activations. Expiring removes it from
-  // the delivery queue safely (terminal 'expired' state, never physically sent).
-  try {
-    const cutoff = new Date(Date.now() - COMMAND_TTL_MS)
-    const exp = await db.query(
-      "UPDATE engine_commands SET status = 'expired', updated_at = NOW(), resolved_at = NOW() WHERE status = 'pending' AND superseded_by_command_id IS NULL AND created_at < $1",
-      [cutoff]
-    )
-    if (exp.rowCount > 0) console.log('[engine-worker] expired', exp.rowCount, 'stale pending commands (TTL=' + COMMAND_TTL_MS + 'ms)')
-  } catch (e) { console.error('[engine-worker] expiration failed:', e.message) }
-
 }
 
 // Resolve Traccar device ids from a WS message to local device ids and process.
