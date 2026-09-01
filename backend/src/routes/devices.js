@@ -185,9 +185,7 @@ import {
         // label a stopped device offline merely because speed is zero.
         // External power loss is not a connection loss. A tracker with an
         // internal battery remains online while fresh positions arrive.
-        const status = telemetrySilent
-          ? 'offline'
-          : (td?.status === 'online' || !!p ? 'online' : 'offline')
+        const status = resolveDeviceStatus(td, livePosition ?? storedPosition)
         const localGeo = geofenceMap[d.id] || null
         const subscription = getSubscriptionSnapshot(d)
         const trackingEnabled = subscription.trackingEnabled
@@ -539,11 +537,17 @@ import {
       const dev = req.device
       const subscription = getSubscriptionSnapshot(dev)
       let livePosition = null
+      let traccarDevice = null
       try {
-        const positions = await traccar.getAllPositions()
+        const [positions, traccarDevices] = await Promise.all([
+          traccar.getAllPositions(),
+          traccar.getAllDevices(),
+        ])
         livePosition = positions.find(position => position.deviceId === dev.traccar_id) || null
+        traccarDevice = traccarDevices.find(d => d.id === dev.traccar_id) || null
       } catch {}
       const freshPosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
+      const status = resolveDeviceStatus(traccarDevice, livePosition)
       const electrical = subscription.trackingEnabled
         ? readElectricalTelemetry(
             freshPosition ? livePosition : null,
@@ -563,7 +567,7 @@ import {
 
       res.json({
         ...dev,
-        status: freshPosition ? 'online' : 'offline',
+        status,
         lat: subscription.trackingEnabled && freshPosition ? livePosition.latitude : null,
         lng: subscription.trackingEnabled && freshPosition ? livePosition.longitude : null,
         speed: subscription.trackingEnabled && freshPosition ? Math.round(speedKmh(livePosition.speed)) : null,
