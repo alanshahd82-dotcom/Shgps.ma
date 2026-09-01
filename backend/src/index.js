@@ -700,6 +700,12 @@ async function ensureTraccarAdmin(baseUrl) {
   }
 }
 
+function scheduleTraccarReconnect() {
+  const delay = 15000 + Math.floor(Math.random() * 30000) // 15-45s jitter
+  console.log('[Traccar WS] reconnecting in ' + Math.round(delay / 1000) + 's')
+  setTimeout(connectTraccar, delay)
+}
+
 async function connectTraccar() {
   const baseUrl = config.traccar.url
   const wsBase  = baseUrl.startsWith('https://')
@@ -724,7 +730,7 @@ async function connectTraccar() {
         return
       }
       console.error('[Traccar WS] Session POST failed:', res.status, '— retrying in 30 s')
-      setTimeout(connectTraccar, 30000)
+      scheduleTraccarReconnect()
       return
     }
     const setCookie = res.headers.get('set-cookie') || ''
@@ -734,7 +740,7 @@ async function connectTraccar() {
     console.log('[Traccar WS] Session OK — user:', user.email)
   } catch (err) {
     console.error('[Traccar WS] Session error:', err.message, '— retrying in 30 s')
-    setTimeout(connectTraccar, 30000)
+    scheduleTraccarReconnect()
     return
   }
 
@@ -839,7 +845,7 @@ async function connectTraccar() {
 
   traccarWs.on('close', () => {
     console.log('[Traccar WS] Disconnected — reconnecting in 30 s...')
-    setTimeout(connectTraccar, 30000)
+    scheduleTraccarReconnect()
   })
 
   traccarWs.on('error', (err) => console.error('[Traccar WS] Error:', err.message))
