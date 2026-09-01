@@ -143,7 +143,8 @@ async function runMigrations() {
     `)
     await db.query(`
       ALTER TABLE devices
-        ADD COLUMN IF NOT EXISTS driver VARCHAR(120)
+        ADD COLUMN IF NOT EXISTS driver VARCHAR(120),
+        ADD COLUMN IF NOT EXISTS phone  VARCHAR(20)
     `)
     await db.query(`
       CREATE TABLE IF NOT EXISTS local_geofences (

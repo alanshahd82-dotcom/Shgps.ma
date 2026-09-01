@@ -421,9 +421,6 @@ import {
         // إدراج الجهاز + تحديث حد الأجهزة في معاملة واحدة
         await db.query('BEGIN')
         try {
-          // أضف عمود phone إن لم يكن موجوداً (يُشغَّل مرة واحدة)
-          await db.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`).catch(() => {})
-
           const { rows } = await db.query(
             `INSERT INTO devices (
                name,imei,type,plate,user_id,traccar_id,phone,
@@ -471,9 +468,6 @@ import {
       if (phone !== undefined && phone !== '' && !/^\+?[0-9\s().-]{8,24}$/.test(String(phone).trim()))
         return res.status(400).json({ error: 'Invalid driver phone number' })
       try {
-        // Older installations may have created devices before the driver phone field existed.
-        // Keep the existing update API backward-compatible without changing the schema file.
-        await db.query('ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone VARCHAR(20)')
         const device = req.device
         const sets = []; const vals = []; let i = 1
         if (name   !== undefined) { sets.push(`name=$${i++}`);   vals.push(String(name).trim())   }
