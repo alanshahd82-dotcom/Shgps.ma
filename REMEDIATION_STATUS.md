@@ -3,7 +3,7 @@
 **Branch:** `remediation/security-hardening`
 **Main (untouched):** `5c52effd86ad7e2b8d7b57c797afb90bfb697ae2`
 **Stable tag (untouched):** `STABLE-2026-09-01`
-**Status:** NOT merged to main. NOT deployed. Awaiting host runtime gate (re-run after commits 2bc6e81b + 259509da).
+**Status:** NOT merged to main. NOT deployed. Runtime evidence received 2026-09-01 12:36 (CASA). Host gate partially run; remaining gates need host/browser (see below).
 
 This file tracks the security/infrastructure remediation mission. Every item
 below is either CODE-VERIFIED (committed, statically proven) or explicitly
@@ -29,6 +29,37 @@ Already present (no change needed): in-memory rate limiting on `/api/auth`
 sensitive routes (index.js:473-499 + routes/auth.js), `app.disable('x-powered-by')`.
 
 ---
+
+## ✅ Runtime evidence received (2026-09-01 12:36 CASA)
+
+Supplied by the host operator from the deployed verification environment on
+branch `f9e58e8d`:
+
+- **Containers:** backend healthy · postgres healthy · traccar healthy · nginx running · certbot running · db-backup running.
+- **Health endpoint:** `status=ok`, `db=connected`, `traccar=reachable`, HTTP 200.
+- **Traccar WS:** initial connection attempt FAILED (`fetch failed`); automatic retry occurred; subsequent session succeeded (`"Session OK"`, `"Connected to ws://traccar:8082"`). → RUNTIME VERIFIED eventual recovery, NOT clean-first-attempt. Recorded as reliability observation R-WS-1 (see below).
+- **Power:** `"Silence observed without electrical confirmation; battery alert suppressed: 70"` — expected safe behavior (telemetry-signature gating working as designed).
+
+## ✅ Code-verified this session (no host needed)
+
+### Migration 006 — `backend/src/db/migrations/006_revoked_tokens.sql`
+- File EXISTS and is correct.
+- Schema: `revoked_tokens(id SERIAL PK, token_hash CHAR(64) NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`.
+- Index: `idx_revoked_tokens_expires ON revoked_tokens(expires_at)`.
+- Prune: `DELETE FROM revoked_tokens WHERE expires_at < NOW() - INTERVAL '7 days'`.
+- Matches the runtime `CREATE TABLE IF NOT EXISTS revoked_tokens` in `index.js:423-434` (runMigrations) — the startup source of truth. Both are idempotent (`IF NOT EXISTS`).
+- `tokenBlacklist.js` confirmed to read/write `revoked_tokens` + expose `initRevocationStore/isRevoked/revokeToken`.
+- → CODE-VERIFIED. Runtime "applied" status needs a DB query (`\dt revoked_tokens` / `\d revoked_tokens`) — host gate G2.
+
+### Regression scope of the 2 new commits (2bc6e81b, 259509da)
+Files touched: `index.js` (rate-limit + migration), `routes/auth.js` (rate-limit), `routes/devices.js` (per-request DDL removal), `utils/clientIp.js` (new), `test/clientIp.test.js` (new).
+Files NOT touched: `powerAlerts.js`, engine-command code, voltage contracts, event policy, `tokenBlacklist.js`.
+→ CODE-VERIFIED: zero overlap with engine/power/voltage/event systems. No regression risk to those flows from these commits. (Earlier branch commits 468a5fe8/af7f2a8d did touch power/revocation and were verified separately.)
+
+### Reliability observation R-WS-1 (Traccar WS initial fetch failure)
+- Symptom: first WS connection attempt to `ws://traccar:8082` failed with `fetch failed` at startup.
+- Recovery: the jittered retry (commit 7ca72639) fired automatically; the second attempt succeeded.
+- Assessment: NOT a clean-first-attempt startup, but the self-healing retry worked as designed. Acceptable for a verification environment where Traccar may still be initializing when the backend first connects. If this recurs consistently in production with Traccar already healthy, investigate startup ordering / a readiness probe for Traccar. Not a release blocker; tracked as a reliability observation.
 
 ## 🔍 Audit findings (CODE-VERIFIED solid — no fix needed)
 
@@ -191,6 +222,8 @@ column) + changes to forgot/reset handlers — deferred as low-value/risk.
 ---
 
 ## Host runtime gate (must ALL pass before merge to main)
+
+**Partially run 2026-09-01 12:36 CASA** — containers healthy, /api/health 200 (B8 ✅), WS eventual recovery (R-WS-1). Remaining:
 
 **Re-run after commits 2bc6e81b (rate-limit) + 259509da (per-request DDL):** the
 new `test/clientIp.test.js` adds 8 tests (expect 69 → 77), and the migration
