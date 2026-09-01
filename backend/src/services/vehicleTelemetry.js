@@ -494,3 +494,10 @@ export function positionIsSilent(position, maxAgeMs = POWER_SILENCE_WINDOW_MS, n
   }
   return Number.isFinite(latestTs) && now - latestTs >= maxAgeMs
 }
+
+export function resolveDeviceStatus(traccarDevice, position, maxAgeMs = POWER_SILENCE_WINDOW_MS) {
+  if (traccarDevice?.status === 'online') return 'online'
+  if (traccarDevice?.status === 'offline') return 'offline'
+  return positionIsFresh(position, maxAgeMs) ? 'online' : 'offline'
+}
+

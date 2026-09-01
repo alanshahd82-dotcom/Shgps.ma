@@ -10,6 +10,7 @@ import {
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readVehicleVoltage,
+  resolveDeviceStatus,
 } from '../services/vehicleTelemetry.js'
 import { config } from '../config.js'
 import { speedKmh } from '../utils/speed.js'
@@ -126,16 +127,21 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
                WHERE ${scope.text}`,
         values: scope.values,
       }
-      const [{ rows }, positions] = await Promise.all([
+      const [{ rows }, positions, traccarDevices] = await Promise.all([
         db.query(deviceQuery.text, deviceQuery.values),
         traccar.getAllPositions().catch(()=>[]),
+        traccar.getAllDevices().catch(()=>[]),
       ])
       const pm = {}
       for (const p of positions) pm[p.deviceId]=p
+      const dm = {}
+      for (const td of traccarDevices) dm[td.id] = td
       res.json(rows.map(d => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null
         const freshPosition = positionIsFresh(position, POWER_SILENCE_WINDOW_MS)
+        const td = dm[d.traccar_id] ?? null
+        const status = resolveDeviceStatus(td, position)
         // Silence is NOT proof of an electrical disconnect. A stale or
         // missing position only means the device is offline; the power
         // state comes exclusively from the persisted disconnect state
@@ -149,8 +155,8 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
           lat: freshPosition ? position.latitude : null, lng: freshPosition ? position.longitude : null,
           speed: freshPosition ? Math.round(speedKmh(position.speed)) : null,
-          status: freshPosition ? 'online' : 'offline',
-          lastUpdate: position?.fixTime ?? null,
+          status,
+          lastUpdate: td?.lastUpdate ?? position?.fixTime ?? null,
           engineOn: freshPosition ? (position.attributes?.ignition ?? null) : null,
           motion: freshPosition ? (position.attributes?.motion ?? null) : null,
           voltage: electrical.voltage,

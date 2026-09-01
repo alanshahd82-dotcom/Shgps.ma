@@ -23,7 +23,7 @@ import { subAdminsRouter }      from './routes/subAdmins.js'
 import { settingsRouter }       from './routes/settings.js'
 import { config }        from './config.js'
 import { getAllPositions, getAllDevices } from './services/traccar.js'
-import { isRevoked }    from './services/tokenBlacklist.js'
+import { isRevoked, initRevocationStore } from './services/tokenBlacklist.js'
 import { db }            from './db.js'
 import { syncSubscriptionState } from './services/subscriptions.js'
 import { DEFAULT_SUPPORT_SETTINGS } from './services/supportSettings.js'
@@ -36,6 +36,7 @@ import {
 } from './services/vehicleTelemetry.js'
 import { createPowerAlertEngine } from './services/powerAlerts.js'
 import { isUserAlertEvent } from './services/eventPolicy.js'
+import { getClientIp } from './utils/clientIp.js'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -142,7 +143,8 @@ async function runMigrations() {
     `)
     await db.query(`
       ALTER TABLE devices
-        ADD COLUMN IF NOT EXISTS driver VARCHAR(120)
+        ADD COLUMN IF NOT EXISTS driver VARCHAR(120),
+        ADD COLUMN IF NOT EXISTS phone  VARCHAR(20)
     `)
     await db.query(`
       CREATE TABLE IF NOT EXISTS local_geofences (
@@ -416,6 +418,21 @@ async function runMigrations() {
       ON engine_commands(device_id)
       WHERE cancellation_state = 'pending' AND traccar_command_id > 0
     `)
+    // Durable JWT revocation store (security hardening). Hashed tokens only.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS revoked_tokens (
+        id         SERIAL PRIMARY KEY,
+        token_hash CHAR(64) NOT NULL UNIQUE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires
+      ON revoked_tokens(expires_at)
+    `)
+    await db.query(`DELETE FROM revoked_tokens WHERE expires_at < NOW() - INTERVAL '7 days'`)
+    await initRevocationStore()
     console.log('[DB] Migrations OK')
   } catch (err) {
     console.warn('[DB] Migration warning:', err.message)
@@ -423,6 +440,7 @@ async function runMigrations() {
 }
 
 const app  = express()
+app.disable('x-powered-by') // hide Express server fingerprint
 const PORT = process.env.PORT || 3001
 
 app.use(cors({
@@ -466,7 +484,10 @@ setInterval(() => {
 app.use('/api/auth', (req, res, next) => {
   const sensitive = ['/login', '/forgot-password', '/reset-password', '/change-password']
   if (req.method !== 'POST' || !sensitive.some((s) => req.path.startsWith(s))) return next()
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown'
+  // Prefer X-Real-IP (nginx overwrites it with the real client IP, so it cannot
+  // be spoofed). Fall back to the LAST X-Forwarded-For entry (nginx appends the
+  // real client IP at the end); the first entry is client-supplied and spoofable.
+  const ip = getClientIp(req.headers) || req.ip || 'unknown'
   const key = ip + ':' + req.path
   const now = Date.now()
   let entry = _authHits.get(key)
@@ -684,6 +705,12 @@ async function ensureTraccarAdmin(baseUrl) {
   }
 }
 
+function scheduleTraccarReconnect() {
+  const delay = 15000 + Math.floor(Math.random() * 30000) // 15-45s jitter
+  console.log('[Traccar WS] reconnecting in ' + Math.round(delay / 1000) + 's')
+  setTimeout(connectTraccar, delay)
+}
+
 async function connectTraccar() {
   const baseUrl = config.traccar.url
   const wsBase  = baseUrl.startsWith('https://')
@@ -708,7 +735,7 @@ async function connectTraccar() {
         return
       }
       console.error('[Traccar WS] Session POST failed:', res.status, '— retrying in 30 s')
-      setTimeout(connectTraccar, 30000)
+      scheduleTraccarReconnect()
       return
     }
     const setCookie = res.headers.get('set-cookie') || ''
@@ -718,7 +745,7 @@ async function connectTraccar() {
     console.log('[Traccar WS] Session OK — user:', user.email)
   } catch (err) {
     console.error('[Traccar WS] Session error:', err.message, '— retrying in 30 s')
-    setTimeout(connectTraccar, 30000)
+    scheduleTraccarReconnect()
     return
   }
 
@@ -823,7 +850,7 @@ async function connectTraccar() {
 
   traccarWs.on('close', () => {
     console.log('[Traccar WS] Disconnected — reconnecting in 30 s...')
-    setTimeout(connectTraccar, 30000)
+    scheduleTraccarReconnect()
   })
 
   traccarWs.on('error', (err) => console.error('[Traccar WS] Error:', err.message))

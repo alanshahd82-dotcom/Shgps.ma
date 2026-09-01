@@ -12,6 +12,7 @@ export const authRouter = Router()
 import { revokeToken, isRevoked }   from '../services/tokenBlacklist.js'
 import { validateBody, schemas }    from '../validation/schemas.js'
 import { logAudit }                from '../services/auditLog.js'
+import { getClientIp }                from '../utils/clientIp.js'
 
 // ── Rate limiting (in-memory) ──────────────────────────────────────────────
 const loginAttempts = new Map()
@@ -100,9 +101,10 @@ async function createRefreshSession(userId, res) {
 
 // ── POST /api/auth/login ───────────────────────────────────────────────────
 authRouter.post('/login', validateBody(schemas.login), async (req, res) => {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
-          || req.socket?.remoteAddress
-          || 'unknown'
+  // Prefer X-Real-IP (nginx overwrites it with the real client IP — unspoofable).
+  // Fall back to the LAST X-Forwarded-For entry (nginx appends the real IP at
+  // the end); the first entry is client-supplied and spoofable.
+  const ip = getClientIp(req.headers) || req.socket?.remoteAddress || 'unknown'
 
   const remainingSec = checkRateLimit(ip)
   if (remainingSec !== null) {
