@@ -3,7 +3,7 @@
 **Branch:** `remediation/security-hardening`
 **Main (untouched):** `5c52effd86ad7e2b8d7b57c797afb90bfb697ae2`
 **Stable tag (untouched):** `STABLE-2026-09-01`
-**Status:** NOT merged to main. NOT deployed. Awaiting host runtime gate.
+**Status:** NOT merged to main. NOT deployed. Awaiting host runtime gate (re-run after commits 2bc6e81b + 259509da).
 
 This file tracks the security/infrastructure remediation mission. Every item
 below is either CODE-VERIFIED (committed, statically proven) or explicitly
@@ -22,10 +22,32 @@ review before touching a verified state-machine contract).
 | `a0b88a90` | Infra: CPU limits on all compose services | postgres/backend 1.0, traccar 1.0, nginx/db-backup 0.25 (`deploy.resources.limits.cpus`); memory caps already existed |
 | `b0dbd082` | nginx: enforce security headers on ALL locations + correct CSP + dedup | Fixed the `add_header` inheritance gotcha (CSP/HSTS were silently dropped on index.html, /assets/, /); extracted `nginx/security-headers.conf` snippet, included in server + every location; corrected CSP to allow cdnjs (xlsx/jspdf), jsdelivr/unpkg (Leaflet/@fontsource styles), gstatic/jsdelivr fonts; tightened `img-src` from `*` to `https:`; added `object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'`; `proxy_hide_header` dedups Express's redundant headers |
 
+| `2bc6e81b` | security: fix brute-force rate-limit bypass via X-Forwarded-For spoofing | Both rate limiters (index.js `/api/auth` + routes/auth.js login) keyed on the FIRST X-Forwarded-For entry — client-supplied and SPOOFABLE — letting an attacker rotate the header to bypass brute-force protection. Extracted a shared pure `getClientIp(headers)` helper that prefers X-Real-IP (nginx overwrites it, unspoofable) then the LAST XFF entry (nginx appends the real IP at the end). Added 8 regression tests (`test/clientIp.test.js`) covering the spoofing scenario. No auth-logic or state-machine change. |
+| `259509da` | perf: move devices.phone column ensure to startup migration, drop per-request ALTER TABLE | Two route handlers ran `ALTER TABLE devices ADD COLUMN IF NOT EXISTS phone` on every request (the PATCH handler on every call; the POST handler inside a BEGIN/COMMIT transaction — DDL under an AccessExclusive lock on the hot device path). The column was not in the base schema or runMigrations. Moved the ensure into the existing devices ALTER block in runMigrations (idempotent, startup) and removed both per-request ALTERs. No-op for deployed DBs (column exists); created at startup for fresh DBs. No device create/update behaviour change. |
+
 Already present (no change needed): in-memory rate limiting on `/api/auth`
 sensitive routes (index.js:473-499 + routes/auth.js), `app.disable('x-powered-by')`.
 
 ---
+
+## 🔍 Audit findings (CODE-VERIFIED solid — no fix needed)
+
+A full backend security audit was performed this session. The following areas
+were inspected and found correct; no change was made (listed so they are not
+re-audited unnecessarily):
+
+- **CORS** (`index.js:444`): `origin: FRONTEND_URL || false`, `credentials: true` — allowlisted, no wildcard.
+- **Security headers** (Express `index.js:450` + nginx snippet): X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, CSP. nginx is the authoritative edge (proxy_hide_header dedups Express).
+- **JWT secret** (`config.js`): throws at startup if `JWT_SECRET` unset — no weak default.
+- **Refresh cookie** (`routes/auth.js:67`): `HttpOnly; Secure; SameSite=Lax; Path=/api/auth`; token stored hashed (sha256); rotated on `/refresh`; revoked + cookie cleared on `/logout`.
+- **Password reset** (`routes/auth.js:332/426`): single-use (`used` flag), 1h expiry, prior tokens invalidated, generic response (no email enumeration), bcrypt cost 12.
+- **Device access RBAC** (`middleware/deviceAccess.js`): parameterized scope fragments; admins/sub-admins/clients/sub-users each scoped; `requireDeviceOwner` for mutations — no IDOR.
+- **WebSocket auth** (`index.js:642`): `jwt.verify` + `isRevoked` check + per-connection `deviceAccessScope` — revoked tokens rejected, access scoped.
+- **change-password** (`routes/auth.js:246`): verifies current password, strength policy, audit-logged.
+- **profile** (`routes/auth.js:272`): updates only name/phone/email/notification_prefs — no mass-assignment of `is_admin`/`role`/`is_active`.
+- **SQL injection**: all dynamic UPDATE builders (devices/clients/subUsers/subAdmins) use hardcoded column names + parameterized `$N` values; no user input in SQL text.
+- **Logout** (`routes/auth.js:454`): revokes JWT (tokenBlacklist) + refresh token (`revoked_at`) + clears cookie.
+- **No dangerous patterns**: no `eval`, `child_process`, `new Function`; no TODO/FIXME/HACK markers across backend.
 
 ## 🔶 BLOCKED — require host / Capacitor / hardware runtime
 
@@ -141,12 +163,38 @@ long as every new migration stays `IF NOT EXISTS`.
 
 ---
 
+### D5. change-password does not invalidate other sessions
+**Problem:** after a password change, other devices' refresh tokens + the 7d JWT
+remain valid, so a stolen-password attacker keeps access.
+**Proposed (needs approval + DB-mocked test):** on password change, `UPDATE
+refresh_tokens SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL AND
+token_hash <> <current>` (revoke other sessions, keep current). For full JWT
+invalidation, add a `password_changed_at` claim + check in `requireAuth`
+(bigger change, per-request DB read or token version). Touches the auth session
+lifecycle — deferred until a DB-mocked regression test exists.
+
+### D6. profile email change is not verified
+**Problem:** `PUT /api/auth/profile` changes email immediately without
+verifying the new address (a session hijacker could change email then
+forgot-password to take over). Feature-level fix (send confirmation to the new
+email, require click) — deferred as it is a feature, not a 1-line fix.
+
+### D7. password reset token stored plaintext
+**Problem:** `password_reset_tokens` stores the token in plaintext (unlike the
+hashed refresh token). Low severity (1h expiry, single-use, requires DB
+compromise to exploit). Fix needs a migration (rename/add `token_hash`
+column) + changes to forgot/reset handlers — deferred as low-value/risk.
+
 ## Out of scope (not security remediation)
 - Tailwind colors don't match branding (P2) — UI/branding, not security.
 
 ---
 
 ## Host runtime gate (must ALL pass before merge to main)
+
+**Re-run after commits 2bc6e81b (rate-limit) + 259509da (per-request DDL):** the
+new `test/clientIp.test.js` adds 8 tests (expect 69 → 77), and the migration
+change must not break startup.
 1. `git fetch && git checkout remediation/security-hardening && git reset --hard origin/remediation/security-hardening`
 2. `docker compose config` → valid
 3. `docker compose run --rm nginx nginx -t` → syntax OK (after b0dbd082)
