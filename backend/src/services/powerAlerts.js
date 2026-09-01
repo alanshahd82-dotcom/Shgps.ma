@@ -358,15 +358,18 @@ export function createPowerAlertEngine({
 
     // A healthy position after a confirmed disconnect episode: transition back to connected.
     // Always clear the in-memory disconnect state and the persisted device_power_states row.
-    // The restore USER ALERT is emitted only for a real vehicle — one that has reported a
-    // vehicle-battery voltage (everSeenBatteryVoltage). A standalone tracker that never had
-    // a vehicle battery can only hold a legacy false-disconnect row (written by the pre-gate
-    // code), so restoring it must be SILENT: clear the row, fire no power_restored alert.
+    // The restore USER ALERT is emitted for an explicit affirmative restore signal
+    // (powerCut:false, charge:true, externalPower:true, powerRestored alarm) on ANY device —
+    // that is electrical feedback, not silence. The AMBIGUOUS restores (a silence episode
+    // ending, or the clean-telemetry probation clearing a legacy false-disconnect row) are
+    // gated on everSeenBatteryVoltage: a standalone tracker that never had a vehicle battery
+    // can only hold a legacy false-disconnect row, so restoring it must be SILENT — clear
+    // the row, fire no power_restored alert.
     if (transition.restored) {
       powerTelemetry.set(key, next)
       markVehicleConnected(traccarId)
       void persistPowerConnected(traccarId)
-      if (!powerAlertSuppressed && everSeenBatteryVoltage) void createPowerRestoredAlert(traccarId)
+      if (!powerAlertSuppressed && (everSeenBatteryVoltage || powerRestoredSignal)) void createPowerRestoredAlert(traccarId)
       // Fall through to process this healthy position normally (voltage cache, silence timer).
     }
 
