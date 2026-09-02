@@ -161,6 +161,7 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
           motion: freshPosition ? (position.attributes?.motion ?? null) : null,
           voltage: electrical.voltage,
           batteryLevel: electrical.batteryLevel,
+          charge: freshPosition ? (position.attributes?.charge ?? null) : null,
           powerDisconnected: electrical.powerDisconnected,
           signal: position?.attributes?.rssi ?? position?.attributes?.gsm ?? position?.attributes?.signal ?? position?.attributes?.signalStrength ?? null,
           fuel: position?.attributes?.fuel ?? position?.attributes?.fuelLevel ?? null,
