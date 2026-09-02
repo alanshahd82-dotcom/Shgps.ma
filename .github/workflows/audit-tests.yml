@@ -17,7 +17,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Run full backend test suite
         working-directory: backend
-        run: npm test
+        run: node --test test/*.test.js
       - name: Frontend build
         run: |
           npm ci
