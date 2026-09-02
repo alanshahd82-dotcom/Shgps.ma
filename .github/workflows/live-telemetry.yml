@@ -17,41 +17,58 @@ jobs:
           script: |
             echo "=== FETCH START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
-            # Read Traccar credentials from .env
-            TRACCAR_EMAIL=$(grep TRACCAR_ADMIN_EMAIL .env | cut -d= -f2)
-            TRACCAR_PASS=$(grep TRACCAR_ADMIN_PASSWORD .env | cut -d= -f2)
-            echo "Traccar email: $TRACCAR_EMAIL"
-
             echo ""
-            echo "=== 1. Traccar API: /api/devices (via docker exec) ==="
-            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/devices 2>&1 | head -c 10000
+            echo "=== 1. Traccar API: /api/devices (via backend container node) ==="
+            docker exec shgps-backend-1 node -e "
+              const http = require('http');
+              const auth = Buffer.from(process.env.TRACCAR_ADMIN_EMAIL + ':' + process.env.TRACCAR_ADMIN_PASSWORD).toString('base64');
+              const options = { hostname: 'traccar', port: 8082, path: '/api/devices', headers: { 'Authorization': 'Basic ' + auth } };
+              http.get(options, (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>console.log(d)); }).on('error',e=>console.error(e.message));
+            " 2>&1 | head -c 15000
 
             echo ""
             echo "=== 2. Traccar API: device 37 (IMEI 865190075236599) ==="
-            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/devices/37 2>&1
+            docker exec shgps-backend-1 node -e "
+              const http = require('http');
+              const auth = Buffer.from(process.env.TRACCAR_ADMIN_EMAIL + ':' + process.env.TRACCAR_ADMIN_PASSWORD).toString('base64');
+              const options = { hostname: 'traccar', port: 8082, path: '/api/devices/37', headers: { 'Authorization': 'Basic ' + auth } };
+              http.get(options, (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>console.log(d)); }).on('error',e=>console.error(e.message));
+            " 2>&1
 
             echo ""
             echo "=== 3. Traccar API: device 70 (IMEI 865190075270325) ==="
-            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/devices/70 2>&1
+            docker exec shgps-backend-1 node -e "
+              const http = require('http');
+              const auth = Buffer.from(process.env.TRACCAR_ADMIN_EMAIL + ':' + process.env.TRACCAR_ADMIN_PASSWORD).toString('base64');
+              const options = { hostname: 'traccar', port: 8082, path: '/api/devices/70', headers: { 'Authorization': 'Basic ' + auth } };
+              http.get(options, (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>console.log(d)); }).on('error',e=>console.error(e.message));
+            " 2>&1
 
             echo ""
             echo "=== 4. Traccar API: positions (all) ==="
-            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/positions 2>&1 | head -c 10000
+            docker exec shgps-backend-1 node -e "
+              const http = require('http');
+              const auth = Buffer.from(process.env.TRACCAR_ADMIN_EMAIL + ':' + process.env.TRACCAR_ADMIN_PASSWORD).toString('base64');
+              const options = { hostname: 'traccar', port: 8082, path: '/api/positions', headers: { 'Authorization': 'Basic ' + auth } };
+              http.get(options, (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>console.log(d)); }).on('error',e=>console.error(e.message));
+            " 2>&1 | head -c 15000
 
             echo ""
-            echo "=== 5. Backend API: /api/devices (via nginx) ==="
-            curl -s http://localhost/api/devices 2>&1 | head -c 10000
+            echo "=== 5. Backend API: /api/devices (via docker exec backend) ==="
+            docker exec shgps-backend-1 node -e "
+              const http = require('http');
+              http.get('http://localhost:3001/api/devices', (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>console.log(d)); }).on('error',e=>console.error(e.message));
+            " 2>&1 | head -c 15000
 
             echo ""
-            echo "=== 6. Backend API: /api/map (via nginx) ==="
-            curl -s http://localhost/api/map 2>&1 | head -c 10000
+            echo "=== 6. Backend API: /api/map (via docker exec backend) ==="
+            docker exec shgps-backend-1 node -e "
+              const http = require('http');
+              http.get('http://localhost:3001/api/map', (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>console.log(d)); }).on('error',e=>console.error(e.message));
+            " 2>&1 | head -c 15000
 
             echo ""
-            echo "=== 7. Backend API: /api/devices (via docker exec) ==="
-            docker exec shgps-backend-1 curl -s http://localhost:3001/api/devices 2>&1 | head -c 10000
-
-            echo ""
-            echo "=== 8. Server time ==="
+            echo "=== 7. Server time ==="
             date -u '+%Y-%m-%dT%H:%M:%SZ'
 
             echo ""
