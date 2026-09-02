@@ -74,7 +74,10 @@ function signalToBars(signal) {
     if (s >= -110) return 1
     return 0
   }
-  // percentage or positive arbitrary value
+  // GT06 protocol reports rssi on a 0-5 scale (0=no signal, 5=excellent).
+  // Map directly to bars so rssi=3 shows 3 bars, not 1.
+  if (s <= 5) return Math.min(4, Math.round(s))
+  // Larger positive values are treated as percentage (0-100)
   if (s >= 75) return 4
   if (s >= 50) return 3
   if (s >= 25) return 2
