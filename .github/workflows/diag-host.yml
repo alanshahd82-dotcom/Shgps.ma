@@ -1,56 +1,186 @@
-name: Host Diagnostics
+name: Persistent Fix
 
 on:
   workflow_dispatch:
 
 jobs:
-  diag:
+  fix:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify device online status via Traccar API
+      - name: Investigate fix and verify
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 120s
+          command_timeout: 300s
           script: |
-            echo "=== VERIFY START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== FIXSTART $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
             echo ""
-            echo "=== 1. FORWARD chain counters (confirm 5023 traffic flowing) ==="
-            iptables -L FORWARD -n -v 2>&1 | head -5
+            echo "=== 1. Docker version ==="
+            docker version --format '{{.Server.Version}}' 2>&1
 
             echo ""
-            echo "=== 2. Traccar API: devices (via curl + basic auth) ==="
+            echo "=== 2. Docker daemon config ==="
+            cat /etc/docker/daemon.json 2>/dev/null || echo "no daemon.json"
+
+            echo ""
+            echo "=== 3. shgps network inspect ==="
+            docker network inspect shgps 2>&1
+
+            echo ""
+            echo "=== 4. docker5 interface check ==="
+            ip link show docker5 2>&1 || echo "docker5 interface not found"
+            docker network ls 2>&1
+
+            echo ""
+            echo "=== 5. Traccar container port bindings ==="
+            docker inspect shgps-traccar-1 --format '{{json .HostConfig.PortBindings}}' 2>&1
+            docker inspect shgps-traccar-1 --format '{{json .NetworkSettings.Networks}}' 2>&1
+
+            echo ""
+            echo "=== 6. All containers ==="
+            docker ps -a --format '{{.Names}} {{.Status}} {{.Ports}}' 2>&1
+
+            echo ""
+            echo "=== 7. Pre-fix DOCKER-BRIDGE ==="
+            iptables -L DOCKER-BRIDGE -n -v 2>&1
+
+            echo ""
+            echo "=== 8. Pre-fix DOCKER-CT ==="
+            iptables -L DOCKER-CT -n -v 2>&1
+
+            echo ""
+            echo "=== 9. Pre-fix DOCKER chain ==="
+            iptables -L DOCKER -n -v 2>&1
+
+            echo ""
+            echo "=== 10. Pre-fix FORWARD ==="
+            iptables -L FORWARD -n -v 2>&1 | head -10
+
+            echo ""
+            echo "=== 11. Pre-fix nat DOCKER DNAT ==="
+            iptables -t nat -L DOCKER -n -v 2>&1 | grep 5023
+
+            echo ""
+            echo "=== 12. Removing temporary FORWARD rules ==="
+            iptables -D FORWARD -p tcp --dport 5023 -d 172.18.0.5 -j ACCEPT 2>&1 && echo "ingress removed" || echo "ingress not found"
+            iptables -D FORWARD -p tcp --sport 5023 -s 172.18.0.5 -j ACCEPT 2>&1 && echo "egress removed" || echo "egress not found"
+
+            echo ""
+            echo "=== 13. Restarting Docker daemon ==="
+            systemctl restart docker 2>&1
+            echo "Docker restart command completed"
+
+            echo ""
+            echo "=== 14. Waiting for Docker daemon ==="
+            for i in $(seq 1 20); do
+              if docker info >/dev/null 2>&1; then
+                echo "Docker daemon ready (attempt $i)"
+                break
+              fi
+              echo "Waiting... (attempt $i)"
+              sleep 3
+            done
+
+            echo ""
+            echo "=== 15. Waiting for containers ==="
+            sleep 10
+            docker ps --format '{{.Names}} {{.Status}}' 2>&1
+
+            if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q shgps-traccar-1; then
+              echo "Traccar not running, starting..."
+              docker start shgps-traccar-1 2>&1
+              sleep 15
+            fi
+            if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q shgps-backend-1; then
+              echo "Backend not running, starting..."
+              docker start shgps-backend-1 2>&1
+              sleep 10
+            fi
+
+            echo ""
+            echo "=== 16. Post-fix DOCKER-BRIDGE ==="
+            iptables -L DOCKER-BRIDGE -n -v 2>&1
+
+            echo ""
+            echo "=== 17. Post-fix DOCKER-CT ==="
+            iptables -L DOCKER-CT -n -v 2>&1
+
+            echo ""
+            echo "=== 18. Post-fix DOCKER chain ==="
+            iptables -L DOCKER -n -v 2>&1
+
+            echo ""
+            echo "=== 19. Post-fix FORWARD ==="
+            iptables -L FORWARD -n -v 2>&1 | head -10
+
+            echo ""
+            echo "=== 20. Post-fix nat DOCKER DNAT ==="
+            iptables -t nat -L DOCKER -n -v 2>&1 | grep 5023
+
+            echo ""
+            echo "=== 21. Rule check ==="
+            BRIDGE_OK=$(iptables -L DOCKER-BRIDGE -n -v 2>/dev/null | grep -c "br-e735dbe613a3")
+            CT_OK=$(iptables -L DOCKER-CT -n -v 2>/dev/null | grep -c "br-e735dbe613a3")
+            DOCKER_OK=$(iptables -L DOCKER -n -v 2>/dev/null | grep -c "5023")
+            echo "DOCKER-BRIDGE has br-e735dbe613a3: $BRIDGE_OK"
+            echo "DOCKER-CT has br-e735dbe613a3: $CT_OK"
+            echo "DOCKER chain has 5023: $DOCKER_OK"
+
+            if [ "$BRIDGE_OK" -gt 0 ] && [ "$CT_OK" -gt 0 ] && [ "$DOCKER_OK" -gt 0 ]; then
+              echo "=== SUCCESS: Docker regenerated all rules correctly ==="
+            else
+              echo "=== WARNING: Rules not fully regenerated, applying fallback ==="
+              if [ "$DOCKER_OK" -eq 0 ]; then
+                echo "Restarting Traccar container to trigger DOCKER chain rule..."
+                docker restart shgps-traccar-1 2>&1
+                sleep 15
+                DOCKER_OK2=$(iptables -L DOCKER -n -v 2>/dev/null | grep -c "5023")
+                echo "DOCKER chain 5023 after container restart: $DOCKER_OK2"
+              fi
+              BRIDGE_OK2=$(iptables -L DOCKER-BRIDGE -n -v 2>/dev/null | grep -c "br-e735dbe613a3")
+              CT_OK2=$(iptables -L DOCKER-CT -n -v 2>/dev/null | grep -c "br-e735dbe613a3")
+              DOCKER_OK3=$(iptables -L DOCKER -n -v 2>/dev/null | grep -c "5023")
+              if [ "$BRIDGE_OK2" -eq 0 ] || [ "$CT_OK2" -eq 0 ] || [ "$DOCKER_OK3" -eq 0 ]; then
+                echo "=== Fallback: re-adding temporary FORWARD rules ==="
+                iptables -I FORWARD 1 -p tcp --dport 5023 -d 172.18.0.5 -j ACCEPT 2>&1
+                iptables -I FORWARD 1 -p tcp --sport 5023 -s 172.18.0.5 -j ACCEPT 2>&1
+                echo "Temporary rules re-added as fallback"
+                echo "=== Creating systemd service for persistence ==="
+                printf '[Unit]\nDescription=Docker iptables fix for shgps bridge\nAfter=docker.service\nRequires=docker.service\n\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/docker-iptable-fix.sh\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/docker-iptable-fix.service
+                printf '#!/bin/sh\nsleep 5\nTRACCAR_IP=$(docker inspect shgps-traccar-1 --format \x27{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}\x27 2>/dev/null)\nif [ -z "$TRACCAR_IP" ]; then exit 0; fi\nBRIDGE_OK=$(iptables -L DOCKER-BRIDGE -n -v 2>/dev/null | grep -c "br-e735dbe613a3")\nif [ "$BRIDGE_OK" -eq 0 ]; then\n  iptables -I FORWARD 1 -p tcp --dport 5023 -d "$TRACCAR_IP" -j ACCEPT\n  iptables -I FORWARD 1 -p tcp --sport 5023 -s "$TRACCAR_IP" -j ACCEPT\nfi\n' > /usr/local/bin/docker-iptable-fix.sh
+                chmod +x /usr/local/bin/docker-iptable-fix.sh
+                systemctl daemon-reload
+                systemctl enable docker-iptable-fix.service 2>&1
+                echo "Systemd service created and enabled"
+              else
+                echo "=== Container restart fixed the DOCKER chain rule ==="
+              fi
+            fi
+
+            echo ""
+            echo "=== 22. Verify eth0 tcpdump 30s ==="
+            echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+            timeout 30 tcpdump -i eth0 -n -nn port 5023 -c 20 2>&1 || echo "tcpdump done"
+            echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+            echo ""
+            echo "=== 23. Verify Traccar API devices ==="
             TRACCAR_EMAIL=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_EMAIL 2>/dev/null)
             TRACCAR_PASS=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_PASSWORD 2>/dev/null)
             TRACCAR_IP=$(docker inspect shgps-traccar-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
             echo "Traccar IP: $TRACCAR_IP"
-            echo "--- Devices ---"
-            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1 | python3 -m json.tool 2>/dev/null || curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1
+            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1 | python3 -m json.tool 2>/dev/null || echo "API call failed"
 
             echo ""
-            echo "=== 3. Traccar API: positions (current) ==="
-            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/positions" 2>&1 | python3 -m json.tool 2>/dev/null || curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/positions" 2>&1
+            echo "=== 24. Verify Traccar API positions ==="
+            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/positions" 2>&1 | python3 -m json.tool 2>/dev/null || echo "API call failed"
 
             echo ""
-            echo "=== 4. Traccar log file: new entries since fix (grep 2026-09-02) ==="
-            docker exec shgps-traccar-1 grep "2026-09-02" /opt/traccar/logs/tracker-server.log 2>&1 | tail -30 || echo "no 2026-09-02 entries in log file"
-
-            echo ""
-            echo "=== 5. H2 database modification time (confirm data being written) ==="
+            echo "=== 25. Verify H2 database modification time ==="
             docker exec shgps-traccar-1 stat /opt/traccar/data/database.mv.db 2>&1 | grep -i modify
 
             echo ""
-            echo "=== 6. Traccar container connections on port 5023 ==="
-            docker exec shgps-traccar-1 cat /proc/net/tcp6 2>/dev/null | grep 1397 | head -20
-
-            echo ""
-            echo "=== 7. Quick eth0 tcpdump 15s (confirm ongoing traffic) ==="
-            echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            timeout 15 tcpdump -i eth0 -n -nn port 5023 -c 30 2>&1 || echo "tcpdump done"
-            echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-
-            echo ""
-            echo "=== VERIFY END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== FIXEND $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
