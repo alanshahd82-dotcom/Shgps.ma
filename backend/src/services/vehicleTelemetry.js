@@ -131,28 +131,19 @@ export function detectExternalPowerLoss(position, { everSeenBatteryVoltage = tru
 
   // GT06 (the protocol used by this fleet) never sends externalPower/powerCut.
   // It reports the external supply through `charge`. An explicit charge:false
-  // is electrical feedback, BUT on GT06 charge:false only means "the alternator
-  // is not charging right now" (engine off). Parked vehicles emit it on every
-  // packet, which produced a disconnect/restore alert storm on perfectly
-  // healthy vehicles. So it counts as a loss signal only when the SAME packet
-  // reports no vehicle-battery voltage: a packet carrying 12.7 V proves the
-  // vehicle battery is still wired to the tracker.
-  if (attributes.charge !== undefined && attributes.charge !== null
-    && isFalseLike(attributes.charge)) {
-    const chargeVoltage = extractReportedVoltage(position)
-    // A packet carrying a battery-range voltage proves the vehicle battery
-    // is still wired to the tracker, so charge:false just means "not charging".
-    if (chargeVoltage !== null && isBatteryVoltage(chargeVoltage)) return null
-    // FIX 1: charge:false can only mean the vehicle battery was disconnected
-    // for a device that has previously reported a vehicle-battery voltage. A
-    // standalone tracker (no vehicle) never does, so it must never fire a
-    // disconnect from charge:false alone. everSeenBatteryVoltage defaults to
-    // true so callers without per-device state (the WS UI normalisation in
-    // index.js) keep the legacy behaviour; the alert engine passes the tracked
-    // per-device flag.
-    if (!everSeenBatteryVoltage) return null
-    return { source: 'charge:false' }
-  }
+  // is NOT a validated battery-disconnect signal: on GT06 charge:false only
+  // means "the alternator is not charging right now" (engine off), and the
+  // voltage field is intermittently omitted on otherwise-healthy packets.
+  // Treating charge:false (with or without a voltage in the same packet) as a
+  // battery disconnect produced false-positive disconnect alerts on vehicles
+  // whose battery was physically connected — a packet that simply omitted the
+  // voltage field while the engine was off was misread as a power loss.
+  //
+  // A battery-disconnect alert now requires an explicit validated power-loss
+  // attribute above (powerCut, externalPowerLost, externalPower=false, ...).
+  // Missing voltage or charge:false alone is treated as UNKNOWN/UNCHANGED,
+  // never as a confirmed disconnect. The silence path in the alert engine
+  // still handles a truly dead device, but it never creates a battery alert.
 
   // Generic Traccar alarm names are not electrical feedback. Production
   // devices have emitted alarm:powerCut while the tracker remained online,

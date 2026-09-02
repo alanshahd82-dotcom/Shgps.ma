@@ -14,30 +14,31 @@ import { getSubscriptionSnapshot } from '../../utils/subscriptions'
 
 const FILTERS = [
   { key: 'all', ar: 'الكل', fr: 'Tous' },
-  { key: 'moving', ar: 'تتحرك', fr: 'En mouvement' },
-  { key: 'idle', ar: 'خاملة', fr: 'Au ralenti' },
-  { key: 'stopped', ar: 'متوقفة', fr: 'À l’arrêt' },
-  { key: 'offline', ar: 'غير متصلة', fr: 'Hors ligne' },
+  { key: 'moving', ar: 'متحرك', fr: 'En mouvement' },
+  { key: 'online', ar: 'متصل', fr: 'En ligne' },
+  { key: 'offline', ar: 'غير متصل', fr: 'Hors ligne' },
 ]
 
 const STATUS = {
-  moving: { ar: 'تتحرك', fr: 'En mouvement', color: '#38bdf8', soft: 'rgba(56, 189, 248,.12)' },
-  idle: { ar: 'خاملة', fr: 'Au ralenti', color: '#d9ad62', soft: 'rgba(217,173,98,.12)' },
-  stopped: { ar: 'متوقفة', fr: 'À l’arrêt', color: '#e46b68', soft: 'rgba(228,107,104,.12)' },
-  awaiting_gps: { ar: 'في انتظار تحديد الموقع', fr: 'En attente de localisation', color: '#f59e0b', soft: 'rgba(245,158,11,.12)' },
-  offline: { ar: 'غير متصلة', fr: 'Hors ligne', color: '#8da2b5', soft: 'rgba(141,162,181,.12)' },
+  moving: { ar: 'متحرك', fr: 'En marche', color: '#22c55e', soft: 'rgba(34,197,94,.12)' },
+  online: { ar: 'متصل', fr: 'En ligne', color: '#22c55e', soft: 'rgba(34,197,94,.12)' },
+  offline: { ar: 'غير متصل', fr: 'Hors ligne', color: '#94a3b8', soft: 'rgba(148,163,184,.12)' },
 }
 
 function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const isAr = lang === 'ar'
-  const statusKey = getDeviceStatusKey(device)
+  // Canonical binary status — identical to VehicleCard (Home) so Home and
+  // Vehicles never disagree: online = status==='online', moving = online && speed>0.
+  const online = device.status === 'online'
+  const speed = Number(device.speed) || 0
+  const moving = online && speed > 0
+  const statusKey = !online ? 'offline' : moving ? 'moving' : 'online'
   const status = STATUS[statusKey] || STATUS.offline
   const subscription = getSubscriptionSnapshot(device)
   const needsRenewal = ['expiring_soon', 'expired'].includes(subscription.status)
   const reduceMotion = useReducedMotion()
   const voltageColor = getVoltageColor(device.voltage)
-  const voltageLabel = formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected, device.voltageStale)
-  const speed = Number(device.speed ?? device.last_speed ?? 0)
+  const voltageLabel = formatVoltage(device.voltage, lang, device.lastUpdate, device.powerDisconnected, device.voltageStale)
 
   return (
     <motion.article
@@ -65,7 +66,7 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
                 {isAr ? 'على البطارية الداخلية' : 'Sur batterie interne'}
               </span>
             )}
-            {(device.lastUpdate || device.last_update) && <><Clock size={10} className="ms-1 text-[var(--ath-mut)]" /> <span className="font-normal text-[var(--ath-mut)]">{timeAgo(device.lastUpdate || device.last_update, lang)}</span></>}
+            {device.lastUpdate && <><Clock size={10} className="ms-1 text-[var(--ath-mut)]" /> <span className="font-normal text-[var(--ath-mut)]">{timeAgo(device.lastUpdate, lang)}</span></>}
           </span>
           <span className="mt-2 block"><SubscriptionBadge device={device} lang={lang} /></span>
           <span className="mt-3 flex items-center gap-2" aria-label={isAr ? `فولطاج المركبة ${voltageLabel}` : `Tension du véhicule ${voltageLabel}`}>
@@ -110,16 +111,18 @@ export default function DeviceList() {
 
   const counts = useMemo(() => ({
     all: devices.length,
-    moving: devices.filter(d => getDeviceStatusKey(d) === 'moving').length,
-    idle: devices.filter(d => getDeviceStatusKey(d) === 'idle').length,
-    stopped: devices.filter(d => getDeviceStatusKey(d) === 'stopped').length,
-    offline: devices.filter(d => getDeviceStatusKey(d) === 'offline').length,
+    moving: devices.filter(d => d.status === 'online' && (Number(d.speed) || 0) > 0).length,
+    online: devices.filter(d => d.status === 'online' && (Number(d.speed) || 0) === 0).length,
+    offline: devices.filter(d => d.status !== 'online').length,
   }), [devices])
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
     return devices.filter(device => {
-      const matchesFilter = filter === 'all' || getDeviceStatusKey(device) === filter
+      const devOnline = device.status === 'online'
+      const devSpeed = Number(device.speed) || 0
+      const devKey = !devOnline ? 'offline' : devSpeed > 0 ? 'moving' : 'online'
+      const matchesFilter = filter === 'all' || devKey === filter
       const matchesSearch = !query || [device.name, device.plate, device.driver].some(value => value?.toLowerCase().includes(query))
       return matchesFilter && matchesSearch
     })
