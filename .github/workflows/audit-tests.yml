@@ -20,7 +20,7 @@ jobs:
         run: node --test test/*.test.js
       - name: Frontend build
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npm run build
 
   live-telemetry:
