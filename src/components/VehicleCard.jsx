@@ -272,7 +272,7 @@ export function VehicleCard({
               </span>
               <span className="leading-tight">
                 <span className={`block text-[12px] font-extrabold tabular-nums ${moving ? 'text-indigo-700' : 'text-slate-900'}`}>
-                  {rawSpeed == null ? l.na : `${speed} ${l.kmh}`}
+                  {online && rawSpeed != null ? `${speed} ${l.kmh}` : l.na}
                 </span>
                 <span className="block text-[9px] text-slate-400">{l.speed}</span>
               </span>
