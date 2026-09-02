@@ -6,13 +6,14 @@
 // - Moving vehicle  -> show current speed (e.g. 23 km/h)
 // - Stopped vehicle -> show 0 km/h
 // - Offline / power-disconnected -> hide (never show stale speed)
-// - Speed data unavailable (NaN/null) -> hide
+// - Speed data unavailable (null/undefined/NaN) -> hide
 //
 // This module is PURE: it never touches the map, camera, zoom, or marker
 // coordinates. It only computes the speed value and badge HTML.
 
 export function speedDisplay(device, status) {
   if (status === 'offline' || device?.powerDisconnected) return null
+  if (device?.speed == null) return null
   const raw = Number(device?.speed)
   if (!Number.isFinite(raw)) return null
   const kmh = Math.max(0, Math.round(raw))
