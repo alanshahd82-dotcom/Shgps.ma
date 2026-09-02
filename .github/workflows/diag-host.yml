@@ -1,0 +1,69 @@
+name: Host Diagnostics
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy to settle
+        run: sleep 420
+
+      - name: Run host-level diagnostics via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 180s
+          script: |
+            echo "=== DIAG START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+
+            echo ""
+            echo "=== 1. Host-level listener check (port 5023) ==="
+            ss -lntp 2>/dev/null | grep :5023 || netstat -tlnp 2>/dev/null | grep :5023 || echo "Neither ss nor netstat found or port 5023 not listening"
+
+            echo ""
+            echo "=== 2. Docker port mapping ==="
+            docker ps --format "table {{.Names}}\t{{.Ports}}" 2>&1
+
+            echo ""
+            echo "=== 3. Firewall rules ==="
+            echo "--- ufw ---"
+            ufw status 2>/dev/null || echo "ufw not found"
+            echo "--- iptables INPUT ---"
+            iptables -L INPUT -n -v 2>/dev/null | head -30 || echo "iptables not found"
+            echo "--- iptables DOCKER chain (nat) ---"
+            iptables -t nat -L DOCKER -n -v 2>/dev/null | head -30 || echo "iptables not found"
+
+            echo ""
+            echo "=== 4. Packet capture on port 5023 (60s, max 100 pkts) ==="
+            echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+            timeout 60 tcpdump -i any -n -nn port 5023 -c 100 2>&1 || echo "tcpdump completed/timed-out/not-available"
+            echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+            echo ""
+            echo "=== 5. Traccar container logs (last 48h, last 300 lines) ==="
+            docker logs --since 48h shgps-traccar-1 2>&1 | tail -300
+
+            echo ""
+            echo "=== 6. Traccar log file directory ==="
+            docker exec shgps-traccar-1 ls -la /opt/traccar/logs/ 2>&1 || echo "no logs dir"
+
+            echo ""
+            echo "=== 7. Traccar log file (last 300 lines) ==="
+            docker exec shgps-traccar-1 tail -300 /opt/traccar/logs/tracker-server.log 2>&1 || echo "no log file"
+
+            echo ""
+            echo "=== 8. GT06 / IMEI / error entries in Traccar log ==="
+            docker exec shgps-traccar-1 sh -c 'grep -iE "gt06|865190075236599|865190075270325|decode|error|exception|disconnect|connect|session" /opt/traccar/logs/tracker-server.log 2>/dev/null | tail -200' || echo "no matches or no file"
+
+            echo ""
+            echo "=== 9. Host network interfaces ==="
+            ip addr show 2>/dev/null | grep -E "^[0-9]+:|inet " || ifconfig 2>/dev/null || echo "no ip/ifconfig"
+
+            echo ""
+            echo "=== DIAG END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
