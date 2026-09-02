@@ -2,12 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { signalToBars } from '../../src/utils/signal.js'
 import { mergeVoltageFields } from '../../src/utils/voltageMerge.js'
-import { speedKmh } from '../utils/speed.js'
+import { speedKmh } from '../src/utils/speed.js'
 import {
   resolveDeviceStatus,
   positionIsFresh,
   readBatteryLevel,
-} from '../services/vehicleTelemetry.js'
+} from '../src/services/vehicleTelemetry.js'
 
 // ── 1. Offline nulling: when backend reports offline, stale telemetry must not persist ──
 test('OFFLINE-1: offline status nulls speed in mergeDeviceSnapshots', () => {
