@@ -1,123 +1,78 @@
-name: Reboot Verification
+name: Live Telemetry Audit
 
 on:
   workflow_dispatch:
 
 jobs:
-  reboot-verify:
+  audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Pre-reboot verification and trigger reboot
+      - name: Fetch full Traccar API data for devices 37 and 70
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 120s
+          command_timeout: 60s
           script: |
-            echo "=== PRE-REBOOT START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== AUDIT START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
-            echo ""
-            echo "=== 1. Pre-reboot: Verify port 5023 (tcpdump 20s) ==="
-            echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            timeout 20 tcpdump -i eth0 -n -nn port 5023 -c 10 2>&1 || echo "tcpdump done"
-            echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-
-            echo ""
-            echo "=== 2. Pre-reboot: Verify device 37 online ==="
             TRACCAR_EMAIL=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_EMAIL 2>/dev/null)
             TRACCAR_PASS=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_PASSWORD 2>/dev/null)
             TRACCAR_IP=$(docker inspect shgps-traccar-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
-            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1 | python3 -m json.tool 2>/dev/null || echo "API call failed"
 
             echo ""
-            echo "=== 3. Pre-reboot: DOCKER-BRIDGE ==="
-            iptables -L DOCKER-BRIDGE -n -v 2>&1 | head -10
+            echo "=== 1. Traccar /api/devices (id 37 and 70) ==="
+            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1 | python3 -c "
+            import sys, json
+            data = json.load(sys.stdin)
+            for d in data:
+                if d.get('id') in [37, 70]:
+                    print(json.dumps(d, indent=2))
+            " 2>&1
 
             echo ""
-            echo "=== 4. Triggering VPS reboot ==="
-            nohup sh -c 'sleep 3 && shutdown -r now' >/dev/null 2>&1 &
-            echo "Reboot scheduled in 3 seconds"
+            echo "=== 2. Traccar /api/positions (deviceId 37 and 70) ==="
+            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/positions" 2>&1 | python3 -c "
+            import sys, json
+            data = json.load(sys.stdin)
+            for p in data:
+                if p.get('deviceId') in [37, 70]:
+                    print(json.dumps(p, indent=2))
+            " 2>&1
 
             echo ""
-            echo "=== PRE-REBOOT END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
-        continue-on-error: true
-
-      - name: Wait for VPS to come back up
-        run: sleep 180
-
-      - name: Post-reboot verification
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 300s
-          script: |
-            echo "=== POST-REBOOT START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
-
-            echo ""
-            echo "=== 1. Post-reboot: Uptime ==="
-            uptime 2>&1
+            echo "=== 3. Backend /api/devices (via localhost) ==="
+            BACKEND_IP=$(docker inspect shgps-backend-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
+            # Try to get a JWT token by logging in
+            LOGIN_RES=$(curl -s --max-time 10 -X POST "http://localhost:3000/api/auth/login" -H "Content-Type: application/json" -d "{\"email\": \"$TRACCAR_EMAIL\", \"password\": \"$TRACCAR_PASS\"}" 2>&1)
+            TOKEN=$(echo "$LOGIN_RES" | python3 -c "import sys, json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null)
+            if [ -n "$TOKEN" ]; then
+              curl -s --max-time 10 "http://localhost:3000/api/devices" -H "Authorization: Bearer $TOKEN" 2>&1 | python3 -c "
+              import sys, json
+              data = json.load(sys.stdin)
+              for d in data:
+                  if d.get('traccarId') in [37, 70] or d.get('id') in [14, 16]:
+                      print(json.dumps(d, indent=2))
+              " 2>&1
+            else
+              echo "Login failed, showing raw response:"
+              echo "$LOGIN_RES"
+            fi
 
             echo ""
-            echo "=== 2. Post-reboot: Docker status ==="
-            systemctl is-active docker 2>&1
-            docker ps --format '{{.Names}} {{.Status}}' 2>&1
+            echo "=== 4. Backend /api/map/positions (via localhost) ==="
+            if [ -n "$TOKEN" ]; then
+              curl -s --max-time 10 "http://localhost:3000/api/map/positions" -H "Authorization: Bearer $TOKEN" 2>&1 | python3 -c "
+              import sys, json
+              data = json.load(sys.stdin)
+              for d in data:
+                  if d.get('id') in [14, 16]:
+                      print(json.dumps(d, indent=2))
+              " 2>&1
+            else
+              echo "No token available"
+            fi
 
             echo ""
-            echo "=== 3. Post-reboot: Wait for Traccar healthy ==="
-            for i in $(seq 1 30); do
-              HEALTH=$(docker inspect shgps-traccar-1 --format '{{.State.Health.Status}}' 2>/dev/null)
-              if [ "$HEALTH" = "healthy" ]; then
-                echo "Traccar healthy (attempt $i)"
-                break
-              fi
-              echo "Waiting for Traccar health... (attempt $i, status: $HEALTH)"
-              sleep 5
-            done
-
-            echo ""
-            echo "=== 4. Post-reboot: DOCKER-BRIDGE ==="
-            iptables -L DOCKER-BRIDGE -n -v 2>&1
-
-            echo ""
-            echo "=== 5. Post-reboot: DOCKER-CT ==="
-            iptables -L DOCKER-CT -n -v 2>&1
-
-            echo ""
-            echo "=== 6. Post-reboot: DOCKER chain ==="
-            iptables -L DOCKER -n -v 2>&1
-
-            echo ""
-            echo "=== 7. Post-reboot: FORWARD chain ==="
-            iptables -L FORWARD -n -v 2>&1 | head -10
-
-            echo ""
-            echo "=== 8. Post-reboot: Rule check ==="
-            BRIDGE_OK=$(iptables -L DOCKER-BRIDGE -n -v 2>/dev/null | grep -c "br-e735dbe613a3")
-            CT_OK=$(iptables -L DOCKER-CT -n -v 2>/dev/null | grep -c "br-e735dbe613a3")
-            DOCKER_OK=$(iptables -L DOCKER -n -v 2>/dev/null | grep -c "5023")
-            echo "DOCKER-BRIDGE has br-e735dbe613a3: $BRIDGE_OK"
-            echo "DOCKER-CT has br-e735dbe613a3: $CT_OK"
-            echo "DOCKER chain has 5023: $DOCKER_OK"
-
-            echo ""
-            echo "=== 9. Post-reboot: Verify port 5023 (tcpdump 30s) ==="
-            echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            timeout 30 tcpdump -i eth0 -n -nn port 5023 -c 20 2>&1 || echo "tcpdump done"
-            echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-
-            echo ""
-            echo "=== 10. Post-reboot: Verify device 37 online ==="
-            TRACCAR_EMAIL=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_EMAIL 2>/dev/null)
-            TRACCAR_PASS=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_PASSWORD 2>/dev/null)
-            TRACCAR_IP=$(docker inspect shgps-traccar-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
-            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1 | python3 -m json.tool 2>/dev/null || echo "API call failed"
-
-            echo ""
-            echo "=== 11. Post-reboot: Verify H2 database ==="
-            docker exec shgps-traccar-1 stat /opt/traccar/data/database.mv.db 2>&1 | grep -i modify
-
-            echo ""
-            echo "=== POST-REBOOT END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== AUDIT END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
