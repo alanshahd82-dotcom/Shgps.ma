@@ -1,3 +1,4 @@
+/** @file Diagnostic endpoints for offline-device investigation */
 import { Router } from 'express'
 import { config } from '../config.js'
 
