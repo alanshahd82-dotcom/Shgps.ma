@@ -21,6 +21,7 @@ import { driverBehaviorRouter } from './routes/driverBehavior.js'
 import { subUsersRouter }       from './routes/subUsers.js'
 import { subAdminsRouter }      from './routes/subAdmins.js'
 import { settingsRouter }       from './routes/settings.js'
+import { diagRouter }           from './routes/diag.js'
 import { config }        from './config.js'
 import { getAllPositions, getAllDevices } from './services/traccar.js'
 import { isRevoked, initRevocationStore } from './services/tokenBlacklist.js'
@@ -517,6 +518,7 @@ app.use('/api/driver-behavior', driverBehaviorRouter)
 app.use('/api/sub-users',       subUsersRouter)
 app.use('/api/sub-admins',      subAdminsRouter)
 app.use('/api/settings',        settingsRouter)
+app.use('/api/diag',           diagRouter)
 
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'disconnected'
@@ -531,55 +533,6 @@ app.get('/api/health', async (_req, res) => {
   } catch {}
   const ok = dbStatus === 'connected'
   res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', db: dbStatus, traccar: traccarStatus, version: '1.2.0', ts: new Date().toISOString() })
-})
-
-// TEMPORARY diagnostic endpoint — checks Traccar device status for offline investigation
-app.get('/api/diag-offline', async (_req, res) => {
-  try {
-    const { createConnection } = await import('node:net')
-    const [allDevices, allPositions] = await Promise.all([
-      getAllDevices().catch(e => ({ _error: e.message })),
-      getAllPositions().catch(e => ({ _error: e.message })),
-    ])
-
-    // Check if GT06 port 5023 is listening on the Traccar container
-    const port5023 = await new Promise((resolve) => {
-      const sock = createConnection({ host: 'traccar', port: 5023 }, () => {
-        sock.destroy()
-        resolve({ listening: true })
-      })
-      sock.on('error', (e) => resolve({ listening: false, error: e.message }))
-      sock.setTimeout(3000, () => { sock.destroy(); resolve({ listening: false, error: 'timeout' }) })
-    })
-
-    const targetDevices = Array.isArray(allDevices)
-      ? allDevices.filter(d => d.id === 37 || d.id === 70 || d.uniqueId === '865190075236599' || d.uniqueId === '865190075270325')
-      : []
-    const targetPositions = Array.isArray(allPositions)
-      ? allPositions.filter(p => p.deviceId === 37 || p.deviceId === 70)
-      : []
-
-    res.json({
-      ts: new Date().toISOString(),
-      port5023,
-      traccarDevices: targetDevices.map(d => ({
-        id: d.id, name: d.name, uniqueId: d.uniqueId,
-        status: d.status, lastUpdate: d.lastUpdate, positionId: d.positionId,
-      })),
-      traccarPositions: targetPositions.map(p => ({
-        deviceId: p.deviceId, fixTime: p.fixTime, serverTime: p.serverTime,
-        lat: p.latitude, lng: p.longitude, speed: p.speed,
-        attributes: p.attributes || {},
-      })),
-      allDeviceCount: Array.isArray(allDevices) ? allDevices.length : null,
-      allPositionCount: Array.isArray(allPositions) ? allPositions.length : null,
-      allDevicesSummary: Array.isArray(allDevices) ? allDevices.map(d => ({ id: d.id, name: d.name, status: d.status, lastUpdate: d.lastUpdate, uniqueId: d.uniqueId })) : null,
-      traccarDevicesError: allDevices?._error || null,
-      traccarPositionsError: allPositions?._error || null,
-    })
-  } catch (e) {
-    res.status(500).json({ error: e.message, stack: e.stack?.split('\n').slice(0, 5) })
-  }
 })
 
 // --- HTTP server ---------------------------------------------------------------
