@@ -13,42 +13,45 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 60s
+          command_timeout: 120s
           script: |
             echo "=== FETCH START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
+            # Read Traccar credentials from .env
+            TRACCAR_EMAIL=$(grep TRACCAR_ADMIN_EMAIL .env | cut -d= -f2)
+            TRACCAR_PASS=$(grep TRACCAR_ADMIN_PASSWORD .env | cut -d= -f2)
+            echo "Traccar email: $TRACCAR_EMAIL"
+
             echo ""
-            echo "=== 1. Traccar API: /api/devices (full list) ==="
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices 2>/dev/null | python3 -m json.tool 2>/dev/null || \
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices 2>/dev/null
+            echo "=== 1. Traccar API: /api/devices (via docker exec) ==="
+            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/devices 2>&1 | head -c 10000
 
             echo ""
             echo "=== 2. Traccar API: device 37 (IMEI 865190075236599) ==="
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/37 2>/dev/null | python3 -m json.tool 2>/dev/null || \
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/37 2>/dev/null
+            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/devices/37 2>&1
 
             echo ""
             echo "=== 3. Traccar API: device 70 (IMEI 865190075270325) ==="
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/70 2>/dev/null | python3 -m json.tool 2>/dev/null || \
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/70 2>/dev/null
+            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/devices/70 2>&1
 
             echo ""
             echo "=== 4. Traccar API: positions (all) ==="
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/positions 2>/dev/null | python3 -m json.tool 2>/dev/null || \
-            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/positions 2>/dev/null
+            docker exec shgps-traccar-1 curl -s -u "$TRACCAR_EMAIL:$TRACCAR_PASS" http://localhost:8082/api/positions 2>&1 | head -c 10000
 
             echo ""
-            echo "=== 5. Backend API: /api/devices (sanitized) ==="
-            curl -s http://localhost:3000/api/devices 2>/dev/null | python3 -m json.tool 2>/dev/null || \
-            curl -s http://localhost:3000/api/devices 2>/dev/null
+            echo "=== 5. Backend API: /api/devices (via nginx) ==="
+            curl -s http://localhost/api/devices 2>&1 | head -c 10000
 
             echo ""
-            echo "=== 6. Backend API: /api/map (sanitized) ==="
-            curl -s http://localhost:3000/api/map 2>/dev/null | python3 -m json.tool 2>/dev/null || \
-            curl -s http://localhost:3000/api/map 2>/dev/null
+            echo "=== 6. Backend API: /api/map (via nginx) ==="
+            curl -s http://localhost/api/map 2>&1 | head -c 10000
 
             echo ""
-            echo "=== 7. Server time ==="
+            echo "=== 7. Backend API: /api/devices (via docker exec) ==="
+            docker exec shgps-backend-1 curl -s http://localhost:3001/api/devices 2>&1 | head -c 10000
+
+            echo ""
+            echo "=== 8. Server time ==="
             date -u '+%Y-%m-%dT%H:%M:%SZ'
 
             echo ""
