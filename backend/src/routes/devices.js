@@ -248,6 +248,7 @@ import {
           voltageStale: electrical.voltageStale,
           lastVoltageAt: electrical.lastVoltageAt,
           batteryLevel: electrical.batteryLevel,
+          charge:     trackingEnabled && p ? (p.attributes?.charge ?? null) : null,
           powerDisconnected: electrical.powerDisconnected,
           signal:    trackingEnabled ? (p?.attributes?.rssi ?? p?.attributes?.gsm ?? p?.attributes?.signal ?? p?.attributes?.signalStrength ?? null) : null,
           fuel:      trackingEnabled ? (p?.attributes?.fuel ?? p?.attributes?.fuelLevel ?? null) : null,
