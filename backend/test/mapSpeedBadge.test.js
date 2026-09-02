@@ -122,3 +122,38 @@ test('MAP-SPEED-17: negative speed is clamped to 0', () => {
   const result = speedDisplay(device, 'moving')
   assert.equal(result.kmh, 0)
 })
+
+test('MAP-SPEED-18: no background style in badge HTML', () => {
+  const device = { speed: 23, status: 'online', lang: 'fr' }
+  const html = speedBadgeHtml(device, 'moving')
+  assert.ok(!html.includes('background'), 'no background style')
+  assert.ok(!html.includes('bg-'), 'no bg- class')
+})
+
+test('MAP-SPEED-19: no border style in badge HTML', () => {
+  const device = { speed: 23, status: 'online', lang: 'fr' }
+  const html = speedBadgeHtml(device, 'moving')
+  assert.ok(!html.includes('border'), 'no border style')
+})
+
+test('MAP-SPEED-20: no box-shadow style in badge HTML', () => {
+  const device = { speed: 23, status: 'online', lang: 'fr' }
+  const html = speedBadgeHtml(device, 'moving')
+  assert.ok(!html.includes('box-shadow'), 'no box-shadow style')
+  assert.ok(!html.includes('shadow'), 'no shadow class')
+})
+
+test('MAP-SPEED-21: no padding style in badge HTML', () => {
+  const device = { speed: 23, status: 'online', lang: 'fr' }
+  const html = speedBadgeHtml(device, 'moving')
+  assert.ok(!html.includes('padding'), 'no padding style')
+})
+
+test('MAP-SPEED-22: badge HTML has no capsule/pill/card class', () => {
+  const device = { speed: 23, status: 'online', lang: 'fr' }
+  const html = speedBadgeHtml(device, 'moving')
+  assert.ok(!html.includes('capsule'), 'no capsule class')
+  assert.ok(!html.includes('pill'), 'no pill class')
+  assert.ok(!html.includes('card'), 'no card class')
+  assert.ok(!html.includes('container'), 'no container class')
+})

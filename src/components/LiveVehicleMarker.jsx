@@ -163,7 +163,7 @@ export default function LiveVehicleMarker({
     frameRef.current = requestAnimationFrame(animate)
   }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type])
 
-  // Premium speed badge update — smooth number transition, no stale speed when offline.
+  // Transparent speed text update — smooth number transition, no stale speed when offline.
   useEffect(() => {
     safelyUseMarker(markerRef.current, marker => {
       const badge = marker.getElement()?.querySelector('[data-live-speed]')

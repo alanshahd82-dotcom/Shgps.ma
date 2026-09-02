@@ -1,4 +1,4 @@
-// Premium automotive speed display logic for the live map marker.
+// Minimal transparent speed text logic for the live map marker.
 // Shared between LiveVehicleMarker.jsx and backend tests so the speed
 // badge behavior is verified without a browser environment.
 //
@@ -9,7 +9,8 @@
 // - Speed data unavailable (null/undefined/NaN) -> hide
 //
 // This module is PURE: it never touches the map, camera, zoom, or marker
-// coordinates. It only computes the speed value and badge HTML.
+// coordinates. It only computes the speed value and transparent text HTML.
+// No background, no container, no border — text treatment only.
 
 export function speedDisplay(device, status) {
   if (status === 'offline' || device?.powerDisconnected) return null
