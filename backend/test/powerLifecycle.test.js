@@ -95,12 +95,13 @@ function makeHarness() {
 }
 
 const CONNECTED = { charge: true, ignition: true, batteryLevel: 100, adc1: 13.6 }
-const LOST = { charge: false, ignition: false, batteryLevel: 16, alarm: 'lowBattery', blocked: true }
+const LOST = { externalPower: false, ignition: false, batteryLevel: 16, alarm: 'lowBattery', blocked: true }
 // A real post-reboot GT06 frame: no `charge` field, but a genuine 12V reading.
 const RESTORED_NO_CHARGE = { ignition: false, batteryLevel: 40, adc1: 13.4 }
 
 test('signal detection: only explicit electrical feedback counts', () => {
-  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } })?.source, 'charge:false')
+  // charge:false is NOT a validated disconnect signal.
+  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }), null)
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: true } }), null)
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { alarm: 'lowBattery' } }), null)
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { batteryLevel: 5 } }), null)
@@ -120,13 +121,14 @@ test('engine cooldown suppresses the relay echo and expires', () => {
   const key = String(TRACCAR_ID)
   engineCommandCooldowns.delete(key)
   registerEngineCommandCooldown(TRACCAR_ID, 7, Date.now())
-  assert.equal(detectExternalPowerLoss({ deviceId: TRACCAR_ID, attributes: { charge: false } }), null)
-  // 60s later the same signal is honoured again — the cooldown never
+  // During cooldown: an explicit loss signal is suppressed.
+  assert.equal(detectExternalPowerLoss({ deviceId: TRACCAR_ID, attributes: { externalPower: false } }), null)
+  // 60s later the same explicit signal is honoured again — the cooldown never
   // permanently suppresses a genuine later disconnect.
   engineCommandCooldowns.set(key, Date.now() - 61_000)
   assert.equal(
-    detectExternalPowerLoss({ deviceId: TRACCAR_ID, attributes: { charge: false } })?.source,
-    'charge:false',
+    detectExternalPowerLoss({ deviceId: TRACCAR_ID, attributes: { externalPower: false } })?.source,
+    'externalPower',
   )
   engineCommandCooldowns.delete(key)
 })

@@ -115,16 +115,15 @@ test.beforeEach(() => {
 
 // ── Pure detector tests ──────────────────────────────────────────────────────
 
-test('FIX 1: charge:false is gated by everSeenBatteryVoltage', () => {
-  // A standalone tracker that never reported a vehicle voltage must not fire.
+test('FIX 1: charge:false is never a power loss (everSeenBatteryVoltage gate obsolete)', () => {
+  // charge:false is NOT a validated disconnect signal regardless of whether
+  // the device previously reported a vehicle-battery voltage. The old
+  // everSeenBatteryVoltage gate is obsolete — charge:false simply never fires.
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }, { everSeenBatteryVoltage: false }), null)
-  // A device that previously reported a vehicle voltage: charge:false is a loss.
-  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }, { everSeenBatteryVoltage: true })?.source, 'charge:false')
-  // Default (no per-device flag) preserves the legacy/UI behaviour.
-  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } })?.source, 'charge:false')
-  // A battery-range voltage in the same packet still proves the battery is wired.
+  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }, { everSeenBatteryVoltage: true }), null)
+  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }), null)
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false, voltage: 12.7 } }, { everSeenBatteryVoltage: true }), null)
-  // Explicit electrical signals (direct keys) are unaffected by the gate.
+  // Explicit electrical signals (direct keys) are unaffected.
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { externalPower: false } })?.source, 'externalPower')
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { powerCut: true } })?.source, 'powerCut')
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { alarm: 'lowBattery' } }), null)
@@ -203,10 +202,10 @@ test('6. reconnect snapshot replay same signature -> no duplicate', async () => 
 // 7. Real external-power context then validated loss -> exactly ONE disconnect
 test('7. real vehicle context then validated loss -> one disconnect', async () => {
   const h = makeHarness()
-  await h.send(CONNECTED)        // adc1:13.6 -> everSeenBatteryVoltage = true
-  await h.send(STANDALONE_LOSS) // charge:false, no voltage, everSeen=true -> loss
-  await h.send(STANDALONE_LOSS)
-  await h.send(STANDALONE_LOSS)
+  await h.send(CONNECTED)        // adc1:13.6 -> vehicle context established
+  await h.send({ externalPower: false }) // explicit validated loss
+  await h.send({ externalPower: false })
+  await h.send({ externalPower: false })
   assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 1)
   assert.equal(h.state()?.disconnected, true)
   assert.equal(h.powerStates.get(String(TRACCAR_ID)), 'telemetry')
