@@ -63,13 +63,19 @@ function mergeDeviceSnapshots(previous, next) {
     // non-null voltage win.
     if (incomingIsNewer) return { ...current, ...incoming, ...mergeVoltageFields(current, incoming) }
 
+    // When backend reports offline, do not preserve stale telemetry as current.
+    const offline = incoming.status === 'offline'
     return {
       ...current,
       ...incoming,
       ...mergeVoltageFields(current, incoming),
       lat: current.lat ?? current.last_lat,
       lng: current.lng ?? current.last_lng,
-      speed: current.speed,
+      speed: offline ? null : current.speed,
+      engineOn: offline ? null : current.engineOn,
+      motion: offline ? null : current.motion,
+      signal: offline ? null : current.signal,
+      charge: offline ? null : current.charge,
       course: current.course,
       fixTime: current.fixTime,
       lastUpdate: current.lastUpdate,
@@ -151,15 +157,13 @@ export function AppProvider({ children }) {
             // vehicle-power loss is a separate flag, not an offline state.
             status:     'online',
             engineOn:   pos.attributes?.ignition   ?? current.engineOn,
-            voltage:   pos.voltage
-              ?? pos.attributes?.voltage
-              ?? pos.attributes?.power
-              ?? current.voltage
-              ?? null,
+            // Backend WS bridge already validates voltage via readVehicleVoltage (isBatteryVoltage). Only use validated pos.voltage or previous validated value.
+            voltage:   pos.voltage ?? current.voltage ?? null,
             // A live WS position is fresh by definition.
             voltageStale: false,
             lastVoltageAt: null,
             powerDisconnected,
+            charge:     pos.attributes?.charge     ?? current.charge ?? null,
             signal:     pos.attributes?.rssi       ?? current.signal,
             fuel:       pos.attributes?.fuel       ?? current.fuel,
             address:    pos.address                ?? current.address,

@@ -63,31 +63,7 @@ function useLiveNumber(target, duration = 700) {
 }
 
 // ── Signal strength ──────────────────────────────────────────────────────────
-function signalToBars(signal) {
-  const s = Number(signal)
-  if (!Number.isFinite(s)) return 0
-  if (s < 0) {
-    // dBm (negative, typical for GSM RSSI)
-    if (s >= -60) return 4
-    if (s >= -80) return 3
-    if (s >= -100) return 2
-    if (s >= -110) return 1
-    return 0
-  }
-  // percentage or positive arbitrary value
-  if (s >= 75) return 4
-  if (s >= 50) return 3
-  if (s >= 25) return 2
-  if (s > 0) return 1
-  return 0
-}
-
-function signalColor(bars) {
-  if (bars >= 3) return '#22c55e'
-  if (bars === 2) return '#f59e0b'
-  if (bars === 1) return '#ef4444'
-  return '#cbd5e1'
-}
+import { signalToBars, signalColor } from '../utils/signal'
 
 function SignalBars({ signal }) {
   const bars = signalToBars(signal)
@@ -272,7 +248,7 @@ export function VehicleCard({
               </span>
               <span className="leading-tight">
                 <span className={`block text-[12px] font-extrabold tabular-nums ${moving ? 'text-indigo-700' : 'text-slate-900'}`}>
-                  {rawSpeed == null ? l.na : `${speed} ${l.kmh}`}
+                  {online && rawSpeed != null ? `${speed} ${l.kmh}` : l.na}
                 </span>
                 <span className="block text-[9px] text-slate-400">{l.speed}</span>
               </span>
