@@ -14,7 +14,7 @@ jobs:
           node-version: 20
       - name: Install backend deps
         working-directory: backend
-        run: npm ci
+        run: npm install --no-audit --no-fund
       - name: Run full backend test suite
         working-directory: backend
         run: npm test
@@ -37,5 +37,5 @@ jobs:
             cd /opt/shgps
             git fetch origin audit/run-tests 2>/dev/null || true
             git show origin/audit/run-tests:backend/scripts/capture-telemetry.mjs > /tmp/capture.mjs
-            docker cp /tmp/capture.mjs shgps-backend-1:/tmp/capture.mjs
-            docker exec shgps-backend-1 node /tmp/capture.mjs
+            docker cp /tmp/capture.mjs shgps-backend-1:/app/capture.mjs
+            docker exec shgps-backend-1 node /app/capture.mjs
