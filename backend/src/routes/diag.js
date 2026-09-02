@@ -1,14 +1,8 @@
-/** @file Diagnostic endpoints for offline-device investigation */
 import { Router } from 'express'
 import { config } from '../config.js'
 
 export const diagRouter = Router()
 
-/**
- * Comprehensive offline-device diagnostic.
- * Checks network path, Traccar session/events, and host-level state
- * to pinpoint why devices 37 (bekane) and 70 (DACIA) show offline.
- */
 diagRouter.get('/offline', async (_req, res) => {
   const results = {
     ts: new Date().toISOString(),
@@ -18,7 +12,6 @@ diagRouter.get('/offline', async (_req, res) => {
   }
 
   try {
-    // ── 1. Establish Traccar session ──
     const traccarUrl = config.traccar.url
     let sessionCookie = null
     try {
@@ -47,7 +40,7 @@ diagRouter.get('/offline', async (_req, res) => {
       return r.json()
     }
 
-    // ── 2. Traccar devices, positions, server ──
+    // 1. Traccar devices, positions, server
     const [allDevices, allPositions, serverInfo] = await Promise.all([
       traccarGet('/api/devices').catch(e => ({ _error: e.message })),
       traccarGet('/api/positions').catch(e => ({ _error: e.message })),
@@ -76,15 +69,19 @@ diagRouter.get('/offline', async (_req, res) => {
         }))
       : allPositions
 
-    // ── 3. Traccar events (last 48h for devices 37 and 70) ──
+    // 2. Try Traccar log API (some versions support it)
+    results.traccar.logApi = await traccarGet('/api/server/log').catch(e => ({ _error: e.message }))
+
+    // 3. Try Traccar events with different endpoint formats
     const now = new Date()
     const from = new Date(now.getTime() - 48 * 60 * 60 * 1000)
     const fromStr = from.toISOString()
     const toStr = now.toISOString()
 
-    const [events37, events70] = await Promise.all([
+    const [events37, events70, eventsAll] = await Promise.all([
       traccarGet(`/api/events?deviceId=37&from=${encodeURIComponent(fromStr)}&to=${encodeURIComponent(toStr)}`).catch(e => ({ _error: e.message })),
       traccarGet(`/api/events?deviceId=70&from=${encodeURIComponent(fromStr)}&to=${encodeURIComponent(toStr)}`).catch(e => ({ _error: e.message })),
+      traccarGet('/api/events').catch(e => ({ _error: e.message })),
     ])
 
     const formatEvents = (evs) => Array.isArray(evs)
@@ -97,8 +94,9 @@ diagRouter.get('/offline', async (_req, res) => {
 
     results.traccar.events37 = formatEvents(events37)
     results.traccar.events70 = formatEvents(events70)
+    results.traccar.eventsAll = formatEvents(eventsAll)
 
-    // ── 4. Poll positions after 15s to check if lastUpdate is changing ──
+    // 4. Poll positions after 15s
     if (sessionCookie) {
       await new Promise(r => setTimeout(r, 15000))
       try {
@@ -120,11 +118,10 @@ diagRouter.get('/offline', async (_req, res) => {
       }
     }
 
-    // ── 5. Network checks from inside the backend container ──
+    // 5. Network checks
     const { createConnection } = await import('node:net')
     const fs = await import('node:fs')
 
-    // Detect Docker gateway (host IP from container perspective)
     let dockerGateway = null
     try {
       const route = fs.readFileSync('/proc/net/route', 'utf8')
@@ -143,7 +140,19 @@ diagRouter.get('/offline', async (_req, res) => {
     }
     results.network.dockerGateway = dockerGateway
 
-    // Test port 5023 via different paths
+    // Get public IP
+    let publicIp = null
+    try {
+      const ipRes = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(5000) })
+      if (ipRes.ok) {
+        const ipData = await ipRes.json()
+        publicIp = ipData.ip
+      }
+    } catch (e) {
+      results.network.publicIpError = e.message
+    }
+    results.network.publicIp = publicIp
+
     const testPort = (host, port, label) => new Promise((resolve) => {
       const sock = createConnection({ host, port }, () => {
         sock.destroy()
@@ -164,9 +173,15 @@ diagRouter.get('/offline', async (_req, res) => {
       connectivityTests.push(testPort(dockerGateway, 80, 'docker-gateway-80-nginx'))
       connectivityTests.push(testPort(dockerGateway, 443, 'docker-gateway-443-nginx'))
     }
+    // Test public IP on port 5023 (hairpin NAT test)
+    if (publicIp) {
+      connectivityTests.push(testPort(publicIp, 5023, 'public-ip-5023-hairpin'))
+      connectivityTests.push(testPort(publicIp, 80, 'public-ip-80-nginx'))
+      connectivityTests.push(testPort(publicIp, 443, 'public-ip-443-nginx'))
+    }
     results.network.connectivity = await Promise.all(connectivityTests)
 
-    // ── 6. /proc/net/tcp for port 5023 (backend container's view) ──
+    // 6. /proc/net/tcp for port 5023
     try {
       const PORT_HEX = (5023).toString(16)
       const parseTcp = (file) => {
@@ -199,7 +214,7 @@ diagRouter.get('/offline', async (_req, res) => {
       results.network.procNetTcp = { error: e.message }
     }
 
-    // ── 7. Try system commands (may fail — errors are informative) ──
+    // 7. System commands
     const { execSync } = await import('node:child_process')
     const tryCmd = (cmd) => {
       try {
@@ -216,6 +231,10 @@ diagRouter.get('/offline', async (_req, res) => {
       iptables_input: tryCmd('iptables -L INPUT -n 2>&1 || true'),
       docker_ps: tryCmd('docker ps --format "{{.Names}} {{.Ports}}" 2>&1 || true'),
       ufw: tryCmd('ufw status 2>&1 || true'),
+      // Try to read Traccar log if volume is accessible
+      traccar_log: tryCmd('tail -100 /opt/traccar/data/logs/tracker-server.log 2>&1 || true'),
+      // Try cat /proc/net/tcp for all connections
+      proc_net_tcp: tryCmd('cat /proc/net/tcp 2>&1 | head -50 || true'),
     }
 
     res.json(results)
