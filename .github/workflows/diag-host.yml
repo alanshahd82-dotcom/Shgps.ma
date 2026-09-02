@@ -2,17 +2,12 @@ name: Host Diagnostics
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for deploy to settle
-        run: sleep 420
-
-      - name: Run host-level diagnostics via SSH
+      - name: Run H2/memory/thread diagnostics via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -23,47 +18,68 @@ jobs:
             echo "=== DIAG START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
             echo ""
-            echo "=== 1. Host-level listener check (port 5023) ==="
-            ss -lntp 2>/dev/null | grep :5023 || netstat -tlnp 2>/dev/null | grep :5023 || echo "Neither ss nor netstat found or port 5023 not listening"
+            echo "=== 1. Docker container resource usage ==="
+            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>&1
 
             echo ""
-            echo "=== 2. Docker port mapping ==="
-            docker ps --format "table {{.Names}}\t{{.Ports}}" 2>&1
+            echo "=== 2. Traccar container state ==="
+            docker inspect shgps-traccar-1 --format "Status={{.State.Status}} OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}} RestartCount={{.RestartCount}} StartedAt={{.State.StartedAt}}" 2>&1
+            echo ""
+            docker inspect shgps-traccar-1 --format "MemoryLimit={{.HostConfig.Memory}} CPUQuota={{.HostConfig.CpuQuota}}" 2>&1
 
             echo ""
-            echo "=== 3. Firewall rules ==="
-            echo "--- ufw ---"
-            ufw status 2>/dev/null || echo "ufw not found"
-            echo "--- iptables INPUT ---"
-            iptables -L INPUT -n -v 2>/dev/null | head -30 || echo "iptables not found"
-            echo "--- iptables DOCKER chain (nat) ---"
-            iptables -t nat -L DOCKER -n -v 2>/dev/null | head -30 || echo "iptables not found"
+            echo "=== 3. H2 database files ==="
+            docker exec shgps-traccar-1 ls -la /opt/traccar/data/ 2>&1
+            echo ""
+            docker exec shgps-traccar-1 du -sh /opt/traccar/data/ 2>&1
+            echo ""
+            echo "--- H2 lock file check ---"
+            docker exec shgps-traccar-1 bash -c "ls -la /opt/traccar/data/*.lock.db 2>&1 || echo 'NO LOCK FILE'" 2>&1
 
             echo ""
-            echo "=== 4. Packet capture on port 5023 (60s, max 100 pkts) ==="
+            echo "=== 4. Traccar port binding check ==="
+            docker exec shgps-traccar-1 bash -c "echo > /dev/tcp/localhost/8082 && echo 'WEB 8082 OPEN' || echo 'WEB 8082 CLOSED'" 2>&1
+            docker exec shgps-traccar-1 bash -c "echo > /dev/tcp/localhost/5023 && echo 'GT06 5023 OPEN' || echo 'GT06 5023 CLOSED'" 2>&1
+            echo ""
+            echo "--- ss inside container ---"
+            docker exec shgps-traccar-1 bash -c "ss -lntp 2>/dev/null || netstat -tlnp 2>/dev/null || echo 'no ss/netstat'" 2>&1
+
+            echo ""
+            echo "=== 5. Java process status ==="
+            docker exec shgps-traccar-1 bash -c "ps aux 2>/dev/null | head -20" 2>&1
+            echo ""
+            echo "--- JVM memory (from /proc) ---"
+            docker exec shgps-traccar-1 bash -c "PID=\$(pgrep -f tracker-server || echo 1); cat /proc/\$PID/status 2>/dev/null | grep -E 'VmRSS|VmSize|Threads|VmPeak'" 2>&1
+
+            echo ""
+            echo "=== 6. JVM thread dump (top 300 lines) ==="
+            docker exec shgps-traccar-1 bash -c "PID=\$(pgrep -f tracker-server); jstack \$PID 2>&1 | head -300 || (kill -3 \$PID 2>&1; sleep 2; echo 'SIGQUIT sent - check docker logs')" 2>&1
+
+            echo ""
+            echo "=== 7. Traccar container logs (last 10 min, 300 lines) ==="
+            docker logs --since 10m shgps-traccar-1 2>&1 | tail -300
+
+            echo ""
+            echo "=== 8. Traccar log file (last 200 lines) ==="
+            docker exec shgps-traccar-1 tail -200 /opt/traccar/logs/tracker-server.log 2>&1 || echo "no log file"
+
+            echo ""
+            echo "=== 9. PostgreSQL active connections ==="
+            docker exec shgps-postgres-1 psql -U shgps -d shgps -c "SELECT count(*), state, wait_event_type, wait_event, substring(query,1,80) as query FROM pg_stat_activity GROUP BY state, wait_event_type, wait_event, substring(query,1,80) ORDER BY count DESC LIMIT 20" 2>&1
+
+            echo ""
+            echo "=== 10. PostgreSQL database sizes ==="
+            docker exec shgps-postgres-1 psql -U shgps -d shgps -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) as size FROM pg_database WHERE datname='shgps'" 2>&1
+
+            echo ""
+            echo "=== 11. OOM kill check (dmesg) ==="
+            dmesg 2>/dev/null | grep -i "out of memory|oom|killed process" | tail -10 || echo "dmesg not available"
+
+            echo ""
+            echo "=== 12. Short packet capture on 5023 (20s) ==="
             echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            timeout 60 tcpdump -i any -n -nn port 5023 -c 100 2>&1 || echo "tcpdump completed/timed-out/not-available"
+            timeout 20 tcpdump -i any -n -nn port 5023 -c 50 2>&1 || echo "tcpdump done"
             echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-
-            echo ""
-            echo "=== 5. Traccar container logs (last 48h, last 300 lines) ==="
-            docker logs --since 48h shgps-traccar-1 2>&1 | tail -300
-
-            echo ""
-            echo "=== 6. Traccar log file directory ==="
-            docker exec shgps-traccar-1 ls -la /opt/traccar/logs/ 2>&1 || echo "no logs dir"
-
-            echo ""
-            echo "=== 7. Traccar log file (last 300 lines) ==="
-            docker exec shgps-traccar-1 tail -300 /opt/traccar/logs/tracker-server.log 2>&1 || echo "no log file"
-
-            echo ""
-            echo "=== 8. GT06 / IMEI / error entries in Traccar log ==="
-            docker exec shgps-traccar-1 sh -c 'grep -iE "gt06|865190075236599|865190075270325|decode|error|exception|disconnect|connect|session" /opt/traccar/logs/tracker-server.log 2>/dev/null | tail -200' || echo "no matches or no file"
-
-            echo ""
-            echo "=== 9. Host network interfaces ==="
-            ip addr show 2>/dev/null | grep -E "^[0-9]+:|inet " || ifconfig 2>/dev/null || echo "no ip/ifconfig"
 
             echo ""
             echo "=== DIAG END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
