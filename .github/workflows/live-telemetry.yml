@@ -1,0 +1,55 @@
+name: Live Telemetry Fetch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch live Traccar telemetry for devices 37 and 70
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 60s
+          script: |
+            echo "=== FETCH START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+
+            echo ""
+            echo "=== 1. Traccar API: /api/devices (full list) ==="
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices 2>/dev/null
+
+            echo ""
+            echo "=== 2. Traccar API: device 37 (IMEI 865190075236599) ==="
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/37 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/37 2>/dev/null
+
+            echo ""
+            echo "=== 3. Traccar API: device 70 (IMEI 865190075270325) ==="
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/70 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/devices/70 2>/dev/null
+
+            echo ""
+            echo "=== 4. Traccar API: positions (all) ==="
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/positions 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+            curl -s -u "admin@shgps.ma:Shgps2024!" http://localhost:8082/api/positions 2>/dev/null
+
+            echo ""
+            echo "=== 5. Backend API: /api/devices (sanitized) ==="
+            curl -s http://localhost:3000/api/devices 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+            curl -s http://localhost:3000/api/devices 2>/dev/null
+
+            echo ""
+            echo "=== 6. Backend API: /api/map (sanitized) ==="
+            curl -s http://localhost:3000/api/map 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+            curl -s http://localhost:3000/api/map 2>/dev/null
+
+            echo ""
+            echo "=== 7. Server time ==="
+            date -u '+%Y-%m-%dT%H:%M:%SZ'
+
+            echo ""
+            echo "=== FETCH END ==="
