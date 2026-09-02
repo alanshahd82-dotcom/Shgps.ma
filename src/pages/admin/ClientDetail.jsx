@@ -665,7 +665,7 @@ export default function ClientDetail() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex items-center gap-1 text-xs">
                       <Zap size={12} style={{ color: getVoltageColor(device.voltage) }}/>
-                      <span style={{ color: getVoltageColor(device.voltage) }} className="font-semibold">{formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)}</span>
+                      <span style={{ color: getVoltageColor(device.voltage) }} className="font-semibold">{formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected, device.voltageStale)}</span>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${device.status === 'online' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
                       {device.status === 'online'
