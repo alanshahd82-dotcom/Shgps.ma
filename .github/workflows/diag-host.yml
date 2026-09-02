@@ -7,73 +7,50 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Deep iptables diagnostic + targeted FORWARD fix
+      - name: Verify device online status via Traccar API
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 300s
+          command_timeout: 120s
           script: |
-            echo "=== DEEPFIX START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== VERIFY START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
             echo ""
-            echo "=== 1. nat table DOCKER chain (DNAT rules) ==="
-            iptables -t nat -L DOCKER -n -v 2>&1
+            echo "=== 1. FORWARD chain counters (confirm 5023 traffic flowing) ==="
+            iptables -L FORWARD -n -v 2>&1 | head -5
 
             echo ""
-            echo "=== 2. DOCKER-CT chain (filter) ==="
-            iptables -L DOCKER-CT -n -v 2>&1
+            echo "=== 2. Traccar API: devices (via curl + basic auth) ==="
+            TRACCAR_EMAIL=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_EMAIL 2>/dev/null)
+            TRACCAR_PASS=$(docker exec shgps-backend-1 printenv TRACCAR_ADMIN_PASSWORD 2>/dev/null)
+            TRACCAR_IP=$(docker inspect shgps-traccar-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
+            echo "Traccar IP: $TRACCAR_IP"
+            echo "--- Devices ---"
+            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1 | python3 -m json.tool 2>/dev/null || curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/devices" 2>&1
 
             echo ""
-            echo "=== 3. DOCKER-INTERNAL chain ==="
-            iptables -L DOCKER-INTERNAL -n -v 2>&1
+            echo "=== 3. Traccar API: positions (current) ==="
+            curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/positions" 2>&1 | python3 -m json.tool 2>/dev/null || curl -s --max-time 10 -u "$TRACCAR_EMAIL:$TRACCAR_PASS" "http://$TRACCAR_IP:8082/api/positions" 2>&1
 
             echo ""
-            echo "=== 4. DOCKER-BRIDGE chain ==="
-            iptables -L DOCKER-BRIDGE -n -v 2>&1
+            echo "=== 4. Traccar log file: new entries since fix (grep 2026-09-02) ==="
+            docker exec shgps-traccar-1 grep "2026-09-02" /opt/traccar/logs/tracker-server.log 2>&1 | tail -30 || echo "no 2026-09-02 entries in log file"
 
             echo ""
-            echo "=== 5. FORWARD chain (full, with counters) ==="
-            iptables -L FORWARD -n -v 2>&1
+            echo "=== 5. H2 database modification time (confirm data being written) ==="
+            docker exec shgps-traccar-1 stat /opt/traccar/data/database.mv.db 2>&1 | grep -i modify
 
             echo ""
-            echo "=== 6. Network interfaces ==="
-            ip addr show | grep -E '^[0-9]+:|inet ' 2>&1
+            echo "=== 6. Traccar container connections on port 5023 ==="
+            docker exec shgps-traccar-1 cat /proc/net/tcp6 2>/dev/null | grep 1397 | head -20
 
             echo ""
-            echo "=== 7. Applying targeted fix: insert FORWARD ACCEPT for port 5023 ==="
-            echo "--- Checking if rule already exists ---"
-            iptables -C FORWARD -p tcp --dport 5023 -d 172.18.0.5 -j ACCEPT 2>&1 && echo "Rule already exists" || echo "Rule does not exist, adding..."
-            echo "--- Adding rule ---"
-            iptables -I FORWARD 1 -p tcp --dport 5023 -d 172.18.0.5 -j ACCEPT 2>&1 && echo "FORWARD ACCEPT 5023 added" || echo "Failed to add FORWARD rule"
-            echo "--- Also adding for return traffic ---"
-            iptables -I FORWARD 1 -p tcp --sport 5023 -s 172.18.0.5 -j ACCEPT 2>&1 && echo "FORWARD ACCEPT return 5023 added" || echo "Failed to add return rule"
-
-            echo ""
-            echo "=== 8. Verify: FORWARD chain after fix ==="
-            iptables -L FORWARD -n -v 2>&1 | head -20
-
-            echo ""
-            echo "=== 9. Verify: eth0 tcpdump 30s (expect SYN-ACK) ==="
+            echo "=== 7. Quick eth0 tcpdump 15s (confirm ongoing traffic) ==="
             echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            timeout 30 tcpdump -i eth0 -n -nn port 5023 -c 50 2>&1 || echo "tcpdump done"
+            timeout 15 tcpdump -i eth0 -n -nn port 5023 -c 30 2>&1 || echo "tcpdump done"
             echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
             echo ""
-            echo "=== 10. Verify: Docker bridge tcpdump 15s ==="
-            echo "BRIDGE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            timeout 15 tcpdump -i br-e735dbe613a3 -n -nn port 5023 -c 30 2>&1 || echo "bridge tcpdump done"
-            echo "BRIDGE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-
-            echo ""
-            echo "=== 11. Traccar log file (last 30 lines, check for GT06 login) ==="
-            docker exec shgps-traccar-1 tail -30 /opt/traccar/logs/tracker-server.log 2>&1 || echo "no log file"
-
-            echo ""
-            echo "=== 12. Traccar API: devices with lastUpdate ==="
-            TRACCAR_IP=$(docker inspect shgps-traccar-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
-            docker exec shgps-backend-1 sh -c 'wget -qO- --timeout=10 --post-data="email=${TRACCAR_ADMIN_EMAIL}&password=${TRACCAR_ADMIN_PASSWORD}" --header="Content-Type: application/x-www-form-urlencoded" http://traccar:8082/api/session -O /tmp/session.json 2>/dev/null; SID=$(cat /tmp/session.json 2>/dev/null | grep -o "JSESSIONID=[a-zA-Z0-9]*"); wget -qO- --timeout=10 --header="Cookie: $SID" http://traccar:8082/api/devices 2>/dev/null' 2>&1 | head -20 || echo "API call failed"
-
-            echo ""
-            echo "=== DEEPFIX END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== VERIFY END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
