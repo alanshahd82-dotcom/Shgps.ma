@@ -17,53 +17,126 @@ jobs:
           script: |
             echo "=== VERIFY START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
-            ENV_FILE=/opt/shgps/.env
-            TRACCAR_EMAIL=$(grep -E '^TRACCAR_ADMIN_EMAIL=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
-            TRACCAR_PASS=$(grep -E '^TRACCAR_ADMIN_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
-            JWT_SECRET=$(grep -E '^JWT_SECRET=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
-            echo "Traccar email found: $(test -n "$TRACCAR_EMAIL" && echo YES || echo NO)"
-            echo "Traccar pass found: $(test -n "$TRACCAR_PASS" && echo YES || echo NO)"
-            echo "JWT secret found: $(test -n "$JWT_SECRET" && echo YES || echo NO)"
+            # Write the verification script to the host
+            cat > /tmp/verify_telemetry.js << 'SCRIPT_EOF'
+            const jwt = require("jsonwebtoken");
+            const fs = require("fs");
 
-            echo ""
-            echo "=== 1. Traccar API: Get session ==="
-            SESSION_RESP=$(docker exec shgps-backend-1 curl -s -w "\nHTTP_CODE:%{http_code}" -c /tmp/cookie.jar -X POST "http://traccar:8082/api/session" -H "Content-Type: application/x-www-form-urlencoded" -d "email=${TRACCAR_EMAIL}&password=${TRACCAR_PASS}")
-            echo "Session response: $SESSION_RESP"
+            const TRACCAR_URL = process.env.TRACCAR_URL || "http://traccar:8082";
+            const TRACCAR_EMAIL = process.env.TRACCAR_ADMIN_EMAIL;
+            const TRACCAR_PASS = process.env.TRACCAR_ADMIN_PASSWORD;
+            const JWT_SECRET = process.env.JWT_SECRET;
+            const BACKEND_URL = "http://localhost:3001";
 
-            echo ""
-            echo "=== 2. Traccar API: Devices (37, 70) ==="
-            docker exec shgps-backend-1 curl -s -b /tmp/cookie.jar "http://traccar:8082/api/devices" > /tmp/traccar_devices.json
-            echo "File size: $(wc -c < /tmp/traccar_devices.json) bytes"
-            node -e 'const fs=require("fs");const raw=fs.readFileSync("/tmp/traccar_devices.json","utf8");try{const d=JSON.parse(raw);console.log("Total Traccar devices: "+d.length);[37,70].forEach(id=>{const x=d.find(v=>v.id===id);if(!x){console.log("DEVICE "+id+": NOT FOUND");return;}console.log("DEVICE "+id+": "+JSON.stringify({id:x.id,name:x.name,uniqueId:x.uniqueId,status:x.status,lastUpdate:x.lastUpdate,positionId:x.positionId}));});}catch(e){console.log("PARSE ERROR: "+e.message);console.log("RAW (first 300): "+raw.substring(0,300));}'
+            async function fetchJSON(url, opts) {
+              const res = await fetch(url, opts);
+              const text = await res.text();
+              return { status: res.status, headers: res.headers, body: text };
+            }
 
-            echo ""
-            echo "=== 3. Traccar API: Positions (37, 70) ==="
-            docker exec shgps-backend-1 curl -s -b /tmp/cookie.jar "http://traccar:8082/api/positions" > /tmp/traccar_positions.json
-            echo "File size: $(wc -c < /tmp/traccar_positions.json) bytes"
-            node -e 'const fs=require("fs");const raw=fs.readFileSync("/tmp/traccar_positions.json","utf8");try{const d=JSON.parse(raw);console.log("Total Traccar positions: "+d.length);[37,70].forEach(id=>{const p=d.find(v=>v.deviceId===id);if(!p){console.log("POSITION "+id+": NOT FOUND");return;}console.log("POSITION "+id+": "+JSON.stringify({id:p.id,deviceId:p.deviceId,fixTime:p.fixTime,serverTime:p.serverTime,deviceTime:p.deviceTime,latitude:p.latitude,longitude:p.longitude,speed:p.speed,altitude:p.altitude,accuracy:p.accuracy,satellites:p.satellites,attributes:{ignition:p.attributes&&p.attributes.ignition,motion:p.attributes&&p.attributes.motion,charge:p.attributes&&p.attributes.charge,battery:p.attributes&&p.attributes.battery,batteryLevel:p.attributes&&p.attributes.batteryLevel,power:p.attributes&&p.attributes.power,rssi:p.attributes&&p.attributes.rssi,odometer:p.attributes&&p.attributes.odometer,distance:p.attributes&&p.attributes.distance,totalDistance:p.attributes&&p.attributes.totalDistance}}));});}catch(e){console.log("PARSE ERROR: "+e.message);console.log("RAW (first 300): "+raw.substring(0,300));}'
+            async function main() {
+              console.log("=== 1. Traccar API: Get session ===");
+              const sessionRes = await fetchJSON(TRACCAR_URL + "/api/session", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: "email=" + encodeURIComponent(TRACCAR_EMAIL) + "&password=" + encodeURIComponent(TRACCAR_PASS),
+              });
+              console.log("Session HTTP:", sessionRes.status);
+              const setCookie = sessionRes.headers.get("set-cookie") || "";
+              const cookie = setCookie.split(";")[0];
+              console.log("Cookie:", cookie ? cookie.substring(0, 30) + "..." : "NONE");
 
-            echo ""
-            echo "=== 4. Backend REST: Get admin user from DB ==="
-            ADMIN_USER=$(docker exec shgps-postgres-1 psql -U shgps -d shgps -t -c "SELECT id, email FROM users WHERE is_admin = true AND is_active = true LIMIT 1" 2>/dev/null | tr -d ' ' | head -1)
-            echo "Admin user: $ADMIN_USER"
-            USER_ID=$(echo "$ADMIN_USER" | cut -d'|' -f1)
-            USER_EMAIL=$(echo "$ADMIN_USER" | cut -d'|' -f2)
-            echo "User ID: $USER_ID, Email: $USER_EMAIL"
+              console.log("");
+              console.log("=== 2. Traccar API: Devices (37, 70) ===");
+              const devRes = await fetchJSON(TRACCAR_URL + "/api/devices", {
+                headers: { Cookie: cookie },
+              });
+              let traccarDevices = [];
+              try { traccarDevices = JSON.parse(devRes.body); console.log("Total Traccar devices:", traccarDevices.length); } catch(e) { console.log("PARSE ERROR:", e.message); }
+              [37, 70].forEach(id => {
+                const d = traccarDevices.find(x => x.id === id);
+                if (!d) { console.log("DEVICE " + id + ": NOT FOUND"); return; }
+                console.log("DEVICE " + id + ":", JSON.stringify({ id: d.id, name: d.name, uniqueId: d.uniqueId, status: d.status, lastUpdate: d.lastUpdate, positionId: d.positionId }));
+              });
 
-            echo ""
-            echo "=== 5. Backend REST: Create JWT token ==="
-            JWT_TOKEN=$(docker exec shgps-backend-1 node -e "const jwt=require('jsonwebtoken');const t=jwt.sign({userId:'$USER_ID'},'$JWT_SECRET',{expiresIn:'1h'});console.log(t);")
-            echo "JWT length: $(echo -n "$JWT_TOKEN" | wc -c)"
+              console.log("");
+              console.log("=== 3. Traccar API: Positions (37, 70) ===");
+              const posRes = await fetchJSON(TRACCAR_URL + "/api/positions", {
+                headers: { Cookie: cookie },
+              });
+              let traccarPositions = [];
+              try { traccarPositions = JSON.parse(posRes.body); console.log("Total Traccar positions:", traccarPositions.length); } catch(e) { console.log("PARSE ERROR:", e.message); }
+              [37, 70].forEach(id => {
+                const p = traccarPositions.find(x => x.deviceId === id);
+                if (!p) { console.log("POSITION " + id + ": NOT FOUND"); return; }
+                console.log("POSITION " + id + ":", JSON.stringify({
+                  id: p.id, deviceId: p.deviceId,
+                  fixTime: p.fixTime, serverTime: p.serverTime, deviceTime: p.deviceTime,
+                  latitude: p.latitude, longitude: p.longitude,
+                  speed: p.speed, altitude: p.altitude,
+                  accuracy: p.accuracy, satellites: p.satellites,
+                  attributes: {
+                    ignition: p.attributes?.ignition,
+                    motion: p.attributes?.motion,
+                    charge: p.attributes?.charge,
+                    battery: p.attributes?.battery,
+                    batteryLevel: p.attributes?.batteryLevel,
+                    power: p.attributes?.power,
+                    rssi: p.attributes?.rssi,
+                    odometer: p.attributes?.odometer,
+                    distance: p.attributes?.distance,
+                    totalDistance: p.attributes?.totalDistance,
+                  }
+                }));
+              });
 
-            echo ""
-            echo "=== 6. Backend REST: /api/devices (37, 70) ==="
-            docker exec shgps-backend-1 curl -s "http://localhost:3001/api/devices" -H "Authorization: Bearer $JWT_TOKEN" > /tmp/backend_devices.json
-            echo "File size: $(wc -c < /tmp/backend_devices.json) bytes"
-            node -e 'const fs=require("fs");const raw=fs.readFileSync("/tmp/backend_devices.json","utf8");try{const data=JSON.parse(raw);const arr=Array.isArray(data)?data:(data.devices||data.data||[]);console.log("Total backend devices: "+arr.length);[37,70].forEach(id=>{const d=arr.find(v=>v.traccar_id===id||v.traccarId===id);if(!d){console.log("BACKEND DEVICE traccar_id="+id+": NOT FOUND");return;}console.log("BACKEND DEVICE traccar_id="+id+": "+JSON.stringify({id:d.id,name:d.name,imei:d.imei,status:d.status,online:d.online,lastUpdate:d.lastUpdate,fixTime:d.fixTime,lat:d.lat,lng:d.lng,speed:d.speed,voltage:d.voltage,batteryLevel:d.batteryLevel,signal:d.signal,charge:d.charge,ignition:d.ignition,motion:d.motion,satellites:d.satellites,distance:d.distance,odometer:d.odometer,powerDisconnected:d.powerDisconnected,trackingEnabled:d.trackingEnabled}));});}catch(e){console.log("PARSE ERROR: "+e.message);console.log("RAW (first 300): "+raw.substring(0,300));}'
+              console.log("");
+              console.log("=== 4. Backend REST: Create JWT ===");
+              const token = jwt.sign({ userId: "16" }, JWT_SECRET, { expiresIn: "1h" });
+              console.log("JWT created, length:", token.length);
 
-            echo ""
-            echo "=== 7. Backend health ==="
-            docker exec shgps-backend-1 curl -s "http://localhost:3001/api/health"
+              console.log("");
+              console.log("=== 5. Backend REST: /api/devices (37, 70) ===");
+              const apiRes = await fetchJSON(BACKEND_URL + "/api/devices", {
+                headers: { Authorization: "Bearer " + token },
+              });
+              console.log("Backend /api/devices HTTP:", apiRes.status);
+              let backendDevices = [];
+              try {
+                const parsed = JSON.parse(apiRes.body);
+                backendDevices = Array.isArray(parsed) ? parsed : (parsed.devices || parsed.data || []);
+                console.log("Total backend devices:", backendDevices.length);
+              } catch(e) { console.log("PARSE ERROR:", e.message); console.log("RAW (first 300):", apiRes.body.substring(0, 300)); }
+              [37, 70].forEach(id => {
+                const d = backendDevices.find(v => v.traccar_id === id || v.traccarId === id);
+                if (!d) { console.log("BACKEND DEVICE traccar_id=" + id + ": NOT FOUND"); return; }
+                console.log("BACKEND DEVICE traccar_id=" + id + ":", JSON.stringify({
+                  id: d.id, name: d.name, imei: d.imei,
+                  status: d.status, online: d.online,
+                  lastUpdate: d.lastUpdate, fixTime: d.fixTime,
+                  lat: d.lat, lng: d.lng, speed: d.speed,
+                  voltage: d.voltage, batteryLevel: d.batteryLevel,
+                  signal: d.signal, charge: d.charge,
+                  ignition: d.ignition, motion: d.motion,
+                  satellites: d.satellites,
+                  distance: d.distance, odometer: d.odometer,
+                  powerDisconnected: d.powerDisconnected,
+                  trackingEnabled: d.trackingEnabled
+                }));
+              });
+
+              console.log("");
+              console.log("=== 6. Backend health ===");
+              const healthRes = await fetchJSON(BACKEND_URL + "/api/health");
+              console.log(healthRes.body);
+            }
+
+            main().catch(e => console.error("FATAL:", e.message));
+            SCRIPT_EOF
+
+            # Copy script to backend container and run it
+            docker cp /tmp/verify_telemetry.js shgps-backend-1:/tmp/verify_telemetry.js
+            docker exec shgps-backend-1 node /tmp/verify_telemetry.js
 
             echo ""
             echo "=== VERIFY END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
