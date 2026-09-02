@@ -1,0 +1,38 @@
+name: Audit Verification (Tests + Build)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'audit/**' ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Run backend tests
+        working-directory: backend
+        run: node --test "test/*.test.js"
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          echo "=== Build output ==="
+          ls -la dist/
+          echo "=== Build timestamp ==="
+          stat -c '%y' dist/index.html 2>/dev/null || stat -f '%Sm' dist/index.html 2>/dev/null || echo "no dist/index.html"
