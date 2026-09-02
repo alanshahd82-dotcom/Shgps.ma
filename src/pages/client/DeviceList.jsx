@@ -36,7 +36,7 @@ function DeviceCard({ device, lang, onClick, onRenew, index }) {
   const needsRenewal = ['expiring_soon', 'expired'].includes(subscription.status)
   const reduceMotion = useReducedMotion()
   const voltageColor = getVoltageColor(device.voltage)
-  const voltageLabel = formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)
+  const voltageLabel = formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected, device.voltageStale)
   const speed = Number(device.speed ?? device.last_speed ?? 0)
 
   return (

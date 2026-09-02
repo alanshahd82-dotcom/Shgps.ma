@@ -357,7 +357,7 @@ function getSheetMetrics(device, lang) {
   }, {
     key: 'voltage',
     Icon: Zap,
-    value: formatVoltage(device.voltage, lang, getFixTime(device), device.powerDisconnected),
+    value: formatVoltage(device.voltage, lang, getFixTime(device), device.powerDisconnected, device.voltageStale),
     label: lang === 'ar' ? 'الجهد' : 'Tension',
   }]
 
@@ -693,7 +693,7 @@ export default function LiveMap() {
                       </div>
                       <div className="athar-device-popup-grid">
                         <span><Gauge size={13} />{Math.round(Number(d.speed) || 0)} {t(lang, 'kmh')}</span>
-                        <span><Zap size={13} />{formatVoltage(d.voltage, lang, d.lastUpdate ?? d.last_update, d.powerDisconnected)}</span>
+                        <span><Zap size={13} />{formatVoltage(d.voltage, lang, d.lastUpdate ?? d.last_update, d.powerDisconnected, d.voltageStale)}</span>
                         <span><Wifi size={13} />{popupSignal == null ? '—' : popupSignal}</span>
                       </div>
                       <button

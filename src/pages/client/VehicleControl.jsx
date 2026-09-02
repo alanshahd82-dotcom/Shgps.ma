@@ -366,7 +366,7 @@ export default function VehicleControl() {
   // stays consistent with the rest of the app: same value source
   // (vehicle.voltage), same empty/disconnected handling, and no fabricated
   // number. Never falls back to batteryLevel as voltage.
-  const voltageLabel = formatVoltage(vehicle.voltage, lang, vehicle?.lastUpdate ?? vehicle?.last_update, vehicle?.powerDisconnected)
+  const voltageLabel = formatVoltage(vehicle.voltage, lang, vehicle?.lastUpdate ?? vehicle?.last_update, vehicle?.powerDisconnected, vehicle?.voltageStale)
   // Real saved driver phone — the Call action uses this, never the unsaved
   // form draft, so the user always dials the number currently on record.
   const realPhone = vehicle?.phone ?? vehicle?.driverPhone ?? ''
