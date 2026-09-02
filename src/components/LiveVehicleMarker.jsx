@@ -24,15 +24,7 @@ const STATUS_LABELS = {
 // Keep these values together so mobile marker sizing is a one-line tune per type.
 // The supplied reference assets are landscape cut-outs. Keep them large enough
 // to read on the fleet map without letting the image dominate the map.
-const MARKER_SIZE = { bike: 88, car: 96, truck: 108 }
-const SELECTED_BOOST = 10
-const MARKER_ASPECT_RATIO = 1024 / 1536
-
-function markerScaleForZoom(zoom) {
-  // Keep the artwork readable on phones without allowing it to dominate a
-  // close-up map or disappear when the fleet is viewed from farther away.
-  return Math.max(0.78, Math.min(1.12, 0.86 + (Number(zoom) - 12) * 0.04))
-}
+import { MARKER_SIZE, SELECTED_BOOST, MARKER_ASPECT_RATIO, markerScaleForZoom } from '../utils/markerSize'
 
 function toPoint(device) {
   return toValidLatLng(device)

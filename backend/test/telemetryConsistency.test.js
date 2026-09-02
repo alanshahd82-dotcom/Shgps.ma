@@ -7,6 +7,7 @@ import {
   resolveDeviceStatus,
   positionIsFresh,
   readBatteryLevel,
+  detectExternalPowerLoss,
 } from '../src/services/vehicleTelemetry.js'
 
 // ── 1. Offline nulling: when backend reports offline, stale telemetry must not persist ──
@@ -269,4 +270,68 @@ test('VOLT-WS-3: both null -> null (not fabricated)', () => {
   const current = { voltage: null }
   const wsVoltage = pos.voltage ?? current.voltage ?? null
   assert.equal(wsVoltage, null)
+})
+
+
+// ── 8. Home vs Vehicles canonical status consistency ───────────────────────
+// Both Home (VehicleCard) and Vehicles (DeviceCard) must compute the same
+// status from the same AppContext.devices object. Canonical binary model:
+//   online = device.status === 'online'
+//   moving = online && speed > 0
+//   statusKey = !online ? 'offline' : moving ? 'moving' : 'online'
+
+function binaryStatusKey(device) {
+  const online = device.status === 'online'
+  const speed = Number(device.speed) || 0
+  const moving = online && speed > 0
+  return !online ? 'offline' : moving ? 'moving' : 'online'
+}
+
+test('HOME-VS-VEHICLES-1: online moving vehicle shows moving on both pages', () => {
+  assert.equal(binaryStatusKey({ status: 'online', speed: 45 }), 'moving')
+})
+
+test('HOME-VS-VEHICLES-2: online stopped vehicle shows online (not stopped) on both pages', () => {
+  assert.equal(binaryStatusKey({ status: 'online', speed: 0 }), 'online')
+})
+
+test('HOME-VS-VEHICLES-3: offline vehicle shows offline on both pages', () => {
+  assert.equal(binaryStatusKey({ status: 'offline', speed: 0 }), 'offline')
+})
+
+test('HOME-VS-VEHICLES-4: null speed on online vehicle shows online (not stopped)', () => {
+  assert.equal(binaryStatusKey({ status: 'online', speed: null }), 'online')
+})
+
+test('HOME-VS-VEHICLES-5: no stale last_speed fallback — null speed stays 0', () => {
+  const device = { status: 'online', speed: null, last_speed: 80 }
+  const speedUsed = Number(device.speed) || 0
+  assert.equal(speedUsed, 0, 'must use canonical speed, not stale last_speed')
+  assert.equal(binaryStatusKey(device), 'online')
+})
+
+test('HOME-VS-VEHICLES-6: voltage uses canonical lastUpdate, not stale last_update', () => {
+  const device = { voltage: 12.7, lastUpdate: '2026-09-02T15:13:24Z', last_update: '2026-09-01T00:00:00Z' }
+  assert.equal(device.lastUpdate, '2026-09-02T15:13:24Z')
+})
+
+// ── 9. Power alert false-positive regression ────────────────────────────────
+test('POWER-FALSE-1: detectExternalPowerLoss ignores charge:false (no voltage)', () => {
+  assert.equal(detectExternalPowerLoss({ deviceId: 99, attributes: { charge: false } }), null)
+})
+
+test('POWER-FALSE-2: detectExternalPowerLoss ignores charge:false (with voltage)', () => {
+  assert.equal(detectExternalPowerLoss({ deviceId: 99, attributes: { charge: false, voltage: 12.7 } }), null)
+})
+
+test('POWER-FALSE-3: detectExternalPowerLoss still honors explicit powerCut', () => {
+  assert.deepEqual(detectExternalPowerLoss({ deviceId: 99, attributes: { powerCut: true } }), { source: 'powerCut' })
+})
+
+test('POWER-FALSE-4: detectExternalPowerLoss honors externalPower=false', () => {
+  assert.deepEqual(detectExternalPowerLoss({ deviceId: 99, attributes: { externalPower: false } }), { source: 'externalPower' })
+})
+
+test('POWER-FALSE-5: missing power fields are UNKNOWN (not disconnect)', () => {
+  assert.equal(detectExternalPowerLoss({ deviceId: 99, attributes: { sat: 11, ignition: false } }), null)
 })

@@ -256,3 +256,96 @@ test('withTimeout resolves fast promises and rejects hung ones', async () => {
     /verification timed out/,
   )
 })
+
+// ── charge:false false-positive regression ─────────────────────────────────
+// GT06 emits charge:false whenever the engine/alternator is off (every parked
+// vehicle) and intermittently omits the voltage field. Neither is a validated
+// battery-disconnect signal, so neither may create a power alert.
+
+test('charge:false without voltage does NOT create a disconnect alert', async () => {
+  const h = createHarness({ getAllPositions: async () => [] })
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID,
+    serverTime: isoAt(h.clock.nowMs),
+    latitude: 1, longitude: 2,
+    attributes: { charge: false },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(powerAlerts(h.db).length, 0, 'charge:false alone must not alert')
+  assert.equal(h.disconnectEvents.length, 0)
+  assert.equal(isVehicleDisconnected(DEVICE_TRACCAR_ID), false)
+})
+
+test('charge:false with voltage does NOT create a disconnect alert', async () => {
+  const h = createHarness({ getAllPositions: async () => [] })
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID,
+    serverTime: isoAt(h.clock.nowMs),
+    latitude: 1, longitude: 2,
+    attributes: { charge: false, voltage: 12.7 },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(powerAlerts(h.db).length, 0, 'charge:false + voltage must not alert')
+  assert.equal(isVehicleDisconnected(DEVICE_TRACCAR_ID), false)
+})
+
+test('charge:false repeated does NOT re-alert (edge-triggered)', async () => {
+  const h = createHarness({ getAllPositions: async () => [] })
+  for (let i = 0; i < 5; i++) {
+    h.clock.nowMs += 60_000
+    h.engine.observePowerTelemetry({
+      deviceId: DEVICE_TRACCAR_ID,
+      serverTime: isoAt(h.clock.nowMs),
+      latitude: 1, longitude: 2,
+      attributes: { charge: false },
+    })
+  }
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(powerAlerts(h.db).length, 0, 'repeated charge:false never alerts')
+})
+
+test('explicit powerCut:true DOES create exactly one disconnect alert', async () => {
+  const h = createHarness({ getAllPositions: async () => [] })
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID,
+    serverTime: isoAt(h.clock.nowMs),
+    latitude: 1, longitude: 2,
+    attributes: { powerCut: true },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(powerAlerts(h.db).length, 1, 'validated powerCut alerts once')
+  assert.equal(isVehicleDisconnected(DEVICE_TRACCAR_ID), true)
+  // Second identical packet must NOT re-alert (edge-triggered)
+  h.clock.nowMs += 60_000
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID,
+    serverTime: isoAt(h.clock.nowMs),
+    latitude: 1, longitude: 2,
+    attributes: { powerCut: true },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(powerAlerts(h.db).length, 1, 'repeated powerCut does not re-alert')
+})
+
+test('power restore is edge-triggered (no repeated restore alerts)', async () => {
+  const h = createHarness({ getAllPositions: async () => [] })
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID, serverTime: isoAt(h.clock.nowMs),
+    latitude: 1, longitude: 2, attributes: { powerCut: true },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  h.clock.nowMs += 1_000
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID, serverTime: isoAt(h.clock.nowMs),
+    latitude: 1, longitude: 2, attributes: { powerCut: false },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(h.restoreEvents.length, 1, 'one restore event')
+  h.clock.nowMs += 1_000
+  h.engine.observePowerTelemetry({
+    deviceId: DEVICE_TRACCAR_ID, serverTime: isoAt(h.clock.nowMs),
+    latitude: 1, longitude: 2, attributes: { powerCut: false },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(h.restoreEvents.length, 1, 'no duplicate restore event')
+})
