@@ -1852,45 +1852,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--ds-color-navy-deep) 70%, transparent));
 }
 
-.athar-map-status-tooltip {
-  border: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.athar-map-status-tooltip::before {
-  border-top-color: var(--ds-color-surface) !important;
-}
-
-.athar-map-status-bubble {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-1);
-  min-height: 30px;
-  border: 1px solid var(--ds-border-strong);
-  border-radius: var(--ds-radius-pill);
-  padding: 0 var(--ds-space-2);
-  background: var(--ds-color-surface);
-  color: var(--ds-color-text);
-  box-shadow: var(--ds-shadow-card);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-caption);
-  white-space: nowrap;
-}
-
-.athar-map-status-bubble i {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: var(--ds-radius-pill);
-}
-
-.athar-map-status-bubble small {
-  color: var(--ds-color-text-muted);
-  font-family: var(--ds-font-number);
-  font-size: 0.58rem;
-  direction: ltr;
-}
+/* Status tooltip removed — the live marker now shows speed only. */
 
 @media (max-width: 420px) {
   .athar-premium-sheet {
@@ -2852,26 +2814,52 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 
-/* Live speed badge floating above the vehicle artwork on every map */
+/* Premium automotive speed capsule floating above the vehicle on the live map.
+   Shows ONLY the current speed — no status text, no age, no labels.
+   Sits clearly above the marker with spacing so it never covers the vehicle. */
 .athar-live-speed {
   position: absolute;
   left: 50%;
-  top: -4px;
+  top: -10px;
   z-index: 5;
-  transform: translate(-50%, -100%);
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: rgba(79, 70, 229, .95);
-  color: #ffffff;
-  font-family: 'Cairo', sans-serif;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, .35);
+  transform: translateX(-50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  padding: 3px 8px 2px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid rgba(56, 189, 248, .25);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .08);
   pointer-events: none;
+  transition: opacity .2s ease;
 }
 
 .athar-live-speed.is-hidden { display: none; }
 
-.athar-premium-map .athar-live-speed { display: inline-block; }
+.athar-premium-map .athar-live-speed { display: inline-flex; }
+
+.athar-live-speed__num {
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  color: #38bdf8;
+  text-shadow: 0 0 8px rgba(56, 189, 248, .45);
+  transition: opacity .15s ease;
+}
+
+.athar-live-speed__unit {
+  font-family: 'Cairo', sans-serif;
+  font-size: 7px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .55);
+  margin-top: 2px;
+}

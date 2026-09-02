@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Marker, Polyline, Tooltip, useMap } from 'react-leaflet'
+import { Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { getDeviceStatusKey } from './ui'
 import { markerFor } from '../utils/vehicleAssets'
 import { isMapReadyAndSized, safelyUseMap, safelyUseMarker, toValidLatLng } from '../utils/mapSafety'
+import { speedDisplay, speedBadgeHtml } from '../utils/mapSpeed'
 
 const ANIMATION_MS = 1400
 const TRAIL_LIMIT = 20
@@ -12,13 +13,6 @@ const STATUS_COLORS = {
   idle: 'var(--ds-color-warning)',
   stopped: 'var(--ds-color-cool-gray)',
   offline: 'var(--ds-color-danger)',
-}
-
-const STATUS_LABELS = {
-  moving: { ar: 'متصل', fr: 'En ligne' },
-  idle: { ar: 'خامل', fr: 'Ralenti' },
-  stopped: { ar: 'متوقفة', fr: 'À l’arrêt' },
-  offline: { ar: 'مفصول', fr: 'Déconnecté' },
 }
 
 // Keep these values together so mobile marker sizing is a one-line tune per type.
@@ -51,14 +45,6 @@ function getCourse(device) {
   return Number.isFinite(course) ? course : null
 }
 
-function speedText(device) {
-  const raw = Number(device?.speed)
-  if (!Number.isFinite(raw)) return ''
-  const kmh = Math.round(raw)
-  if (kmh < 1) return ''
-  return `${kmh} ${device?.lang === 'fr' ? 'km/h' : 'كم/س'}`
-}
-
 function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar', zoom = 13) {
   const marker = markerFor(device?.type)
   const status = device?.powerDisconnected ? 'offline' : getDeviceStatusKey(device)
@@ -72,7 +58,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
     className: 'athar-live-marker-icon',
     html: `
       <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color}">
-        <span data-live-speed class="athar-live-speed${speedText(device) ? '' : ' is-hidden'}">${speedText(device)}</span>
+        ${speedBadgeHtml(device, status)}
         <span class="athar-live-marker-visual" style="width:${markerWidth}px;height:${markerHeight}px">
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />
         </span>
@@ -177,15 +163,32 @@ export default function LiveVehicleMarker({
     frameRef.current = requestAnimationFrame(animate)
   }, [point?.[0], point?.[1], device?.course, device?.attributes?.course, device?.type])
 
+  // Premium speed badge update — smooth number transition, no stale speed when offline.
   useEffect(() => {
     safelyUseMarker(markerRef.current, marker => {
       const badge = marker.getElement()?.querySelector('[data-live-speed]')
       if (!badge) return
-      const text = speedText(device)
-      badge.textContent = text
-      badge.classList.toggle('is-hidden', !text)
+      const currentStatus = device?.powerDisconnected ? 'offline' : getDeviceStatusKey(device)
+      const speed = speedDisplay(device, currentStatus)
+      if (speed) {
+        const numEl = badge.querySelector('[data-live-speed-num]')
+        if (numEl) {
+          if (numEl.textContent !== String(speed.kmh)) {
+            numEl.style.opacity = '0.35'
+            requestAnimationFrame(() => {
+              numEl.textContent = speed.kmh
+              numEl.style.opacity = '1'
+            })
+          }
+        } else {
+          badge.innerHTML = '<span data-live-speed-num class="athar-live-speed__num">' + speed.kmh + '</span><span class="athar-live-speed__unit">' + speed.unit + '</span>'
+        }
+        badge.classList.remove('is-hidden')
+      } else {
+        badge.classList.add('is-hidden')
+      }
     })
-  }, [device?.speed, device?.lang])
+  }, [device?.speed, device?.lang, device?.status, device?.powerDisconnected])
 
   useEffect(() => {
     if (!point) return
@@ -270,29 +273,10 @@ export default function LiveVehicleMarker({
         icon={icon}
         eventHandlers={{ click: () => onClick?.(device) }}
       >
-        {isSelected && (
-          <Tooltip permanent direction="top" offset={[0, -20]} opacity={1} className="athar-map-status-tooltip">
-            <span className="athar-map-status-bubble" dir={device?.lang === 'ar' ? 'rtl' : 'ltr'}>
-              <i style={{ background: device?.powerDisconnected || status === 'offline' ? 'var(--ds-color-danger)' : STATUS_COLORS[status] }} />
-              <strong>{STATUS_LABELS[device?.powerDisconnected ? 'offline' : status]?.[device?.lang || 'ar']}</strong>
-              <small>{device?.serverTime || device?.server_time || device?.fixTime || device?.lastUpdate
-                ? formatAge(device?.serverTime || device?.server_time || device?.fixTime || device?.lastUpdate, device?.lang || 'ar', now)
-                : (device?.lang === 'ar' ? 'غير متاح' : 'Indisponible')}</small>
-            </span>
-          </Tooltip>
-        )}
         {children}
       </Marker>
     </>
   )
-}
-
-function formatAge(value, lang, now) {
-  const timestamp = new Date(value).getTime()
-  if (!Number.isFinite(timestamp)) return lang === 'ar' ? 'غير متاح' : 'Indisponible'
-  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000))
-  if (seconds < 60) return lang === 'ar' ? `${seconds} ث` : `${seconds} s`
-  return lang === 'ar' ? `${Math.floor(seconds / 60)} د` : `${Math.floor(seconds / 60)} min`
 }
 
 export { toPoint, calculateBearing }
