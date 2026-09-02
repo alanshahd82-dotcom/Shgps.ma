@@ -173,8 +173,8 @@ function DevicePopupContent({ device, lang, onRouteRequest, routeLoadingDeviceId
       {!isOffline && (
         <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3 }}>
           {lang === 'ar'
-            ? `الفولطاج ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)} · إشارة ${device.signal ?? '—'}/4`
-            : `Tension ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected)} · Signal ${device.signal ?? '—'}/4`}
+            ? `الفولطاج ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected, device.voltageStale)} · إشارة ${device.signal ?? '—'}/4`
+            : `Tension ${formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected, device.voltageStale)} · Signal ${device.signal ?? '—'}/4`}
         </div>
       )}
       {onRouteRequest && (

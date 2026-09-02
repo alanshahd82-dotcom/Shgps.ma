@@ -153,7 +153,7 @@ export function VehicleCard({
   const moving = online && (rawSpeed || 0) > 0
   const fast = online && (rawSpeed || 0) > 40
   const overspeed = online && rawSpeed != null && rawSpeed > overspeedThreshold
-  const power = formatVoltage(vehicle.voltage, lang, vehicle.lastUpdate, vehicle.powerDisconnected)
+  const power = formatVoltage(vehicle.voltage, lang, vehicle.lastUpdate, vehicle.powerDisconnected, vehicle.voltageStale)
   const typeLabel = TYPE_LABEL[type][lang === 'fr' ? 'fr' : 'ar']
   const floatDur = moving ? (fast ? '1.6s' : '2.4s') : '3.6s'
 

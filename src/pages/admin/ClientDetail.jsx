@@ -328,7 +328,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { icon: Gauge, label: isAr ? 'السرعة' : 'Vitesse', val: live.status === 'online' ? `${live.speed || 0} km/h` : '—' },
-                  { icon: Zap, label: isAr ? 'الفولطاج' : 'Tension', val: formatVoltage(live.voltage, lang, live.lastUpdate ?? live.last_update, live.powerDisconnected) },
+                  { icon: Zap, label: isAr ? 'الفولطاج' : 'Tension', val: formatVoltage(live.voltage, lang, live.lastUpdate ?? live.last_update, live.powerDisconnected, live.voltageStale) },
                   { icon: MapPin, label: 'IMEI', val: live.imei, mono: true },
                   {
                     icon: live.type === 'truck' ? Truck : live.type === 'car' ? Car : Bike,
