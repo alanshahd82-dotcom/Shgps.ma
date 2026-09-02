@@ -7,79 +7,71 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Run H2/memory/thread diagnostics via SSH
+      - name: Network binding + bridge diagnostic
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 180s
+          command_timeout: 120s
           script: |
-            echo "=== DIAG START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== DIAG2 START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
 
             echo ""
-            echo "=== 1. Docker container resource usage ==="
-            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>&1
+            echo "=== 1. Container IP addresses ==="
+            echo "--- Traccar ---"
+            docker inspect shgps-traccar-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>&1
+            echo "--- All containers on shgps network ---"
+            docker network inspect shgps --format '{{range .Containers}}{{.Name}}={{.IPv4Address}} {{end}}' 2>&1
 
             echo ""
-            echo "=== 2. Traccar container state ==="
-            docker inspect shgps-traccar-1 --format "Status={{.State.Status}} OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}} RestartCount={{.RestartCount}} StartedAt={{.State.StartedAt}}" 2>&1
+            echo "=== 2. Traccar listen sockets (/proc/net/tcp) ==="
+            echo "--- Port 5023 (0x1397) and 8082 (0x1F92) ---"
+            docker exec shgps-traccar-1 bash -c "cat /proc/net/tcp | grep -E '1397|1F92|1f92'" 2>&1
+            echo "--- IPv6 ---"
+            docker exec shgps-traccar-1 bash -c "cat /proc/net/tcp6 2>/dev/null | grep -E '1397|1F92|1f92'" 2>&1
             echo ""
-            docker inspect shgps-traccar-1 --format "MemoryLimit={{.HostConfig.Memory}} CPUQuota={{.HostConfig.CpuQuota}}" 2>&1
+            echo "Format: local_address:port remote_address:port state"
+            echo "0.0.0.0=00000000  127.0.0.1=01000000  state 0A=LISTEN"
 
             echo ""
-            echo "=== 3. H2 database files ==="
-            docker exec shgps-traccar-1 ls -la /opt/traccar/data/ 2>&1
-            echo ""
-            docker exec shgps-traccar-1 du -sh /opt/traccar/data/ 2>&1
-            echo ""
-            echo "--- H2 lock file check ---"
-            docker exec shgps-traccar-1 bash -c "ls -la /opt/traccar/data/*.lock.db 2>&1 || echo 'NO LOCK FILE'" 2>&1
+            echo "=== 3. Host -> container connectivity on 5023 ==="
+            TRACCAR_IP=$(docker inspect shgps-traccar-1 --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
+            echo "Traccar IP: $TRACCAR_IP"
+            bash -c "echo > /dev/tcp/$TRACCAR_IP/5023 && echo 'HOST->CONTAINER 5023 REACHABLE' || echo 'HOST->CONTAINER 5023 UNREACHABLE'" 2>&1
+            bash -c "echo > /dev/tcp/$TRACCAR_IP/8082 && echo 'HOST->CONTAINER 8082 REACHABLE' || echo 'HOST->CONTAINER 8082 UNREACHABLE'" 2>&1
 
             echo ""
-            echo "=== 4. Traccar port binding check ==="
-            docker exec shgps-traccar-1 bash -c "echo > /dev/tcp/localhost/8082 && echo 'WEB 8082 OPEN' || echo 'WEB 8082 CLOSED'" 2>&1
-            docker exec shgps-traccar-1 bash -c "echo > /dev/tcp/localhost/5023 && echo 'GT06 5023 OPEN' || echo 'GT06 5023 CLOSED'" 2>&1
-            echo ""
-            echo "--- ss inside container ---"
-            docker exec shgps-traccar-1 bash -c "ss -lntp 2>/dev/null || netstat -tlnp 2>/dev/null || echo 'no ss/netstat'" 2>&1
+            echo "=== 4. Docker bridge tcpdump (15s) ==="
+            echo "BRIDGE_CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+            timeout 15 tcpdump -i br-e735dbe613a3 -n -nn port 5023 -c 30 2>&1 || echo "bridge tcpdump done"
+            echo "BRIDGE_CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
             echo ""
-            echo "=== 5. Java process status ==="
-            docker exec shgps-traccar-1 bash -c "ps aux 2>/dev/null | head -20" 2>&1
-            echo ""
-            echo "--- JVM memory (from /proc) ---"
-            docker exec shgps-traccar-1 bash -c "PID=\$(pgrep -f tracker-server || echo 1); cat /proc/\$PID/status 2>/dev/null | grep -E 'VmRSS|VmSize|Threads|VmPeak'" 2>&1
+            echo "=== 5. Host eth0 tcpdump with both directions (15s) ==="
+            echo "ETH_CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+            timeout 15 tcpdump -i eth0 -n -nn port 5023 -c 30 2>&1 || echo "eth0 tcpdump done"
+            echo "ETH_CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
             echo ""
-            echo "=== 6. JVM thread dump (top 300 lines) ==="
-            docker exec shgps-traccar-1 bash -c "PID=\$(pgrep -f tracker-server); jstack \$PID 2>&1 | head -300 || (kill -3 \$PID 2>&1; sleep 2; echo 'SIGQUIT sent - check docker logs')" 2>&1
+            echo "=== 6. Traccar web API from backend ==="
+            docker exec shgps-backend-1 bash -c "wget -qO- --timeout=5 http://traccar:8082/api/server 2>&1 | head -5 || echo 'BACKEND CANNOT REACH TRACCAR API'" 2>&1
 
             echo ""
-            echo "=== 7. Traccar container logs (last 10 min, 300 lines) ==="
-            docker logs --since 10m shgps-traccar-1 2>&1 | tail -300
+            echo "=== 7. Traccar web API from host (via container IP) ==="
+            bash -c "wget -qO- --timeout=5 http://$TRACCAR_IP:8082/api/server 2>&1 | head -5 || echo 'HOST CANNOT REACH TRACCAR API'" 2>&1
 
             echo ""
-            echo "=== 8. Traccar log file (last 200 lines) ==="
-            docker exec shgps-traccar-1 tail -200 /opt/traccar/logs/tracker-server.log 2>&1 || echo "no log file"
+            echo "=== 8. conntrack for port 5023 ==="
+            conntrack -L 2>/dev/null | grep 5023 | head -20 || echo "conntrack not available or no entries"
 
             echo ""
-            echo "=== 9. PostgreSQL active connections ==="
-            docker exec shgps-postgres-1 psql -U shgps -d shgps -c "SELECT count(*), state, wait_event_type, wait_event, substring(query,1,80) as query FROM pg_stat_activity GROUP BY state, wait_event_type, wait_event, substring(query,1,80) ORDER BY count DESC LIMIT 20" 2>&1
+            echo "=== 9. iptables FORWARD chain ==="
+            iptables -L FORWARD -n -v 2>/dev/null | head -30 || echo "iptables not found"
 
             echo ""
-            echo "=== 10. PostgreSQL database sizes ==="
-            docker exec shgps-postgres-1 psql -U shgps -d shgps -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) as size FROM pg_database WHERE datname='shgps'" 2>&1
+            echo "=== 10. Docker network inspect (full) ==="
+            docker network inspect shgps 2>&1 | head -80
 
             echo ""
-            echo "=== 11. OOM kill check (dmesg) ==="
-            dmesg 2>/dev/null | grep -i "out of memory|oom|killed process" | tail -10 || echo "dmesg not available"
-
-            echo ""
-            echo "=== 12. Short packet capture on 5023 (20s) ==="
-            echo "CAPTURE_START $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-            timeout 20 tcpdump -i any -n -nn port 5023 -c 50 2>&1 || echo "tcpdump done"
-            echo "CAPTURE_END $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-
-            echo ""
-            echo "=== DIAG END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+            echo "=== DIAG2 END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
