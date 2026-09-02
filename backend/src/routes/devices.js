@@ -241,7 +241,7 @@ import {
           lat:       trackingEnabled && p != null ? p.latitude  : null,
           lng:       trackingEnabled && p != null ? p.longitude : null,
            speed:     trackingEnabled && p ? Math.round(speedKmh(p.speed)) : null,
-          lastUpdate:trackingEnabled ? (p?.fixTime   ?? null) : null,
+          lastUpdate:trackingEnabled ? (td?.lastUpdate ?? p?.fixTime ?? null) : null,
            engineOn:  trackingEnabled && p ? (p.attributes?.ignition ?? null) : null,
            motion:    trackingEnabled && p ? (p.attributes?.motion ?? null) : null,
           voltage:   electrical.voltage,
