@@ -1,0 +1,66 @@
+name: Verify Telemetry (Temporary)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticated telemetry verification via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 180s
+          script: |
+            echo "=== VERIFY START $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
+
+            ENV_FILE=/opt/shgps/.env
+            TRACCAR_EMAIL=$(grep -E '^TRACCAR_ADMIN_EMAIL=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | tr -d "'" )
+            TRACCAR_PASS=$(grep -E '^TRACCAR_ADMIN_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | tr -d "'" )
+            JWT_SECRET=$(grep -E '^JWT_SECRET=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | tr -d "'" )
+
+            echo "=== 1. Traccar API: Get session ==="
+            COOKIE_JAR=$(mktemp)
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -c "$COOKIE_JAR" -X POST "http://localhost:8082/api/session" -H "Content-Type: application/x-www-form-urlencoded" -d "email=${TRACCAR_EMAIL}&password=${TRACCAR_PASS}")
+            echo "Session HTTP: $HTTP_CODE"
+
+            echo ""
+            echo "=== 2. Traccar API: Devices (37, 70) ==="
+            curl -s -b "$COOKIE_JAR" "http://localhost:8082/api/devices" > /tmp/traccar_devices.json
+            node -e 'const d=require("/tmp/traccar_devices.json");[37,70].forEach(id=>{const x=d.find(v=>v.id===id);if(!x){console.log("DEVICE "+id+": NOT FOUND");return;}console.log("DEVICE "+id+": "+JSON.stringify({id:x.id,name:x.name,uniqueId:x.uniqueId,status:x.status,lastUpdate:x.lastUpdate,positionId:x.positionId}));})'
+
+            echo ""
+            echo "=== 3. Traccar API: Positions (37, 70) ==="
+            curl -s -b "$COOKIE_JAR" "http://localhost:8082/api/positions" > /tmp/traccar_positions.json
+            node -e 'const d=require("/tmp/traccar_positions.json");[37,70].forEach(id=>{const p=d.find(v=>v.deviceId===id);if(!p){console.log("POSITION "+id+": NOT FOUND");return;}console.log("POSITION "+id+": "+JSON.stringify({id:p.id,deviceId:p.deviceId,fixTime:p.fixTime,serverTime:p.serverTime,deviceTime:p.deviceTime,latitude:p.latitude,longitude:p.longitude,speed:p.speed,altitude:p.altitude,accuracy:p.accuracy,satellites:p.satellites,attributes:{ignition:p.attributes&&p.attributes.ignition,motion:p.attributes&&p.attributes.motion,charge:p.attributes&&p.attributes.charge,battery:p.attributes&&p.attributes.battery,batteryLevel:p.attributes&&p.attributes.batteryLevel,power:p.attributes&&p.attributes.power,rssi:p.attributes&&p.attributes.rssi,odometer:p.attributes&&p.attributes.odometer,distance:p.attributes&&p.attributes.distance,totalDistance:p.attributes&&p.attributes.totalDistance}}));})'
+
+            echo ""
+            echo "=== 4. Backend REST: Get admin user from DB ==="
+            ADMIN_USER=$(docker exec shgps-postgres-1 psql -U shgps -d shgps -t -c "SELECT id, email, role FROM users WHERE role='admin' LIMIT 1" 2>/dev/null | tr -d ' ' | head -1)
+            echo "Admin user: $ADMIN_USER"
+
+            echo ""
+            echo "=== 5. Backend REST: Create JWT token ==="
+            USER_ID=$(echo "$ADMIN_USER" | cut -d'|' -f1)
+            USER_EMAIL=$(echo "$ADMIN_USER" | cut -d'|' -f2)
+            USER_ROLE=$(echo "$ADMIN_USER" | cut -d'|' -f3)
+            echo "User ID: $USER_ID, Email: $USER_EMAIL, Role: $USER_ROLE"
+
+            JWT_TOKEN=$(node -e "const c=require('crypto');const h=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');const p=Buffer.from(JSON.stringify({id:'$USER_ID',email:'$USER_EMAIL',role:'$USER_ROLE',iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+3600})).toString('base64url');const d=h+'.'+p;const s=c.createHmac('sha256','$JWT_SECRET').update(d).digest('base64url');console.log(d+'.'+s);")
+            echo "JWT created: ${JWT_TOKEN:0:30}..."
+
+            echo ""
+            echo "=== 6. Backend REST: /api/devices (37, 70) ==="
+            curl -s "http://localhost:3001/api/devices" -H "Authorization: Bearer $JWT_TOKEN" > /tmp/backend_devices.json
+            node -e 'const fs=require("fs");const raw=fs.readFileSync("/tmp/backend_devices.json","utf8");const data=JSON.parse(raw);const arr=Array.isArray(data)?data:(data.devices||data.data||[]);[37,70].forEach(id=>{const d=arr.find(v=>v.traccar_id===id||v.traccarId===id);if(!d){console.log("BACKEND DEVICE traccar_id="+id+": NOT FOUND");return;}console.log("BACKEND DEVICE traccar_id="+id+": "+JSON.stringify({id:d.id,name:d.name,imei:d.imei,status:d.status,online:d.online,lastUpdate:d.lastUpdate,fixTime:d.fixTime,lat:d.lat,lng:d.lng,speed:d.speed,voltage:d.voltage,batteryLevel:d.batteryLevel,signal:d.signal,charge:d.charge,ignition:d.ignition,motion:d.motion,satellites:d.satellites,distance:d.distance,odometer:d.odometer,powerDisconnected:d.powerDisconnected,trackingEnabled:d.trackingEnabled}));})'
+
+            echo ""
+            echo "=== 7. Backend health ==="
+            curl -s "http://localhost:3001/api/health"
+
+            rm -f "$COOKIE_JAR"
+            echo ""
+            echo "=== VERIFY END $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
