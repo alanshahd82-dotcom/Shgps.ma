@@ -202,7 +202,7 @@ test('A7: telemetry changes do not change command UI state', () => {
   assert.equal(isCutActive(m.activeCommand), true)
 })
 
-test('A8: WS reconnect does not clear command state', () => {
+test('A8: WS reconnect does not clear command state', async () => {
   const s = makeStore()
   s.addCommand({ commandType: 'engineStop', status: 'pending' })
   const m = new HookModel()
