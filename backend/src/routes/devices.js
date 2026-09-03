@@ -669,8 +669,10 @@ import {
         const dev = req.device
         const command = await engineCommands.getActiveCommand(dev.id)
         if (!command) return res.status(404).json({ error: 'No active command to cancel' })
-        if (!engineCommands.IN_FLIGHT_STATUSES.includes(command.status)) {
-          return res.status(409).json({ error: 'Command already delivered; cannot cancel', command })
+        // Phase 2A C2: Only 'requested' and 'pending' are cancellable.
+        // 'sent'/'unconfirmed'/'delivered' have already left the server.
+        if (!['requested', 'pending'].includes(command.status)) {
+          return res.status(409).json({ error: 'Command already sent or delivered; cannot cancel', command })
         }
         const cancelled = await engineCommands.cancelActiveCommand(dev.id)
         await logAudit(req.user.id, 'engine_cancel', 'device', dev.id, {

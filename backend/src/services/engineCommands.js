@@ -616,10 +616,16 @@ export async function reconfirmCommand(commandId, deviceId = null) {
   }
   const now = Date.now()
   const newAuthExpiry = new Date(Math.min(now + DELIVERY_AUTHORIZATION_MS, absoluteExpiry))
-  await db.query(
-    'UPDATE engine_commands SET delivery_authorization_expires_at = $1, updated_at = NOW() WHERE id = $2',
+  // Phase 2A C3: State-safe UPDATE. Only reauthorize if still in-flight.
+  // If the worker delivered it or it was cancelled/expired between read
+  // and write, zero rows are affected. Return current state, not false success.
+  const result = await db.query(
+    'UPDATE engine_commands SET delivery_authorization_expires_at = $1, updated_at = NOW() WHERE id = $2 AND status IN (' + "'requested', 'pending', 'sent'" + ')',
     [newAuthExpiry, commandId]
   )
+  if (result.rowCount === 0) {
+    return getCommand(commandId, deviceId)
+  }
   return getCommand(commandId, deviceId)
 }
 
@@ -630,7 +636,10 @@ export async function reconfirmCommand(commandId, deviceId = null) {
 export async function cancelActiveCommand(deviceId) {
   const cmd = await getActiveCommand(deviceId)
   if (!cmd) return null
-  if (!IN_FLIGHT_STATUSES.includes(cmd.status)) return cmd
+  // Phase 2A C2: Only 'requested' and 'pending' are cancellable.
+  // 'sent'/'unconfirmed'/'delivered' have already left the server and cannot
+  // be recalled. Return the command unchanged so the route can 409.
+  if (!['requested', 'pending'].includes(cmd.status)) return cmd
   return cancel(cmd.id, deviceId)
 }
 

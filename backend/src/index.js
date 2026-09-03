@@ -443,10 +443,9 @@ async function runMigrations() {
     `)
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_engine_commands_delivery_authorized
-      ON engine_commands(device_id)
+      ON engine_commands(device_id, delivery_authorization_expires_at)
       WHERE superseded_by_command_id IS NULL
         AND status IN ('requested', 'pending', 'sent')
-        AND delivery_authorization_expires_at > NOW()
     `)
     // Durable JWT revocation store (security hardening). Hashed tokens only.
     await db.query(`

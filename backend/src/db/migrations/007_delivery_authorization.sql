@@ -23,7 +23,6 @@ UPDATE engine_commands
   WHERE delivery_authorization_expires_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_engine_commands_delivery_authorized
-  ON engine_commands(device_id)
+  ON engine_commands(device_id, delivery_authorization_expires_at)
   WHERE superseded_by_command_id IS NULL
-    AND status IN ('requested', 'pending', 'sent')
-    AND delivery_authorization_expires_at > NOW();
+    AND status IN ('requested', 'pending', 'sent');

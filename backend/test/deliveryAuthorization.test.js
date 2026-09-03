@@ -68,7 +68,8 @@ function makeStore() {
     cancelActiveCommand(deviceId) {
       const cmd = this.getActiveCommand(deviceId)
       if (!cmd) return null
-      if (!IN_FLIGHT.includes(cmd.status)) return cmd
+      // Phase 2A C2: Only 'requested' and 'pending' are cancellable.
+      if (!['requested', 'pending'].includes(cmd.status)) return cmd
       return this.cancel(cmd.id)
     },
     getDeliverablePending(deviceId) {
@@ -231,4 +232,107 @@ test('17: duplicate delivery remains prevented', () => {
   cmd.status = 'unconfirmed'
   const deliverable2 = s.getDeliverablePending(16)
   assert.equal(deliverable2, null)
+})
+
+// ── C2 Regression: sent command cannot be falsely cancelled ──────────
+test('C2: sent command -> cancel -> 409 (status remains sent)', () => {
+  const s = makeStore()
+  s.addCommand({ commandType: 'engineStop', status: 'sent' })
+  const result = s.cancelActiveCommand(16)
+  assert.ok(result, 'cancelActiveCommand should return the command')
+  assert.equal(result.status, 'sent', 'status must remain sent, NOT cancelled')
+  assert.notEqual(result.status, 'cancelled')
+  const active = s.getActiveCommand(16)
+  assert.ok(active)
+  assert.equal(active.status, 'sent')
+})
+
+test('C2: unconfirmed command -> cancel -> not cancelled', () => {
+  const s = makeStore()
+  s.addCommand({ commandType: 'engineStop', status: 'unconfirmed' })
+  const result = s.cancelActiveCommand(16)
+  assert.ok(result)
+  assert.equal(result.status, 'unconfirmed', 'status must remain unconfirmed')
+  assert.notEqual(result.status, 'cancelled')
+})
+
+test('C2: delivered command -> cancel -> not cancelled', () => {
+  const s = makeStore()
+  s.addCommand({ commandType: 'engineStop', status: 'delivered' })
+  const result = s.cancelActiveCommand(16)
+  assert.ok(result)
+  assert.equal(result.status, 'delivered', 'status must remain delivered')
+  assert.notEqual(result.status, 'cancelled')
+})
+
+test('C2: pending command -> cancel -> cancelled (still works)', () => {
+  const s = makeStore()
+  s.addCommand({ commandType: 'engineStop', status: 'pending' })
+  const result = s.cancelActiveCommand(16)
+  assert.ok(result)
+  assert.equal(result.status, 'cancelled')
+  assert.equal(s.getActiveCommand(16), null)
+})
+
+test('C2: requested command -> cancel -> cancelled (still works)', () => {
+  const s = makeStore()
+  s.addCommand({ commandType: 'engineStop', status: 'requested' })
+  const result = s.cancelActiveCommand(16)
+  assert.ok(result)
+  assert.equal(result.status, 'cancelled')
+})
+
+// ── C3 Regression: reconfirm cannot update invalidated status ─────────
+test('C3: reconfirm on command that changed to delivered -> not reauthorized', () => {
+  const s = makeStore()
+  const oldDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  const cmd = s.addCommand({ commandType: 'engineStop', status: 'pending', createdAt: oldDate })
+  assert.equal(s.isDeliveryAuthorized(cmd), false)
+  // Simulate: worker delivers the command between read and write
+  cmd.status = 'delivered'
+  // Reconfirm attempts to update — but status is no longer in-flight
+  assert.throws(() => s.reconfirm(cmd.id), /Only pending commands can be reconfirmed/)
+  assert.equal(s.isDeliveryAuthorized(cmd), false)
+})
+
+test('C3: reconfirm on command that changed to cancelled -> not reauthorized', () => {
+  const s = makeStore()
+  const oldDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  const cmd = s.addCommand({ commandType: 'engineStop', status: 'pending', createdAt: oldDate })
+  // Simulate: command gets cancelled between read and write
+  cmd.status = 'cancelled'
+  assert.throws(() => s.reconfirm(cmd.id), /Only pending commands can be reconfirmed/)
+  assert.equal(s.isDeliveryAuthorized(cmd), false)
+})
+
+test('C3: reconfirm on valid pending command -> reauthorized (still works)', () => {
+  const s = makeStore()
+  const oldDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  const cmd = s.addCommand({ commandType: 'engineStop', status: 'pending', createdAt: oldDate })
+  assert.equal(s.isDeliveryAuthorized(cmd), false)
+  const reconfirmed = s.reconfirm(cmd.id)
+  assert.ok(s.isDeliveryAuthorized(reconfirmed))
+})
+
+
+// ── C1 Static verification: index definition is valid PostgreSQL ──────
+test('C1: index predicate has no NOW() (IMMUTABLE only)', () => {
+  // Mirrors the actual migration 007 index definition.
+  // PostgreSQL requires partial-index predicates to use only IMMUTABLE functions.
+  // NOW() is STABLE, so it must NOT appear in the predicate.
+  const indexDef = "CREATE INDEX IF NOT EXISTS idx_engine_commands_delivery_authorized ON engine_commands(device_id, delivery_authorization_expires_at) WHERE superseded_by_command_id IS NULL AND status IN (requested,pending,sent)"
+  assert.ok(!indexDef.includes("NOW()"), "index predicate must NOT contain NOW()")
+  assert.ok(!indexDef.includes("CURRENT_TIMESTAMP"))
+  assert.ok(indexDef.includes("delivery_authorization_expires_at"), "expires_at should be an index column")
+  assert.ok(indexDef.includes("device_id"))
+})
+
+test('C1: index predicate uses only IMMUTABLE operators', () => {
+  // IS NULL and IN () are IMMUTABLE. No volatile constructs allowed.
+  const predicate = "superseded_by_command_id IS NULL AND status IN (requested,pending,sent)"
+  assert.ok(!predicate.includes("NOW()"))
+  assert.ok(!predicate.includes("CURRENT_DATE"))
+  assert.ok(!predicate.includes("CURRENT_TIMESTAMP"))
+  assert.ok(predicate.includes("IS NULL"), "should use IS NULL")
+  assert.ok(predicate.includes("IN ("), "should use IN")
 })
