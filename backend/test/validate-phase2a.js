@@ -750,13 +750,21 @@ async function main() {
       const cutRow = await pool.query(`SELECT id FROM engine_commands WHERE idempotency_key = $1`, [cutKey]);
       if (cutRow.rows.length > 0) {
         const cutId = cutRow.rows[0].id;
-        // Insert RESUME command that supersedes the CUT
+        // Insert RESUME command (the latest intent — NOT superseded).
+        // superseded_by_command_id is intentionally NOT set here: the RESUME is the
+        // newest intent and must remain active (superseded_by_command_id = NULL).
+        // Only the CUT gets marked as superseded (via UPDATE below).
+        // (Previous bug: inserting RESUME with superseded_by_command_id = cutId
+        //  marked the RESUME as superseded BY the CUT — the opposite direction —
+        //  causing both rows to have non-NULL superseded_by_command_id, so the
+        //  active-command query (WHERE superseded_by_command_id IS NULL) matched
+        //  neither and the check failed.)
         const resumeKey = `${IDEMPOTENCY_PREFIX}supersede-resume`;
         const resumeRes = await pool.query(`
-          INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key, superseded_by_command_id)
-          VALUES ($1, $2, 'engineResume', 'running', 'pending', NOW(), NOW() + INTERVAL '24 hours', $3, $4)
+          INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
+          VALUES ($1, $2, 'engineResume', 'running', 'pending', NOW(), NOW() + INTERVAL '24 hours', $3)
           ON CONFLICT DO NOTHING RETURNING id
-        `, [fixtureDeviceId, fixtureUserId, resumeKey, cutId]);
+        `, [fixtureDeviceId, fixtureUserId, resumeKey]);
         if (resumeRes.rows.length > 0) createdCommandIds.add(resumeRes.rows[0].id);
         const resumeId = resumeRes.rows[0]?.id;
         // Mark the CUT as superseded by the RESUME
