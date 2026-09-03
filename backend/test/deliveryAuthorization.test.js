@@ -182,7 +182,7 @@ test('11: duplicate CUT remains idempotent', () => {
 test('12: supersession remains intact', () => {
   const s = makeStore()
   const cut = s.addCommand({ commandType: 'engineStop', status: 'pending' })
-  const resume = s.addCommand({ commandType: 'engineResume', status: 'pending', requestedState: 'running', supersededById: cut.id })
+  const resume = s.addCommand({ commandType: 'engineResume', status: 'pending', requestedState: 'running' })
   cut.superseded_by_command_id = resume.id
   const active = s.getActiveCommand(16)
   assert.equal(active.id, resume.id)
@@ -216,7 +216,7 @@ test('15: historical device_commands remains untouched', () => {
 test('16: reconnect + RESUME race preserves latest intent', () => {
   const s = makeStore()
   const cut = s.addCommand({ commandType: 'engineStop', status: 'pending' })
-  const resume = s.addCommand({ commandType: 'engineResume', status: 'pending', requestedState: 'running', supersededById: cut.id })
+  const resume = s.addCommand({ commandType: 'engineResume', status: 'pending', requestedState: 'running' })
   cut.superseded_by_command_id = resume.id
   const active = s.getActiveCommand(16)
   assert.equal(active.id, resume.id)
