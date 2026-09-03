@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/index.js'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
+import { statusMessage, reconciliationMessage, resolveFeedbackChannel } from './engineFeedback.js'
 
 // Single source of truth for the engine relay control. The vehicle detail
 // page button is the reference behaviour; every other place must use this hook
@@ -48,44 +49,12 @@ export function isResumePending(command) {
   return command.requested_state === 'running' && inFlight
 }
 
-function statusMessage(status, lang) {
-  const ar = lang === 'ar'
-  const fr = lang === 'fr'
-  switch (status) {
-    case 'pending':
-      return ar ? 'بانتظار اتصال المركبة' : fr ? 'En attente de connexion du véhicule' : 'Waiting for vehicle connection'
-    case 'sent':
-      return ar ? 'تم إرسال الأمر إلى الجهاز' : fr ? 'Commande envoyée au périphérique' : 'Command sent to device'
-    case 'delivered':
-      return ar ? 'تم تسليم الأمر إلى الجهاز' : fr ? 'Commande livrée au périphérique' : 'Command delivered to device'
-    case 'unconfirmed':
-      return ar ? 'استلم الجهاز الأمر؛ لا يمكن تأكيد حالة المحرك الفعلية' : fr ? "Le périphérique a reçu la commande ; l'état physique du moteur ne peut être confirmé" : 'Device received the command; physical engine state cannot be confirmed'
-    case 'failed':
-      return ar ? 'فشل إرسال الأمر' : fr ? "Échec de l'envoi de la commande" : 'Command failed to send'
-    case 'cancelled':
-      return ar ? 'تم إلغاء الأمر' : fr ? 'Commande annulée' : 'Command cancelled'
-    default:
-      return ''
-  }
-}
-
-function conflictMessage(lang) {
-  const ar = lang === 'ar'
-  const fr = lang === 'fr'
-  return ar ? 'توجد أمر محرك نشط ومتعارض لهذه المركبة' : fr ? 'Une commande moteur active et conflictuelle existe pour ce véhicule' : 'A conflicting engine command is already active for this vehicle'
-}
-
-function reconciliationMessage(lang) {
-  const ar = lang === 'ar'
-  const fr = lang === 'fr'
-  return ar ? 'جارٍ إلغاء أمر سابق في النظام؛ سيُرسل أمرك الجديد عند تأكيد الإلغاء' : fr ? "Annulation d'une commande précédente en cours ; la nouvelle commande sera envoyée après confirmation" : 'Cancelling a previous queued command; your new command will be sent once cancellation is confirmed'
-}
-
 export function useEngineControl(vehicle, lang = 'ar') {
   const { refreshDevices, wsConnected } = useApp()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [caution, setCaution] = useState('')
   const [activeCommand, setActiveCommand] = useState(null)
   const [commandLoading, setCommandLoading] = useState(false)
   const mounted = useRef(true)
@@ -127,6 +96,7 @@ export function useEngineControl(vehicle, lang = 'ar') {
     setActiveCommand(null)
     setError('')
     setSuccess('')
+    setCaution('')
     hasFetchedRef.current = false
     hasSentRef.current = false
     fetchActiveCommand()
@@ -168,17 +138,17 @@ export function useEngineControl(vehicle, lang = 'ar') {
     if (!hasSentRef.current) return
     if (!activeCommand) return
     if (isCutPending(activeCommand)) {
-      setSuccess(statusMessage(activeCommand.status, lang))
+      setCaution(statusMessage(activeCommand.status, lang))
     } else if (isCutActive(activeCommand)) {
-      setSuccess(statusMessage('unconfirmed', lang))
+      setCaution(statusMessage('unconfirmed', lang))
     } else if (isResumePending(activeCommand)) {
-      setSuccess(statusMessage(activeCommand.status, lang))
+      setCaution(statusMessage(activeCommand.status, lang))
     }
   }, [activeCommand, lang])
 
   const send = useCallback(async (turnOff) => {
     if (!vehicle?.id || sending) return false
-    setSending(true); setError(''); setSuccess('')
+    setSending(true); setError(''); setSuccess(''); setCaution('')
     const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random())
     try {
       const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey })
@@ -187,10 +157,15 @@ export function useEngineControl(vehicle, lang = 'ar') {
       if (mounted.current) {
         if (gateHeld) {
           setSuccess(reconciliationMessage(lang))
-        } else if (status) {
-          setSuccess(statusMessage(status, lang))
         } else {
-          setError(t(lang, 'engineCommandUnknown'))
+          const channel = resolveFeedbackChannel(status)
+          if (channel === 'caution') {
+            setCaution(statusMessage(status, lang))
+          } else if (channel === 'success') {
+            setSuccess(statusMessage(status, lang))
+          } else {
+            setError(t(lang, 'engineCommandUnknown'))
+          }
         }
       }
       // FIX B: mark that the user explicitly sent a command, so the
@@ -210,9 +185,9 @@ export function useEngineControl(vehicle, lang = 'ar') {
     }
   }, [lang, refreshDevices, sending, vehicle?.id, fetchActiveCommand])
 
-  const clearFeedback = useCallback(() => { setError(''); setSuccess('') }, [])
+  const clearFeedback = useCallback(() => { setError(''); setSuccess(''); setCaution('') }, [])
 
-  return { engineRunning, canControl, sending, error, success, send, clearFeedback, activeCommand, commandLoading }
+  return { engineRunning, canControl, sending, error, success, caution, send, clearFeedback, activeCommand, commandLoading }
 }
 
 export default useEngineControl
