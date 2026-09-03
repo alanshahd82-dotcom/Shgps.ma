@@ -192,6 +192,7 @@ export default function VehicleControl() {
   const sending = engine.sending
   const cmdErr = engine.error
   const cmdSuccess = engine.success
+  const cmdCaution = engine.caution
   const point = pt(vehicle)
   const capability = cap(vehicle)
   const engineRunning = engine.engineRunning
@@ -436,6 +437,7 @@ export default function VehicleControl() {
                 onClick={() => setCommand({ turnOff: engineRunning })}
               />
               {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
+              {cmdCaution && <p role="status" className="vehicle-control-map__engine-caution">{cmdCaution}</p>}
               {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
             </div>
           )}
