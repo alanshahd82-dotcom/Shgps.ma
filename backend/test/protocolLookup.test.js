@@ -9,7 +9,8 @@
 //   C. dev.traccar_id=70 => sendCommand called with deviceId=70 (mapping unchanged)
 //
 // Uses mock.module() to intercept traccar.js HTTP calls.
-// Requires Node >= 20.8 with --experimental-test-module-mocks (or Node >= 22).
+// Node v20.x: mock.module(specifier, { namedExports: {...} }) — options object, NOT factory.
+// Requires --experimental-test-module-mocks flag.
 //
 // Run: TEST_DATABASE_URL="postgresql://user:pass@host:5432/shgps_test" \
 //      node --experimental-test-module-mocks --test test/protocolLookup.test.js
@@ -61,7 +62,8 @@ if (typeof mock.module !== 'function') {
   process.exit(2);
 }
 
-await mock.module('../src/services/traccar.js', () => ({
+mock.module('../src/services/traccar.js', {
+  namedExports: {
   getDevice: async () => mockConfig.getDeviceResult,
   getAllPositions: async () => mockConfig.allPositionsResult,
   sendCommand: async (deviceId, type, attributes) => {
@@ -99,7 +101,8 @@ await mock.module('../src/services/traccar.js', () => ({
   // Other exports that engineCommands.js might reference.
   cleanPositions: (list) => list || [],
   invalidateTraccarCache: () => {},
-}));
+  }
+});
 
 // ── Import engineCommands AFTER mock is registered ──
 const engineCommands = await import('../src/services/engineCommands.js');
