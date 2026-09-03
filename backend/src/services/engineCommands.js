@@ -240,10 +240,10 @@ export async function createRequest({
     // 4) Supersession path: fall through to insert (handled below).
 
     // 3) Insert PENDING (offline-safe default; delivery attempted next).
-    const insert = await client.query(
     // Phase 2A: Set delivery authorization window, capped by the 30-day absolute limit.
     const _nowMs = Date.now()
     const _authExpiry = new Date(Math.min(_nowMs + DELIVERY_AUTHORIZATION_MS, _nowMs + ABSOLUTE_TTL_MS))
+    const insert = await client.query(
       'INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, idempotency_key, protocol, command_profile, traccar_device_id, ip_address, delivery_authorization_expires_at) VALUES ($1,$2,$3,$4,\'pending\',$5,$6,$7,$8,$9,$10) RETURNING *',
       [deviceId, userId, commandType, requestedState, key, protocol, commandProfile, traccarDeviceId, ip, _authExpiry]
     )
