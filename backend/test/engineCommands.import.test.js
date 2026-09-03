@@ -6,7 +6,15 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as engineCommands from '../src/services/engineCommands.js';
+
+// Set synthetic test-only JWT_SECRET before importing the real module.
+// config.js only checks presence — it does not validate the value.
+// This is NOT the production secret; it only allows the module to load.
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'test-jwt-secret-not-for-production';
+}
+
+const engineCommands = await import('../src/services/engineCommands.js');
 
 test('module loads without syntax errors', () => {
   assert.ok(engineCommands, 'module should be importable');
