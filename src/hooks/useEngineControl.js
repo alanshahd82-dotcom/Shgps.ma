@@ -8,9 +8,11 @@ import { t } from '../i18n/translations'
 // so the availability rules, the relay command and the feedback messages are
 // identical everywhere.
 //
-// Phase 2B: the backend persists every command before delivery and returns a
-// truthful command state. We never claim the engine physically stopped — only
-// what the evidence supports (pending / sent / unconfirmed).
+// Phase 1: the CUT/RESUME button state is derived from the authoritative
+// engine_commands row (GET /:id/active-command), NOT from vehicle.engineOn
+// or ignition telemetry. Telemetry remains a separate concern — it never
+// clears or sets command state. The hook fetches the active command on
+// initial load, on vehicle identity change, and after WebSocket reconnect.
 
 const ONLINE_WINDOW_MS = 15 * 60 * 1000
 
@@ -26,9 +28,26 @@ export function isEngineRunning(vehicle) {
   return raw !== false
 }
 
-// Truthful status wording. GT06 cannot confirm the physical relay state, so
-// 'unconfirmed' is the strongest claim we make after delivery. We never show
-// "Engine stopped".
+// Phase 1: derive the button state from the authoritative command, not from
+// ignition telemetry.
+export function isCutActive(command) {
+  if (!command) return false
+  const isActive = ['unconfirmed', 'delivered'].includes(command.status)
+  return command.requested_state === 'stopped' && isActive
+}
+
+export function isCutPending(command) {
+  if (!command) return false
+  const inFlight = ['requested', 'pending', 'sent'].includes(command.status)
+  return command.requested_state === 'stopped' && inFlight
+}
+
+export function isResumePending(command) {
+  if (!command) return false
+  const inFlight = ['requested', 'pending', 'sent'].includes(command.status)
+  return command.requested_state === 'running' && inFlight
+}
+
 function statusMessage(status, lang) {
   const ar = lang === 'ar'
   const fr = lang === 'fr'
@@ -53,12 +72,9 @@ function statusMessage(status, lang) {
 function conflictMessage(lang) {
   const ar = lang === 'ar'
   const fr = lang === 'fr'
-  return ar ? 'يوجد أمر محرك نشط ومتعارض لهذه المركبة' : fr ? 'Une commande moteur active et conflictuelle existe pour ce véhicule' : 'A conflicting engine command is already active for this vehicle'
+  return ar ? 'توجد أمر محرك نشط ومتعارض لهذه المركبة' : fr ? 'Une commande moteur active et conflictuelle existe pour ce véhicule' : 'A conflicting engine command is already active for this vehicle'
 }
 
-// Phase 2F: a previous queued command is being cancelled in Traccar; the new
-// command is held pending until cancellation is confirmed. Never claim the
-// engine physically changed state.
 function reconciliationMessage(lang) {
   const ar = lang === 'ar'
   const fr = lang === 'fr'
@@ -66,25 +82,84 @@ function reconciliationMessage(lang) {
 }
 
 export function useEngineControl(vehicle, lang = 'ar') {
-  const { refreshDevices } = useApp()
+  const { refreshDevices, wsConnected } = useApp()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [engineState, setEngineState] = useState(null)
+  const [activeCommand, setActiveCommand] = useState(null)
+  const [commandLoading, setCommandLoading] = useState(false)
   const mounted = useRef(true)
+  const fetchIdRef = useRef(0)
 
   useEffect(() => () => { mounted.current = false }, [])
-  useEffect(() => { setEngineState(null); setError(''); setSuccess('') }, [vehicle?.id])
 
-  const engineRunning = engineState != null ? engineState : isEngineRunning(vehicle)
+  // Phase 1: fetch the authoritative command state from the backend. This is
+  // the ONLY source for the CUT/RESUME button — never vehicle.engineOn.
+  const fetchActiveCommand = useCallback(async () => {
+    if (!vehicle?.id) return
+    const fetchId = ++fetchIdRef.current
+    setCommandLoading(true)
+    try {
+      const response = await api.devices.getActiveCommand(vehicle.id)
+      if (mounted.current && fetchId === fetchIdRef.current) {
+        setActiveCommand(response?.command ?? null)
+      }
+    } catch {
+      if (mounted.current && fetchId === fetchIdRef.current) {
+        setActiveCommand(null)
+      }
+    } finally {
+      if (mounted.current && fetchId === fetchIdRef.current) {
+        setCommandLoading(false)
+      }
+    }
+  }, [vehicle?.id])
+
+  // Fetch on initial load and when vehicle identity changes.
+  useEffect(() => {
+    setActiveCommand(null)
+    setError('')
+    setSuccess('')
+    fetchActiveCommand()
+  }, [vehicle?.id, fetchActiveCommand])
+
+  // Re-fetch after WebSocket reconnect (wsConnected transitions false->true).
+  const prevWsConnectedRef = useRef(false)
+  useEffect(() => {
+    if (wsConnected && !prevWsConnectedRef.current) {
+      fetchActiveCommand()
+    }
+    prevWsConnectedRef.current = wsConnected
+  }, [wsConnected, fetchActiveCommand])
+
+  // Phase 1: derive engineRunning from the authoritative command, not from
+  // ignition telemetry. Command state has priority for the CUT control UI.
+  const engineRunning = (() => {
+    if (!activeCommand) return true
+    const isActive = ['unconfirmed', 'delivered'].includes(activeCommand.status)
+    const inFlight = ['requested', 'pending', 'sent'].includes(activeCommand.status)
+    if (activeCommand.requested_state === 'stopped' && isActive) return false
+    if (activeCommand.requested_state === 'running' && inFlight) return false
+    return true
+  })()
+
   const canControl = isVehicleReachable(vehicle)
+
+  // Phase 1: derive the UI feedback message from the authoritative command.
+  useEffect(() => {
+    if (!activeCommand) return
+    if (isCutPending(activeCommand)) {
+      setSuccess(statusMessage(activeCommand.status, lang))
+    } else if (isCutActive(activeCommand)) {
+      setSuccess(statusMessage('unconfirmed', lang))
+    } else if (isResumePending(activeCommand)) {
+      setSuccess(statusMessage(activeCommand.status, lang))
+    }
+  }, [activeCommand, lang])
 
   const send = useCallback(async (turnOff) => {
     if (!vehicle?.id || sending) return false
     setSending(true); setError(''); setSuccess('')
-    // Idempotency-Key: the backend is the final authority. A fresh key per
-    // logical request; the backend conflict check prevents duplicate physical
-    // commands across tabs / reloads even with different keys.
     const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random())
     try {
       const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey })
@@ -92,40 +167,30 @@ export function useEngineControl(vehicle, lang = 'ar') {
       const gateHeld = !!response?.command?.gateHeld || !!response?.gateHeld
       if (mounted.current) {
         if (gateHeld) {
-          // A previous queued command is being cancelled in Traccar; the new
-          // command is held pending until that resolves. Truthful display.
           setSuccess(reconciliationMessage(lang))
         } else if (status) {
           setSuccess(statusMessage(status, lang))
         } else {
-          // P0-1: no authoritative command.status must NEVER read as success.
-          // Unknown / malformed response -> explicit unknown/error state.
           setError(t(lang, 'engineCommandUnknown'))
         }
       }
-      // Read the actual state after the command instead of inferring it.
-      try {
-        const refreshed = await api.devices.get(vehicle.id)
-        if (mounted.current && typeof refreshed?.engineOn === 'boolean') setEngineState(refreshed.engineOn)
-      } catch {}
+      // Phase 1: re-fetch the authoritative command state after sending.
+      try { await fetchActiveCommand() } catch {}
       try { await refreshDevices?.() } catch {}
       return true
     } catch (e) {
       if (mounted.current) {
-        // Phase 2F: 409 conflicts no longer occur for explicit opposite commands
-        // (the old command is superseded). Show a truthful error; never claim
-        // physical execution for GT06.
         setError(t(lang, 'vehicleCommandFailed'))
       }
       return false
     } finally {
       if (mounted.current) setSending(false)
     }
-  }, [lang, refreshDevices, sending, vehicle?.id])
+  }, [lang, refreshDevices, sending, vehicle?.id, fetchActiveCommand])
 
   const clearFeedback = useCallback(() => { setError(''); setSuccess('') }, [])
 
-  return { engineRunning, canControl, sending, error, success, send, clearFeedback }
+  return { engineRunning, canControl, sending, error, success, send, clearFeedback, activeCommand, commandLoading }
 }
 
 export default useEngineControl
