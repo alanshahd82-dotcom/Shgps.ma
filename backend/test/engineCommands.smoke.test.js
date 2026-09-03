@@ -22,6 +22,13 @@ if (!process.env.JWT_SECRET) {
 
 // ── Safety gate ──
 const TEST_DB_URL = process.env.TEST_DATABASE_URL;
+
+// Bridge TEST_DATABASE_URL to DATABASE_URL so the real db.js Pool
+// (used by engineCommands.js via config.databaseUrl) connects to the
+// same isolated test database the fixtures use.
+if (TEST_DB_URL && !process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = TEST_DB_URL;
+}
 let pool = null;
 let fixtureUserId = null;
 let fixtureDeviceId = null;
