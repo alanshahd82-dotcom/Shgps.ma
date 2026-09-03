@@ -595,15 +595,19 @@ async function main() {
 
     const sqlChecks = [];
 
-    // Helper: insert a test command and track its ID
+    // Helper: insert a test command and track its ID.
+    // NOTE: created_at and expiry are SQL expressions (e.g. NOW(), NOW() + INTERVAL '24 hours'),
+    // so they are inlined into the query string to be evaluated by PostgreSQL — NOT passed
+    // as parameterized values (which would be treated as literal TIMESTAMPTZ strings and fail
+    // with "invalid input syntax for type timestamp with time zone").
+    // All other fields are safe literals and remain parameterized.
     async function insertTestCommand(pool, keySuffix, fields) {
       const idempotencyKey = `${IDEMPOTENCY_PREFIX}${keySuffix}`;
-      const cols = ['device_id', 'user_id', 'command_type', 'requested_state', 'status', 'created_at', 'delivery_authorization_expires_at', 'idempotency_key'];
-      const vals = [fixtureDeviceId, fixtureUserId, fields.command_type, fields.requested_state, fields.status, fields.created_at, fields.expiry, idempotencyKey];
-      const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
       const res = await pool.query(
-        `INSERT INTO engine_commands (${cols.join(', ')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING RETURNING id`,
-        vals
+        `INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, ${fields.created_at}, ${fields.expiry}, $6)
+         ON CONFLICT DO NOTHING RETURNING id`,
+        [fixtureDeviceId, fixtureUserId, fields.command_type, fields.requested_state, fields.status, idempotencyKey]
       );
       if (res.rows.length > 0) createdCommandIds.add(res.rows[0].id);
       return { id: res.rows[0]?.id, idempotencyKey };
