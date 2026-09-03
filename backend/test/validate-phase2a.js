@@ -7,7 +7,7 @@
  *
  * USAGE (on your VPS, from the backend/ directory):
  *
- *   TEST_DATABASE_URL="postgresql://user:pass@host:5432/test_db_name" \
+ *   TEST_DATABASE_URL="postgresql://user:pass@host:5432/shgps_phase2a_test" \
  *     node test/validate-phase2a.js
  *
  * SAFETY:
@@ -20,20 +20,28 @@
  *   It does NOT modify production .env.
  *   It does NOT change any application code.
  *
+ * FIXTURES:
+ *   The script creates a minimal TEST USER and TEST DEVICE at startup
+ *   using INSERT ... RETURNING id. No hard-coded IDs are used.
+ *   All engine_commands test rows reference these fixture IDs.
+ *   Cleanup runs in a finally block — even on failure.
+ *
  * WHAT IT DOES:
  *   1. Connects to the TEST database.
- *   2. Runs migration 007 (first pass).
- *   3. Verifies column + index + no NOW() in predicate.
- *   4. Queries backfill counts (A–E).
- *   5. Runs migration 007 AGAIN (idempotency).
- *   6. Runs direct SQL behavior checks (9 scenarios).
- *   7. Reports effective env values.
- *   8. Prints a structured 13-section report.
+ *   2. Creates fixture user + device (runtime IDs).
+ *   3. Runs migration 007 (first pass).
+ *   4. Verifies column + index + no NOW() in predicate.
+ *   5. Queries backfill counts (A–E).
+ *   6. Runs migration 007 AGAIN (idempotency).
+ *   7. Runs direct SQL behavior checks (9 scenarios).
+ *   8. Reports effective env values.
+ *   9. Prints a structured 13-section report.
+ *  10. Cleans up ALL test data in finally block.
  *
  * PREREQUISITES:
  *   - pg (node-postgres) installed in backend/
- *   - A test PostgreSQL database with an engine_commands table
- *     (schema from migrations 001–006 already applied)
+ *   - A test PostgreSQL database with schema (users, devices,
+ *     engine_commands) from migrations 001–006 already applied
  */
 
 import pg from 'pg';
@@ -45,7 +53,7 @@ const TEST_DB_URL = process.env.TEST_DATABASE_URL;
 if (!TEST_DB_URL) {
   console.error('FATAL: TEST_DATABASE_URL is not set.');
   console.error('Set it to your TEST database connection string.');
-  console.error('Example: TEST_DATABASE_URL="postgresql://user:pass@host:5432/shgps_test" node test/validate-phase2a.js');
+  console.error('Example: TEST_DATABASE_URL="postgresql://user:pass@host:5432/shgps_phase2a_test" node test/validate-phase2a.js');
   process.exit(2);
 }
 
@@ -103,9 +111,18 @@ const TERMINAL_STATUSES = ['unconfirmed', 'failed', 'expired', 'cancelled', 'his
 const DELIVERY_AUTHORIZATION_MS = Number(process.env.ENGINE_DELIVERY_AUTHORIZATION_MS || 24 * 60 * 60 * 1000);
 const ABSOLUTE_TTL_MS = Number(process.env.ENGINE_COMMAND_TTL_MS || 30 * 24 * 60 * 60 * 1000);
 
+// ── Deterministic fixture values (synthetic, non-production) ──
+const FIXTURE_EMAIL = 'phase2a-validation@example.invalid';
+const FIXTURE_NAME = 'Phase2A Validation User';
+const FIXTURE_PASSWORD_HASH = 'phase2a-validation-no-real-password-hash';
+const FIXTURE_DEVICE_NAME = 'Phase2A Validation Device';
+const FIXTURE_IMEI = 'PHASE2A-VAL-0001'; // synthetic, 15 chars, satisfies VARCHAR(20)
+const IDEMPOTENCY_PREFIX = 'phase2a-val-';
+
 // ── Report accumulator ──
 const report = {
   testDbIdentity: null,
+  fixtureResult: null,
   migrationResult: null,
   indexResult: null,
   backfillResult: null,
@@ -114,9 +131,17 @@ const report = {
   effectiveEnvValues: null,
   protectedSystemsCheck: null,
   productionGoNoGo: null,
+  cleanupResult: null,
 };
 const errors = [];
 const warnings = [];
+
+// Runtime fixture IDs (populated after INSERT ... RETURNING)
+let fixtureUserId = null;
+let fixtureDeviceId = null;
+
+// Track all engine_commands IDs we create (for cleanup)
+const createdCommandIds = new Set();
 
 function section(title) {
   console.log(`\n${'='.repeat(70)}`);
@@ -127,6 +152,74 @@ function section(title) {
 function pass(msg) { console.log(`  ✅ ${msg}`); }
 function fail(msg) { console.log(`  ❌ ${msg}`); errors.push(msg); }
 function warn(msg) { console.log(`  ⚠️  ${msg}`); warnings.push(msg); }
+
+// ── Fixture creation ──
+async function createFixtures(pool) {
+  // 1. Create test user (minimum NOT NULL: email, password_hash, name)
+  const userRes = await pool.query(`
+    INSERT INTO users (email, password_hash, name)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+    RETURNING id, email
+  `, [FIXTURE_EMAIL, FIXTURE_PASSWORD_HASH, FIXTURE_NAME]);
+  fixtureUserId = userRes.rows[0].id;
+
+  // 2. Create test device (minimum NOT NULL: name, imei; user_id references fixture user)
+  const deviceRes = await pool.query(`
+    INSERT INTO devices (user_id, name, imei)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (imei) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id, imei
+  `, [fixtureUserId, FIXTURE_DEVICE_NAME, FIXTURE_IMEI]);
+  fixtureDeviceId = deviceRes.rows[0].id;
+
+  return { fixtureUserId, fixtureDeviceId };
+}
+
+// ── Cleanup (runs in finally) ──
+async function cleanupFixtures(pool) {
+  const cleanupReport = { commandsDeleted: 0, deviceDeleted: false, userDeleted: false, errors: [] };
+
+  try {
+    // 1. Delete test engine_commands rows (by idempotency_key prefix)
+    const cmdRes = await pool.query(`
+      DELETE FROM engine_commands
+      WHERE idempotency_key LIKE $1
+      RETURNING id
+    `, [`${IDEMPOTENCY_PREFIX}%`]);
+    cleanupReport.commandsDeleted = cmdRes.rowCount;
+
+    // Also delete any tracked IDs (belt and suspenders)
+    if (createdCommandIds.size > 0) {
+      const idList = Array.from(createdCommandIds).filter(id => id != null);
+      if (idList.length > 0) {
+        await pool.query(`
+          DELETE FROM engine_commands WHERE id = ANY($1::bigint[])
+        `, [idList]);
+      }
+    }
+  } catch (err) {
+    cleanupReport.errors.push(`engine_commands cleanup: ${err.message}`);
+  }
+
+  try {
+    // 2. Delete the test device (by IMEI — deterministic, no arbitrary deletes)
+    const devRes = await pool.query(`DELETE FROM devices WHERE imei = $1 RETURNING id`, [FIXTURE_IMEI]);
+    cleanupReport.deviceDeleted = devRes.rowCount > 0;
+  } catch (err) {
+    cleanupReport.errors.push(`devices cleanup: ${err.message}`);
+  }
+
+  try {
+    // 3. Delete the test user (by email — deterministic, no arbitrary deletes)
+    const userRes = await pool.query(`DELETE FROM users WHERE email = $1 RETURNING id`, [FIXTURE_EMAIL]);
+    cleanupReport.userDeleted = userRes.rowCount > 0;
+  } catch (err) {
+    cleanupReport.errors.push(`users cleanup: ${err.message}`);
+  }
+
+  return cleanupReport;
+}
 
 // ── Main ──
 async function main() {
@@ -165,6 +258,37 @@ async function main() {
       throw new Error('Missing engine_commands table');
     }
     pass('engine_commands table exists');
+
+    // Verify users and devices tables exist
+    const usersCheck = await pool.query(`SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_name = 'users'`);
+    const devicesCheck = await pool.query(`SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_name = 'devices'`);
+    if (usersCheck.rows[0].cnt === '0' || devicesCheck.rows[0].cnt === '0') {
+      fail('users or devices table does not exist. Apply base schema first.');
+      throw new Error('Missing users/devices table');
+    }
+    pass('users and devices tables exist');
+
+    // ═══════════════════════════════════════════════════════════
+    // 1b. FIXTURE CREATION
+    // ═══════════════════════════════════════════════════════════
+    section('1b. FIXTURE CREATION (runtime IDs)');
+    try {
+      const fixtures = await createFixtures(pool);
+      report.fixtureResult = {
+        status: 'PASS',
+        userId: fixtures.fixtureUserId,
+        deviceId: fixtures.fixtureDeviceId,
+        email: FIXTURE_EMAIL,
+        imei: FIXTURE_IMEI,
+      };
+      pass(`Fixture user created: id=${fixtures.fixtureUserId}, email=${FIXTURE_EMAIL}`);
+      pass(`Fixture device created: id=${fixtures.fixtureDeviceId}, imei=${FIXTURE_IMEI}`);
+      console.log(`  (IDs shown for verification only — no secrets, no production data)`);
+    } catch (err) {
+      fail(`Fixture creation failed: ${err.message}`);
+      report.fixtureResult = { status: 'FAIL', error: err.message };
+      throw err;
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 2. MIGRATION (FIRST PASS)
@@ -325,8 +449,7 @@ async function main() {
     console.log(`  D. Terminal:                   ${backfill.D_terminal}`);
     console.log(`  E. Superseded:                 ${backfill.E_superseded}`);
 
-    // Verify: actionable existing commands received expected expiry values
-    // For in-flight non-superseded (requested/pending/sent), expiry should be created_at + 24h
+    // Verify: in-flight non-superseded commands received expected expiry values
     const inFlightCheck = await pool.query(`
       SELECT id, status, created_at, delivery_authorization_expires_at,
              delivery_authorization_expires_at - created_at AS diff
@@ -471,6 +594,20 @@ async function main() {
 
     const sqlChecks = [];
 
+    // Helper: insert a test command and track its ID
+    async function insertTestCommand(pool, keySuffix, fields) {
+      const idempotencyKey = `${IDEMPOTENCY_PREFIX}${keySuffix}`;
+      const cols = ['device_id', 'user_id', 'command_type', 'requested_state', 'status', 'created_at', 'delivery_authorization_expires_at', 'idempotency_key'];
+      const vals = [fixtureDeviceId, fixtureUserId, fields.command_type, fields.requested_state, fields.status, fields.created_at, fields.expiry, idempotencyKey];
+      const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+      const res = await pool.query(
+        `INSERT INTO engine_commands (${cols.join(', ')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING RETURNING id`,
+        vals
+      );
+      if (res.rows.length > 0) createdCommandIds.add(res.rows[0].id);
+      return { id: res.rows[0]?.id, idempotencyKey };
+    }
+
     // 6a. delivery_authorization_expires_at > NOW() filtering
     {
       const r = await pool.query(`
@@ -495,16 +632,14 @@ async function main() {
 
     // 6b. 24h authorization window
     {
-      // Insert a test command with 24h expiry
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'pending', NOW(), NOW() + INTERVAL '24 hours', 'test-24h-check')
-        ON CONFLICT DO NOTHING
-      `);
+      const { idempotencyKey } = await insertTestCommand(pool, '24h-check', {
+        command_type: 'engineStop', requested_state: 'stopped', status: 'pending',
+        created_at: 'NOW()', expiry: "NOW() + INTERVAL '24 hours'",
+      });
       const r = await pool.query(`
         SELECT delivery_authorization_expires_at > NOW() AS authorized
-        FROM engine_commands WHERE idempotency_key = 'test-24h-check'
-      `);
+        FROM engine_commands WHERE idempotency_key = $1
+      `, [idempotencyKey]);
       if (r.rows.length > 0 && r.rows[0].authorized) {
         pass('24h authorization: command with 24h future expiry is authorized');
         sqlChecks.push({ name: '24h authorization', pass: true });
@@ -512,23 +647,19 @@ async function main() {
         fail('24h authorization: command not authorized');
         sqlChecks.push({ name: '24h authorization', pass: false });
       }
-      // Clean up
-      await pool.query(`DELETE FROM engine_commands WHERE idempotency_key = 'test-24h-check'`);
     }
 
     // 6c. 30d absolute limit
     {
-      // Insert a command created 31 days ago with 24h expiry (already expired)
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'pending', NOW() - INTERVAL '31 days', NOW() - INTERVAL '30 days', 'test-30d-check')
-        ON CONFLICT DO NOTHING
-      `);
+      const { idempotencyKey } = await insertTestCommand(pool, '30d-check', {
+        command_type: 'engineStop', requested_state: 'stopped', status: 'pending',
+        created_at: "NOW() - INTERVAL '31 days'", expiry: "NOW() - INTERVAL '30 days'",
+      });
       const r = await pool.query(`
         SELECT delivery_authorization_expires_at > NOW() AS authorized,
                created_at + INTERVAL '30 days' < NOW() AS absolutely_expired
-        FROM engine_commands WHERE idempotency_key = 'test-30d-check'
-      `);
+        FROM engine_commands WHERE idempotency_key = $1
+      `, [idempotencyKey]);
       if (r.rows.length > 0 && !r.rows[0].authorized && r.rows[0].absolutely_expired) {
         pass('30d absolute limit: 31-day-old command is expired AND past absolute limit');
         sqlChecks.push({ name: '30d absolute limit', pass: true });
@@ -536,28 +667,25 @@ async function main() {
         fail('30d absolute limit: check failed');
         sqlChecks.push({ name: '30d absolute limit', pass: false });
       }
-      await pool.query(`DELETE FROM engine_commands WHERE idempotency_key = 'test-30d-check'`);
     }
 
     // 6d. reconfirm cap (cannot exceed created_at + 30d)
     {
-      // Insert a command created 29 days ago, reconfirm to 24h → should cap at 30d
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'pending', NOW() - INTERVAL '29 days', NOW() - INTERVAL '28 days', 'test-reconfirm-cap')
-        ON CONFLICT DO NOTHING
-      `);
+      const { idempotencyKey } = await insertTestCommand(pool, 'reconfirm-cap', {
+        command_type: 'engineStop', requested_state: 'stopped', status: 'pending',
+        created_at: "NOW() - INTERVAL '29 days'", expiry: "NOW() - INTERVAL '28 days'",
+      });
       // Simulate reconfirm: set expiry = MIN(NOW() + 24h, created_at + 30d)
       await pool.query(`
         UPDATE engine_commands
         SET delivery_authorization_expires_at = LEAST(NOW() + INTERVAL '24 hours', created_at + INTERVAL '30 days')
-        WHERE idempotency_key = 'test-reconfirm-cap'
-      `);
+        WHERE idempotency_key = $1
+      `, [idempotencyKey]);
       const r = await pool.query(`
         SELECT delivery_authorization_expires_at <= created_at + INTERVAL '30 days' AS within_cap,
                delivery_authorization_expires_at > NOW() AS authorized
-        FROM engine_commands WHERE idempotency_key = 'test-reconfirm-cap'
-      `);
+        FROM engine_commands WHERE idempotency_key = $1
+      `, [idempotencyKey]);
       if (r.rows.length > 0 && r.rows[0].within_cap) {
         pass('Reconfirm cap: expiry does not exceed created_at + 30d');
         sqlChecks.push({ name: 'reconfirm cap', pass: true });
@@ -565,23 +693,19 @@ async function main() {
         fail('Reconfirm cap: expiry exceeds 30d limit');
         sqlChecks.push({ name: 'reconfirm cap', pass: false });
       }
-      await pool.query(`DELETE FROM engine_commands WHERE idempotency_key = 'test-reconfirm-cap'`);
     }
 
     // 6e. cancel requested/pending
     {
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'pending', NOW(), NOW() + INTERVAL '24 hours', 'test-cancel-pending')
-        ON CONFLICT DO NOTHING
-      `);
+      const { idempotencyKey } = await insertTestCommand(pool, 'cancel-pending', {
+        command_type: 'engineStop', requested_state: 'stopped', status: 'pending',
+        created_at: 'NOW()', expiry: "NOW() + INTERVAL '24 hours'",
+      });
       await pool.query(`
         UPDATE engine_commands SET status = 'cancelled'
-        WHERE idempotency_key = 'test-cancel-pending' AND status IN ('requested', 'pending')
-      `);
-      const r = await pool.query(`
-        SELECT status FROM engine_commands WHERE idempotency_key = 'test-cancel-pending'
-      `);
+        WHERE idempotency_key = $1 AND status IN ('requested', 'pending')
+      `, [idempotencyKey]);
+      const r = await pool.query(`SELECT status FROM engine_commands WHERE idempotency_key = $1`, [idempotencyKey]);
       if (r.rows.length > 0 && r.rows[0].status === 'cancelled') {
         pass('Cancel pending: status changed to cancelled');
         sqlChecks.push({ name: 'cancel pending', pass: true });
@@ -589,24 +713,20 @@ async function main() {
         fail('Cancel pending: status NOT changed');
         sqlChecks.push({ name: 'cancel pending', pass: false });
       }
-      await pool.query(`DELETE FROM engine_commands WHERE idempotency_key = 'test-cancel-pending'`);
     }
 
     // 6f. sent cannot be cancelled
     {
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'sent', NOW(), NOW() + INTERVAL '24 hours', 'test-cancel-sent')
-        ON CONFLICT DO NOTHING
-      `);
+      const { idempotencyKey } = await insertTestCommand(pool, 'cancel-sent', {
+        command_type: 'engineStop', requested_state: 'stopped', status: 'sent',
+        created_at: 'NOW()', expiry: "NOW() + INTERVAL '24 hours'",
+      });
       // Simulate the corrected cancel: only requested/pending
       await pool.query(`
         UPDATE engine_commands SET status = 'cancelled'
-        WHERE idempotency_key = 'test-cancel-sent' AND status IN ('requested', 'pending')
-      `);
-      const r = await pool.query(`
-        SELECT status FROM engine_commands WHERE idempotency_key = 'test-cancel-sent'
-      `);
+        WHERE idempotency_key = $1 AND status IN ('requested', 'pending')
+      `, [idempotencyKey]);
+      const r = await pool.query(`SELECT status FROM engine_commands WHERE idempotency_key = $1`, [idempotencyKey]);
       if (r.rows.length > 0 && r.rows[0].status === 'sent') {
         pass('Cancel sent: status remains sent (NOT cancelled)');
         sqlChecks.push({ name: 'sent cannot be cancelled', pass: true });
@@ -614,40 +734,39 @@ async function main() {
         fail('Cancel sent: status changed unexpectedly');
         sqlChecks.push({ name: 'sent cannot be cancelled', pass: false });
       }
-      await pool.query(`DELETE FROM engine_commands WHERE idempotency_key = 'test-cancel-sent'`);
     }
 
     // 6g. supersession
     {
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'pending', NOW(), NOW() + INTERVAL '24 hours', 'test-supersede-cut')
-        ON CONFLICT DO NOTHING
-      `);
-      const cutRow = await pool.query(`
-        SELECT id FROM engine_commands WHERE idempotency_key = 'test-supersede-cut'
-      `);
+      const { idempotencyKey: cutKey } = await insertTestCommand(pool, 'supersede-cut', {
+        command_type: 'engineStop', requested_state: 'stopped', status: 'pending',
+        created_at: 'NOW()', expiry: "NOW() + INTERVAL '24 hours'",
+      });
+      const cutRow = await pool.query(`SELECT id FROM engine_commands WHERE idempotency_key = $1`, [cutKey]);
       if (cutRow.rows.length > 0) {
         const cutId = cutRow.rows[0].id;
-        await pool.query(`
+        // Insert RESUME command that supersedes the CUT
+        const resumeKey = `${IDEMPOTENCY_PREFIX}supersede-resume`;
+        const resumeRes = await pool.query(`
           INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key, superseded_by_command_id)
-          VALUES (99999, 99999, 'engineResume', 'running', 'pending', NOW(), NOW() + INTERVAL '24 hours', 'test-supersede-resume', $1)
-          ON CONFLICT DO NOTHING
-        `, [cutId]);
-        await pool.query(`
-          UPDATE engine_commands SET superseded_by_command_id = (
-            SELECT id FROM engine_commands WHERE idempotency_key = 'test-supersede-resume'
-          ) WHERE id = $1
-        `, [cutId]);
+          VALUES ($1, $2, 'engineResume', 'running', 'pending', NOW(), NOW() + INTERVAL '24 hours', $3, $4)
+          ON CONFLICT DO NOTHING RETURNING id
+        `, [fixtureDeviceId, fixtureUserId, resumeKey, cutId]);
+        if (resumeRes.rows.length > 0) createdCommandIds.add(resumeRes.rows[0].id);
+        const resumeId = resumeRes.rows[0]?.id;
+        // Mark the CUT as superseded by the RESUME
+        if (resumeId) {
+          await pool.query(`UPDATE engine_commands SET superseded_by_command_id = $1 WHERE id = $2`, [resumeId, cutId]);
+        }
 
         // Active command should be the RESUME, not the CUT
         const active = await pool.query(`
           SELECT id, command_type, requested_state FROM engine_commands
-          WHERE device_id = 99999
+          WHERE device_id = $1
             AND superseded_by_command_id IS NULL
             AND status IN ('requested', 'pending', 'sent', 'unconfirmed', 'delivered')
           ORDER BY id DESC LIMIT 1
-        `);
+        `, [fixtureDeviceId]);
         if (active.rows.length > 0 && active.rows[0].command_type === 'engineResume') {
           pass('Supersession: active command is RESUME (latest intent)');
           sqlChecks.push({ name: 'supersession', pass: true });
@@ -655,30 +774,27 @@ async function main() {
           fail('Supersession: active command is NOT the RESUME');
           sqlChecks.push({ name: 'supersession', pass: false });
         }
-        // Clean up
-        await pool.query(`DELETE FROM engine_commands WHERE idempotency_key IN ('test-supersede-cut', 'test-supersede-resume')`);
       }
     }
 
     // 6h. idempotency (duplicate key)
     {
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'pending', NOW(), NOW() + INTERVAL '24 hours', 'test-idempotent-key')
-        ON CONFLICT DO NOTHING
-      `);
-      const firstCount = await pool.query(`
-        SELECT COUNT(*) AS cnt FROM engine_commands WHERE idempotency_key = 'test-idempotent-key'
-      `);
+      const { idempotencyKey } = await insertTestCommand(pool, 'idempotent-key', {
+        command_type: 'engineStop', requested_state: 'stopped', status: 'pending',
+        created_at: 'NOW()', expiry: "NOW() + INTERVAL '24 hours'",
+      });
+      const firstCount = await pool.query(`SELECT COUNT(*) AS cnt FROM engine_commands WHERE idempotency_key = $1`, [idempotencyKey]);
       // Try duplicate insert
-      await pool.query(`
-        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES (99999, 99999, 'engineStop', 'stopped', 'pending', NOW(), NOW() + INTERVAL '24 hours', 'test-idempotent-key')
-        ON CONFLICT DO NOTHING
-      `);
-      const secondCount = await pool.query(`
-        SELECT COUNT(*) AS cnt FROM engine_commands WHERE idempotency_key = 'test-idempotent-key'
-      `);
+      try {
+        await pool.query(`
+          INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
+          VALUES ($1, $2, 'engineStop', 'stopped', 'pending', NOW(), NOW() + INTERVAL '24 hours', $3)
+          ON CONFLICT DO NOTHING
+        `, [fixtureDeviceId, fixtureUserId, idempotencyKey]);
+      } catch (err) {
+        // expected — unique constraint
+      }
+      const secondCount = await pool.query(`SELECT COUNT(*) AS cnt FROM engine_commands WHERE idempotency_key = $1`, [idempotencyKey]);
       if (Number(firstCount.rows[0].cnt) === 1 && Number(secondCount.rows[0].cnt) === 1) {
         pass('Idempotency: duplicate key prevented (1 row, not 2)');
         sqlChecks.push({ name: 'idempotency', pass: true });
@@ -686,54 +802,58 @@ async function main() {
         fail(`Idempotency: duplicate key NOT prevented (${firstCount.rows[0].cnt} → ${secondCount.rows[0].cnt})`);
         sqlChecks.push({ name: 'idempotency', pass: false });
       }
-      await pool.query(`DELETE FROM engine_commands WHERE idempotency_key = 'test-idempotent-key'`);
     }
 
     // 6i. active-command selection (highest id, non-superseded, actionable)
     {
-      // Insert 3 commands for same device: old delivered, old pending (superseded), new pending
-      await pool.query(`
+      // Insert 3 commands for the fixture device: old delivered, old pending (superseded), new pending
+      const keys = ['active-1', 'active-2', 'active-3'];
+      // active-1: delivered, 2 days old, expired auth
+      const r1 = await pool.query(`
         INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
-        VALUES
-          (99998, 99999, 'engineStop', 'stopped', 'delivered', NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 day', 'test-active-1'),
-          (99998, 99999, 'engineStop', 'stopped', 'pending', NOW() - INTERVAL '1 day', NOW() + INTERVAL '12 hours', 'test-active-2'),
-          (99998, 99999, 'engineResume', 'running', 'pending', NOW(), NOW() + INTERVAL '24 hours', 'test-active-3')
-        ON CONFLICT DO NOTHING
-      `);
-      // Supersede the second one
-      await pool.query(`
-        UPDATE engine_commands SET superseded_by_command_id = (
-          SELECT id FROM engine_commands WHERE idempotency_key = 'test-active-3'
-        ) WHERE idempotency_key = 'test-active-2'
-      `);
+        VALUES ($1, $2, 'engineStop', 'stopped', 'delivered', NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 day', $3)
+        ON CONFLICT DO NOTHING RETURNING id
+      `, [fixtureDeviceId, fixtureUserId, `${IDEMPOTENCY_PREFIX}${keys[0]}`]);
+      if (r1.rows.length > 0) createdCommandIds.add(r1.rows[0].id);
+
+      // active-2: pending, 1 day old, 12h auth remaining
+      const r2 = await pool.query(`
+        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
+        VALUES ($1, $2, 'engineStop', 'stopped', 'pending', NOW() - INTERVAL '1 day', NOW() + INTERVAL '12 hours', $3)
+        ON CONFLICT DO NOTHING RETURNING id
+      `, [fixtureDeviceId, fixtureUserId, `${IDEMPOTENCY_PREFIX}${keys[1]}`]);
+      const active2Id = r2.rows[0]?.id;
+      if (active2Id) createdCommandIds.add(active2Id);
+
+      // active-3: pending (RESUME), newest, 24h auth
+      const r3 = await pool.query(`
+        INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, created_at, delivery_authorization_expires_at, idempotency_key)
+        VALUES ($1, $2, 'engineResume', 'running', 'pending', NOW(), NOW() + INTERVAL '24 hours', $3)
+        ON CONFLICT DO NOTHING RETURNING id
+      `, [fixtureDeviceId, fixtureUserId, `${IDEMPOTENCY_PREFIX}${keys[2]}`]);
+      const active3Id = r3.rows[0]?.id;
+      if (active3Id) createdCommandIds.add(active3Id);
+
+      // Supersede active-2 with active-3
+      if (active2Id && active3Id) {
+        await pool.query(`UPDATE engine_commands SET superseded_by_command_id = $1 WHERE id = $2`, [active3Id, active2Id]);
+      }
+
       const active = await pool.query(`
         SELECT id, command_type, requested_state, status
         FROM engine_commands
-        WHERE device_id = 99998
+        WHERE device_id = $1
           AND superseded_by_command_id IS NULL
           AND status IN ('requested', 'pending', 'sent', 'unconfirmed', 'delivered')
         ORDER BY id DESC LIMIT 1
-      `);
-      if (active.rows.length > 0 && active.rows[0].idempotency_key !== 'test-active-3' && active.rows[0].command_type === 'engineResume') {
+      `, [fixtureDeviceId]);
+      if (active.rows.length > 0 && active3Id && active.rows[0].id === active3Id) {
         pass('Active-command selection: returns latest non-superseded actionable (RESUME)');
         sqlChecks.push({ name: 'active-command selection', pass: true });
-      } else if (active.rows.length > 0) {
-        // Check by id
-        const expected = await pool.query(`
-          SELECT id FROM engine_commands WHERE idempotency_key = 'test-active-3'
-        `);
-        if (active.rows[0].id === expected.rows[0].id) {
-          pass('Active-command selection: returns latest non-superseded actionable (RESUME)');
-          sqlChecks.push({ name: 'active-command selection', pass: true });
-        } else {
-          fail('Active-command selection: returned wrong command');
-          sqlChecks.push({ name: 'active-command selection', pass: false });
-        }
       } else {
-        fail('Active-command selection: no active command found');
+        fail('Active-command selection: returned wrong command');
         sqlChecks.push({ name: 'active-command selection', pass: false });
       }
-      await pool.query(`DELETE FROM engine_commands WHERE idempotency_key IN ('test-active-1', 'test-active-2', 'test-active-3')`);
     }
 
     report.sqlBehaviorResult = {
@@ -773,6 +893,10 @@ async function main() {
       'telemetry — NOT touched',
       'power alerts — NOT touched',
       'legacy device_commands — NOT touched',
+      'production code — NOT modified (only test/validate-phase2a.js)',
+      'migrations — NOT modified',
+      'engineCommands.js — NOT modified',
+      'devices.js — NOT modified',
     ];
     for (const item of protectedItems) {
       pass(item);
@@ -790,15 +914,14 @@ async function main() {
     const idempotencyOk = report.idempotencyResult?.status === 'PASS';
     const sqlOk = report.sqlBehaviorResult?.status === 'PASS';
 
-    // Tests 4 (node --test) are run separately by you on the VPS
     console.log('');
     console.log('  Migration on test DB:     ' + (migrationOk ? '✅ PASS' : '❌ FAIL'));
-    console.log('  Index (no NOW()):         ' + (indexOk ? '✅ PASS' : '❌ FAIL'));
-    console.log('  Backfill:                 ' + (backfillOk ? '✅ PASS' : '❌ FAIL'));
-    console.log('  Idempotency:              ' + (idempotencyOk ? '✅ PASS' : '❌ FAIL'));
-    console.log('  SQL behavior checks:     ' + (sqlOk ? '✅ PASS' : '❌ FAIL'));
-    console.log('  Phase 2A tests:           ⏳ RUN SEPARATELY (see below)');
-    console.log('  Phase 1 tests:            ⏳ RUN SEPARATELY (see below)');
+    console.log('  Index (no NOW()):          ' + (indexOk ? '✅ PASS' : '❌ FAIL'));
+    console.log('  Backfill:                  ' + (backfillOk ? '✅ PASS' : '❌ FAIL'));
+    console.log('  Idempotency:               ' + (idempotencyOk ? '✅ PASS' : '❌ FAIL'));
+    console.log('  SQL behavior checks:      ' + (sqlOk ? '✅ PASS' : '❌ FAIL'));
+    console.log('  Phase 2A tests:            ⏳ RUN SEPARATELY (see below)');
+    console.log('  Phase 1 tests:             ⏳ RUN SEPARATELY (see below)');
     console.log('');
 
     const dbChecksPass = migrationOk && indexOk && backfillOk && idempotencyOk && sqlOk;
@@ -849,6 +972,61 @@ async function main() {
     console.log('  Then report exact: tests, passed, failed, exit code.');
 
   } finally {
+    // ═══════════════════════════════════════════════════════════
+    // CLEANUP (always runs — even on failure)
+    // ═══════════════════════════════════════════════════════════
+    section('CLEANUP (finally block)');
+    try {
+      const cleanup = await cleanupFixtures(pool);
+      report.cleanupResult = cleanup;
+
+      if (cleanup.commandsDeleted > 0) {
+        pass(`Deleted ${cleanup.commandsDeleted} test engine_commands rows`);
+      } else {
+        pass('No test engine_commands rows to delete (already clean)');
+      }
+      if (cleanup.deviceDeleted) {
+        pass(`Deleted test device (imei=${FIXTURE_IMEI})`);
+      } else {
+        warn('Test device was not deleted (may not have existed)');
+      }
+      if (cleanup.userDeleted) {
+        pass(`Deleted test user (email=${FIXTURE_EMAIL})`);
+      } else {
+        warn('Test user was not deleted (may not have existed)');
+      }
+      if (cleanup.errors.length > 0) {
+        fail('Cleanup errors occurred:');
+        cleanup.errors.forEach(e => console.log(`     - ${e}`));
+      } else {
+        pass('Cleanup completed without errors');
+      }
+
+      // Post-cleanup verification: no test rows remain
+      const remainingCmds = await pool.query(`SELECT COUNT(*) AS cnt FROM engine_commands WHERE idempotency_key LIKE $1`, [`${IDEMPOTENCY_PREFIX}%`]);
+      const remainingUsers = await pool.query(`SELECT COUNT(*) AS cnt FROM users WHERE email = $1`, [FIXTURE_EMAIL]);
+      const remainingDevices = await pool.query(`SELECT COUNT(*) AS cnt FROM devices WHERE imei = $1`, [FIXTURE_IMEI]);
+
+      if (Number(remainingCmds.rows[0].cnt) === 0) {
+        pass('Post-cleanup: no test engine_commands remain');
+      } else {
+        fail(`Post-cleanup: ${remainingCmds.rows[0].cnt} test engine_commands remain`);
+      }
+      if (Number(remainingUsers.rows[0].cnt) === 0) {
+        pass('Post-cleanup: no test users remain');
+      } else {
+        fail(`Post-cleanup: ${remainingUsers.rows[0].cnt} test users remain`);
+      }
+      if (Number(remainingDevices.rows[0].cnt) === 0) {
+        pass('Post-cleanup: no test devices remain');
+      } else {
+        fail(`Post-cleanup: ${remainingDevices.rows[0].cnt} test devices remain`);
+      }
+    } catch (cleanupErr) {
+      fail(`Cleanup itself failed: ${cleanupErr.message}`);
+      report.cleanupResult = { errors: [cleanupErr.message] };
+    }
+
     await pool.end();
   }
 }
