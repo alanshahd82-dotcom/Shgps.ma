@@ -601,6 +601,32 @@ import {
     } catch (err) { console.error(err); res.status(500).json({ error:'Server error' }) }
     })
 
+    // GET /:id/active-command — Phase 1: authoritative engine command state.
+    // Returns the latest non-superseded actionable command or null. Read-only:
+    // never mutates command rows, never sends a Traccar command, never reads
+    // legacy device_commands as live state. The frontend uses this to derive
+    // the CUT/RESUME button state instead of inferring it from ignition telemetry.
+    devicesRouter.get('/:id/active-command', requireAuth, requireDeviceOwner, async (req, res) => {
+      try {
+        const dev = req.device
+        const command = await engineCommands.getActiveCommand(dev.id)
+        if (!command) return res.json({ command: null })
+        res.json({
+          command: {
+            id: command.id,
+            type: command.command_type,
+            requested_state: command.requested_state,
+            status: command.status,
+            created_at: command.created_at,
+            traccar_command_id: command.traccar_command_id ?? null,
+          },
+        })
+      } catch (err) {
+        console.error('[active-command error]', err.message)
+        res.status(500).json({ error: 'Failed to read active command: ' + err.message })
+      }
+    })
+
         devicesRouter.post('/:id/command', requireAuth, requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
