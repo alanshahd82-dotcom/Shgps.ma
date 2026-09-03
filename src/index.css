@@ -276,7 +276,8 @@
 }
 
 .vehicle-control-map__engine-error,
-.vehicle-control-map__engine-success {
+.vehicle-control-map__engine-success,
+.vehicle-control-map__engine-caution {
   position: absolute;
   top: 96px;
   left: 0;
@@ -297,6 +298,10 @@
 .vehicle-control-map__engine-success {
   color: #86efac !important;
   font-weight: 700;
+}
+
+.vehicle-control-map__engine-caution {
+  color: #fcd34d !important;
 }
 
 .engine-cutoff-button {
