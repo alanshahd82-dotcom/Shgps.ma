@@ -13,6 +13,13 @@ import assert from 'node:assert/strict';
 import pg from 'pg';
 const { Pool } = pg;
 
+// Set synthetic test-only JWT_SECRET before importing the real module.
+// config.js only checks presence — it does not validate the value.
+// This is NOT the production secret; it only allows the module to load.
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'test-jwt-secret-not-for-production';
+}
+
 // ── Safety gate ──
 const TEST_DB_URL = process.env.TEST_DATABASE_URL;
 let pool = null;
