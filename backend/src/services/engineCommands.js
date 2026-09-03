@@ -435,6 +435,20 @@ export async function deliverOnce(command, dev) {
     } catch (e) {
       console.warn('[engine] protocol lookup failed; defaulting:', e.message)
     }
+    // ── Protocol fallback: Device.protocol is not a stored field in Traccar.
+    //    The latest Position stores protocol as a database column (tc_positions).
+    //    Use it when the Device REST API did not provide one. ──
+    if (!protocol) {
+      try {
+        const positions = await traccar.getAllPositions()
+        const pos = (positions || []).find(p => p.deviceId === dev.traccar_id)
+        if (pos?.protocol) {
+          protocol = String(pos.protocol).toLowerCase()
+        }
+      } catch (e) {
+        console.warn('[engine] position protocol lookup failed:', e.message)
+      }
+    }
     const { cmd } = resolveCommand(cur.command_type, traccarDevice, protocol)
 
     let response
