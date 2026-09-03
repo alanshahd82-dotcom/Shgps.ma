@@ -54,7 +54,13 @@ const WORKER_BATCH = 50
 const WORKER_INTERVAL_MS = Number(process.env.ENGINE_WORKER_INTERVAL_MS || 30000)
 // Pending commands older than this TTL are expired by the worker to prevent
 // stale delivery on a future device reconnect (Phase 2 — stale command fix).
-const COMMAND_TTL_MS = Number(process.env.ENGINE_COMMAND_TTL_MS || 24 * 60 * 60 * 1000) // 24h default
+// Phase 2A: Delivery authorization window. Automatic delivery is only
+// permitted while NOW() < delivery_authorization_expires_at. Default 24h.
+const DELIVERY_AUTHORIZATION_MS = Number(process.env.ENGINE_DELIVERY_AUTHORIZATION_MS || 24 * 60 * 60 * 1000)
+// Phase 2A: Absolute hard safety limit. No command may be delivered or
+// reconfirmed after created_at + ABSOLUTE_TTL_MS. Default 30 days.
+// Reconfirmation can NEVER extend beyond this limit.
+const ABSOLUTE_TTL_MS = Number(process.env.ENGINE_COMMAND_TTL_MS || 30 * 24 * 60 * 60 * 1000)
 
 // In-flight delivery guard (single process): prevents the route, the poll
 // worker and the WS hook from sending the same command twice.
@@ -119,7 +125,24 @@ function mapRow(row) {
     superseded_by_command_id: row.superseded_by_command_id ?? null,
     cancellation_state: row.cancellation_state ?? null,
     cancellation_confirmed_at: row.cancellation_confirmed_at ?? null,
+    delivery_authorization_expires_at: row.delivery_authorization_expires_at ?? null,
+    delivery_authorized: isDeliveryAuthorized(row),
   }
+}
+
+// Phase 2A: Delivery authorization check. A command is authorized for automatic
+// delivery only when:
+//   1. delivery_authorization_expires_at > NOW() (within the 24h window)
+//   2. created_at + ABSOLUTE_TTL_MS > NOW() (within the 30-day absolute limit)
+// Reconfirmation can extend (1) but can NEVER extend (2).
+function isDeliveryAuthorized(row) {
+  if (!row || !row.delivery_authorization_expires_at) return false
+  const now = Date.now()
+  const authExpiry = new Date(row.delivery_authorization_expires_at).getTime()
+  if (authExpiry <= now) return false
+  const createdAt = new Date(row.created_at).getTime()
+  if (now >= createdAt + ABSOLUTE_TTL_MS) return false
+  return true
 }
 
 // Phase 2F helpers
@@ -218,8 +241,11 @@ export async function createRequest({
 
     // 3) Insert PENDING (offline-safe default; delivery attempted next).
     const insert = await client.query(
-      'INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, idempotency_key, protocol, command_profile, traccar_device_id, ip_address) VALUES ($1,$2,$3,$4,\'pending\',$5,$6,$7,$8,$9) RETURNING *',
-      [deviceId, userId, commandType, requestedState, key, protocol, commandProfile, traccarDeviceId, ip]
+    // Phase 2A: Set delivery authorization window, capped by the 30-day absolute limit.
+    const _nowMs = Date.now()
+    const _authExpiry = new Date(Math.min(_nowMs + DELIVERY_AUTHORIZATION_MS, _nowMs + ABSOLUTE_TTL_MS))
+      'INSERT INTO engine_commands (device_id, user_id, command_type, requested_state, status, idempotency_key, protocol, command_profile, traccar_device_id, ip_address, delivery_authorization_expires_at) VALUES ($1,$2,$3,$4,\'pending\',$5,$6,$7,$8,$9,$10) RETURNING *',
+      [deviceId, userId, commandType, requestedState, key, protocol, commandProfile, traccarDeviceId, ip, _authExpiry]
     )
     if (latestRow) {
       await client.query('UPDATE engine_commands SET superseded_by_command_id = $1, updated_at = NOW() WHERE id = $2', [insert.rows[0].id, latestRow.id])
@@ -472,7 +498,7 @@ export async function processPendingCommands() {
   let pending
   try {
     pending = await db.query(
-      "SELECT e.id FROM engine_commands e WHERE e.status = 'pending' AND e.superseded_by_command_id IS NULL AND NOT EXISTS (SELECT 1 FROM engine_commands c WHERE c.device_id = e.device_id AND c.cancellation_state = 'pending' AND c.traccar_command_id > 0) ORDER BY e.created_at ASC LIMIT $1",
+      "SELECT e.id FROM engine_commands e WHERE e.status = 'pending' AND e.superseded_by_command_id IS NULL AND e.delivery_authorization_expires_at > NOW() AND NOT EXISTS (SELECT 1 FROM engine_commands c WHERE c.device_id = e.device_id AND c.cancellation_state = 'pending' AND c.traccar_command_id > 0) ORDER BY e.created_at ASC LIMIT $1",
       [WORKER_BATCH]
     )
   } catch (e) { console.error('[engine-worker] pending query failed:', e.message); return }
@@ -501,12 +527,12 @@ export async function processPendingCommands() {
   // has been linked to unsolicited relay activations. Expiring removes it from
   // the delivery queue safely (terminal 'expired' state, never physically sent).
   try {
-    const cutoff = new Date(Date.now() - COMMAND_TTL_MS)
+    const cutoff = new Date(Date.now() - ABSOLUTE_TTL_MS)
     const exp = await db.query(
       "UPDATE engine_commands SET status = 'expired', updated_at = NOW(), resolved_at = NOW() WHERE status = 'pending' AND superseded_by_command_id IS NULL AND created_at < $1",
       [cutoff]
     )
-    if (exp.rowCount > 0) console.log('[engine-worker] expired', exp.rowCount, 'stale pending commands (TTL=' + COMMAND_TTL_MS + 'ms)')
+    if (exp.rowCount > 0) console.log('[engine-worker] expired', exp.rowCount, 'stale pending commands (absolute TTL=' + ABSOLUTE_TTL_MS + 'ms)')
   } catch (e) { console.error('[engine-worker] expiration failed:', e.message) }
 }
 
@@ -522,7 +548,7 @@ export async function processPendingCommandsForDevice(deviceId) {
   let pending
   try {
     pending = await db.query(
-      "SELECT id FROM engine_commands WHERE device_id = $1 AND status = 'pending' AND superseded_by_command_id IS NULL AND NOT EXISTS (SELECT 1 FROM engine_commands c WHERE c.device_id = $1 AND c.cancellation_state = 'pending' AND c.traccar_command_id > 0) ORDER BY created_at ASC LIMIT 10",
+      "SELECT id FROM engine_commands WHERE device_id = $1 AND status = 'pending' AND superseded_by_command_id IS NULL AND delivery_authorization_expires_at > NOW() AND NOT EXISTS (SELECT 1 FROM engine_commands c WHERE c.device_id = $1 AND c.cancellation_state = 'pending' AND c.traccar_command_id > 0) ORDER BY created_at ASC LIMIT 10",
       [deviceId]
     )
   } catch (e) { return }
@@ -570,6 +596,42 @@ async function maybeConfirmQueued(cmd, dev) {
   } catch (e) {
     console.warn('[engine-worker] maybeConfirmQueued', cmd.id, 'failed:', e.message)
   }
+}
+
+// ── Phase 2A: Delivery authorization ──────────────────────────────────
+// Reconfirm a pending command's delivery authorization. Extends the
+// authorization window by up to 24h, but NEVER beyond created_at + 30 days.
+// Does NOT create a new command — preserves the same command id and intent.
+// Does NOT revive terminal/expired commands.
+export async function reconfirmCommand(commandId, deviceId = null) {
+  const cmd = await getCommand(commandId, deviceId)
+  if (!cmd) throw new InvalidCommandError('Command not found')
+  if (!IN_FLIGHT_STATUSES.includes(cmd.status)) {
+    throw new InvalidCommandError('Only pending/requested/sent commands can be reconfirmed')
+  }
+  const createdAt = new Date(cmd.created_at).getTime()
+  const absoluteExpiry = createdAt + ABSOLUTE_TTL_MS
+  if (Date.now() >= absoluteExpiry) {
+    throw new InvalidCommandError('Command has exceeded the 30-day absolute lifetime limit and cannot be reconfirmed')
+  }
+  const now = Date.now()
+  const newAuthExpiry = new Date(Math.min(now + DELIVERY_AUTHORIZATION_MS, absoluteExpiry))
+  await db.query(
+    'UPDATE engine_commands SET delivery_authorization_expires_at = $1, updated_at = NOW() WHERE id = $2',
+    [newAuthExpiry, commandId]
+  )
+  return getCommand(commandId, deviceId)
+}
+
+// Cancel the active command for a device. Only pre-delivery states
+// (requested/pending) may be cancelled. Sent/unconfirmed/delivered commands
+// have already left the server and cannot be recalled; supersession is the
+// only way to change state then. Never touches legacy device_commands.
+export async function cancelActiveCommand(deviceId) {
+  const cmd = await getActiveCommand(deviceId)
+  if (!cmd) return null
+  if (!IN_FLIGHT_STATUSES.includes(cmd.status)) return cmd
+  return cancel(cmd.id, deviceId)
 }
 
 // Start the poll worker (called once at boot from index.js).

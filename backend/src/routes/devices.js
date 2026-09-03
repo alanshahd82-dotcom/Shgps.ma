@@ -619,11 +619,68 @@ import {
             status: command.status,
             created_at: command.created_at,
             traccar_command_id: command.traccar_command_id ?? null,
+            delivery_authorized: command.delivery_authorized ?? false,
+            delivery_authorization_expires_at: command.delivery_authorization_expires_at ?? null,
           },
         })
       } catch (err) {
         console.error('[active-command error]', err.message)
         res.status(500).json({ error: 'Failed to read active command: ' + err.message })
+      }
+    })
+
+    // POST /:id/active-command/reconfirm — Phase 2A: reauthorize delivery for
+    // a pending command whose authorization window has expired. Extends the
+    // window by 24h, capped by the 30-day absolute limit. Does NOT create a
+    // new command. Does NOT send a Traccar command directly.
+    devicesRouter.post('/:id/active-command/reconfirm', requireAuth, requireDeviceOwner, async (req, res) => {
+      try {
+        const dev = req.device
+        const command = await engineCommands.getActiveCommand(dev.id)
+        if (!command) return res.status(404).json({ error: 'No active command to reconfirm' })
+        if (!engineCommands.IN_FLIGHT_STATUSES.includes(command.status)) {
+          return res.status(409).json({ error: 'Command is not pending; cannot reconfirm', command })
+        }
+        try {
+          const reconfirmed = await engineCommands.reconfirmCommand(command.id, dev.id)
+          await logAudit(req.user.id, 'engine_reconfirm', 'device', dev.id, {
+            commandId: reconfirmed?.id,
+            delivery_authorization_expires_at: reconfirmed?.delivery_authorization_expires_at,
+          }).catch(() => {})
+          res.json({ command: reconfirmed })
+        } catch (e) {
+          if (e.code === 'INVALID_COMMAND') {
+            return res.status(409).json({ error: e.message, code: e.code })
+          }
+          throw e
+        }
+      } catch (err) {
+        console.error('[reconfirm error]', err.message)
+        res.status(500).json({ error: 'Failed to reconfirm command: ' + err.message })
+      }
+    })
+
+    // POST /:id/active-command/cancel — Phase 2A: cancel the active pending
+    // command. Only pre-delivery states (requested/pending) may be cancelled.
+    // Sent/unconfirmed/delivered commands cannot be recalled. Does NOT touch
+    // legacy device_commands.
+    devicesRouter.post('/:id/active-command/cancel', requireAuth, requireDeviceOwner, async (req, res) => {
+      try {
+        const dev = req.device
+        const command = await engineCommands.getActiveCommand(dev.id)
+        if (!command) return res.status(404).json({ error: 'No active command to cancel' })
+        if (!engineCommands.IN_FLIGHT_STATUSES.includes(command.status)) {
+          return res.status(409).json({ error: 'Command already delivered; cannot cancel', command })
+        }
+        const cancelled = await engineCommands.cancelActiveCommand(dev.id)
+        await logAudit(req.user.id, 'engine_cancel', 'device', dev.id, {
+          commandId: cancelled?.id,
+          status: cancelled?.status,
+        }).catch(() => {})
+        res.json({ command: cancelled })
+      } catch (err) {
+        console.error('[cancel error]', err.message)
+        res.status(500).json({ error: 'Failed to cancel command: ' + err.message })
       }
     })
 

@@ -419,6 +419,35 @@ async function runMigrations() {
       ON engine_commands(device_id)
       WHERE cancellation_state = 'pending' AND traccar_command_id > 0
     `)
+
+    // Phase 2A: delivery authorization (migration 007).
+    // Additive, idempotent. Adds delivery_authorization_expires_at column.
+    // Backfill: existing actionable pending commands get 24h authorization
+    // window. Terminal/superseded/historical commands get expires_at = created_at
+    // (never authorized). No historical data mutation beyond this backfill.
+    await db.query(`
+      ALTER TABLE engine_commands
+        ADD COLUMN IF NOT EXISTS delivery_authorization_expires_at TIMESTAMPTZ
+    `)
+    await db.query(`
+      UPDATE engine_commands
+      SET delivery_authorization_expires_at = created_at + INTERVAL '24 hours'
+      WHERE delivery_authorization_expires_at IS NULL
+        AND status IN ('requested', 'pending', 'sent')
+        AND superseded_by_command_id IS NULL
+    `)
+    await db.query(`
+      UPDATE engine_commands
+      SET delivery_authorization_expires_at = created_at
+      WHERE delivery_authorization_expires_at IS NULL
+    `)
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_engine_commands_delivery_authorized
+      ON engine_commands(device_id)
+      WHERE superseded_by_command_id IS NULL
+        AND status IN ('requested', 'pending', 'sent')
+        AND delivery_authorization_expires_at > NOW()
+    `)
     // Durable JWT revocation store (security hardening). Hashed tokens only.
     await db.query(`
       CREATE TABLE IF NOT EXISTS revoked_tokens (
