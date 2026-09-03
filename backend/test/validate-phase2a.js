@@ -1,3 +1,4 @@
+/* global process */
 /*
  * Phase 2A — Test Database Validation Script
  *
