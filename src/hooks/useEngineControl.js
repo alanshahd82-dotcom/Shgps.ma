@@ -90,6 +90,8 @@ export function useEngineControl(vehicle, lang = 'ar') {
   const [commandLoading, setCommandLoading] = useState(false)
   const mounted = useRef(true)
   const fetchIdRef = useRef(0)
+  const hasFetchedRef = useRef(false)   // FIX A/C: tracks first successful fetch
+  const hasSentRef = useRef(false)       // FIX B: gates success message to send() only
 
   useEffect(() => () => { mounted.current = false }, [])
 
@@ -103,10 +105,15 @@ export function useEngineControl(vehicle, lang = 'ar') {
       const response = await api.devices.getActiveCommand(vehicle.id)
       if (mounted.current && fetchId === fetchIdRef.current) {
         setActiveCommand(response?.command ?? null)
+        hasFetchedRef.current = true
       }
     } catch {
+      // FIX A: API failure must NOT erase a previously known authoritative
+      // command state. Preserve the existing activeCommand — never silently
+      // revert to NORMAL. If this was the initial fetch (hasFetchedRef still
+      // false), activeCommand stays null and canControl stays false (Fix C).
       if (mounted.current && fetchId === fetchIdRef.current) {
-        setActiveCommand(null)
+        // Do NOT setActiveCommand(null) — keep the last known state.
       }
     } finally {
       if (mounted.current && fetchId === fetchIdRef.current) {
@@ -120,6 +127,8 @@ export function useEngineControl(vehicle, lang = 'ar') {
     setActiveCommand(null)
     setError('')
     setSuccess('')
+    hasFetchedRef.current = false
+    hasSentRef.current = false
     fetchActiveCommand()
   }, [vehicle?.id, fetchActiveCommand])
 
@@ -143,10 +152,20 @@ export function useEngineControl(vehicle, lang = 'ar') {
     return true
   })()
 
-  const canControl = isVehicleReachable(vehicle)
+  // FIX C: commandReady is false until the first successful fetch completes.
+  // During initial loading or after an initial-load failure, the command
+  // state is unknown — the CUT/RESUME control must not be actionable.
+  // Once hasFetchedRef is true (backend confirmed state, even if null) or
+  // activeCommand is non-null, the control is actionable (subject to reach).
+  const commandReady = hasFetchedRef.current || activeCommand !== null
+  const canControl = commandReady && isVehicleReachable(vehicle)
 
   // Phase 1: derive the UI feedback message from the authoritative command.
+  // FIX B: only derive the success message from activeCommand after the
+  // user has explicitly sent a command. Initial load, vehicle change, and WS
+  // reconnect must NOT show a success toast.
   useEffect(() => {
+    if (!hasSentRef.current) return
     if (!activeCommand) return
     if (isCutPending(activeCommand)) {
       setSuccess(statusMessage(activeCommand.status, lang))
@@ -174,6 +193,9 @@ export function useEngineControl(vehicle, lang = 'ar') {
           setError(t(lang, 'engineCommandUnknown'))
         }
       }
+      // FIX B: mark that the user explicitly sent a command, so the
+      // activeCommand effect may show a success message after the refetch.
+      hasSentRef.current = true
       // Phase 1: re-fetch the authoritative command state after sending.
       try { await fetchActiveCommand() } catch {}
       try { await refreshDevices?.() } catch {}
