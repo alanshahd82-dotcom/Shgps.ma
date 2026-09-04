@@ -15,6 +15,7 @@ import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
 import { formatVoltage, VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import AddDeviceModal from '../../components/admin/AddDeviceModal'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -22,130 +23,6 @@ function timeAgo(iso, lang) {
   if (diff < 1) return t(lang, 'just_now')
   if (diff < 60) return `${diff}m`
   return `${Math.floor(diff / 60)}h`
-}
-
-function AddDeviceModal({ open, onClose, onAdd, clientList, lang, clientsError, onRefreshClients }) {
-  const [form, setForm] = useState({ name: '', imei: '', type: 'bike', plate: '', clientId: '', subscriptionPlanId: '3_months' })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const imeiValid = /^\d{15}$/.test(form.imei)
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!imeiValid) { setError(lang === 'ar' ? 'IMEI يجب أن يكون 15 رقماً' : 'IMEI doit contenir 15 chiffres'); return }
-    setLoading(true); setError('')
-    try {
-      await onAdd({ ...form, clientId: form.clientId || null })
-      setForm({ name: '', imei: '', type: 'bike', plate: '', clientId: '', subscriptionPlanId: '3_months' })
-      onClose()
-    } catch (err) {
-      setError(err.message || (lang === 'ar' ? 'حدث خطأ' : 'Une erreur est survenue'))
-    } finally { setLoading(false) }
-  }
-
-  const handleClose = () => { setError(''); onClose() }
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={handleClose}
-        >
-          <motion.div
-            className="w-full md:max-w-[500px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] md:max-h-[88vh]"
-            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Fixed header */}
-            <div className="flex-shrink-0 bg-primary-500 px-6 py-4 flex items-center justify-between rounded-t-3xl">
-              <h3 className="font-bold text-white text-lg">
-                {lang === 'ar' ? 'إضافة جهاز جديد' : 'Ajouter un appareil'}
-              </h3>
-              <button onClick={handleClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-                <X size={16} className="text-white" />
-              </button>
-            </div>
-
-            {/* Scrollable body */}
-            <form id="add-device-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
-              {error && (
-                <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
-                  <AlertCircle size={15} /><span>{error}</span>
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
-                  {lang === 'ar' ? 'اسم الجهاز' : "Nom de l'appareil"} *
-                </label>
-                <input className="input-field text-sm" value={form.name}
-                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">IMEI (15 {lang === 'ar' ? 'رقم' : 'chiffres'}) *</label>
-                <input className={`input-field text-sm font-mono ${form.imei && !imeiValid ? 'border-red-300' : ''}`}
-                  maxLength={15} value={form.imei}
-                  onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '') }))} required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'النوع' : 'Type'}</label>
-                   <VehicleTypeControl value={form.type} onChange={type => setForm(p => ({ ...p, type }))} lang={lang} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
-                  <input className="input-field text-sm uppercase font-mono" value={form.plate}
-                    onChange={e => setForm(p => ({ ...p, plate: e.target.value.toUpperCase() }))} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
-                  {lang === 'ar' ? 'تعيين للعميل' : 'Assigner au client'}
-                </label>
-                <select className="input-field text-sm" value={form.clientId}
-                  onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}>
-                   <option value="">
-                     {clientList.length
-                       ? (lang === 'ar' ? '— بدون عميل —' : '— Sans client —')
-                       : clientsError
-                         ? (lang === 'ar' ? 'تعذر تحميل العملاء' : 'Impossible de charger les clients')
-                         : (lang === 'ar' ? 'جاري تحميل العملاء...' : 'Chargement des clients...')}
-                   </option>
-                  {clientList.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                 {clientsError && (
-                   <button
-                     type="button"
-                     onClick={onRefreshClients}
-                     className="mt-1 text-[11px] font-semibold text-primary-500 underline"
-                   >
-                     {lang === 'ar' ? 'إعادة المحاولة' : 'Réessayer'}
-                   </button>
-                 )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait de l’appareil — paiement comptant'}</label>
-                <SubscriptionPlans value={form.subscriptionPlanId} onChange={subscriptionPlanId => setForm(p => ({ ...p, subscriptionPlanId }))} lang={lang} compact includeTrial />
-              </div>
-            </form>
-
-            {/* Fixed footer – always visible */}
-            <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 bg-white rounded-b-3xl">
-              <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-              <Button type="submit" form="add-device-form" disabled={loading || !form.name || !imeiValid}
-                variant="primary" className="flex-1 py-3">
-                {loading ? '...' : t(lang, 'add')}
-              </Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
 }
 
 function SyncResultModal({ open, onClose, result, lang }) {
@@ -471,6 +348,7 @@ export default function AllDevices() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onAdd={addDeviceDirect}
+        mode="global"
         clientList={clientList}
         lang={lang}
         clientsError={clientsError}
