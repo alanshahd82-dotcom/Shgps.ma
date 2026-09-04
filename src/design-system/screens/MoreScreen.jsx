@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, BarChart3, ChevronLeft, CreditCard, HelpCircle, Info, LogOut, MapPin, Settings, User, Wrench } from 'lucide-react'
+import { Activity, BarChart3, ChevronLeft, CreditCard, HelpCircle, Info, LogOut, MapPin, Settings, Wrench } from 'lucide-react'
 import { Avatar } from '../components/Avatar'
 import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'
@@ -21,7 +21,6 @@ const GROUPS = [
     ar: 'الحساب', fr: 'Compte',
     items: [
       [CreditCard, 'subscriptions', 'الاشتراكات', 'Abonnements'],
-      [User, 'profile', 'الملف الشخصي', 'Profil'],
       [Settings, 'settings', 'الإعدادات', 'Paramètres'],
     ],
   },
@@ -41,7 +40,6 @@ const MENU_ROUTES = {
   driverBehavior: '/client/driver-behavior',
   maintenance: '/client/maintenance',
   subscriptions: '/subscriptions',
-  profile: '/client/settings',
   settings: '/client/settings',
   help: '/client/help',
 }
