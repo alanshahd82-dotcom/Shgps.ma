@@ -364,7 +364,7 @@ export default function AdminLayout({ children }) {
   const navGroups = [
     {
       label: isAr ? 'الرئيسية' : 'Principal',
-      paths: ['/admin/dashboard', '/admin/clients', '/admin/devices', '/admin/subscriptions', '/admin/map', '/admin/alerts'],
+      paths: ['/admin/dashboard', '/admin/clients', '/admin/devices', '/admin/subscriptions', '/admin/reports', '/admin/map', '/admin/alerts'],
     },
     {
       label: isAr ? 'إدارة الأجهزة' : 'Gestion des appareils',
