@@ -12,14 +12,12 @@ import ResetPassword from './pages/client/ResetPassword'
 import ClientHome from './pages/client/Home'
 import Subscriptions from './pages/client/Subscriptions'
 import DeviceList from './pages/client/DeviceList'
-import Alerts from './pages/client/Alerts'
 import Settings from './pages/client/Settings'
 const Reports = lazy(() => import('./pages/client/Reports'))
 const DriverBehavior = lazy(() => import('./pages/client/DriverBehavior'))
 import Maintenance from './pages/client/Maintenance'
 import Geofences from './pages/client/Geofences'
 import DeviceWizard from './pages/client/DeviceWizard'
-import LiveMap from './pages/client/LiveMap'
 import VehicleControl from './pages/client/VehicleControl'
 import Help from './pages/client/Help'
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
