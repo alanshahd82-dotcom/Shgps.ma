@@ -349,6 +349,7 @@ export default function AdminLayout({ children }) {
     { path: '/admin/clients',   icon: Users,            label: t(lang, 'clientsList') },
     { path: '/admin/devices',   icon: Cpu,              label: t(lang, 'allDevices') },
     { path: '/admin/subscriptions', icon: CreditCard,       label: lang === 'ar' ? 'الاشتراكات' : 'Abonnements' },
+    { path: '/admin/reports',       icon: BarChart2,        label: lang === 'ar' ? 'التقارير' : 'Rapports' },
     ...((!isSubAdmin || adminPerms.view_map)     ? [{ path: '/admin/map',         icon: Map,       label: t(lang, 'globalMap') }]          : []),
     ...((!isSubAdmin || adminPerms.view_alerts)  ? [{ path: '/admin/alerts',      icon: Bell,      label: t(lang, 'allAlerts'), badge: allUnread }] : []),
     ...((!isSubAdmin || adminPerms.device_setup) ? [{ path: '/admin/setup',       icon: Wrench,    label: t(lang, 'deviceSetup') }]        : []),
