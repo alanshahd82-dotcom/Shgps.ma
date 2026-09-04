@@ -270,104 +270,24 @@ import {
     })
 
     // POST / — إنشاء جهاز جديد مباشرة (أدمن فقط)
-    devicesRouter.post('/', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
-      if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
-      const { name, imei, type, plate, clientId, subscriptionPlanId } = req.body
-      if (req.user.is_sub_admin && !clientId) {
-        return res.status(400).json({ error: 'A client is required for sub-admin device creation' })
-      }
-      if (!name || !imei) return res.status(400).json({ error: 'Name and IMEI required' })
-      if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
-      const plan = getSubscriptionPlan(subscriptionPlanId)
-      if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
-      try {
-        if (clientId) {
-          const clientScope = await getAccessibleClient(db, req.user, clientId)
-          if (!clientScope) return res.status(404).json({ error: 'Client not found' })
-          const { rows: clientRows } = await db.query(
-            `SELECT max_devices,
-                    (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
-             FROM users WHERE id=$1 AND is_admin=false`,
-            [clientId]
-          )
-          const client = clientRows[0]
-          if (!client) return res.status(404).json({ error: 'Client not found' })
-          const maxDevices = Math.max(1, Number(client.max_devices) || 5)
-          if (Number(client.devices_count) >= maxDevices) {
-            return res.status(409).json({
-              code: 'DEVICE_LIMIT_REACHED',
-              error: `Device limit reached (${client.devices_count}/${maxDevices}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
-            })
-          }
-          if (plan.trial && await clientHasUsedFreeTrial(clientId)) {
-            return res.status(409).json({
-              code: 'FREE_TRIAL_ALREADY_USED',
-              error: 'This client has already used the free 3-month trial.',
-            })
-          }
-        }
-        const subscriptionStartDate = dateOnly(new Date())
-        const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
-        let traccarId = null
-        try {
-          const td = await traccar.createDevice(name, imei)
-          traccarId = td.id
-          if (clientId) {
-            const { rows: ur } = await db.query('SELECT traccar_id FROM users WHERE id=$1', [clientId])
-            if (ur[0]?.traccar_id) await traccar.linkDevice(ur[0].traccar_id, traccarId)
-          }
-        } catch (e) { console.warn('Traccar device skipped:', e.message) }
-        const { rows } = await db.query(
-          `INSERT INTO devices (name,imei,type,plate,user_id,traccar_id)
-           VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-           [name, imei, type || 'bike', plate || null, clientId || null, traccarId]
-        )
-        await db.query(
-          `UPDATE devices
-           SET subscription_plan_id=$1, subscription_start_date=$2,
-               subscription_end_date=$3, subscription_status='active'
-           WHERE id=$4`,
-          [plan.id, subscriptionStartDate, subscriptionEndDate, rows[0].id]
-        )
-        rows[0].subscription_plan_id = plan.id
-        rows[0].subscription_start_date = subscriptionStartDate
-        rows[0].subscription_end_date = subscriptionEndDate
-        rows[0].subscription_status = 'active'
-        const d = rows[0]
-        res.status(201).json({
-          id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate,
-           clientId: d.user_id, status: 'offline', lat: null, lng: null, speed: null,
-           lastUpdate: null, engineOn: null, voltage: null, batteryLevel: null, signal: null, fuel: null,
-          subscriptionPlanId: d.subscription_plan_id,
-          subscriptionStartDate: d.subscription_start_date,
-          subscriptionEndDate: d.subscription_end_date,
-          subscriptionStatus: 'active',
-          subscriptionDaysRemaining: plan.durationMonths * 30,
-          trackingEnabled: true,
-          geofenceActive: false, activeGeofenceId: null, geofence: null,
-        })
-      } catch (err) {
-        if (err.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
-        console.error(err); res.status(500).json({ error: 'Server error' })
-      }
-    })
+    // ── Canonical device-creation core ── shared by POST / and POST /quick-add
+    async function createDeviceCore(req, res, opts = {}) {
+      const { name: rawName, imei, type, plate, phone, clientId: rawClientId, maxDevices, subscriptionPlanId } = req.body
 
-    // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone، مع خطة الجهاز.
-    devicesRouter.post('/quick-add', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
-      const { imei, phone, clientId, maxDevices, subscriptionPlanId } = req.body
-      if (req.user.is_sub_admin && !clientId) {
+      if (req.user.is_sub_admin && !rawClientId) {
         return res.status(400).json({ error: 'A client is required for sub-admin device creation' })
       }
-      if (!imei)  return res.status(400).json({ error: 'IMEI required' })
-      if (!phone) return res.status(400).json({ error: 'Phone required' })
+      if (!imei) return res.status(400).json({ error: 'IMEI required' })
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
+      if (opts.requirePhone && !phone) return res.status(400).json({ error: 'Phone required' })
+
       const plan = getSubscriptionPlan(subscriptionPlanId)
       if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
 
       try {
-        let deviceName = `GPS-${imei.slice(-6)}` // اسم افتراضي
-        let finalClientId = clientId ? Number(clientId) : null
+        let deviceName = rawName || `GPS-${imei.slice(-6)}`
+        const finalClientId = rawClientId ? Number(rawClientId) : null
         const requestedMaxDevices =
           maxDevices === undefined || maxDevices === null || maxDevices === ''
             ? null
@@ -376,13 +296,14 @@ import {
             (!Number.isInteger(requestedMaxDevices) || requestedMaxDevices < 1)) {
           return res.status(400).json({ error: 'maxDevices must be a positive integer' })
         }
+
         if (finalClientId) {
           const clientScope = await getAccessibleClient(db, req.user, finalClientId)
           if (!clientScope) return res.status(404).json({ error: 'Client not found' })
           const { rows: clientRows } = await db.query(
             `SELECT id, name, max_devices,
-                    (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
-             FROM users WHERE id=$1 AND is_admin=false`,
+                   (SELECT COUNT(*)::int FROM devices WHERE user_id=users.id) AS devices_count
+            FROM users WHERE id=$1 AND is_admin=false`,
             [finalClientId]
           )
           const client = clientRows[0]
@@ -394,8 +315,10 @@ import {
               error: `Device limit reached (${client.devices_count}/${effectiveMaxDevices}). Increase the client limit before adding another device.`,
             })
           }
-          const seq = Number(client.devices_count) + 1
-          deviceName = `${client.name} - #${seq}`
+          if (!rawName) {
+            const seq = Number(client.devices_count) + 1
+            deviceName = `${client.name} - #${seq}`
+          }
           if (plan.trial && await clientHasUsedFreeTrial(finalClientId)) {
             return res.status(409).json({
               code: 'FREE_TRIAL_ALREADY_USED',
@@ -404,7 +327,6 @@ import {
           }
         }
 
-        // سجّل في Traccar
         let traccarId = null
         try {
           const td = await traccar.createDevice(deviceName, imei)
@@ -413,21 +335,20 @@ import {
             const { rows: ur } = await db.query('SELECT traccar_id FROM users WHERE id=$1', [finalClientId])
             if (ur[0]?.traccar_id) await traccar.linkDevice(ur[0].traccar_id, traccarId)
           }
-        } catch (e) { console.warn('Traccar skipped:', e.message) }
+        } catch (e) { console.warn('Traccar device skipped:', e.message) }
 
         const subscriptionStartDate = dateOnly(new Date())
         const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
 
-        // إدراج الجهاز + تحديث حد الأجهزة في معاملة واحدة
         await db.query('BEGIN')
         try {
           const { rows } = await db.query(
             `INSERT INTO devices (
                name,imei,type,plate,user_id,traccar_id,phone,
                subscription_plan_id,subscription_start_date,subscription_end_date,subscription_status
-               ) VALUES ($1,$2,'bike',null,$3,$4,$5,$6,$7,$8,'active') RETURNING *`,
-            [deviceName, imei, finalClientId, traccarId, phone || null,
-              plan.id, subscriptionStartDate, subscriptionEndDate]
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'active') RETURNING *`,
+            [deviceName, imei, type || 'bike', plate || null, finalClientId, traccarId, phone || null,
+             plan.id, subscriptionStartDate, subscriptionEndDate]
           )
           if (finalClientId && requestedMaxDevices !== null) {
             await db.query(
@@ -438,10 +359,9 @@ import {
           await db.query('COMMIT')
           const d = rows[0]
           res.status(201).json({
-             id: d.id, name: d.name, imei: d.imei, type: d.type, phone: d.phone,
-            clientId: d.user_id, status: 'offline',
-             lat: null, lng: null, speed: null, lastUpdate: null,
-             engineOn: null, voltage: null, batteryLevel: null, signal: null, fuel: null,
+            id: d.id, name: d.name, imei: d.imei, type: d.type, plate: d.plate, phone: d.phone,
+            clientId: d.user_id, status: 'offline', lat: null, lng: null, speed: null,
+            lastUpdate: null, engineOn: null, voltage: null, batteryLevel: null, signal: null, fuel: null,
             subscriptionPlanId: d.subscription_plan_id,
             subscriptionStartDate: d.subscription_start_date,
             subscriptionEndDate: d.subscription_end_date,
@@ -456,6 +376,16 @@ import {
         if (err.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
         console.error(err); res.status(500).json({ error: 'Server error' })
       }
+    }
+
+    // POST / — canonical device creation (admin only). name optional → auto-generated.
+    devicesRouter.post('/', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
+      return createDeviceCore(req, res, { requirePhone: false })
+    })
+
+    // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone، مع خطة الجهاز.
+    devicesRouter.post('/quick-add', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
+      return createDeviceCore(req, res, { requirePhone: true })
     })
 
     // PATCH /:id/info — device owner (or admin) can edit name / driver / phone / plate

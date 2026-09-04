@@ -16,12 +16,16 @@ export const schemas = {
     newPassword:     z.string().min(8, 'New password must be at least 8 characters'),
   }),
 
-  // POST /api/devices (add device)
+  // POST /api/devices (canonical device creation — also used by /quick-add)
   addDevice: z.object({
-    imei: z.string().regex(/^\d{15}$/, 'IMEI must be exactly 15 digits'),
-    name: z.string().min(1, 'Device name is required').max(255),
-    type: z.enum(['car', 'bike', 'truck']).optional(),
-    plate: z.string().max(50).optional(),
+    imei:               z.string().regex(/^\d{15}$/, 'IMEI must be exactly 15 digits'),
+    name:               z.string().min(1, 'Device name is required').max(255).optional(),
+    type:               z.enum(['car', 'bike', 'truck']).nullable().optional(),
+    plate:              z.string().max(50).nullable().optional(),
+    phone:              z.string().max(20).nullable().optional(),
+    clientId:           z.number().int().positive().nullable().optional(),
+    maxDevices:         z.number().int().positive().nullable().optional(),
+    subscriptionPlanId: z.string().nullable().optional(),
   }),
 
   // PUT/PATCH /api/devices/:id (update device)
