@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield, Wrench,
   Plus, CheckCircle2, AlertCircle, CalendarDays, Hash, User2, Smartphone, CircleHelp,
-  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog, CreditCard
+  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog, CreditCard, BarChart2
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
