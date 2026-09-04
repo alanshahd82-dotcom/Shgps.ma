@@ -11,7 +11,6 @@ import ForgotPassword from './pages/client/ForgotPassword'
 import ResetPassword from './pages/client/ResetPassword'
 import ClientHome from './pages/client/Home'
 import Subscriptions from './pages/client/Subscriptions'
-import DeviceList from './pages/client/DeviceList'
 import Settings from './pages/client/Settings'
 const Reports = lazy(() => import('./pages/client/Reports'))
 const DriverBehavior = lazy(() => import('./pages/client/DriverBehavior'))
@@ -158,7 +157,7 @@ export default function App() {
 
           <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />
           <Route path="/subscriptions"          element={<ClientRoute><Subscriptions /></ClientRoute>} />
-          <Route path="/client/devices"         element={<ClientRoute><DeviceList /></ClientRoute>} />
+          <Route path="/client/devices"         element={<Navigate to="/client/vehicles" replace />} />
           <Route path="/client/vehicles"        element={<ClientRoute><VehiclesScreen /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><LegacyDeviceRedirect /></ClientRoute>} />
           <Route path="/client/vehicle/:id"     element={<ClientRoute><VehicleControl /></ClientRoute>} />
