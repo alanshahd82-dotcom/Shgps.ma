@@ -39,7 +39,7 @@ const MENU_ROUTES = {
   reports: '/client/reports',
   driverBehavior: '/client/driver-behavior',
   maintenance: '/client/maintenance',
-  subscriptions: '/subscriptions',
+  subscriptions: '/client/subscriptions',
   settings: '/client/settings',
   help: '/client/help',
 }
