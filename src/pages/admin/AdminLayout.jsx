@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield, Wrench,
   Plus, CheckCircle2, AlertCircle, CalendarDays, Hash, User2, Smartphone, CircleHelp,
-  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog
+  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog, CreditCard
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
@@ -348,6 +348,7 @@ export default function AdminLayout({ children }) {
     { path: '/admin/dashboard', icon: LayoutDashboard, label: t(lang, 'adminDashboard') },
     { path: '/admin/clients',   icon: Users,            label: t(lang, 'clientsList') },
     { path: '/admin/devices',   icon: Cpu,              label: t(lang, 'allDevices') },
+    { path: '/admin/subscriptions', icon: CreditCard,       label: lang === 'ar' ? 'الاشتراكات' : 'Abonnements' },
     ...((!isSubAdmin || adminPerms.view_map)     ? [{ path: '/admin/map',         icon: Map,       label: t(lang, 'globalMap') }]          : []),
     ...((!isSubAdmin || adminPerms.view_alerts)  ? [{ path: '/admin/alerts',      icon: Bell,      label: t(lang, 'allAlerts'), badge: allUnread }] : []),
     ...((!isSubAdmin || adminPerms.device_setup) ? [{ path: '/admin/setup',       icon: Wrench,    label: t(lang, 'deviceSetup') }]        : []),
@@ -362,7 +363,7 @@ export default function AdminLayout({ children }) {
   const navGroups = [
     {
       label: isAr ? 'الرئيسية' : 'Principal',
-      paths: ['/admin/dashboard', '/admin/clients', '/admin/devices', '/admin/map', '/admin/alerts'],
+      paths: ['/admin/dashboard', '/admin/clients', '/admin/devices', '/admin/subscriptions', '/admin/map', '/admin/alerts'],
     },
     {
       label: isAr ? 'إدارة الأجهزة' : 'Gestion des appareils',

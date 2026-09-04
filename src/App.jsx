@@ -25,6 +25,7 @@ const Clients = lazy(() => import('./pages/admin/Clients'))
 const ClientDetail = lazy(() => import('./pages/admin/ClientDetail'))
 const SubAdmins = lazy(() => import('./pages/admin/SubAdmins'))
 const AllDevices = lazy(() => import('./pages/admin/AllDevices'))
+const AdminSubscriptions = lazy(() => import('./pages/admin/Subscriptions'))
 const GlobalMap = lazy(() => import('./pages/admin/GlobalMap'))
 const AdminAlerts = lazy(() => import('./pages/admin/AdminAlerts'))
 const DeviceSetup = lazy(() => import('./pages/admin/DeviceSetup'))
@@ -181,6 +182,7 @@ export default function App() {
           <Route path="/admin/clients"      element={<AdminRoute><Clients /></AdminRoute>} />
           <Route path="/admin/clients/:id"  element={<AdminRoute><ClientDetail /></AdminRoute>} />
           <Route path="/admin/devices"      element={<AdminRoute><AllDevices /></AdminRoute>} />
+          <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
           <Route path="/admin/map"          element={<AdminRoute><GlobalMap /></AdminRoute>} />
           {/* Admin-authorized view of the SAME official vehicle detail screen
               (src/pages/client/VehicleControl.jsx). No duplicate implementation:
