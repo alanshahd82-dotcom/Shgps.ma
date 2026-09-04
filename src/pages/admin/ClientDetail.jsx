@@ -21,6 +21,7 @@ import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
 import { formatVoltage, getVoltageColor, VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import AddDeviceModal from '../../components/admin/AddDeviceModal'
 import { APP_TZ } from '../../utils/datetime.js'
 
 /* ─── helpers ──────────────────────────────────────────────────────────────── */
@@ -99,72 +100,6 @@ function RouteMapDisplay({ trip, mapKey }) {
 }
 
 /* ─── Add Device Modal ──────────────────────────────────────────────────────── */
-function AddDeviceModal({ open, onClose, onAdd, clientId, client, lang }) {
-  const [form, setForm]     = useState({ name: '', imei: '', type: 'bike', plate: '', clientId, subscriptionPlanId: '3_months' })
-  const [error, setError]   = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async (e) => {
-    e.preventDefault(); setLoading(true); setError('')
-    try {
-      await onAdd(form)
-      setForm({ name: '', imei: '', type: 'bike', plate: '', clientId, subscriptionPlanId: '3_months' })
-      onClose()
-    } catch (err) {
-      setError(err.message || (lang === 'ar' ? 'تعذر إضافة الجهاز' : "Impossible d'ajouter l'appareil"))
-    } finally { setLoading(false) }
-  }
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={onClose}>
-          <motion.div className="w-full md:max-w-[440px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[92vh]"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            onClick={e => e.stopPropagation()}>
-            <div className="flex-shrink-0 bg-primary-500 px-6 py-4 flex items-center justify-between rounded-t-3xl">
-              <h3 className="font-bold text-white text-lg">{t(lang, 'addDevice')}</h3>
-              <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center"><X size={16} className="text-white"/></button>
-            </div>
-            <form id="add-dev-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-              {error && <div className="text-red-600 text-sm bg-red-50 px-4 py-3 rounded-xl border border-red-100">{error}</div>}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'اسم الجهاز' : "Nom de l'appareil"}</label>
-                <input className="input-field text-sm" placeholder={lang === 'ar' ? 'مثال: سيارة العميل' : 'Ex: Voiture client'} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'imei')}</label>
-                <input className="input-field text-sm font-mono" placeholder="358900001234567" value={form.imei} onChange={e => setForm(p => ({ ...p, imei: e.target.value.replace(/\D/g, '').slice(0, 15) }))} maxLength={15} minLength={15} pattern="\d{15}" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'نوع المركبة' : 'Type de véhicule'}</label>
-                  <VehicleTypeControl value={form.type} onChange={type => setForm(p => ({ ...p, type }))} lang={lang} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">{t(lang, 'plate')}</label>
-                  <input className="input-field text-sm uppercase font-mono" placeholder="A 12345 XX" value={form.plate} onChange={e => setForm(p => ({ ...p, plate: e.target.value.toUpperCase() }))} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">{lang === 'ar' ? 'خطة اشتراك الجهاز' : 'Forfait appareil'}</label>
-                <SubscriptionPlans value={form.subscriptionPlanId} onChange={v => setForm(p => ({ ...p, subscriptionPlanId: v }))} lang={lang} compact includeTrial />
-              </div>
-            </form>
-            <div className="flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100">
-              <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
-              <Button type="submit" form="add-dev-form" disabled={loading} variant="primary" className="flex-1 py-3">{loading ? '...' : t(lang, 'add')}</Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-/* ─── Device Detail Drawer ──────────────────────────────────────────────────── */
 function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
   const { devices } = useApp()
   const isAr = lang === 'ar'
@@ -683,7 +618,7 @@ export default function ClientDetail() {
       </div>
 
       {/* Add device modal */}
-      <AddDeviceModal open={showAdd} onClose={() => setShowAdd(false)} onAdd={addDevice} clientId={id} client={client} lang={lang}/>
+      <AddDeviceModal open={showAdd} onClose={() => setShowAdd(false)} onAdd={addDevice} mode="client-scoped" clientId={id} client={client} lang={lang}/>
 
       {/* Device detail drawer */}
       <AnimatePresence>
