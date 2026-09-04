@@ -157,7 +157,8 @@ export default function App() {
           <Route path="/client/reset-password"  element={<ResetPassword />} />
 
           <Route path="/client/home"            element={<ClientRoute><ClientHome /></ClientRoute>} />
-          <Route path="/subscriptions"          element={<ClientRoute><Subscriptions /></ClientRoute>} />
+          <Route path="/subscriptions"          element={<Navigate to="/client/subscriptions" replace />} />
+          <Route path="/client/subscriptions"   element={<ClientRoute><Subscriptions /></ClientRoute>} />
           <Route path="/client/devices"         element={<Navigate to="/client/vehicles" replace />} />
           <Route path="/client/vehicles"        element={<ClientRoute><VehiclesScreen /></ClientRoute>} />
           <Route path="/client/device/:id"      element={<ClientRoute><LegacyDeviceRedirect /></ClientRoute>} />
