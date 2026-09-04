@@ -358,6 +358,22 @@ export default function AdminLayout({ children }) {
     ] : []),
   ]
 
+  const isAr = lang === 'ar'
+  const navGroups = [
+    {
+      label: isAr ? 'الرئيسية' : 'Principal',
+      paths: ['/admin/dashboard', '/admin/clients', '/admin/devices', '/admin/map', '/admin/alerts'],
+    },
+    {
+      label: isAr ? 'إدارة الأجهزة' : 'Gestion des appareils',
+      paths: ['/admin/setup'],
+    },
+    {
+      label: isAr ? 'الإدارة' : 'Administration',
+      paths: ['/admin/support', '/admin/leads', '/admin/sub-admins'],
+    },
+  ]
+
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-slate-100">
@@ -375,25 +391,36 @@ export default function AdminLayout({ children }) {
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map(item => {
-          const Icon = item.icon
-          const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+        {navGroups.map(group => {
+          const items = navItems.filter(item => group.paths.includes(item.path))
+          if (items.length === 0) return null
           return (
-            <button
-              key={item.path}
-              onClick={() => { navigate(item.path); setSidebarOpen(false) }}
-              className={`admin-sidebar-item w-full text-left ${active ? 'active' : ''}`}
-            >
-              <div className="relative">
-                <Icon size={18} />
-                {item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
-                    {item.badge > 9 ? '9+' : item.badge}
-                  </span>
-                )}
-              </div>
-              <span className="text-sm font-medium">{item.label}</span>
-            </button>
+            <div key={group.label} className="mb-2">
+              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                {group.label}
+              </p>
+              {items.map(item => {
+                const Icon = item.icon
+                const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => { navigate(item.path); setSidebarOpen(false) }}
+                    className={`admin-sidebar-item w-full text-left ${active ? 'active' : ''}`}
+                  >
+                    <div className="relative">
+                      <Icon size={18} />
+                      {item.badge > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                          {item.badge > 9 ? '9+' : item.badge}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </button>
+                )
+              })}
+            </div>
           )
         })}
       </nav>
