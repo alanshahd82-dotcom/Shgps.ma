@@ -1993,3 +1993,11 @@ write before subsequent packets arrive.
   were unchanged.
 - Build and `git diff --check` passed. Commit and remote result must be recorded
   after the final push.
+
+## 2026-09-28 — Engine cut/resume baseline recorded (documentation only)
+
+- Recorded the verified working state of the engine cut/resume feature at commit `1cb568d` in `docs/ENGINE_CUT_BASELINE.md`: end-to-end flow, Traccar payload profiles, `engine_commands` state machine, worker/TTL, power-alert cooldown (60 s), frontend behaviour and entry points, test baseline, and sha256 fingerprints of the critical files.
+- Added `.agents/memory/engine-cut-baseline.md` and its index entry.
+- Test baseline found: 12 pre-existing failures unrelated to the engine flow (11 stale power-alert tests expecting `charge:false` as a loss, 1 layout test using `require` in an ES-module package). No test imports the real engine modules.
+- Source code changed: NO. Backend, Traccar, database, Docker, deployment, API contracts: unchanged.
+- Production behaviour, physical relay movement: `[UNCONFIRMED]` by this audit (owner reports it works).
