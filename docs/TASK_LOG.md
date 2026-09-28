@@ -2024,3 +2024,4 @@ write before subsequent packets arrive.
 - Engine button: solid red/green style (style only; logic and two-click confirm unchanged).
 - Admin: raw `car/bike/truck` translated, IMEI moved under the name on narrower screens so the Actions column is visible, long durations in days, setup entry renamed "Assistant d'installation" to end the confusion with "Ajout rapide".
 - Tests: backend 246 pass / 12 pre-existing failures; browser sweeps 33 client + 42 admin screens clean; all earlier scenarios re-run; click test: cut button -> "Confirmer ?" -> `engineStop` request. `engineCommands.js` unchanged.
+- Vehicle card redesigned as a cinematic "stage" (visual layer only; data, engine hook and click behaviour unchanged): gradient scene per situation (moving / online / offline / power cut / overspeed), large vehicle with light and ground shadow, animated road while moving, 270° speed ring, battery and signal strip. Offline vehicles are greyed. Respects reduced-motion.
