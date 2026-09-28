@@ -246,13 +246,13 @@ export function VehicleCard({
           <p className="truncate text-[11px] font-medium text-slate-400">{vehicle.plate || vehicle.uniqueId || l.na}</p>
 
           {/* metrics row: speed | battery | signal */}
-          <div className="mt-2.5 flex items-center gap-2">
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <span className="flex items-center gap-1.5">
               <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${moving ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'} transition-colors`}>
                 <Gauge className={`h-3.5 w-3.5 ${moving ? 'animate-pulse' : ''}`} />
               </span>
               <span className="leading-tight">
-                <span className={`block text-[12px] font-extrabold tabular-nums ${moving ? 'text-indigo-700' : 'text-slate-900'}`}>
+                <span className={`block whitespace-nowrap text-[12px] font-extrabold tabular-nums ${moving ? 'text-indigo-700' : 'text-slate-900'}`}>
                   {online && rawSpeed != null ? `${speed} ${l.kmh}` : l.na}
                 </span>
                 <span className="block text-[9px] text-slate-400">{l.speed}</span>
@@ -264,7 +264,7 @@ export function VehicleCard({
                 <BatteryIcon voltage={vehicle.voltage} powerDisconnected={vehicle.powerDisconnected} />
               </span>
               <span className="leading-tight">
-                <span className="block text-[12px] font-extrabold text-slate-900">{power}</span>
+                <span className="block whitespace-nowrap text-[12px] font-extrabold tabular-nums text-slate-900"><bdi>{power}</bdi></span>
                 <span className="block text-[9px] text-slate-400">{l.battery}</span>
               </span>
             </span>
@@ -334,7 +334,7 @@ export function VehicleCard({
         </span>
         <span className="min-w-0 flex-1 leading-tight">
           <span className="block truncate text-[11px] font-semibold text-slate-600">
-            {address || (loc.point ? `${loc.point[0].toFixed(4)}, ${loc.point[1].toFixed(4)}` : l.noLocation)}
+            {address || (loc.point ? <bdi>{`${loc.point[0].toFixed(4)}, ${loc.point[1].toFixed(4)}`}</bdi> : l.noLocation)}
           </span>
           {(loc.lastKnown || loc.noGps) && (
             <span className={`mt-0.5 flex items-center gap-1 truncate text-[10px] font-bold ${loc.noGps ? 'text-amber-600' : 'text-slate-400'}`}>

@@ -70,8 +70,8 @@ export default function DriverBehavior() {
   useEffect(() => { load() }, [load])
 
   const latest = data?.summary?.latest
-  const events = data?.scores || []
-  const tips = data?.summary?.tips || []
+  const events = Array.isArray(data?.scores) ? data.scores : []
+  const tips = Array.isArray(data?.summary?.tips) ? data.summary.tips : []
   const hasData = Boolean(latest || events.length > 0)
   const score = Number(latest?.score)
   const scoreValue = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0

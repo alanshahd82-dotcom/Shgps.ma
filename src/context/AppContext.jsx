@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { api } from '../api/index.js'
 import { isUserAlertEvent } from '../utils/eventPolicy.js'
@@ -91,7 +91,15 @@ function mergeDeviceSnapshots(previous, next, { force = false } = {}) {
 }
 
 export function AppProvider({ children }) {
-  const [lang, setLang]                     = useState('fr')
+  // The chosen language is remembered (same key the public pages already read),
+  // so an Arabic user is not sent back to French on every launch or refresh.
+  const [lang, setLangState]                = useState(() => {
+    try { const saved = window.localStorage.getItem('athargps_lang'); return saved === 'ar' || saved === 'fr' ? saved : 'fr' } catch { return 'fr' }
+  })
+  const setLang = useCallback(next => {
+    setLangState(next)
+    try { window.localStorage.setItem('athargps_lang', next) } catch { /* private mode: keep for this session only */ }
+  }, [])
   const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
   const [adminAuth,  setAdminAuth]          = useState(() => loadFromStorage('athargps_admin'))
   const [authReady,  setAuthReady]          = useState(false)

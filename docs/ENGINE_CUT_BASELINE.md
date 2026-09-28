@@ -140,3 +140,19 @@ To check for drift: `sha256sum <files above>` and compare; to see what changed: 
 4. Never derive the button state from telemetry; keep `active-command` as the source.
 5. Do not change the Traccar container, `traccar.xml`, or the `engine_commands` schema without an explicit request.
 6. After any change in this area: re-run the backend tests, compare with §8, and re-check the fingerprints in §9.
+
+## 11. Changes made after the baseline (2026-09-28, branch `ccr-a2c52512-p85t46`)
+
+The engine command path itself is **unchanged**: `backend/src/services/engineCommands.js` still has sha256
+`e663f4a6…268db3`, the `POST /devices/:id/command` route is untouched, no migration was added.
+Additive, read-only changes near it:
+
+| File | Change | Effect on the command |
+|---|---|---|
+| `backend/src/routes/devices.js` `GET /:id/active-command` | new extra field `deviceReply` (the tracker's `result` text, one bounded Traccar lookup, wrapped in try/catch) | none: `command` object identical; a lookup failure returns `deviceReply: null` |
+| `backend/src/services/deviceReply.js` (new) | classifies the tracker answer (success / postponed no GPS / already / failed) | read-only |
+| `src/hooks/useEngineControl.js` | exposes `deviceReply`/`deviceReplyInfo`; up to 3 extra refetches after a send; `mounted` flag re-armed on mount (StrictMode dev only) | button state still comes only from `activeCommand` |
+| `src/components/VehicleCard.jsx`, `src/pages/client/VehicleControl.jsx` | message line under the engine button | display only |
+| `backend/src/services/vehicleTelemetry.js` | measured supply ~0 V (needs a working sensor + 2 packets) counts as power loss; unknown is never 0 | power alerts are still suppressed for 60 s after an engine command (cooldown check runs first) |
+
+Tests: `activeCommandReply`, `deviceReply`, `deviceReplyText`, `supplyVoltage`. Full backend suite: same 12 pre-existing failures, nothing new.

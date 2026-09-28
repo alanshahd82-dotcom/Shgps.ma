@@ -124,7 +124,7 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
             <div className="grid grid-cols-2 gap-2">
               <Metric dir={dir} icon={Gauge} label={isAr ? 'السرعة' : 'Vitesse'} value={Number.isFinite(vehicle.speed) ? `${vehicle.speed} ${isAr ? 'كم/س' : 'km/h'}` : na} />
               <Metric dir={dir} icon={Battery} label={isAr ? 'البطارية' : 'Batterie'} value={Number.isFinite(vehicle.battery) ? `${vehicle.battery}%` : na} />
-              <Metric dir={dir} icon={MapPin} label={isAr ? 'الموقع' : 'Position'} value={vehicle.location || (loc.point ? `${loc.point[0].toFixed(4)}, ${loc.point[1].toFixed(4)}` : (isAr ? 'الموقع غير متاح' : 'Position indisponible'))} />
+              <Metric dir={dir} icon={MapPin} label={isAr ? 'الموقع' : 'Position'} value={vehicle.location || (loc.point ? <bdi>{`${loc.point[0].toFixed(4)}, ${loc.point[1].toFixed(4)}`}</bdi> : (isAr ? 'الموقع غير متاح' : 'Position indisponible'))} />
               <Metric dir={dir} icon={vehicle.ignition == null ? Clock : vehicle.ignition ? Gauge : Clock} label={isAr ? 'حالة المحرك' : 'État du moteur'} value={vehicle.ignition == null ? na : vehicle.ignition ? (isAr ? 'المحرك يعمل' : 'Moteur en marche') : (isAr ? 'متوقف' : 'À l’arrêt')} />
             </div>
             <Link to={`/client/vehicle/${vehicle.id}`} className="flex items-center justify-center gap-2 rounded-[10px] bg-accent px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
