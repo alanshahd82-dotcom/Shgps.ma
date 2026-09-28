@@ -108,6 +108,14 @@ export const deleteDevice     = (id)         => call(`/api/devices/${id}`, { met
 export const createUser = (name, email, pw) =>
   call('/api/users', { method:'POST', body: JSON.stringify({ name, email, password: pw, deviceLimit:100, administrator:false }) })
 export const deleteUser  = (id) => call(`/api/users/${id}`,  { method:'DELETE' })
+// Change the IMEI (uniqueId) of an existing Traccar device, keeping its id and
+// all its position history (used when a tracker is physically replaced).
+export const updateDeviceUniqueId = async (id, uniqueId) => {
+  const current = await call(`/api/devices/${id}`)
+  const updated = await call(`/api/devices/${id}`, { method: 'PUT', body: JSON.stringify({ ...current, uniqueId }) })
+  invalidateTraccarCache()
+  return updated
+}
 export const linkDevice   = (userId, deviceId) => call('/api/permissions', { method:'POST',   body: JSON.stringify({ userId, deviceId }) })
 export const unlinkDevice = (userId, deviceId) => call('/api/permissions', { method:'DELETE', body: JSON.stringify({ userId, deviceId }) })
 const HISTORY_CHUNK_MS = 24 * 60 * 60 * 1000

@@ -28,7 +28,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
   // ── optional (expandable)
   const [expanded,  setExpanded]  = useState(false)
   const [clientId,  setClientId]  = useState('')
-  const [maxDev,    setMaxDev]    = useState('1')
+  const [maxDev,    setMaxDev]    = useState('')   // empty = keep the client's current limit
   const [expires,   setExpires]   = useState('')
   const [subscriptionPlanId, setSubscriptionPlanId] = useState('3_months')
   const [search,    setSearch]    = useState('')
@@ -46,7 +46,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
   const selectedClient = clientList.find(c => String(c.id) === String(clientId))
 
   const reset = () => {
-    setImei(''); setPhone(''); setClientId(''); setMaxDev('1')
+    setImei(''); setPhone(''); setClientId(''); setMaxDev('')
     setExpires(''); setSubscriptionPlanId('3_months'); setSearch(''); setError(''); setDone(null); setExpanded(false)
   }
   const handleClose = () => { reset(); onClose() }
@@ -59,7 +59,8 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
         imei:      imei.trim(),
         phone:     phone.trim() || null,
         clientId:  clientId ? Number(clientId) : null,
-        maxDevices: clientId ? Number(maxDev) : null,
+        // Only sent when the admin typed a new limit; otherwise the client's saved limit is kept.
+        maxDevices: clientId && maxDev !== '' ? Number(maxDev) : null,
         expiresAt:  clientId ? (expires || null) : null,
         subscriptionPlanId,
       })
@@ -271,11 +272,17 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
-                              <Hash size={10} />{isAr ? 'عدد الأجهزة' : 'Max appareils'}
+                              <Hash size={10} />{isAr ? 'حد الأجهزة' : 'Limite d\'appareils'}
                             </label>
-                            <input type="number" min="1" max="50"
+                            <input type="number" min="1" max="500"
                               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                              placeholder={String(selectedClient?.maxDevices ?? 5)}
                               value={maxDev} onChange={e => setMaxDev(e.target.value)} />
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {isAr
+                                ? `الحالي: ${selectedClient?.devicesCount ?? 0}/${selectedClient?.maxDevices ?? 5} — اتركه فارغاً للإبقاء عليه`
+                                : `Actuel : ${selectedClient?.devicesCount ?? 0}/${selectedClient?.maxDevices ?? 5} — vide = inchangé`}
+                            </p>
                           </div>
                           <div>
                             <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">

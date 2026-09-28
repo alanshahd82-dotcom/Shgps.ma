@@ -46,7 +46,7 @@ export default function AddDeviceModal({
   const [qaPhone, setQaPhone] = useState('')
   const [qaExpanded, setQaExpanded] = useState(false)
   const [qaClientId, setQaClientId] = useState('')
-  const [qaMaxDev, setQaMaxDev] = useState('1')
+  const [qaMaxDev, setQaMaxDev] = useState('')   // empty = keep the client's current limit
   const [qaExpires, setQaExpires] = useState('')
   const [qaSubscriptionPlanId, setQaSubscriptionPlanId] = useState('3_months')
   const [qaSearch, setQaSearch] = useState('')
@@ -60,7 +60,7 @@ export default function AddDeviceModal({
   const qaSelectedClient = (clientList || []).find(c => String(c.id) === String(qaClientId))
 
   const qaReset = () => {
-    setQaImei(''); setQaPhone(''); setQaClientId(''); setQaMaxDev('1')
+    setQaImei(''); setQaPhone(''); setQaClientId(''); setQaMaxDev('')
     setQaExpires(''); setQaSubscriptionPlanId('3_months'); setQaSearch(''); setError(''); setQaDone(null); setQaExpanded(false)
   }
 
@@ -74,7 +74,8 @@ export default function AddDeviceModal({
         imei:      qaImei.trim(),
         phone:     qaPhone.trim() || null,
         clientId:  qaClientId ? Number(qaClientId) : null,
-        maxDevices: qaClientId ? Number(qaMaxDev) : null,
+        // Only sent when the admin typed a new limit; otherwise the client's saved limit is kept.
+        maxDevices: qaClientId && qaMaxDev !== '' ? Number(qaMaxDev) : null,
         expiresAt:  qaClientId ? (qaExpires || null) : null,
         subscriptionPlanId: qaSubscriptionPlanId,
       })
@@ -324,11 +325,17 @@ export default function AddDeviceModal({
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
-                                <Hash size={10} />{isAr ? 'عدد الأجهزة' : 'Max appareils'}
+                                <Hash size={10} />{isAr ? 'حد الأجهزة' : "Limite d'appareils"}
                               </label>
-                              <input type="number" min="1" max="50"
+                              <input type="number" min="1" max="500"
                                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                placeholder={String(qaSelectedClient?.maxDevices ?? 5)}
                                 value={qaMaxDev} onChange={e => setQaMaxDev(e.target.value)} />
+                              <p className="mt-1 text-[10px] text-slate-400">
+                                {isAr
+                                  ? `الحالي: ${qaSelectedClient?.devicesCount ?? 0}/${qaSelectedClient?.maxDevices ?? 5} — اتركه فارغاً للإبقاء عليه`
+                                  : `Actuel : ${qaSelectedClient?.devicesCount ?? 0}/${qaSelectedClient?.maxDevices ?? 5} — vide = inchangé`}
+                              </p>
                             </div>
                             <div>
                               <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">

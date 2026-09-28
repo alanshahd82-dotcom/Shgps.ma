@@ -425,6 +425,52 @@ import {
       } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
     })
 
+    // POST /:id/replace — the tracker of an existing vehicle was replaced by a new
+    // one (new IMEI). Name, plate, client, subscription and history are kept.
+    devicesRouter.post('/:id/replace', requireAuth, requireDeviceOwner, async (req, res) => {
+      if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
+      const dev = req.device
+      const imei = String(req.body?.imei ?? '').trim()
+      const phone = req.body?.phone == null ? null : (String(req.body.phone).trim().slice(0, 20) || null)
+      if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
+      if (imei === dev.imei) return res.status(400).json({ error: 'The new IMEI is the same as the current one' })
+      try {
+        const { rows: taken } = await db.query('SELECT id FROM devices WHERE imei=$1 AND id<>$2', [imei, dev.id])
+        if (taken[0]) return res.status(409).json({ error: 'IMEI already registered' })
+
+        // The tracking service is changed first; if the local update then fails it is put back.
+        if (dev.traccar_id) {
+          try {
+            await traccar.updateDeviceUniqueId(dev.traccar_id, imei)
+          } catch (e) {
+            console.error('[replace] tracking service update failed:', e.message)
+            return res.status(e.status === 400 ? 409 : 502).json({
+              error: e.status === 400
+                ? 'This IMEI already exists in the tracking service'
+                : 'The tracking service could not be updated',
+            })
+          }
+        }
+        let updated
+        try {
+          const result = await db.query(
+            'UPDATE devices SET imei=$1, phone=COALESCE($2, phone), updated_at=NOW() WHERE id=$3 RETURNING id, imei, phone',
+            [imei, phone, dev.id]
+          )
+          updated = result.rows[0]
+        } catch (e) {
+          if (dev.traccar_id) await traccar.updateDeviceUniqueId(dev.traccar_id, dev.imei).catch(() => {})
+          if (e.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
+          throw e
+        }
+        await logAudit(req.user.id, 'device_replaced', 'device', dev.id, { oldImei: dev.imei, newImei: imei }).catch(() => {})
+        res.json({ ok: true, id: updated.id, imei: updated.imei, phone: updated.phone })
+      } catch (err) {
+        console.error('[replace error]', err.message)
+        res.status(500).json({ error: 'Server error' })
+      }
+    })
+
     // PATCH /:id/subscription — admin or the device owner can renew by plan.
     // Renewal starts at the later of today or the current end date so active
     // time is never lost. This endpoint never changes user-level subscriptions.
