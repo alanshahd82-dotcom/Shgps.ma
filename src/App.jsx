@@ -32,6 +32,7 @@ const DeviceSetup = lazy(() => import('./pages/admin/DeviceSetup'))
 const SupportSettings = lazy(() => import('./pages/admin/SupportSettings'))
 const Leads = lazy(() => import('./pages/admin/Leads'))
 const AdminReports = lazy(() => import('./pages/admin/AdminReports'))
+const AdminOffline = lazy(() => import('./pages/admin/AdminOffline'))
 import NotFound from './pages/NotFound'
 import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
@@ -185,6 +186,7 @@ export default function App() {
           <Route path="/admin/clients"      element={<AdminRoute><Clients /></AdminRoute>} />
           <Route path="/admin/clients/:id"  element={<AdminRoute><ClientDetail /></AdminRoute>} />
           <Route path="/admin/devices"      element={<AdminRoute><AllDevices /></AdminRoute>} />
+          <Route path="/admin/offline"      element={<AdminRoute><AdminOffline /></AdminRoute>} />
           <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
           <Route path="/admin/reports"       element={<AdminRoute><AdminReports /></AdminRoute>} />
           <Route path="/admin/map"          element={<AdminRoute><GlobalMap /></AdminRoute>} />
