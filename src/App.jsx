@@ -38,6 +38,7 @@ import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import ForcePasswordModal from './components/ForcePasswordModal'
+import PageBoundary from './components/PageBoundary'
 
 // ── New Design System Screens (Phase 6+) ─────────────────────────────────────
 import MapScreen from './design-system/screens/MapScreen'
@@ -90,7 +91,7 @@ function ClientRoute({ children }) {
   }
   return (
     <>
-      {children}
+      <PageBoundary lang={lang} resetKey={location.pathname}>{children}</PageBoundary>
       {mustChangePassword && (
         <ForcePasswordModal lang={lang} onSuccess={clearMustChange} />
       )}
@@ -99,13 +100,13 @@ function ClientRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { adminAuth, authReady, authBootstrapError } = useApp()
+  const { adminAuth, authReady, authBootstrapError, lang } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
   if (authBootstrapError || !isAdminAuthenticated(adminAuth)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
-  return children
+  return <PageBoundary lang={lang} resetKey={location.pathname}>{children}</PageBoundary>
 }
 
 function ClientEntry() {

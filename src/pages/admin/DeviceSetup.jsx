@@ -85,7 +85,7 @@ function Stepper({ step, isAr }) {
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function DeviceSetup() {
   const navigate  = useNavigate()
-  const { clientList, lang, loadDevices } = useApp()
+  const { clientList, lang, refreshDevices } = useApp()
   const isAr = lang === 'ar'
 
   const [step, setStep]               = useState(0)
@@ -182,7 +182,7 @@ export default function DeviceSetup() {
       setTestStatus(null)
       setTestData(null)
       setStep(4)
-      loadDevices()
+      refreshDevices?.()
     } catch (err) { setError(err.message) }
     finally { setSaving(false) }
   }
@@ -534,7 +534,7 @@ export default function DeviceSetup() {
             <button onClick={() => step === 0 ? navigate('/admin/dashboard') : setStep(s => s - 1)}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-slate-600 text-sm font-semibold hover:bg-gray-50">
               <ChevronLeft size={16} />
-              {isAr ? 'رجوع' : 'Retour'}
+              <span>{isAr ? 'رجوع' : 'Retour'}</span>
             </button>
 
             <button onClick={goNext} disabled={!canNext() || saving}
@@ -543,10 +543,10 @@ export default function DeviceSetup() {
                   ? 'bg-primary-500 text-white shadow-md shadow-primary-200 hover:bg-primary-600'
                   : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}>
               {saving
-                ? <><Loader2 size={15} className="animate-spin" />{isAr ? 'جاري الحفظ...' : 'Enregistrement...'}</>
+                ? <><Loader2 size={15} className="animate-spin" /><span>{isAr ? 'جاري الحفظ...' : 'Enregistrement...'}</span></>
                 : step === 4
-                  ? <><CheckCircle2 size={15} />{isAr ? 'حفظ الجهاز' : 'Enregistrer'}</>
-                  : <>{isAr ? 'التالي' : 'Suivant'}<ChevronRight size={16} /></>
+                  ? <><CheckCircle2 size={15} /><span>{isAr ? 'حفظ الجهاز' : 'Enregistrer'}</span></>
+                  : <><span>{isAr ? 'التالي' : 'Suivant'}</span><ChevronRight size={16} /></>
               }
             </button>
           </div>

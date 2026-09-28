@@ -12,6 +12,7 @@ import { t } from '../../i18n/translations'
 import Logo from '../../components/Logo'
 import ForcePasswordModal from '../../components/ForcePasswordModal'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
+import PageBoundary from '../../components/PageBoundary'
 
 /* ─── Quick Add Device Modal ──────────────────────────────────────────────── */
 function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefreshClients, onSuccess }) {
@@ -547,7 +548,7 @@ export default function AdminLayout({ children }) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
           >
-            {children}
+            <PageBoundary lang={lang} resetKey={location.pathname}>{children}</PageBoundary>
           </motion.div>
         </main>
       </div>
