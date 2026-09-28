@@ -14,6 +14,7 @@ import {
   syncSubscriptionState,
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
+import { pickLocation } from '../utils/location.js'
 import {
   isVehicleDisconnected,
   positionIsFresh,
@@ -104,7 +105,7 @@ import {
     try {
       const scope = deviceAccessScope(req.user, 'd')
       const { rows } = await db.query(
-        `SELECT d.*,u.name AS client_name
+        `SELECT d.*,u.name AS client_name,u.phone AS client_phone
          FROM devices d
          LEFT JOIN users u ON d.user_id=u.id
          WHERE ${scope.text}
@@ -174,6 +175,11 @@ import {
         // If Traccar has no fresh position for a connected stationary device,
         // keep its last locally stored GPS fix visible on the map.
         const p = livePosition ?? (td?.status === 'online' ? storedPosition : null)
+        // Coordinates: a live 0,0 (tracker without a GPS fix) must never hide the
+        // last valid location that we already stored for this device.
+        const location = pickLocation(livePosition, hasStoredPosition
+          ? { latitude: d.last_lat, longitude: d.last_lng, last_update: d.last_update }
+          : null)
         const freshLivePosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
         const telemetryId = d.traccar_id ?? td?.id
         const telemetrySilent = positionIsSilent(livePosition ?? storedPosition, POWER_SILENCE_WINDOW_MS)
@@ -238,8 +244,12 @@ import {
           clientId:  d.user_id,
           clientName:d.client_name ?? null,
           status,
-          lat:       trackingEnabled && p != null ? p.latitude  : null,
-          lng:       trackingEnabled && p != null ? p.longitude : null,
+          lat:       trackingEnabled && location ? location.latitude  : null,
+          lng:       trackingEnabled && location ? location.longitude : null,
+          locationAt:     trackingEnabled && location ? location.at : null,
+          locationSource: trackingEnabled && location ? location.source : null,
+          gpsValid:  trackingEnabled && livePosition ? (livePosition.valid ?? null) : null,
+          clientPhone: d.client_phone ?? null,
            speed:     trackingEnabled && p ? Math.round(speedKmh(p.speed)) : null,
           lastUpdate:trackingEnabled ? (td?.lastUpdate ?? p?.fixTime ?? null) : null,
            engineOn:  trackingEnabled && p ? (p.attributes?.ignition ?? null) : null,
@@ -480,6 +490,7 @@ import {
       } catch {}
       const freshPosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
       const status = resolveDeviceStatus(traccarDevice, livePosition)
+      const location = pickLocation(livePosition, { latitude: dev.last_lat, longitude: dev.last_lng, last_update: dev.last_update })
       const electrical = subscription.trackingEnabled
         ? readElectricalTelemetry(
             freshPosition ? livePosition : null,
@@ -500,8 +511,10 @@ import {
       res.json({
         ...dev,
         status,
-        lat: subscription.trackingEnabled && freshPosition ? livePosition.latitude : null,
-        lng: subscription.trackingEnabled && freshPosition ? livePosition.longitude : null,
+        lat: subscription.trackingEnabled && location ? location.latitude : null,
+        lng: subscription.trackingEnabled && location ? location.longitude : null,
+        locationAt: subscription.trackingEnabled && location ? location.at : null,
+        locationSource: subscription.trackingEnabled && location ? location.source : null,
         speed: subscription.trackingEnabled && freshPosition ? Math.round(speedKmh(livePosition.speed)) : null,
         lastUpdate: subscription.trackingEnabled
           ? (livePosition?.fixTime ?? dev.last_update ?? null)

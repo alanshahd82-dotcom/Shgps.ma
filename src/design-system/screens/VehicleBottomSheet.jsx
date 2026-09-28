@@ -13,6 +13,7 @@ import {
 import { Badge } from '../index.ts'
 import { Link } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
+import { agoLabel, locationState } from '../../utils/location'
 
 const stages = {
   collapsed: 'h-[72px]',
@@ -53,6 +54,7 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
   const dir = isAr ? 'rtl' : 'ltr'
   const na = isAr ? 'غير متوفر' : 'Indisponible'
   const status = getStatus(vehicle)
+  const loc = locationState(vehicle)
 
   useEffect(() => {
     if (!vehicle) return undefined
@@ -92,7 +94,7 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0 text-right">
               <h2 id={`vehicle-sheet-${vehicle.id}`} className="truncate text-base font-semibold text-primary">{vehicle.name}</h2>
-          {!isCollapsed && <p className="text-xs text-slate-500">{isAr ? 'آخر تحديث: ' : 'Dernière mise à jour : '}{vehicle.lastUpdate || na}</p>}
+          {!isCollapsed && <p className="text-xs text-slate-500">{isAr ? 'آخر اتصال: ' : 'Dernier contact : '}{agoLabel(vehicle.lastUpdate, lang) || na}</p>}
             </div>
             <Badge variant={status.variant}>{isAr ? status.label.ar : status.label.fr}</Badge>
           </div>
@@ -108,10 +110,21 @@ export function VehicleBottomSheet({ vehicle, stage = 'peek', onStageChange, onC
 
         {!isCollapsed && (
           <div className="space-y-3 overflow-y-auto px-4 pb-5">
+            {(loc.lastKnown || loc.noGps) && (
+              <div className="flex items-start gap-2 rounded-[10px] bg-amber-50 px-3 py-2 text-[11px] font-semibold leading-5 text-amber-800" role="status">
+                <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  {loc.noGps
+                    ? (isAr ? 'الجهاز متصل لكن بدون إشارة GPS حالياً — الموقع المعروض هو آخر موقع معروف' : 'Appareil connecté mais sans signal GPS — position affichée : la dernière connue')
+                    : (isAr ? 'الجهاز غير متصل — هذا آخر موقع معروف' : 'Appareil hors ligne — dernière position connue')}
+                  {agoLabel(loc.at, lang) ? ` (${agoLabel(loc.at, lang)})` : ''}
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <Metric dir={dir} icon={Gauge} label={isAr ? 'السرعة' : 'Vitesse'} value={Number.isFinite(vehicle.speed) ? `${vehicle.speed} ${isAr ? 'كم/س' : 'km/h'}` : na} />
               <Metric dir={dir} icon={Battery} label={isAr ? 'البطارية' : 'Batterie'} value={Number.isFinite(vehicle.battery) ? `${vehicle.battery}%` : na} />
-              <Metric dir={dir} icon={MapPin} label={isAr ? 'الموقع' : 'Position'} value={vehicle.location || (Number.isFinite(vehicle.lat) && Number.isFinite(vehicle.lng) && (vehicle.lat !== 0 || vehicle.lng !== 0) ? `${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}` : na)} />
+              <Metric dir={dir} icon={MapPin} label={isAr ? 'الموقع' : 'Position'} value={vehicle.location || (loc.point ? `${loc.point[0].toFixed(4)}, ${loc.point[1].toFixed(4)}` : (isAr ? 'الموقع غير متاح' : 'Position indisponible'))} />
               <Metric dir={dir} icon={vehicle.ignition == null ? Clock : vehicle.ignition ? Gauge : Clock} label={isAr ? 'حالة المحرك' : 'État du moteur'} value={vehicle.ignition == null ? na : vehicle.ignition ? (isAr ? 'المحرك يعمل' : 'Moteur en marche') : (isAr ? 'متوقف' : 'À l’arrêt')} />
             </div>
             <Link to={`/client/vehicle/${vehicle.id}`} className="flex items-center justify-center gap-2 rounded-[10px] bg-accent px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">

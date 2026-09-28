@@ -1,30 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { LocateFixed } from 'lucide-react'
 import { CircleMarker, MapContainer, Popup, useMap } from 'react-leaflet'
 import MapTileLayer from '../../components/MapTileLayer'
+import MyLocationControl from '../../components/MyLocationControl'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
-import { ClientLayout, Fab } from '../layout'
+import { ClientLayout } from '../layout'
 import VehicleBottomSheet from './VehicleBottomSheet'
 import VehicleMarker from './VehicleMarker'
 import { useRealVehicles } from '../hooks/useRealVehicles'
 import FleetOverview from './FleetOverview'
-
-function LocateControl() {
-  const map = useMap()
-  const locate = () => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => map.flyTo([coords.latitude, coords.longitude], 15, { duration: 0.8 }),
-      () => map.setView([33.5731, -7.5898], 13),
-    )
-  }
-  return locate
-}
-
-function MapActions({ onLocate, isAr = true }) {
-  return <Fab icon={<LocateFixed className="h-6 w-6" aria-hidden="true" />} onClick={onLocate} label={isAr ? 'تحديد موقعي' : 'Ma position'} variant="white" />
-}
 
 function EventFocus({ latitude, longitude }) {
   const map = useMap()
@@ -134,7 +118,7 @@ export function MapScreen({
           {vehicles.map(vehicle => (
             <VehicleMarker key={vehicle.id} vehicle={{ ...vehicle, selected: vehicle.id === selectedId }} onClick={() => handleSelect(vehicle.id)} />
           ))}
-          <LocateButton isAr={isAr} />
+          <MyLocationControl isAr={isAr} />
         </MapContainer>
           {loading && (
             <div className="pointer-events-none absolute inset-x-4 top-1/2 z-[500] -translate-y-1/2 rounded-2xl border border-slate-200 bg-white/95 p-5 text-center shadow-lg" role="status" dir={isAr ? 'rtl' : 'ltr'}>
@@ -163,11 +147,6 @@ export function MapScreen({
       </div>
     </ClientLayout>
   )
-}
-
-function LocateButton({ isAr = true }) {
-  const locate = LocateControl()
-  return <MapActions onLocate={locate} isAr={isAr} />
 }
 
 export default MapScreen

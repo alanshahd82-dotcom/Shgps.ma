@@ -1,5 +1,6 @@
 import { useApp } from '../../context/AppContext'
 import { timeAgo } from '../../components/ui'
+import { vehiclePoint } from '../../utils/location'
 
 function optionalNumber(value) {
   if (value === null || value === undefined || value === '') return null
@@ -37,8 +38,10 @@ export function useRealVehicles() {
   // Transform each device into the shape expected by design system screens
   const vehicles = devices.filter(device => device && device.id != null).map(device => {
     const lastUpdateTime = device.lastUpdate || device.last_update
-    const latitude = optionalNumber(device.lat ?? device.latitude)
-    const longitude = optionalNumber(device.lng ?? device.longitude)
+    // Only a real GPS location is exposed; 0,0 / missing becomes null.
+    const point = vehiclePoint(device)
+    const latitude = point ? point[0] : null
+    const longitude = point ? point[1] : null
     const speed = optionalNumber(device.speed ?? device.last_speed)
     const battery = optionalNumber(device.batteryLevel ?? device.battery)
     const voltage = optionalNumber(device.voltage)
@@ -57,6 +60,9 @@ export function useRealVehicles() {
       lat: latitude,
       lng: longitude,
       location: device.location,
+      locationAt: device.locationAt ?? null,
+      locationSource: device.locationSource ?? null,
+      gpsValid: device.gpsValid ?? null,
 
       // Motion & speed
       speed: speed,

@@ -8,6 +8,7 @@ import {
 } from './ui'
 import { useReverseGeocode } from '../utils/reverseGeocode'
 import { useEngineControl } from '../hooks/useEngineControl'
+import { agoLabel, locationState } from '../utils/location'
 import carArt from '../assets/vehicle-car.webp'
 import bikeArt from '../assets/vehicle-bike.webp'
 import truckArt from '../assets/vehicle-truck.webp'
@@ -30,6 +31,7 @@ const L = {
     overspeed: 'تجاوز السرعة', battery: 'البطارية', signal: 'الإشارة',
     cutEngine: 'قطع', restoreEngine: 'تشغيل', confirm: 'تأكيد؟',
     address: 'العنوان', km: 'كم', loading: '...', failed: 'فشل',
+    lastKnown: 'آخر موقع معروف', noGps: 'لا توجد إشارة GPS', noLocation: 'الموقع غير متاح',
   },
   fr: {
     online: 'En ligne', offline: 'Hors ligne', moving: 'En marche', stopped: 'Arrêté',
@@ -37,6 +39,7 @@ const L = {
     overspeed: 'Excès de vitesse', battery: 'Batterie', signal: 'Signal',
     cutEngine: 'Couper', restoreEngine: 'Démarrer', confirm: 'Confirmer?',
     address: 'Adresse', km: 'km', loading: '...', failed: 'Échec',
+    lastKnown: 'Dernière position connue', noGps: 'Pas de signal GPS', noLocation: 'Position indisponible',
   },
 }
 
@@ -185,7 +188,8 @@ export function VehicleCard({
   useEffect(() => () => clearTimeout(engineTimerRef.current), [])
 
   // Address (lazy reverse geocoding with backend fallback)
-  const address = useReverseGeocode(vehicle.lat, vehicle.lng, vehicle.address)
+  const loc = locationState(vehicle)
+  const address = useReverseGeocode(loc.point?.[0], loc.point?.[1], loc.point ? vehicle.address : null)
 
   // Daily distance from total odometer
   const dailyKm = getDailyDistance(vehicle.id || vehicle.uniqueId, vehicle.totalDistance)
@@ -327,8 +331,16 @@ export function VehicleCard({
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
           <MapPin className="h-3 w-3" />
         </span>
-        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-600">
-          {address || (vehicle.lat != null ? `${Number(vehicle.lat).toFixed(3)}, ${Number(vehicle.lng).toFixed(3)}` : l.na)}
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-[11px] font-semibold text-slate-600">
+            {address || (loc.point ? `${loc.point[0].toFixed(4)}, ${loc.point[1].toFixed(4)}` : l.noLocation)}
+          </span>
+          {(loc.lastKnown || loc.noGps) && (
+            <span className={`mt-0.5 flex items-center gap-1 truncate text-[10px] font-bold ${loc.noGps ? 'text-amber-600' : 'text-slate-400'}`}>
+              <Clock size={10} aria-hidden="true" />
+              <span className="truncate">{loc.noGps ? l.noGps : l.lastKnown}{agoLabel(loc.at, lang) ? ` · ${agoLabel(loc.at, lang)}` : ''}</span>
+            </span>
+          )}
         </span>
 
         {/* heading arrow + daily distance */}

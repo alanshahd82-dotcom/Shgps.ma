@@ -65,12 +65,17 @@ function mergeDeviceSnapshots(previous, next) {
 
     // When backend reports offline, do not preserve stale telemetry as current.
     const offline = incoming.status === 'offline'
+    // Keep a real location we already have; otherwise accept the server's
+    // (last-known) one. A 0,0 / empty value never replaces a valid location.
+    const keep = validLivePosition(current) ? current : (validLivePosition(incoming) ? incoming : null)
     return {
       ...current,
       ...incoming,
       ...mergeVoltageFields(current, incoming),
-      lat: current.lat ?? current.last_lat,
-      lng: current.lng ?? current.last_lng,
+      lat: keep ? Number(keep.lat ?? keep.latitude) : null,
+      lng: keep ? Number(keep.lng ?? keep.longitude) : null,
+      locationAt: keep ? (keep.locationAt ?? null) : null,
+      locationSource: keep ? (keep.locationSource ?? null) : null,
       speed: offline ? null : current.speed,
       engineOn: offline ? null : current.engineOn,
       motion: offline ? null : current.motion,
@@ -145,6 +150,9 @@ export function AppProvider({ children }) {
             ...current,
             lat:        latitude,
             lng:        longitude,
+            locationAt: pos.fixTime ?? current.locationAt ?? null,
+            locationSource: 'live',
+            gpsValid:   pos.valid ?? current.gpsValid ?? null,
             speed:      pos.speed ?? 0,
             // "Last update" means last contact with the tracker, not last GPS
             // lock: serverTime is the packet arrival, fixTime stays for the map.

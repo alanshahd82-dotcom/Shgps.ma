@@ -14,6 +14,7 @@ import {
 } from '../services/vehicleTelemetry.js'
 import { config } from '../config.js'
 import { speedKmh } from '../utils/speed.js'
+import { pickLocation } from '../utils/location.js'
 
     export const mapRouter = Router()
 
@@ -142,6 +143,10 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
         const freshPosition = positionIsFresh(position, POWER_SILENCE_WINDOW_MS)
         const td = dm[d.traccar_id] ?? null
         const status = resolveDeviceStatus(td, position)
+        // Keep the last valid location while the tracker is offline; never 0,0.
+        const location = subscription.trackingEnabled
+          ? pickLocation(pm[d.traccar_id], { latitude: d.last_lat, longitude: d.last_lng, last_update: d.last_update })
+          : null
         // Silence is NOT proof of an electrical disconnect. A stale or
         // missing position only means the device is offline; the power
         // state comes exclusively from the persisted disconnect state
@@ -153,7 +158,8 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
         )
         return {
           id: d.id, name: d.name, type: d.type, plate: d.plate, clientName: d.client_name,
-          lat: freshPosition ? position.latitude : null, lng: freshPosition ? position.longitude : null,
+          lat: location ? location.latitude : null, lng: location ? location.longitude : null,
+          locationAt: location ? location.at : null, locationSource: location ? location.source : null,
           speed: freshPosition ? Math.round(speedKmh(position.speed)) : null,
           status,
           lastUpdate: td?.lastUpdate ?? position?.fixTime ?? null,
