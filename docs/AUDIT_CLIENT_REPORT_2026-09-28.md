@@ -55,3 +55,34 @@
 - Engine cut/resume, power-alert logic, auth, DB schema and Traccar are not touched by items 1-4; item 5 and 7 touch telemetry paths and must keep `docs/ENGINE_CUT_BASELINE.md` fingerprints for the engine files unchanged.
 - Backend changes are additive (new fields only) so the existing frontend keeps working during rollout.
 - Backend test suite already has 12 pre-existing failures (see baseline doc); new work must not increase them.
+
+---
+
+# Production evidence (read-only server report, 2026-09-28 ~21:25 UTC)
+
+Collected by the owner running read-only commands on the production host; secrets, emails, IMEIs and coordinates were masked or never printed. `docker exec` was broken at the time, so the database could not be queried.
+
+## Confirmed on production
+- Server checkout = `main` @ `1cb568d`; the only local differences are rebuilt `dist` files. The served frontend is the server's own build (`index-gfBuYHu7.js`), not the committed one.
+- Public health: `status ok`, `db connected`, `traccar reachable`. Only 80/443 and the GPS ports are exposed; 3001, 8082 and 5432 are not.
+- Traccar holds only 3 devices: Traccar ids 37 (`gt06`), 70 (`gt06`), 136 (`gt06`). Local device ids seen in engine logs: 14 (→37) and 31 (→136).
+- Engine cut/resume works: commands 529-533 were sent directly (`queuedLive:false`, `pending → sent → unconfirmed`) and the 60 s power-alert cooldown was set. Traccar device attributes are empty (no engine profile override).
+- No requests to `/api/diag` in the retained nginx log (~2.5 days); access lines do reach `docker logs`. Traffic is low (~2k requests/day).
+- Backups ran daily at 03:00 UTC up to 2026-09-28 (7 files, ~2 MB each), stored on the same host only.
+- Edge TLS certificate (Google Trust Services, served through the CDN) is valid until 2026-11-13. The origin certificate is not yet checked.
+
+## Evidence for the reported issues
+- **Issue 1 (0,0 / unavailable):** Traccar's latest position for device 136 (online) and 70 (offline ≈13.4 days) has `valid=false` and zero coordinates, while device 37 is fine. `GET /devices` prefers that live 0,0 position over the validated `devices.last_lat/last_lng`, so a valid last-known location is never used. Matches the client's screenshots.
+- **Issue 3 (relay vs location):** the tracker does acknowledge commands in a position attribute `result`: "Cut off the fuel supply: Success!", "Restore fuel supply: Success!", "Already in the state of fuel supply to resume, The command is not running!" and, for device 136, **"GPS not fixed, Cut off the fuel supply operation delay execution!" (6 times in 24 h)**. The device postpones a cut while GPS is not fixed, but the app only shows the generic "unconfirmed" and never reads `result`.
+- **Issue 4 (0 V):** the fleet reports supply voltage in `adc1` (device 37: 13.1-14.8 V). Device 136 reported `adc1 = 0.0` five times and `0.3` once in 24 h together with one `alarm: powerCut`; it also reported `adc1 = 12.8` with `charge:false` 33 times (so `charge:false` is not a disconnect). Current code: a value `0.0` is discarded (`toFinitePositiveNumber`), and `readVehicleVoltage` then serves the cached last-known good voltage as if it were current; `0.3` is rejected by `isBatteryVoltage` and shown as unknown. So a real 0 V reading is displayed as the previous normal voltage. This is the "validate against real payloads" evidence the power-alert memory notes asked for.
+- **Issue 2 (live updates):** no `Traccar WS` reconnect or error lines in the last-24h log window, so a silently stalled bridge is still possible; host memory pressure (below) is a plausible contributor. `[UNCONFIRMED]`
+- Nginx status codes in 24 h include 10 × `409` (conflict: e.g. device limit, duplicate IMEI, free-trial) — consistent with issue 7 but not proven.
+
+## New server-side risks found
+1. `docker exec` fails with `SetSSB requires libseccomp >= 2.5.0 and API level >= 4 (current version: 2.5.5, API level: 1)`. All three Docker health checks fail (`failingStreak` 3276 / 3276 / 2080), so backend, traccar and postgres show "unhealthy". No docker/runc/libseccomp package change appears in dpkg since 2026-07-29 (Docker 29.6.2, runc 1.3.6, libseccomp2 2.5.5); the failure started hours ago, not at the 2026-09-26 reboot. Cause unknown; low-confidence hypothesis: memory pressure.
+2. Consequence for deployment: `deploy.yml` runs `docker compose up -d --build` (backend waits for healthy postgres/traccar) and `docker exec ... nginx -s reload`. A merge to `main` may fail or deploy only the frontend. Do not merge until this is understood.
+3. `shgps-certbot-1` exited (255) about two weeks ago and `shgps-backup-1` exited (137) at ~04:20 UTC today; neither service in `docker-compose.yml` for certbot has a restart policy. The backup loop needs the container alive: the next 03:00 backup will not run while it is stopped.
+4. Memory: 961 MB total, ~180 MB available, swap 713 MB / 2 GB in use with active swapping; `kswapd0` has used ~38 min of CPU; load ≈1.9 on 1 vCPU. Listed process RSS explains only ~250 MB of the ~780 MB "used" (rest unexplained). The Traccar JVM shows ~49 MB RSS (mostly swapped out).
+5. Kernel `6.8.0-142` is installed but the running kernel is `6.8.0-139`; 59 updates pending (12 security).
+6. `RESEND_API_KEY` / `MAIL_FROM` are neither in `.env` nor passed by `docker-compose.yml`: e-mail sending (password reset) is not configured in production.
+7. Device 70 (DACIA) has been offline ≈13 days; its last packet contained only `adc1 = 0.0`, no ignition/charge/battery fields.
