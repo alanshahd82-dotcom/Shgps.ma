@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, Cpu, Map, Bell, LogOut, Menu, X, Globe, Shield, Wrench,
   Plus, CheckCircle2, AlertCircle, CalendarDays, Hash, User2, Smartphone, CircleHelp,
-  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog, CreditCard, BarChart2
+  Phone, AlertTriangle, SlidersHorizontal, Inbox, UserCog, CreditCard, BarChart2, WifiOff
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
@@ -12,6 +12,10 @@ import { t } from '../../i18n/translations'
 import Logo from '../../components/Logo'
 import ForcePasswordModal from '../../components/ForcePasswordModal'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
+import PageBoundary from '../../components/PageBoundary'
+
+// Remembers the menu scroll position while moving between admin pages.
+let sidebarScrollTop = 0
 
 /* ─── Quick Add Device Modal ──────────────────────────────────────────────── */
 function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefreshClients, onSuccess }) {
@@ -24,7 +28,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
   // ── optional (expandable)
   const [expanded,  setExpanded]  = useState(false)
   const [clientId,  setClientId]  = useState('')
-  const [maxDev,    setMaxDev]    = useState('1')
+  const [maxDev,    setMaxDev]    = useState('')   // empty = keep the client's current limit
   const [expires,   setExpires]   = useState('')
   const [subscriptionPlanId, setSubscriptionPlanId] = useState('3_months')
   const [search,    setSearch]    = useState('')
@@ -42,7 +46,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
   const selectedClient = clientList.find(c => String(c.id) === String(clientId))
 
   const reset = () => {
-    setImei(''); setPhone(''); setClientId(''); setMaxDev('1')
+    setImei(''); setPhone(''); setClientId(''); setMaxDev('')
     setExpires(''); setSubscriptionPlanId('3_months'); setSearch(''); setError(''); setDone(null); setExpanded(false)
   }
   const handleClose = () => { reset(); onClose() }
@@ -55,7 +59,8 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
         imei:      imei.trim(),
         phone:     phone.trim() || null,
         clientId:  clientId ? Number(clientId) : null,
-        maxDevices: clientId ? Number(maxDev) : null,
+        // Only sent when the admin typed a new limit; otherwise the client's saved limit is kept.
+        maxDevices: clientId && maxDev !== '' ? Number(maxDev) : null,
         expiresAt:  clientId ? (expires || null) : null,
         subscriptionPlanId,
       })
@@ -267,11 +272,17 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
-                              <Hash size={10} />{isAr ? 'عدد الأجهزة' : 'Max appareils'}
+                              <Hash size={10} />{isAr ? 'حد الأجهزة' : 'Limite d\'appareils'}
                             </label>
-                            <input type="number" min="1" max="50"
+                            <input type="number" min="1" max="500"
                               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                              placeholder={String(selectedClient?.maxDevices ?? 5)}
                               value={maxDev} onChange={e => setMaxDev(e.target.value)} />
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {isAr
+                                ? `الحالي: ${selectedClient?.devicesCount ?? 0}/${selectedClient?.maxDevices ?? 5} — اتركه فارغاً للإبقاء عليه`
+                                : `Actuel : ${selectedClient?.devicesCount ?? 0}/${selectedClient?.maxDevices ?? 5} — vide = inchangé`}
+                            </p>
                           </div>
                           <div>
                             <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
@@ -318,7 +329,7 @@ export default function AdminLayout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { adminAuth, logoutAdmin, lang, setLang, alertsList, mustChangePassword, clearMustChange,
-          clientList, clientsError, refreshDevices, refreshClients } = useApp()
+          clientList, clientsError, refreshDevices, refreshClients, devices } = useApp()
   const [sidebarOpen,    setSidebarOpen]    = useState(false)
   const [showQuickAdd,   setShowQuickAdd]   = useState(false)
 
@@ -335,6 +346,7 @@ export default function AdminLayout({ children }) {
   }
 
   const allUnread = alertsList.filter(a => !a.read).length
+  const offlineCount = (devices || []).filter(d => d.status !== 'online' || d.trackingEnabled === false).length
 
   const handleLogout = () => {
     logoutAdmin()
@@ -348,6 +360,7 @@ export default function AdminLayout({ children }) {
     { path: '/admin/dashboard', icon: LayoutDashboard, label: t(lang, 'adminDashboard') },
     { path: '/admin/clients',   icon: Users,            label: t(lang, 'clientsList') },
     { path: '/admin/devices',   icon: Cpu,              label: t(lang, 'allDevices') },
+    { path: '/admin/offline',   icon: WifiOff,          label: lang === 'ar' ? 'الأجهزة غير المتصلة' : 'Appareils hors ligne', badge: offlineCount },
     { path: '/admin/subscriptions', icon: CreditCard,       label: lang === 'ar' ? 'الاشتراكات' : 'Abonnements' },
     { path: '/admin/reports',       icon: BarChart2,        label: lang === 'ar' ? 'التقارير' : 'Rapports' },
     ...((!isSubAdmin || adminPerms.view_map)     ? [{ path: '/admin/map',         icon: Map,       label: t(lang, 'globalMap') }]          : []),
@@ -364,7 +377,7 @@ export default function AdminLayout({ children }) {
   const navGroups = [
     {
       label: isAr ? 'الرئيسية' : 'Principal',
-      paths: ['/admin/dashboard', '/admin/clients', '/admin/devices', '/admin/subscriptions', '/admin/reports', '/admin/map', '/admin/alerts'],
+      paths: ['/admin/dashboard', '/admin/clients', '/admin/devices', '/admin/offline', '/admin/subscriptions', '/admin/reports', '/admin/map', '/admin/alerts'],
     },
     {
       label: isAr ? 'إدارة الأجهزة' : 'Gestion des appareils',
@@ -376,7 +389,10 @@ export default function AdminLayout({ children }) {
     },
   ]
 
-  const SidebarContent = () => (
+  // Rendered through a plain function (not a component defined inside this
+  // component) so React keeps the same DOM nodes on every update instead of
+  // rebuilding the whole menu each time positions or alerts change.
+  const renderSidebar = () => (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-slate-100">
         <Logo size="md" />
@@ -392,7 +408,11 @@ export default function AdminLayout({ children }) {
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav
+        className="flex-1 p-4 space-y-1 overflow-y-auto"
+        ref={el => { if (el && !el.dataset.restored) { el.dataset.restored = '1'; el.scrollTop = sidebarScrollTop } }}
+        onScroll={event => { sidebarScrollTop = event.currentTarget.scrollTop }}
+      >
         {navGroups.map(group => {
           const items = navItems.filter(item => group.paths.includes(item.path))
           if (items.length === 0) return null
@@ -475,7 +495,7 @@ export default function AdminLayout({ children }) {
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-100 flex-shrink-0 shadow-sm">
-        <SidebarContent />
+        {renderSidebar()}
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -502,7 +522,7 @@ export default function AdminLayout({ children }) {
               >
                 <X size={16} />
               </button>
-              <SidebarContent />
+              {renderSidebar()}
             </motion.aside>
           </>
         )}
@@ -547,7 +567,7 @@ export default function AdminLayout({ children }) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
           >
-            {children}
+            <PageBoundary lang={lang} resetKey={location.pathname}>{children}</PageBoundary>
           </motion.div>
         </main>
       </div>

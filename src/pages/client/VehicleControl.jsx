@@ -11,6 +11,7 @@ import { t } from '../../i18n/translations'
 import { APP_TZ } from '../../utils/datetime.js'
 import { formatVoltage } from '../../components/ui'
 import { useEngineControl } from '../../hooks/useEngineControl'
+import { agoLabel, locationState } from '../../utils/location'
 
 const VEHICLE_TYPES = ['car', 'bike', 'truck']
 
@@ -184,15 +185,20 @@ export default function VehicleControl() {
   const vehicleMapRef = useRef(null)
 
   const baseVehicle = useMemo(() => vehicles.find(v => String(v.id) === String(id)), [id, vehicles])
-  const vehicle = useMemo(
-    () => (baseVehicle && infoOverride ? { ...baseVehicle, ...infoOverride } : baseVehicle),
-    [baseVehicle, infoOverride]
-  )
+  // The saved snapshot must never replace the live position with an empty or
+  // stale one, so its coordinates are dropped before merging.
+  const vehicle = useMemo(() => {
+    if (!baseVehicle || !infoOverride) return baseVehicle
+    const { lat, lng, latitude, longitude, locationAt, locationSource, ...rest } = infoOverride
+    return { ...baseVehicle, ...rest }
+  }, [baseVehicle, infoOverride])
   const engine = useEngineControl(vehicle, lang)
   const sending = engine.sending
   const cmdErr = engine.error
   const cmdSuccess = engine.success
   const point = pt(vehicle)
+  const loc = locationState(vehicle)
+  const isAr = lang !== 'fr'
   const capability = cap(vehicle)
   const engineRunning = engine.engineRunning
   const lastUp = vehicle?.lastUpdate ?? vehicle?.fixTime
@@ -424,8 +430,21 @@ export default function VehicleControl() {
               </button>
             </div>
           ) : (
-            <div className="flex h-40 flex-col items-center justify-center text-slate-400">
-              <Car size={32}/><p className="mt-2 text-xs">{t(lang,'locationUnavailable')}</p>
+            <div className="flex h-40 flex-col items-center justify-center px-6 text-center text-slate-400">
+              <Car size={32}/>
+              <p className="mt-2 text-xs font-bold">{t(lang,'locationUnavailable')}</p>
+              <p className="mt-1 text-[11px]">{isAr ? 'لم يرسل الجهاز أي موقع GPS صالح حتى الآن.' : "L'appareil n'a encore envoyé aucune position GPS valide."}</p>
+            </div>
+          )}
+          {point && (loc.lastKnown || loc.noGps) && (
+            <div className="mx-3 mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold leading-5 text-amber-800" role="status">
+              <Activity size={14} className="mt-0.5 shrink-0" aria-hidden="true"/>
+              <span>
+                {loc.noGps
+                  ? (isAr ? 'الجهاز متصل لكن بدون إشارة GPS حالياً — الموقع المعروض هو آخر موقع معروف' : 'Appareil connecté mais sans signal GPS — position affichée : la dernière connue')
+                  : (isAr ? 'الجهاز غير متصل — هذا آخر موقع معروف' : 'Appareil hors ligne — dernière position connue')}
+                {agoLabel(loc.at, lang) ? ` (${agoLabel(loc.at, lang)})` : ''}
+              </span>
             </div>
           )}
           {isAdminView && capability === 'available' && (
@@ -437,6 +456,11 @@ export default function VehicleControl() {
               />
               {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
               {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
+              {engine.deviceReplyInfo && (
+                <p role="status" data-tone={engine.deviceReplyInfo.tone} className={engine.deviceReplyInfo.tone === 'warn' ? 'vehicle-control-map__engine-error' : 'vehicle-control-map__engine-success'}>
+                  {engine.deviceReplyInfo.text}
+                </p>
+              )}
             </div>
           )}
           <div className="grid grid-cols-2 gap-2 p-3">
@@ -550,7 +574,7 @@ export default function VehicleControl() {
             </div>
             <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
               <p className="truncate text-[10px] font-bold text-slate-500">{T.voltage}</p>
-              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(voltageLabel)}</p>
+              <p className="mt-1 truncate text-xs font-extrabold text-slate-800"><bdi>{displayValue(voltageLabel)}</bdi></p>
             </div>
           </div>
         </section>

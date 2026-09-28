@@ -38,6 +38,7 @@ import {
 import { createPowerAlertEngine } from './services/powerAlerts.js'
 import { isUserAlertEvent } from './services/eventPolicy.js'
 import { getClientIp } from './utils/clientIp.js'
+import { startWsLiveness } from './utils/wsLiveness.js'
 
 // ── Self-healing schema migrations ────────────────────────────────────────
 async function runMigrations() {
@@ -540,6 +541,8 @@ const server = createServer(app)
 
 // --- WebSocket server (frontend clients) ---------------------------------------
 const wss = new WebSocketServer({ server, path: '/api/socket' })
+// A client's device access is re-read from the database at most this often
+// (it used to be one query per client for every Traccar message).
 const frontendClients = new Set()
 
 // The stored snapshot in devices.last_* used to be refreshed only by a manual
@@ -674,6 +677,7 @@ wss.on('connection', (ws, req) => {
   }
 
   frontendClients.add(ws)
+  startWsLiveness(ws)
   console.log('[WS] Frontend client connected — total: ' + frontendClients.size)
 
   ws.on('close', () => {
@@ -758,7 +762,12 @@ async function connectTraccar() {
 
   const traccarWs = new WebSocket(socketUrl, wsOpts)
 
-  traccarWs.on('open', () => console.log('[Traccar WS] Connected to', wsBase))
+  traccarWs.on('open', () => {
+    console.log('[Traccar WS] Connected to', wsBase)
+    // A half-open connection never fires "close", which used to freeze live
+    // data for everyone until the backend was restarted.
+    startWsLiveness(traccarWs, { onDead: () => console.warn('[Traccar WS] no answer to ping — dropping the connection to reconnect') })
+  })
 
   traccarWs.on('message', async (data) => {
     const msg = data.toString()
@@ -810,7 +819,9 @@ async function connectTraccar() {
       if (!parsed) { client.send(msg); continue }
 
       if (!client.isAdmin) {
-        try { await client.refreshAccess?.() } catch (error) {
+        try {
+          await client.refreshAccess?.()
+        } catch (error) {
           console.warn('[WS] Client access refresh skipped:', error.message)
           continue
         }

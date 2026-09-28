@@ -54,7 +54,16 @@ const VOLTAGE_RANGE = {
   24: { empty: 21.00, full: 25.60, low: 22.00, warn: 23.60 },
 }
 
+// A voltage the tracker really measured as ~0 V (supply cut). null/undefined/''
+// mean "unknown" and must never be read as 0 (Number(null) === 0).
+export function isMeasuredNoSupply(value) {
+  if (value == null || value === '' || typeof value === 'boolean') return false
+  const voltage = Number(value)
+  return Number.isFinite(voltage) && voltage >= 0 && voltage < 3
+}
+
 export function getVoltageColor(value) {
+  if (isMeasuredNoSupply(value)) return '#FF3B30'
   const voltage = Number(value)
   if (!Number.isFinite(voltage) || voltage <= 0) return '#94A3B8'
   const range = VOLTAGE_RANGE[getVoltageSystem(voltage)]
@@ -86,7 +95,12 @@ export function formatVoltage(value, lang = 'ar', _lastUpdate = null, powerDisco
   // A confirmed external-power disconnect wins over any voltage still held in
   // a client cache: the vehicle supply is cut, so presenting the previous
   // reading as a normal voltage would be wrong.
-  if (powerDisconnected) return lang === 'ar' ? 'مفصول' : 'Déconnecté'
+  if (powerDisconnected) {
+    const base = lang === 'ar' ? 'مفصول' : 'Déconnecté'
+    return isMeasuredNoSupply(value) ? `${base} · ${Number(value).toFixed(1)} V` : base
+  }
+  // A real measured 0 V is shown as 0.0 V; an unknown value stays "—".
+  if (isMeasuredNoSupply(value)) return `${Number(value).toFixed(1)} V`
   const voltage = Number(value)
   if (Number.isFinite(voltage) && voltage > 0) {
     if (voltageStale) {

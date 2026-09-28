@@ -1,14 +1,16 @@
 import { Router } from 'express'
 import { config } from '../config.js'
+import { requireAuth, requireMainAdmin } from '../middleware/auth.js'
 
 export const diagRouter = Router()
 
-diagRouter.get('/offline', async (_req, res) => {
+// Main administrator only. This endpoint used to be public and ran shell commands
+// (which also froze the whole server while running); the shell part is gone.
+diagRouter.get('/offline', requireAuth, requireMainAdmin, async (_req, res) => {
   const results = {
     ts: new Date().toISOString(),
     network: {},
     traccar: {},
-    system: {},
   }
 
   try {
@@ -212,29 +214,6 @@ diagRouter.get('/offline', async (_req, res) => {
       }
     } catch (e) {
       results.network.procNetTcp = { error: e.message }
-    }
-
-    // 7. System commands
-    const { execSync } = await import('node:child_process')
-    const tryCmd = (cmd) => {
-      try {
-        const output = execSync(cmd, { timeout: 5000, encoding: 'utf8' })
-        return { output: output.substring(0, 3000) }
-      } catch (e) {
-        return { error: (e.message || 'failed').substring(0, 300) }
-      }
-    }
-    results.system.commands = {
-      ss_tlnp: tryCmd('ss -tlnp 2>&1 || true'),
-      netstat_tlnp: tryCmd('netstat -tlnp 2>&1 || true'),
-      iptables_nat: tryCmd('iptables -t nat -L DOCKER -n 2>&1 || true'),
-      iptables_input: tryCmd('iptables -L INPUT -n 2>&1 || true'),
-      docker_ps: tryCmd('docker ps --format "{{.Names}} {{.Ports}}" 2>&1 || true'),
-      ufw: tryCmd('ufw status 2>&1 || true'),
-      // Try to read Traccar log if volume is accessible
-      traccar_log: tryCmd('tail -100 /opt/traccar/data/logs/tracker-server.log 2>&1 || true'),
-      // Try cat /proc/net/tcp for all connections
-      proc_net_tcp: tryCmd('cat /proc/net/tcp 2>&1 | head -50 || true'),
     }
 
     res.json(results)

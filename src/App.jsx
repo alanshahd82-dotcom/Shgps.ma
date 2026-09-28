@@ -32,12 +32,14 @@ const DeviceSetup = lazy(() => import('./pages/admin/DeviceSetup'))
 const SupportSettings = lazy(() => import('./pages/admin/SupportSettings'))
 const Leads = lazy(() => import('./pages/admin/Leads'))
 const AdminReports = lazy(() => import('./pages/admin/AdminReports'))
+const AdminOffline = lazy(() => import('./pages/admin/AdminOffline'))
 import NotFound from './pages/NotFound'
 import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import ForcePasswordModal from './components/ForcePasswordModal'
+import PageBoundary from './components/PageBoundary'
 
 // ── New Design System Screens (Phase 6+) ─────────────────────────────────────
 import MapScreen from './design-system/screens/MapScreen'
@@ -90,7 +92,7 @@ function ClientRoute({ children }) {
   }
   return (
     <>
-      {children}
+      <PageBoundary lang={lang} resetKey={location.pathname}>{children}</PageBoundary>
       {mustChangePassword && (
         <ForcePasswordModal lang={lang} onSuccess={clearMustChange} />
       )}
@@ -99,13 +101,13 @@ function ClientRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { adminAuth, authReady, authBootstrapError } = useApp()
+  const { adminAuth, authReady, authBootstrapError, lang } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
   if (authBootstrapError || !isAdminAuthenticated(adminAuth)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
-  return children
+  return <PageBoundary lang={lang} resetKey={location.pathname}>{children}</PageBoundary>
 }
 
 function ClientEntry() {
@@ -184,6 +186,7 @@ export default function App() {
           <Route path="/admin/clients"      element={<AdminRoute><Clients /></AdminRoute>} />
           <Route path="/admin/clients/:id"  element={<AdminRoute><ClientDetail /></AdminRoute>} />
           <Route path="/admin/devices"      element={<AdminRoute><AllDevices /></AdminRoute>} />
+          <Route path="/admin/offline"      element={<AdminRoute><AdminOffline /></AdminRoute>} />
           <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
           <Route path="/admin/reports"       element={<AdminRoute><AdminReports /></AdminRoute>} />
           <Route path="/admin/map"          element={<AdminRoute><GlobalMap /></AdminRoute>} />

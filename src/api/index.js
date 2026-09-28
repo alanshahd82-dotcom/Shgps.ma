@@ -164,6 +164,7 @@ export const api = {
     renewSubscription: (id, subscriptionPlanId) =>
       apiFetch(`/devices/${id}/subscription`, { method: 'PATCH', body: JSON.stringify({ subscriptionPlanId }) }),
     delete:         (id)            => apiFetch(`/devices/${id}`,    { method: 'DELETE' }),
+    replace:        (id, data)      => apiFetch(`/devices/${id}/replace`, { method: 'POST', body: JSON.stringify(data) }),
     sendCommand:    (id, type, headers = {}) => apiFetch(`/devices/${id}/command`, { method: 'POST', body: JSON.stringify({ type }), ...(Object.keys(headers).length ? { headers } : {}) }),
     getActiveCommand: (id) => apiFetch(`/devices/${id}/active-command`),
     cancelCommand:  (id, commandId) => apiFetch(`/devices/${id}/command/${commandId}/cancel`, { method: 'POST' }),

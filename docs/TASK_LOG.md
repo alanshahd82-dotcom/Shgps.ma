@@ -1993,3 +1993,24 @@ write before subsequent packets arrive.
   were unchanged.
 - Build and `git diff --check` passed. Commit and remote result must be recorded
   after the final push.
+
+## 2026-09-28 — Engine cut/resume baseline recorded (documentation only)
+
+- Recorded the verified working state of the engine cut/resume feature at commit `1cb568d` in `docs/ENGINE_CUT_BASELINE.md`: end-to-end flow, Traccar payload profiles, `engine_commands` state machine, worker/TTL, power-alert cooldown (60 s), frontend behaviour and entry points, test baseline, and sha256 fingerprints of the critical files.
+- Added `.agents/memory/engine-cut-baseline.md` and its index entry.
+- Test baseline found: 12 pre-existing failures unrelated to the engine flow (11 stale power-alert tests expecting `charge:false` as a loss, 1 layout test using `require` in an ES-module package). No test imports the real engine modules.
+- Source code changed: NO. Backend, Traccar, database, Docker, deployment, API contracts: unchanged.
+- Production behaviour, physical relay movement: `[UNCONFIRMED]` by this audit (owner reports it works).
+
+## 2026-09-28 — Client-reported issues: Phase A audit (documentation only)
+
+- Audited the 11 client-reported issues; full findings, proven vs unconfirmed causes, proposed order and open decisions are in `docs/AUDIT_CLIENT_REPORT_2026-09-28.md`.
+- Reproduced locally (mock API + headless Chromium): `/admin/setup` `removeChild` crash (external DOM mutation on the Next/Save button text, not Leaflet), `0.000, 0.000` / "Position indisponible" on client screens, admin map clusters that never separate at street zoom, map painting above the add-device modal on mobile, sidebar re-created on every render.
+- Found (not reported by the client): unauthenticated `/api/diag/offline` running `execSync`.
+- Source code changed: NO. Backend, Traccar, database, Docker, deployment, API contracts: unchanged. Production behaviour: `[UNCONFIRMED]`.
+
+## 2026-09-28 — Client-reported issues: fixes, phases 1–8 (branch `ccr-a2c52512-p85t46`, no PR, not deployed)
+
+- P1 last valid location (backend never returns 0,0 as a position; app shows last known + time; blue My Location dot). P2 add-device crash (browser translation vs React text nodes: `translate="no"`, stable button text, page-level error boundary). P3 map (cluster zoom, layers above modals, dark inputs in white modals, `react-vendor` chunk). P4 admin menu stable + new `/admin/offline` page. P5 live updates (WebSocket liveness ping, foreground resync) and `/api/diag` locked to the main admin with `execSync` removed. P6 device limit no longer overwritten by quick-add + "replace tracker" flow (`POST /devices/:id/replace`, with rollback). P7 real 0 V vs unknown, confirmed supply loss, tracker answer to engine commands. P8 client polish: language choice is now remembered (it reset to French on every launch), numbers no longer reversed in Arabic, no wrapped units, `DriverBehavior` tolerates bad data.
+- Tests: backend suite 12 pre-existing failures only (same tests); new tests for location, devices location/replace, offline reason, ws liveness, diag auth, supply voltage, device reply, active-command reply. Browser scenarios (Playwright, mock API): client 11 screens x AR/FR x mobile/desktop, admin 14 screens, production build smoke — no page errors.
+- Not done on purpose (owner decisions): server health (`docker exec`/libseccomp), stopped certbot/backup containers, memory pressure, email (Resend) configuration, deployment. `engineCommands.js` unchanged (see `docs/ENGINE_CUT_BASELINE.md` §11).

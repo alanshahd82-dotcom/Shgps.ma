@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { api } from '../api/index.js'
 import { isUserAlertEvent } from '../utils/eventPolicy.js'
@@ -45,7 +45,7 @@ function sameDevice(first, second) {
   return first != null && second != null && String(first) === String(second)
 }
 
-function mergeDeviceSnapshots(previous, next) {
+function mergeDeviceSnapshots(previous, next, { force = false } = {}) {
   const previousById = new Map(previous.map(device => [String(device.id), device]))
   return next.map(incoming => {
     const current = previousById.get(String(incoming.id))
@@ -54,8 +54,10 @@ function mergeDeviceSnapshots(previous, next) {
     const incomingHasPosition = validLivePosition(incoming)
     const incomingTime = positionTimestamp(incoming)
     const currentTime = positionTimestamp(current)
+    // `force` = a resync after the app came back to the foreground: the server
+    // snapshot is trusted even if timestamps on this side look newer.
     const incomingIsNewer = incomingHasPosition &&
-      (currentTime === null || incomingTime === null || incomingTime >= currentTime)
+      (force || currentTime === null || incomingTime === null || incomingTime >= currentTime)
 
     // Phase 2H-2: preserve last-known vehicle voltage across the 30 s poll.
     // mergeVoltageFields (../utils/voltageMerge.js) keeps a known voltage when
@@ -65,12 +67,17 @@ function mergeDeviceSnapshots(previous, next) {
 
     // When backend reports offline, do not preserve stale telemetry as current.
     const offline = incoming.status === 'offline'
+    // Keep a real location we already have; otherwise accept the server's
+    // (last-known) one. A 0,0 / empty value never replaces a valid location.
+    const keep = validLivePosition(current) ? current : (validLivePosition(incoming) ? incoming : null)
     return {
       ...current,
       ...incoming,
       ...mergeVoltageFields(current, incoming),
-      lat: current.lat ?? current.last_lat,
-      lng: current.lng ?? current.last_lng,
+      lat: keep ? Number(keep.lat ?? keep.latitude) : null,
+      lng: keep ? Number(keep.lng ?? keep.longitude) : null,
+      locationAt: keep ? (keep.locationAt ?? null) : null,
+      locationSource: keep ? (keep.locationSource ?? null) : null,
       speed: offline ? null : current.speed,
       engineOn: offline ? null : current.engineOn,
       motion: offline ? null : current.motion,
@@ -84,7 +91,15 @@ function mergeDeviceSnapshots(previous, next) {
 }
 
 export function AppProvider({ children }) {
-  const [lang, setLang]                     = useState('fr')
+  // The chosen language is remembered (same key the public pages already read),
+  // so an Arabic user is not sent back to French on every launch or refresh.
+  const [lang, setLangState]                = useState(() => {
+    try { const saved = window.localStorage.getItem('athargps_lang'); return saved === 'ar' || saved === 'fr' ? saved : 'fr' } catch { return 'fr' }
+  })
+  const setLang = useCallback(next => {
+    setLangState(next)
+    try { window.localStorage.setItem('athargps_lang', next) } catch { /* private mode: keep for this session only */ }
+  }, [])
   const [clientAuth, setClientAuth]         = useState(() => loadFromStorage('athargps_client'))
   const [adminAuth,  setAdminAuth]          = useState(() => loadFromStorage('athargps_admin'))
   const [authReady,  setAuthReady]          = useState(false)
@@ -145,6 +160,9 @@ export function AppProvider({ children }) {
             ...current,
             lat:        latitude,
             lng:        longitude,
+            locationAt: pos.fixTime ?? current.locationAt ?? null,
+            locationSource: 'live',
+            gpsValid:   pos.valid ?? current.gpsValid ?? null,
             speed:      pos.speed ?? 0,
             // "Last update" means last contact with the tracker, not last GPS
             // lock: serverTime is the packet arrival, fixTime stays for the map.
@@ -318,11 +336,43 @@ export function AppProvider({ children }) {
     return () => { clearInterval(devId); if (clientsId) clearInterval(clientsId) }
   }, [clientAuth, adminAuth]) // eslint-disable-line
 
-  async function loadDevices() {
+  // Coming back to the app (unlocking the phone, switching tabs, network back):
+  // reconnect the live socket right away if it is gone or silent, and refresh the
+  // vehicles once, so the user never has to reload the page to see fresh data.
+  useEffect(() => {
+    if (!clientAuth && !adminAuth) return undefined
+    const resync = () => {
+      if (document.visibilityState === 'hidden') return
+      if (!localStorage.getItem('athargps_token')) return
+      const ws = wsRef.current
+      if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        if (wsReconnectRef.current) { window.clearTimeout(wsReconnectRef.current); wsReconnectRef.current = null }
+        wsRetryRef.current = 0
+        openWebSocket()
+      } else if (ws.readyState === WebSocket.OPEN && Date.now() - wsLastActivityRef.current > 25000) {
+        // Possibly a dead connection after the phone slept: probe it now; the
+        // existing watchdog closes it if no answer arrives.
+        wsPingSentAtRef.current = Date.now()
+        try { ws.send('ping') } catch { /* closing */ }
+      }
+      loadDevices({ force: true })
+    }
+    document.addEventListener('visibilitychange', resync)
+    window.addEventListener('online', resync)
+    window.addEventListener('pageshow', resync)
+    return () => {
+      document.removeEventListener('visibilitychange', resync)
+      window.removeEventListener('online', resync)
+      window.removeEventListener('pageshow', resync)
+    }
+  }, [clientAuth, adminAuth]) // eslint-disable-line
+
+  async function loadDevices(options) {
+    const force = options?.force === true
     setDevicesLoading(true)
     try {
       const nextDevices = await api.devices.list()
-      setDevices(prev => mergeDeviceSnapshots(prev, Array.isArray(nextDevices) ? nextDevices : []))
+      setDevices(prev => mergeDeviceSnapshots(prev, Array.isArray(nextDevices) ? nextDevices : [], { force }))
       setNetworkError(false)
     } catch {
       setNetworkError(true)

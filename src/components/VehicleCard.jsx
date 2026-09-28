@@ -4,10 +4,11 @@ import {
 } from 'lucide-react'
 import { normalizeVehicleType } from '../utils/vehicleAssets'
 import {
-  formatVoltage, getBatteryPercent, getVoltageColor, timeAgo,
+  formatVoltage, getBatteryPercent, getVoltageColor, isMeasuredNoSupply, timeAgo,
 } from './ui'
 import { useReverseGeocode } from '../utils/reverseGeocode'
 import { useEngineControl } from '../hooks/useEngineControl'
+import { agoLabel, locationState } from '../utils/location'
 import carArt from '../assets/vehicle-car.webp'
 import bikeArt from '../assets/vehicle-bike.webp'
 import truckArt from '../assets/vehicle-truck.webp'
@@ -30,6 +31,7 @@ const L = {
     overspeed: 'تجاوز السرعة', battery: 'البطارية', signal: 'الإشارة',
     cutEngine: 'قطع', restoreEngine: 'تشغيل', confirm: 'تأكيد؟',
     address: 'العنوان', km: 'كم', loading: '...', failed: 'فشل',
+    lastKnown: 'آخر موقع معروف', noGps: 'لا توجد إشارة GPS', noLocation: 'الموقع غير متاح',
   },
   fr: {
     online: 'En ligne', offline: 'Hors ligne', moving: 'En marche', stopped: 'Arrêté',
@@ -37,6 +39,7 @@ const L = {
     overspeed: 'Excès de vitesse', battery: 'Batterie', signal: 'Signal',
     cutEngine: 'Couper', restoreEngine: 'Démarrer', confirm: 'Confirmer?',
     address: 'Adresse', km: 'km', loading: '...', failed: 'Échec',
+    lastKnown: 'Dernière position connue', noGps: 'Pas de signal GPS', noLocation: 'Position indisponible',
   },
 }
 
@@ -87,9 +90,10 @@ function SignalBars({ signal }) {
 
 // ── Visual battery indicator ──────────────────────────────────────────────────
 function BatteryIcon({ voltage, powerDisconnected }) {
-  const pct = powerDisconnected ? 0 : getBatteryPercent(voltage)
-  const hasData = !powerDisconnected && getBatteryPercent(voltage) != null
-  const color = powerDisconnected
+  const noSupply = powerDisconnected || isMeasuredNoSupply(voltage)
+  const pct = noSupply ? 0 : getBatteryPercent(voltage)
+  const hasData = !noSupply && getBatteryPercent(voltage) != null
+  const color = noSupply
     ? '#dc2626'
     : hasData
       ? getVoltageColor(voltage)
@@ -185,7 +189,8 @@ export function VehicleCard({
   useEffect(() => () => clearTimeout(engineTimerRef.current), [])
 
   // Address (lazy reverse geocoding with backend fallback)
-  const address = useReverseGeocode(vehicle.lat, vehicle.lng, vehicle.address)
+  const loc = locationState(vehicle)
+  const address = useReverseGeocode(loc.point?.[0], loc.point?.[1], loc.point ? vehicle.address : null)
 
   // Daily distance from total odometer
   const dailyKm = getDailyDistance(vehicle.id || vehicle.uniqueId, vehicle.totalDistance)
@@ -241,13 +246,13 @@ export function VehicleCard({
           <p className="truncate text-[11px] font-medium text-slate-400">{vehicle.plate || vehicle.uniqueId || l.na}</p>
 
           {/* metrics row: speed | battery | signal */}
-          <div className="mt-2.5 flex items-center gap-2">
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <span className="flex items-center gap-1.5">
               <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${moving ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'} transition-colors`}>
                 <Gauge className={`h-3.5 w-3.5 ${moving ? 'animate-pulse' : ''}`} />
               </span>
               <span className="leading-tight">
-                <span className={`block text-[12px] font-extrabold tabular-nums ${moving ? 'text-indigo-700' : 'text-slate-900'}`}>
+                <span className={`block whitespace-nowrap text-[12px] font-extrabold tabular-nums ${moving ? 'text-indigo-700' : 'text-slate-900'}`}>
                   {online && rawSpeed != null ? `${speed} ${l.kmh}` : l.na}
                 </span>
                 <span className="block text-[9px] text-slate-400">{l.speed}</span>
@@ -259,7 +264,7 @@ export function VehicleCard({
                 <BatteryIcon voltage={vehicle.voltage} powerDisconnected={vehicle.powerDisconnected} />
               </span>
               <span className="leading-tight">
-                <span className="block text-[12px] font-extrabold text-slate-900">{power}</span>
+                <span className="block whitespace-nowrap text-[12px] font-extrabold tabular-nums text-slate-900"><bdi>{power}</bdi></span>
                 <span className="block text-[9px] text-slate-400">{l.battery}</span>
               </span>
             </span>
@@ -327,8 +332,16 @@ export function VehicleCard({
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
           <MapPin className="h-3 w-3" />
         </span>
-        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-600">
-          {address || (vehicle.lat != null ? `${Number(vehicle.lat).toFixed(3)}, ${Number(vehicle.lng).toFixed(3)}` : l.na)}
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-[11px] font-semibold text-slate-600">
+            {address || (loc.point ? <bdi>{`${loc.point[0].toFixed(4)}, ${loc.point[1].toFixed(4)}`}</bdi> : l.noLocation)}
+          </span>
+          {(loc.lastKnown || loc.noGps) && (
+            <span className={`mt-0.5 flex items-center gap-1 truncate text-[10px] font-bold ${loc.noGps ? 'text-amber-600' : 'text-slate-400'}`}>
+              <Clock size={10} aria-hidden="true" />
+              <span className="truncate">{loc.noGps ? l.noGps : l.lastKnown}{agoLabel(loc.at, lang) ? ` · ${agoLabel(loc.at, lang)}` : ''}</span>
+            </span>
+          )}
         </span>
 
         {/* heading arrow + daily distance */}
@@ -373,6 +386,15 @@ export function VehicleCard({
             {engineLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power size={16} />}
             {engineLoading ? l.loading : engineErr ? l.failed : engineConfirm ? l.confirm : engineRunning ? l.cutEngine : l.restoreEngine}
           </button>
+          {engine.deviceReplyInfo && (
+            <p
+              role="status"
+              data-tone={engine.deviceReplyInfo.tone}
+              className={`mt-1.5 px-1 text-center text-[11px] font-bold leading-4 ${engine.deviceReplyInfo.tone === 'warn' ? 'text-red-600' : engine.deviceReplyInfo.tone === 'wait' ? 'text-amber-600' : 'text-emerald-600'}`}
+            >
+              {engine.deviceReplyInfo.text}
+            </p>
+          )}
         </div>
       )}
 

@@ -182,8 +182,11 @@ export default function Dashboard() {
 
           {/* Device status pie */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-            <div className="px-5 py-4 border-b border-gray-100">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-bold text-primary-500">{t(lang, 'deviceStatus')}</h3>
+              <button onClick={() => navigate('/admin/offline')} className="text-xs text-accent font-semibold hover:underline">
+                {lang === 'ar' ? 'عرض غير المتصلة' : 'Voir hors ligne'} →
+              </button>
             </div>
             <div className="p-4 flex items-center gap-6">
               <div

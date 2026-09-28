@@ -14,6 +14,8 @@ import {
   syncSubscriptionState,
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
+import { pickLocation } from '../utils/location.js'
+import { findDeviceReply } from '../services/deviceReply.js'
 import {
   isVehicleDisconnected,
   positionIsFresh,
@@ -21,6 +23,8 @@ import {
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readLastKnownVehicleVoltage,
+  resetSupplySensorState,
+  clearVehicleVoltage,
   readVehicleVoltage,
   registerEngineCommandCooldown,
   resolveDeviceStatus,
@@ -104,7 +108,7 @@ import {
     try {
       const scope = deviceAccessScope(req.user, 'd')
       const { rows } = await db.query(
-        `SELECT d.*,u.name AS client_name
+        `SELECT d.*,u.name AS client_name,u.phone AS client_phone
          FROM devices d
          LEFT JOIN users u ON d.user_id=u.id
          WHERE ${scope.text}
@@ -174,6 +178,11 @@ import {
         // If Traccar has no fresh position for a connected stationary device,
         // keep its last locally stored GPS fix visible on the map.
         const p = livePosition ?? (td?.status === 'online' ? storedPosition : null)
+        // Coordinates: a live 0,0 (tracker without a GPS fix) must never hide the
+        // last valid location that we already stored for this device.
+        const location = pickLocation(livePosition, hasStoredPosition
+          ? { latitude: d.last_lat, longitude: d.last_lng, last_update: d.last_update }
+          : null)
         const freshLivePosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
         const telemetryId = d.traccar_id ?? td?.id
         const telemetrySilent = positionIsSilent(livePosition ?? storedPosition, POWER_SILENCE_WINDOW_MS)
@@ -238,8 +247,12 @@ import {
           clientId:  d.user_id,
           clientName:d.client_name ?? null,
           status,
-          lat:       trackingEnabled && p != null ? p.latitude  : null,
-          lng:       trackingEnabled && p != null ? p.longitude : null,
+          lat:       trackingEnabled && location ? location.latitude  : null,
+          lng:       trackingEnabled && location ? location.longitude : null,
+          locationAt:     trackingEnabled && location ? location.at : null,
+          locationSource: trackingEnabled && location ? location.source : null,
+          gpsValid:  trackingEnabled && livePosition ? (livePosition.valid ?? null) : null,
+          clientPhone: d.client_phone ?? null,
            speed:     trackingEnabled && p ? Math.round(speedKmh(p.speed)) : null,
           lastUpdate:trackingEnabled ? (td?.lastUpdate ?? p?.fixTime ?? null) : null,
            engineOn:  trackingEnabled && p ? (p.attributes?.ignition ?? null) : null,
@@ -415,6 +428,69 @@ import {
       } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
     })
 
+    const replacingDevices = new Set()
+
+    // POST /:id/replace — the tracker of an existing vehicle was replaced by a new
+    // one (new IMEI). Name, plate, client, subscription and history are kept.
+    devicesRouter.post('/:id/replace', requireAuth, requireDeviceOwner, async (req, res) => {
+      if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
+      const dev = req.device
+      const imei = String(req.body?.imei ?? '').trim()
+      const phone = req.body?.phone == null ? null : (String(req.body.phone).trim().slice(0, 20) || null)
+      if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
+      if (imei === dev.imei) return res.status(400).json({ error: 'The new IMEI is the same as the current one' })
+      // One replacement per device at a time: the tracking service and the
+      // database must end up with the same IMEI.
+      if (replacingDevices.has(dev.id)) return res.status(409).json({ error: 'A replacement is already in progress for this device' })
+      replacingDevices.add(dev.id)
+      try {
+        const { rows: taken } = await db.query('SELECT id FROM devices WHERE imei=$1 AND id<>$2', [imei, dev.id])
+        if (taken[0]) return res.status(409).json({ error: 'IMEI already registered' })
+
+        // The tracking service is changed first; if the local update then fails it is put back.
+        if (dev.traccar_id) {
+          try {
+            await traccar.updateDeviceUniqueId(dev.traccar_id, imei)
+          } catch (e) {
+            console.error('[replace] tracking service update failed:', e.message)
+            return res.status(e.status === 400 ? 409 : 502).json({
+              error: e.status === 400
+                ? 'This IMEI already exists in the tracking service'
+                : 'The tracking service could not be updated',
+            })
+          }
+        }
+        let updated
+        try {
+          const result = await db.query(
+            'UPDATE devices SET imei=$1, phone=COALESCE($2, phone), updated_at=NOW() WHERE id=$3 RETURNING id, imei, phone',
+            [imei, phone, dev.id]
+          )
+          updated = result.rows[0]
+        } catch (e) {
+          let rolledBack = true
+          if (dev.traccar_id) {
+            rolledBack = await traccar.updateDeviceUniqueId(dev.traccar_id, dev.imei).then(() => true, rollbackErr => {
+              console.error('[replace] ROLLBACK FAILED - tracking service holds', imei, 'but the database holds', dev.imei, ':', rollbackErr.message)
+              return false
+            })
+          }
+          if (!rolledBack) return res.status(500).json({ error: 'Replacement failed and could not be undone in the tracking service. Check the device IMEI in the tracking service.', code: 'REPLACE_ROLLBACK_FAILED' })
+          if (e.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
+          throw e
+        }
+        // The new physical tracker starts with a clean electrical history.
+        if (dev.traccar_id) { resetSupplySensorState(dev.traccar_id); clearVehicleVoltage(dev.traccar_id) }
+        await logAudit(req.user.id, 'device_replaced', 'device', dev.id, { oldImei: dev.imei, newImei: imei }).catch(() => {})
+        res.json({ ok: true, id: updated.id, imei: updated.imei, phone: updated.phone, trackingLinked: Boolean(dev.traccar_id) })
+      } catch (err) {
+        console.error('[replace error]', err.message)
+        res.status(500).json({ error: 'Server error' })
+      } finally {
+        replacingDevices.delete(dev.id)
+      }
+    })
+
     // PATCH /:id/subscription — admin or the device owner can renew by plan.
     // Renewal starts at the later of today or the current end date so active
     // time is never lost. This endpoint never changes user-level subscriptions.
@@ -480,6 +556,7 @@ import {
       } catch {}
       const freshPosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
       const status = resolveDeviceStatus(traccarDevice, livePosition)
+      const location = pickLocation(livePosition, { latitude: dev.last_lat, longitude: dev.last_lng, last_update: dev.last_update })
       const electrical = subscription.trackingEnabled
         ? readElectricalTelemetry(
             freshPosition ? livePosition : null,
@@ -500,8 +577,10 @@ import {
       res.json({
         ...dev,
         status,
-        lat: subscription.trackingEnabled && freshPosition ? livePosition.latitude : null,
-        lng: subscription.trackingEnabled && freshPosition ? livePosition.longitude : null,
+        lat: subscription.trackingEnabled && location ? location.latitude : null,
+        lng: subscription.trackingEnabled && location ? location.longitude : null,
+        locationAt: subscription.trackingEnabled && location ? location.at : null,
+        locationSource: subscription.trackingEnabled && location ? location.source : null,
         speed: subscription.trackingEnabled && freshPosition ? Math.round(speedKmh(livePosition.speed)) : null,
         lastUpdate: subscription.trackingEnabled
           ? (livePosition?.fixTime ?? dev.last_update ?? null)
@@ -536,11 +615,35 @@ import {
     // never mutates command rows, never sends a Traccar command, never reads
     // legacy device_commands as live state. The frontend uses this to derive
     // the CUT/RESUME button state instead of inferring it from ignition telemetry.
+    // Short cache: many cards/pages ask for the same command; one Traccar lookup is enough.
+    const deviceReplyCache = new Map()
     devicesRouter.get('/:id/active-command', requireAuth, requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
         const command = await engineCommands.getActiveCommand(dev.id)
         if (!command) return res.json({ command: null })
+        // Additive, read-only: what the tracker itself answered (position
+        // attribute `result`). Any failure here must never affect the command
+        // state, so it is isolated and simply omitted.
+        let deviceReply = null
+        const cachedReply = deviceReplyCache.get(command.id)
+        if (cachedReply && Date.now() - cachedReply.at < (cachedReply.reply ? 60_000 : 10_000)) {
+          deviceReply = cachedReply.reply
+        } else if (dev.traccar_id && command.status !== 'pending' && command.status !== 'requested') {
+          try {
+            // One bounded window (never days of history for a long-running cut):
+            // the tracker answers within seconds; a postponed one within hours.
+            const createdMs = new Date(command.created_at).getTime()
+            const from = new Date(createdMs - 5000).toISOString()
+            const to = new Date(Math.min(Date.now(), createdMs + 6 * 60 * 60 * 1000)).toISOString()
+            const positions = await traccar.getHistory(dev.traccar_id, from, to)
+            deviceReply = findDeviceReply(positions, command)
+            if (deviceReplyCache.size > 200) deviceReplyCache.clear()
+            deviceReplyCache.set(command.id, { at: Date.now(), reply: deviceReply })
+          } catch (replyErr) {
+            console.warn('[active-command] device reply lookup skipped:', replyErr.message)
+          }
+        }
         res.json({
           command: {
             id: command.id,
@@ -550,6 +653,7 @@ import {
             created_at: command.created_at,
             traccar_command_id: command.traccar_command_id ?? null,
           },
+          deviceReply,
         })
       } catch (err) {
         console.error('[active-command error]', err.message)

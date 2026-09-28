@@ -19,6 +19,7 @@ import MapView from '../../components/MapView'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
+import ReplaceDeviceModal from '../../components/admin/ReplaceDeviceModal'
 import Button from '../../components/ui/Button'
 import { formatVoltage, getVoltageColor, VehicleIcon, VehicleTypeControl } from '../../components/ui'
 import AddDeviceModal from '../../components/admin/AddDeviceModal'
@@ -107,6 +108,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
   const [editingType, setEditingType] = useState(false)
   const [typeSaving, setTypeSaving] = useState(false)
   const [showRenew, setShowRenew] = useState(false)
+  const [showReplace, setShowReplace] = useState(false)
 
   // Route state
   const [rangePreset, setRangePreset]   = useState('today')
@@ -294,6 +296,15 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                   <p className="text-xs font-mono text-slate-500 truncate">{Number(live.lat).toFixed(5)}, {Number(live.lng).toFixed(5)}</p>
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={() => setShowReplace(true)}
+                className="w-full flex items-center justify-center gap-2 border border-slate-200 text-slate-700 font-bold text-sm py-3 rounded-2xl hover:bg-slate-50 transition-colors"
+              >
+                <RefreshCw size={15}/>
+                {isAr ? 'استبدال جهاز التتبع (IMEI جديد)' : "Remplacer l'appareil de suivi (nouvel IMEI)"}
+              </button>
             </div>
           )}
 
@@ -459,6 +470,14 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
         </div>
       </motion.div>
 
+      <ReplaceDeviceModal
+        open={showReplace}
+        device={live}
+        lang={lang}
+        onClose={() => setShowReplace(false)}
+        onDone={async () => { await onDeviceUpdated?.() }}
+      />
+
       {/* Renewal modal */}
       <SubscriptionRenewalModal
         open={showRenew}
@@ -571,8 +590,8 @@ export default function ClientDetail() {
           {clientDevices.length >= maxDevices && (
             <div className="mx-5 mt-4 flex items-start gap-2 bg-orange-50 border border-orange-100 text-orange-700 rounded-xl px-4 py-3 text-sm">
               {isAr
-                ? `تم الوصول إلى الحد الأقصى (${clientDevices.length}/${maxDevices}). أجدّد الاشتراك لزيادة الحد.`
-                : `Limite atteinte (${clientDevices.length}/${maxDevices}). Renouvelez pour augmenter.`}
+                ? `تم الوصول إلى حد الأجهزة لهذا العميل (${clientDevices.length}/${maxDevices}). لرفعه: قائمة العملاء ← تعديل ← الحد الأقصى للأجهزة. ولاستبدال جهاز قديم افتح الجهاز واختر «استبدال جهاز التتبع».`
+                : `Limite d'appareils atteinte pour ce client (${clientDevices.length}/${maxDevices}). Pour l'augmenter : Clients → Modifier → nombre maximum d'appareils. Pour remplacer un ancien appareil, ouvrez-le et choisissez « Remplacer l'appareil de suivi ».`}
             </div>
           )}
 

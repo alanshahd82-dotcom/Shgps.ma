@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import VehicleCard from '../../components/VehicleCard'
+import { vehiclePoint } from '../../utils/location'
 import { getDeviceStatusKey } from '../../components/ui'
 
 function useLang() {
@@ -112,8 +113,8 @@ export default function Home() {
     lastUpdate: d.lastUpdate,
     voltage: d.voltage ?? null,
     powerDisconnected: d.powerDisconnected ?? false,
-    lat: d.lat ?? d.last_lat ?? null,
-    lng: d.lng ?? d.last_lng ?? null,
+    lat: vehiclePoint(d)?.[0] ?? null,
+    lng: vehiclePoint(d)?.[1] ?? null,
   })), [devices])
 
   const fleet = useMemo(() => {
