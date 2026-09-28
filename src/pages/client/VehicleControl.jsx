@@ -456,6 +456,11 @@ export default function VehicleControl() {
               />
               {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
               {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
+              {engine.deviceReplyInfo && (
+                <p role="status" data-tone={engine.deviceReplyInfo.tone} className={engine.deviceReplyInfo.tone === 'warn' ? 'vehicle-control-map__engine-error' : 'vehicle-control-map__engine-success'}>
+                  {engine.deviceReplyInfo.text}
+                </p>
+              )}
             </div>
           )}
           <div className="grid grid-cols-2 gap-2 p-3">

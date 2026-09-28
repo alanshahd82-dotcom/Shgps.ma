@@ -15,6 +15,7 @@ import {
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
 import { pickLocation } from '../utils/location.js'
+import { findDeviceReply } from '../services/deviceReply.js'
 import {
   isVehicleDisconnected,
   positionIsFresh,
@@ -600,6 +601,23 @@ import {
         const dev = req.device
         const command = await engineCommands.getActiveCommand(dev.id)
         if (!command) return res.json({ command: null })
+        // Additive, read-only: what the tracker itself answered (position
+        // attribute `result`). Any failure here must never affect the command
+        // state, so it is isolated and simply omitted.
+        let deviceReply = null
+        if (dev.traccar_id && command.status !== 'pending' && command.status !== 'requested') {
+          try {
+            // One bounded window (never days of history for a long-running cut):
+            // the tracker answers within seconds; a postponed one within hours.
+            const createdMs = new Date(command.created_at).getTime()
+            const from = new Date(createdMs - 5000).toISOString()
+            const to = new Date(Math.min(Date.now(), createdMs + 6 * 60 * 60 * 1000)).toISOString()
+            const positions = await traccar.getHistory(dev.traccar_id, from, to)
+            deviceReply = findDeviceReply(positions, command)
+          } catch (replyErr) {
+            console.warn('[active-command] device reply lookup skipped:', replyErr.message)
+          }
+        }
         res.json({
           command: {
             id: command.id,
@@ -609,6 +627,7 @@ import {
             created_at: command.created_at,
             traccar_command_id: command.traccar_command_id ?? null,
           },
+          deviceReply,
         })
       } catch (err) {
         console.error('[active-command error]', err.message)

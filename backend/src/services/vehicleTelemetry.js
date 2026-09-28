@@ -129,6 +129,15 @@ export function detectExternalPowerLoss(position, { everSeenBatteryVoltage = tru
     if (key !== 'externalPower' && isLossLike(attributes[key])) return { source: key }
   }
 
+  // Measured supply voltage: the tracker's own analog input reads ~0 V (production
+  // data: adc1 = 0.0 together with alarm powerCut when the wires were cut, versus
+  // adc1 = 12.8 V while charge:false on a healthy vehicle). This is explicit
+  // electrical telemetry, unlike silence or a bare alarm name. It needs a known
+  // working sensor and several distinct packets (see isConfirmedSupplyLoss).
+  if (position?.deviceId != null && isConfirmedSupplyLoss(position)) {
+    return { source: 'supply:low' }
+  }
+
   // GT06 (the protocol used by this fleet) never sends externalPower/powerCut.
   // It reports the external supply through `charge`. An explicit charge:false
   // is NOT a validated battery-disconnect signal: on GT06 charge:false only
@@ -162,6 +171,13 @@ export function detectExternalPowerRestored(position) {
   const isTrueLike = value => value === true || value === 1
     || (typeof value === 'string' && /^(?:true|1|yes|on|connected|restored|normal|ok)$/i.test(value.trim()))
 
+  // A bare normal voltage is NOT a restore (existing policy), except when the
+  // loss itself was raised from a measured supply reading: then the same
+  // measurement coming back to normal is the affirmative restore.
+  const measured = extractRawSupplyReading(position)
+  if (measured !== null && isBatteryVoltage(measured) && consumeSupplyRestore(position)) {
+    return { source: 'supply:normal' }
+  }
   if (isTrueLike(attributes.charge)) return { source: 'charge:true' }
   if (isTrueLike(attributes.externalPower)) return { source: 'externalPower:true' }
 
@@ -298,6 +314,88 @@ export function isBatteryVoltage(value) {
   )
 }
 
+// A tracker whose analog supply input reads below this is not powered by the
+// vehicle battery (a real reading, e.g. adc1 = 0.0 when the wires are cut).
+export const SUPPLY_LOSS_MAX_V = 3
+// Supply readings must be confirmed by this many DIFFERENT packets before they
+// count as a power loss (one glitchy reading must not raise an alert).
+export const SUPPLY_LOSS_CONFIRM_PACKETS = 2
+const SUPPLY_READING_KEYS = ['voltage', 'power', 'adc1', 'adc', 'analog1', 'vbat', 'supply']
+// Devices that have reported a normal battery voltage at least once. Only these
+// have a supply sensor we can trust: an unwired analog input reads 0.0 forever.
+const supplySensorSeen = new Set()
+const lowSupplyState = new Map() // deviceId -> { key, count }
+const supplyLossRaised = new Set() // devices whose current loss came from a measured supply reading
+const supplyRestoredAt = new Map() // deviceId -> packet key that restored it (idempotent per packet)
+
+/**
+ * The supply voltage a tracker actually measured, including a real zero.
+ * Booleans, empty values and non-numbers are ignored. Returns null when the
+ * packet carries no such reading (unknown - never to be shown as 0 V).
+ */
+export function extractRawSupplyReading(position) {
+  const attributes = position?.attributes || {}
+  for (const key of SUPPLY_READING_KEYS) {
+    const raw = attributes[key]
+    if (raw == null || raw === '' || typeof raw === 'boolean') continue
+    const value = Number(raw)
+    if (Number.isFinite(value) && value >= 0) return value
+  }
+  return null
+}
+
+export function hasSeenSupplySensor(deviceId) {
+  const key = cacheKey(deviceId)
+  return Boolean(key && supplySensorSeen.has(key))
+}
+
+export function resetSupplySensorState(deviceId) {
+  const key = cacheKey(deviceId)
+  if (!key) return
+  supplySensorSeen.delete(key)
+  lowSupplyState.delete(key)
+  supplyLossRaised.delete(key)
+  supplyRestoredAt.delete(key)
+}
+
+function consumeSupplyRestore(position) {
+  const deviceKey = cacheKey(position?.deviceId)
+  if (!deviceKey) return false
+  const key = positionKey(position)
+  if (supplyLossRaised.has(deviceKey)) {
+    supplyLossRaised.delete(deviceKey)
+    supplyRestoredAt.set(deviceKey, key)
+    lowSupplyState.delete(deviceKey)
+    return true
+  }
+  return key !== '' && supplyRestoredAt.get(deviceKey) === key
+}
+
+function positionKey(position) {
+  return String(position?.id ?? position?.serverTime ?? position?.deviceTime ?? position?.fixTime ?? '')
+}
+
+/**
+ * Confirmed low-supply state for this position: the supply sensor is known to
+ * work and the last SUPPLY_LOSS_CONFIRM_PACKETS distinct packets all read below
+ * SUPPLY_LOSS_MAX_V. Idempotent for the same packet (several callers evaluate
+ * the same position).
+ */
+export function isConfirmedSupplyLoss(position) {
+  const deviceKey = cacheKey(position?.deviceId)
+  if (!deviceKey || !supplySensorSeen.has(deviceKey)) return false
+  const reading = extractRawSupplyReading(position)
+  const key = positionKey(position)
+  const state = lowSupplyState.get(deviceKey) || { key: '', count: 0 }
+  if (state.key !== key) {
+    const count = reading !== null && reading < SUPPLY_LOSS_MAX_V ? state.count + 1 : 0
+    lowSupplyState.set(deviceKey, { key, count })
+    if (count >= SUPPLY_LOSS_CONFIRM_PACKETS) supplyLossRaised.add(deviceKey)
+    return count >= SUPPLY_LOSS_CONFIRM_PACKETS
+  }
+  return state.count >= SUPPLY_LOSS_CONFIRM_PACKETS
+}
+
 /**
  * Return only a voltage explicitly reported by the tracker.
  *
@@ -329,6 +427,7 @@ export function readBatteryLevel(position) {
 function rememberVoltage(deviceId, voltage, now = Date.now()) {
   const key = cacheKey(deviceId)
   if (!key || voltage === null) return
+  if (isBatteryVoltage(voltage)) supplySensorSeen.add(key)
   lastKnownVoltage.set(key, { voltage, lastSeenAt: now })
 }
 
@@ -369,8 +468,15 @@ export function observeVehicleVoltage(position) {
  * caller still considers the device connected.
  */
 export function readVehicleVoltage(position, deviceId = position?.deviceId, { connected = true } = {}) {
-  const reported = extractReportedVoltage(position)
   const now = Date.now()
+  // A measured supply of ~0 V (cut wires) is real data and must not be hidden
+  // behind the previous good voltage. Only for devices whose sensor is known to work.
+  const measured = extractRawSupplyReading(position)
+  if (measured !== null && measured < SUPPLY_LOSS_MAX_V && hasSeenSupplySensor(deviceId)) {
+    rememberVoltage(deviceId, measured, now)
+    return measured
+  }
+  const reported = extractReportedVoltage(position)
   if (reported !== null) {
     rememberVoltage(deviceId, reported, now)
     // Phase 2H-2: only a valid vehicle-battery voltage is surfaced; a generic
@@ -401,7 +507,7 @@ export function readVehicleVoltage(position, deviceId = position?.deviceId, { co
 export function readLastKnownVehicleVoltage(deviceId, now = Date.now()) {
   const cached = expireVoltage(deviceId, now)
   if (!cached) return null
-  if (!isBatteryVoltage(cached.voltage)) return null
+  if (!isBatteryVoltage(cached.voltage) && !(cached.voltage >= 0 && cached.voltage < SUPPLY_LOSS_MAX_V)) return null
   return { voltage: cached.voltage, lastSeenAt: cached.lastSeenAt }
 }
 

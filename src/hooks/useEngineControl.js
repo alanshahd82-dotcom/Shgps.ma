@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/index.js'
 import { useApp } from '../context/AppContext'
 import { t } from '../i18n/translations'
+import { describeDeviceReply } from '../utils/deviceReply.js'
 
 // Single source of truth for the engine relay control. The vehicle detail
 // page button is the reference behaviour; every other place must use this hook
@@ -87,13 +88,17 @@ export function useEngineControl(vehicle, lang = 'ar') {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [activeCommand, setActiveCommand] = useState(null)
+  // What the tracker itself answered (read-only, additive; never drives the button).
+  const [deviceReply, setDeviceReply] = useState(null)
   const [commandLoading, setCommandLoading] = useState(false)
   const mounted = useRef(true)
   const fetchIdRef = useRef(0)
   const hasFetchedRef = useRef(false)   // FIX A/C: tracks first successful fetch
   const hasSentRef = useRef(false)       // FIX B: gates success message to send() only
 
-  useEffect(() => () => { mounted.current = false }, [])
+  // Re-arm on mount: React StrictMode (dev) runs cleanup once before the real
+  // mount, which used to leave this false and freeze the control in dev only.
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
   // Phase 1: fetch the authoritative command state from the backend. This is
   // the ONLY source for the CUT/RESUME button — never vehicle.engineOn.
@@ -105,6 +110,7 @@ export function useEngineControl(vehicle, lang = 'ar') {
       const response = await api.devices.getActiveCommand(vehicle.id)
       if (mounted.current && fetchId === fetchIdRef.current) {
         setActiveCommand(response?.command ?? null)
+        setDeviceReply(response?.command ? (response?.deviceReply ?? null) : null)
         hasFetchedRef.current = true
       }
     } catch {
@@ -125,12 +131,22 @@ export function useEngineControl(vehicle, lang = 'ar') {
   // Fetch on initial load and when vehicle identity changes.
   useEffect(() => {
     setActiveCommand(null)
+    setDeviceReply(null)
     setError('')
     setSuccess('')
     hasFetchedRef.current = false
     hasSentRef.current = false
     fetchActiveCommand()
   }, [vehicle?.id, fetchActiveCommand])
+
+  // After the user sends a command the tracker answers a few seconds later.
+  // Look a few more times (bounded), then stop; failures are ignored.
+  useEffect(() => {
+    if (!hasSentRef.current || !activeCommand || deviceReply) return undefined
+    if (!['sent', 'unconfirmed', 'delivered'].includes(activeCommand.status)) return undefined
+    const timers = [8000, 20000, 45000].map(ms => setTimeout(() => { fetchActiveCommand() }, ms))
+    return () => timers.forEach(clearTimeout)
+  }, [activeCommand, deviceReply, fetchActiveCommand])
 
   // Re-fetch after WebSocket reconnect (wsConnected transitions false->true).
   const prevWsConnectedRef = useRef(false)
@@ -212,7 +228,9 @@ export function useEngineControl(vehicle, lang = 'ar') {
 
   const clearFeedback = useCallback(() => { setError(''); setSuccess('') }, [])
 
-  return { engineRunning, canControl, sending, error, success, send, clearFeedback, activeCommand, commandLoading }
+  const deviceReplyInfo = describeDeviceReply(deviceReply, lang)
+
+  return { engineRunning, canControl, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
 }
 
 export default useEngineControl

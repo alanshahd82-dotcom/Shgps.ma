@@ -4,7 +4,7 @@ import {
 } from 'lucide-react'
 import { normalizeVehicleType } from '../utils/vehicleAssets'
 import {
-  formatVoltage, getBatteryPercent, getVoltageColor, timeAgo,
+  formatVoltage, getBatteryPercent, getVoltageColor, isMeasuredNoSupply, timeAgo,
 } from './ui'
 import { useReverseGeocode } from '../utils/reverseGeocode'
 import { useEngineControl } from '../hooks/useEngineControl'
@@ -90,9 +90,10 @@ function SignalBars({ signal }) {
 
 // ── Visual battery indicator ──────────────────────────────────────────────────
 function BatteryIcon({ voltage, powerDisconnected }) {
-  const pct = powerDisconnected ? 0 : getBatteryPercent(voltage)
-  const hasData = !powerDisconnected && getBatteryPercent(voltage) != null
-  const color = powerDisconnected
+  const noSupply = powerDisconnected || isMeasuredNoSupply(voltage)
+  const pct = noSupply ? 0 : getBatteryPercent(voltage)
+  const hasData = !noSupply && getBatteryPercent(voltage) != null
+  const color = noSupply
     ? '#dc2626'
     : hasData
       ? getVoltageColor(voltage)
@@ -385,6 +386,15 @@ export function VehicleCard({
             {engineLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power size={16} />}
             {engineLoading ? l.loading : engineErr ? l.failed : engineConfirm ? l.confirm : engineRunning ? l.cutEngine : l.restoreEngine}
           </button>
+          {engine.deviceReplyInfo && (
+            <p
+              role="status"
+              data-tone={engine.deviceReplyInfo.tone}
+              className={`mt-1.5 px-1 text-center text-[11px] font-bold leading-4 ${engine.deviceReplyInfo.tone === 'warn' ? 'text-red-600' : engine.deviceReplyInfo.tone === 'wait' ? 'text-amber-600' : 'text-emerald-600'}`}
+            >
+              {engine.deviceReplyInfo.text}
+            </p>
+          )}
         </div>
       )}
 
