@@ -186,6 +186,9 @@
   font-family: 'Cairo', 'Inter', sans-serif !important;
   border-radius: inherit;
   background: #0B1220 !important;
+  /* Leaflet panes use z-index up to 1000; isolate them so the map never paints
+     above modals, menus or the mobile sidebar. */
+  isolation: isolate;
 }
 
 .vehicle-control-map {
@@ -2907,3 +2910,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .athar-me__pulse { position: absolute; inset: 0; border-radius: 9999px; background: rgba(37,99,235,.35); animation: athar-me-pulse 2s ease-out infinite; }
 @keyframes athar-me-pulse { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.4); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .athar-me__pulse { animation: none; opacity: .35; } }
+
+/* Form fields inside white cards/modals must render in the light scheme.
+   The page is declared color-scheme: dark, which turned unstyled inputs into
+   dark grey boxes on white modals (add-device, edit forms). */
+.bg-white input, .bg-white select, .bg-white textarea { color-scheme: light; }

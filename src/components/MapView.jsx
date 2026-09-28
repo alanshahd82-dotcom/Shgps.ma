@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import MapLayers from './MapLayers'
 import { MapContainer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -128,7 +128,7 @@ function clusterDevices(devs, zoom) {
       const avgLat = group.reduce((s, idx) => s + devs[idx].lat, 0) / group.length
       const avgLng = group.reduce((s, idx) => s + devs[idx].lng, 0) / group.length
       const onlineCount = group.filter(idx => devs[idx].status === 'online').length
-      result.push({ ...devs[i], lat: avgLat, lng: avgLng, _clustered: true, _count: group.length, _onlineCount: onlineCount })
+      result.push({ ...devs[i], lat: avgLat, lng: avgLng, _clustered: true, _count: group.length, _onlineCount: onlineCount, _ids: group.map(idx => devs[idx].id) })
     }
   }
   return result
@@ -209,6 +209,51 @@ function DevicePopupContent({ device, lang, onRouteRequest, routeLoadingDeviceId
 }
 
 
+// Follows the real map zoom (not the initial zoom prop) so clusters open up as
+// the user zooms in, and a tap on a cluster zooms into it.
+function DeviceMarkers({ devices, showAllDevices, deviceId, autoFollow, onDeviceClick, onRouteRequest, routeLoadingDeviceId, lang }) {
+  const map = useMap()
+  const [zoom, setZoom] = useState(() => map.getZoom())
+  useEffect(() => {
+    const update = () => setZoom(map.getZoom())
+    map.on('zoomend', update)
+    return () => { map.off('zoomend', update) }
+  }, [map])
+
+  const items = useMemo(
+    () => (showAllDevices && devices.length > 3
+      ? clusterDevices(devices, zoom)
+      : devices.map(d => ({ ...d, _clustered: false, _count: 1 }))),
+    [devices, showAllDevices, zoom],
+  )
+
+  return items.map(device => device._clustered ? (
+    <Marker
+      key={`cluster-${device._ids.join('-')}`}
+      position={[device.lat, device.lng]}
+      icon={createClusterIcon(device._count, device._onlineCount)}
+      eventHandlers={{ click: () => map.flyTo([device.lat, device.lng], Math.min(map.getZoom() + 3, 17), { duration: 0.6 }) }}
+    />
+  ) : (
+    <LiveVehicleMarker
+      key={device.id}
+      device={device}
+      isSelected={device.id === deviceId}
+      autoFollow={autoFollow && device.id === deviceId}
+      onClick={() => onDeviceClick?.(device)}
+    >
+      <Popup>
+        <DevicePopupContent
+          device={device}
+          lang={lang}
+          onRouteRequest={onRouteRequest}
+          routeLoadingDeviceId={routeLoadingDeviceId}
+        />
+      </Popup>
+    </LiveVehicleMarker>
+  ))
+}
+
 export default function MapView({
   deviceId = null,
   showAllDevices = false,
@@ -228,29 +273,33 @@ export default function MapView({
 }) {
   const { devices, lang } = useApp()
 
-  const allCandidates = showAllDevices
-    ? devices
-    : clientId
-      ? devices.filter(d => d.clientId === clientId)
-      : deviceId
-        ? devices.filter(d => d.id === deviceId)
-        : devices
-
-  // Normalise coordinates to numbers before any check
-  const normalised = allCandidates.map(d => {
-    const primaryLat = parseCoordinate(d.lat)
-    const fallbackLat = parseCoordinate(d.last_lat)
-    const primaryLng = parseCoordinate(d.lng)
-    const fallbackLng = parseCoordinate(d.last_lng)
-    return {
-      ...d,
-      lat: Number.isFinite(primaryLat) ? primaryLat : fallbackLat,
-      lng: Number.isFinite(primaryLng) ? primaryLng : fallbackLng,
-    }
-  })
+  const normalised = useMemo(() => {
+    const candidates = showAllDevices
+      ? devices
+      : clientId
+        ? devices.filter(d => d.clientId === clientId)
+        : deviceId
+          ? devices.filter(d => d.id === deviceId)
+          : devices
+    // Normalise coordinates to numbers before any check
+    return candidates.map(d => {
+      const primaryLat = parseCoordinate(d.lat)
+      const fallbackLat = parseCoordinate(d.last_lat)
+      const primaryLng = parseCoordinate(d.lng)
+      const fallbackLng = parseCoordinate(d.last_lng)
+      return {
+        ...d,
+        lat: Number.isFinite(primaryLat) ? primaryLat : fallbackLat,
+        lng: Number.isFinite(primaryLng) ? primaryLng : fallbackLng,
+      }
+    })
+  }, [devices, showAllDevices, clientId, deviceId])
 
   // Only place markers for devices that have a real GPS fix
-  const displayDevices = normalised.filter(d => d.trackingEnabled !== false && hasValidCoords(d))
+  const displayDevices = useMemo(
+    () => normalised.filter(d => d.trackingEnabled !== false && hasValidCoords(d)),
+    [normalised],
+  )
 
   const primaryDevice = deviceId
     ? normalised.find(d => String(d.id) === String(deviceId))
@@ -317,45 +366,16 @@ export default function MapView({
         />
       )}
 
-      {/* Keep the existing low-zoom grouping, while individual vehicles use the live marker. */}
-      {(showAllDevices && displayDevices.length > 3
-        ? clusterDevices(displayDevices, zoom)
-        : displayDevices.map(d => ({ ...d, _clustered: false, _count: 1 }))
-      ).map(device => device._clustered ? (
-        <Marker
-          key={device.id}
-          position={[device.lat, device.lng]}
-          icon={createClusterIcon(device._count, device._onlineCount)}
-        >
-          <Popup>
-            <div style={{ fontFamily: 'Cairo, Inter, sans-serif', padding: '4px' }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: '#0F2044', marginBottom: 4 }}>
-                {device._count} {lang === 'ar' ? 'أجهزة' : 'appareils'}
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
-                {device._onlineCount} {lang === 'ar' ? 'متصل' : 'en ligne'}
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-      ) : (
-        <LiveVehicleMarker
-          key={device.id}
-          device={device}
-          isSelected={device.id === deviceId}
-          autoFollow={autoFollow && device.id === deviceId}
-          onClick={() => onDeviceClick?.(device)}
-        >
-          <Popup>
-            <DevicePopupContent
-              device={device}
-              lang={lang}
-              onRouteRequest={onRouteRequest}
-              routeLoadingDeviceId={routeLoadingDeviceId}
-            />
-          </Popup>
-        </LiveVehicleMarker>
-      ))}
+      <DeviceMarkers
+        devices={displayDevices}
+        showAllDevices={showAllDevices}
+        deviceId={deviceId}
+        autoFollow={autoFollow}
+        onDeviceClick={onDeviceClick}
+        onRouteRequest={onRouteRequest}
+        routeLoadingDeviceId={routeLoadingDeviceId}
+        lang={lang}
+      />
     </MapContainer>
   )
 }

@@ -9,6 +9,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // React itself gets its own chunk: it was being bundled inside the
+          // "leaflet" chunk, which made React errors look like map errors.
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-vendor'
           if (id.includes('node_modules/recharts')) return 'recharts'
           if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet')) return 'leaflet'
           if (id.includes('node_modules/framer-motion')) return 'framer-motion'
