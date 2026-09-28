@@ -26,7 +26,12 @@ async function setup() {
   mock.module('../src/db.js', { namedExports: { db: { query, connect: async () => ({ query, release() {} }), on() {} } } })
   mock.module('../src/services/traccar.js', {
     namedExports: {
-      updateDeviceUniqueId: async (id, imei) => { state.traccarCalls.push([id, imei]); if (state.traccarError) throw state.traccarError },
+      updateDeviceUniqueId: async (id, imei) => {
+        state.traccarCalls.push([id, imei])
+        if (state.traccarHold) await state.traccarHold
+        if (state.rollbackFails && imei === device.imei) throw new Error('rollback failed')
+        if (state.traccarError) throw state.traccarError
+      },
     },
   })
   mock.module('../src/services/engineCommands.js', { namedExports: {} })
@@ -83,6 +88,29 @@ test('replace: if the local update fails, the tracking service is put back', { s
   await setup(); reset(); state.dbUpdateError = new Error('db down')
   assert.equal((await replace({ imei: '222222222222222' })).status, 500)
   assert.deepEqual(state.traccarCalls, [[37, '222222222222222'], [37, '111111111111111']])
+})
+
+test('replace: a second replacement of the same device at the same time is refused', { skip }, async () => {
+  await setup(); reset()
+  let release
+  const gate = new Promise(resolve => { release = resolve })
+  const original = state.traccarHold
+  state.traccarHold = gate
+  const first = replace({ imei: '222222222222222' })
+  await new Promise(r => setTimeout(r, 50))
+  const second = await replace({ imei: '333333333333333' })
+  assert.equal(second.status, 409)
+  release()
+  assert.equal((await first).status, 200)
+  state.traccarHold = original
+})
+
+test('replace: if the rollback also fails the answer says so (no silent mismatch)', { skip }, async () => {
+  await setup(); reset(); state.dbUpdateError = new Error('db down'); state.rollbackFails = true
+  const res = await replace({ imei: '222222222222222' })
+  assert.equal(res.status, 500)
+  assert.equal((await res.json()).code, 'REPLACE_ROLLBACK_FAILED')
+  state.rollbackFails = false
 })
 
 test.after(() => server?.close())

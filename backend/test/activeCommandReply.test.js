@@ -9,6 +9,7 @@ const canMock = typeof mock.module === 'function'
 const skip = !canMock && 'needs --experimental-test-module-mocks'
 
 const created = new Date(Date.now() - 60_000).toISOString()
+let nextId = 100
 const state = { command: null, positions: [], historyError: null, historyCalls: 0 }
 const device = { id: 7, traccar_id: 37, name: 'Dacia', imei: '111111111111111', user_id: 5 }
 
@@ -39,7 +40,7 @@ async function setup() {
   base = `http://127.0.0.1:${server.address().port}`
 }
 const reset = (status = 'unconfirmed') => Object.assign(state, {
-  command: { id: 3, command_type: 'engineStop', requested_state: 'stopped', status, created_at: created, traccar_command_id: 9 },
+  command: { id: ++nextId, command_type: 'engineStop', requested_state: 'stopped', status, created_at: created, traccar_command_id: 9 },
   positions: [], historyError: null, historyCalls: 0,
 })
 const get = () => fetch(`${base}/api/devices/7/active-command`).then(async r => ({ status: r.status, body: await r.json() }))
@@ -65,7 +66,7 @@ test('a failing tracking service never breaks the command state', { skip }, asyn
   await setup(); reset(); state.historyError = new Error('traccar down')
   const { status, body } = await get()
   assert.equal(status, 200)
-  assert.equal(body.command.id, 3)
+  assert.equal(body.command.id, state.command.id)
   assert.equal(body.deviceReply, null)
 })
 

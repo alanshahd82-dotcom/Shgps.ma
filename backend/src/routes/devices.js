@@ -23,6 +23,8 @@ import {
   POWER_SILENCE_WINDOW_MS,
   readBatteryLevel,
   readLastKnownVehicleVoltage,
+  resetSupplySensorState,
+  clearVehicleVoltage,
   readVehicleVoltage,
   registerEngineCommandCooldown,
   resolveDeviceStatus,
@@ -426,6 +428,8 @@ import {
       } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
     })
 
+    const replacingDevices = new Set()
+
     // POST /:id/replace — the tracker of an existing vehicle was replaced by a new
     // one (new IMEI). Name, plate, client, subscription and history are kept.
     devicesRouter.post('/:id/replace', requireAuth, requireDeviceOwner, async (req, res) => {
@@ -435,6 +439,10 @@ import {
       const phone = req.body?.phone == null ? null : (String(req.body.phone).trim().slice(0, 20) || null)
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
       if (imei === dev.imei) return res.status(400).json({ error: 'The new IMEI is the same as the current one' })
+      // One replacement per device at a time: the tracking service and the
+      // database must end up with the same IMEI.
+      if (replacingDevices.has(dev.id)) return res.status(409).json({ error: 'A replacement is already in progress for this device' })
+      replacingDevices.add(dev.id)
       try {
         const { rows: taken } = await db.query('SELECT id FROM devices WHERE imei=$1 AND id<>$2', [imei, dev.id])
         if (taken[0]) return res.status(409).json({ error: 'IMEI already registered' })
@@ -460,15 +468,26 @@ import {
           )
           updated = result.rows[0]
         } catch (e) {
-          if (dev.traccar_id) await traccar.updateDeviceUniqueId(dev.traccar_id, dev.imei).catch(() => {})
+          let rolledBack = true
+          if (dev.traccar_id) {
+            rolledBack = await traccar.updateDeviceUniqueId(dev.traccar_id, dev.imei).then(() => true, rollbackErr => {
+              console.error('[replace] ROLLBACK FAILED - tracking service holds', imei, 'but the database holds', dev.imei, ':', rollbackErr.message)
+              return false
+            })
+          }
+          if (!rolledBack) return res.status(500).json({ error: 'Replacement failed and could not be undone in the tracking service. Check the device IMEI in the tracking service.', code: 'REPLACE_ROLLBACK_FAILED' })
           if (e.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })
           throw e
         }
+        // The new physical tracker starts with a clean electrical history.
+        if (dev.traccar_id) { resetSupplySensorState(dev.traccar_id); clearVehicleVoltage(dev.traccar_id) }
         await logAudit(req.user.id, 'device_replaced', 'device', dev.id, { oldImei: dev.imei, newImei: imei }).catch(() => {})
-        res.json({ ok: true, id: updated.id, imei: updated.imei, phone: updated.phone })
+        res.json({ ok: true, id: updated.id, imei: updated.imei, phone: updated.phone, trackingLinked: Boolean(dev.traccar_id) })
       } catch (err) {
         console.error('[replace error]', err.message)
         res.status(500).json({ error: 'Server error' })
+      } finally {
+        replacingDevices.delete(dev.id)
       }
     })
 
@@ -596,6 +615,8 @@ import {
     // never mutates command rows, never sends a Traccar command, never reads
     // legacy device_commands as live state. The frontend uses this to derive
     // the CUT/RESUME button state instead of inferring it from ignition telemetry.
+    // Short cache: many cards/pages ask for the same command; one Traccar lookup is enough.
+    const deviceReplyCache = new Map()
     devicesRouter.get('/:id/active-command', requireAuth, requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
@@ -605,7 +626,10 @@ import {
         // attribute `result`). Any failure here must never affect the command
         // state, so it is isolated and simply omitted.
         let deviceReply = null
-        if (dev.traccar_id && command.status !== 'pending' && command.status !== 'requested') {
+        const cachedReply = deviceReplyCache.get(command.id)
+        if (cachedReply && Date.now() - cachedReply.at < (cachedReply.reply ? 60_000 : 10_000)) {
+          deviceReply = cachedReply.reply
+        } else if (dev.traccar_id && command.status !== 'pending' && command.status !== 'requested') {
           try {
             // One bounded window (never days of history for a long-running cut):
             // the tracker answers within seconds; a postponed one within hours.
@@ -614,6 +638,8 @@ import {
             const to = new Date(Math.min(Date.now(), createdMs + 6 * 60 * 60 * 1000)).toISOString()
             const positions = await traccar.getHistory(dev.traccar_id, from, to)
             deviceReply = findDeviceReply(positions, command)
+            if (deviceReplyCache.size > 200) deviceReplyCache.clear()
+            deviceReplyCache.set(command.id, { at: Date.now(), reply: deviceReply })
           } catch (replyErr) {
             console.warn('[active-command] device reply lookup skipped:', replyErr.message)
           }

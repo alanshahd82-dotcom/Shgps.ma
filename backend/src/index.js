@@ -543,7 +543,6 @@ const server = createServer(app)
 const wss = new WebSocketServer({ server, path: '/api/socket' })
 // A client's device access is re-read from the database at most this often
 // (it used to be one query per client for every Traccar message).
-const ACCESS_REFRESH_MS = 30 * 1000
 const frontendClients = new Set()
 
 // The stored snapshot in devices.last_* used to be refreshed only by a manual
@@ -819,10 +818,9 @@ async function connectTraccar() {
       // Non-JSON messages (e.g. pings) — forward as-is
       if (!parsed) { client.send(msg); continue }
 
-      if (!client.isAdmin && (!client.accessRefreshedAt || Date.now() - client.accessRefreshedAt > ACCESS_REFRESH_MS)) {
+      if (!client.isAdmin) {
         try {
           await client.refreshAccess?.()
-          client.accessRefreshedAt = Date.now()
         } catch (error) {
           console.warn('[WS] Client access refresh skipped:', error.message)
           continue

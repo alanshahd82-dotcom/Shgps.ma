@@ -12,6 +12,8 @@ import {
   markVehicleDisconnected,
   markVehicleConnected,
   detectExternalPowerLoss,
+  extractRawSupplyReading,
+  SUPPLY_LOSS_MAX_V,
   detectExternalPowerRestored,
   reducePowerTelemetryState,
   observeVehicleVoltage,
@@ -352,6 +354,7 @@ export function createPowerAlertEngine({
       now: nowMs,
       powerLossSignal,
       powerRestoredSignal,
+      supplyStillLow: (() => { const raw = extractRawSupplyReading(position); return raw !== null && raw < SUPPLY_LOSS_MAX_V })(),
     })
     const next = transition.state
     next.everSeenBatteryVoltage = everSeenBatteryVoltage

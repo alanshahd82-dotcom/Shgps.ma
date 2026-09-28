@@ -225,6 +225,7 @@ export function reducePowerTelemetryState(current, {
   now,
   powerLossSignal,
   powerRestoredSignal,
+  supplyStillLow = false,
 }) {
   const next = { ...current }
   const isNewTelemetry = next.lastPositionKey !== signature
@@ -243,9 +244,12 @@ export function reducePowerTelemetryState(current, {
   // an affirmative `charge:true`. This can never be triggered by silence
   // (it requires new packets) and it is what stops an episode from getting
   // stuck forever after the supply is reconnected.
-  if (next.disconnected && isNewTelemetry && !powerLossSignal) {
+  // A packet whose own supply reading is still ~0 V is not clean: after a
+  // backend restart the in-memory "sensor is trusted" record is gone, but the
+  // tracker is plainly still without supply, so the episode must not end.
+  if (next.disconnected && isNewTelemetry && !powerLossSignal && !supplyStillLow) {
     next.cleanTelemetryCount = (next.cleanTelemetryCount || 0) + 1
-  } else if (powerLossSignal) {
+  } else if (powerLossSignal || (supplyStillLow && next.disconnected)) {
     next.cleanTelemetryCount = 0
   }
 

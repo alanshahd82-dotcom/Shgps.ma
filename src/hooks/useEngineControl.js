@@ -140,13 +140,26 @@ export function useEngineControl(vehicle, lang = 'ar') {
   }, [vehicle?.id, fetchActiveCommand])
 
   // After the user sends a command the tracker answers a few seconds later.
-  // Look a few more times (bounded), then stop; failures are ignored.
+  // Look up to three more times per command (8 s, +20 s, +45 s), then stop.
+  // The attempt count lives in a ref keyed by the command id, so the refetch
+  // itself can never re-arm the polling; failures are ignored.
+  const replyAttemptsRef = useRef({ id: null, n: 0 })
+  const [replyTick, setReplyTick] = useState(0)
+  const commandId = activeCommand?.id ?? null
+  const commandStatus = activeCommand?.status ?? null
   useEffect(() => {
-    if (!hasSentRef.current || !activeCommand || deviceReply) return undefined
-    if (!['sent', 'unconfirmed', 'delivered'].includes(activeCommand.status)) return undefined
-    const timers = [8000, 20000, 45000].map(ms => setTimeout(() => { fetchActiveCommand() }, ms))
-    return () => timers.forEach(clearTimeout)
-  }, [activeCommand, deviceReply, fetchActiveCommand])
+    if (!hasSentRef.current || commandId == null || deviceReply) return undefined
+    if (!['sent', 'unconfirmed', 'delivered'].includes(commandStatus)) return undefined
+    if (replyAttemptsRef.current.id !== commandId) replyAttemptsRef.current = { id: commandId, n: 0 }
+    const delays = [8000, 20000, 45000]
+    const attempt = replyAttemptsRef.current.n
+    if (attempt >= delays.length) return undefined
+    const timer = setTimeout(() => {
+      replyAttemptsRef.current.n += 1
+      Promise.resolve(fetchActiveCommand()).finally(() => { if (mounted.current) setReplyTick(t => t + 1) })
+    }, delays[attempt])
+    return () => clearTimeout(timer)
+  }, [commandId, commandStatus, deviceReply, fetchActiveCommand, replyTick])
 
   // Re-fetch after WebSocket reconnect (wsConnected transitions false->true).
   const prevWsConnectedRef = useRef(false)

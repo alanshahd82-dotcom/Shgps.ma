@@ -89,3 +89,28 @@ test('a silent tracker (no attribute at all) is still unknown, not a loss', () =
   observeVehicleVoltage(pos(D, { adc1: 12.9 }))
   for (let i = 0; i < 3; i += 1) assert.equal(detectExternalPowerLoss(pos(D, {})), null)
 })
+
+// Restart safety: after a restart the "sensor is trusted" record is gone, but a
+// tracker that still reads ~0 V must not have its power-loss episode cleared.
+import { reducePowerTelemetryState } from '../src/services/vehicleTelemetry.js'
+
+test('restart: packets still at ~0 V never count as clean telemetry', () => {
+  let state = { lastPositionKey: null, lastPositionAt: null, disconnected: true, disconnectTrigger: 'telemetry', cleanTelemetryCount: 0, powerLossSignal: null, missingSince: null, alerting: true, invalidPositionCount: 0 }
+  for (let i = 0; i < 6; i += 1) {
+    const out = reducePowerTelemetryState(state, { signature: 'k' + i, observedAt: i, now: i, powerLossSignal: null, powerRestoredSignal: null, supplyStillLow: true })
+    state = out.state
+    assert.equal(out.restored, false)
+  }
+  assert.equal(state.disconnected, true)
+})
+
+test('restart: without a low reading the existing clean-telemetry restore still works', () => {
+  let state = { lastPositionKey: null, lastPositionAt: null, disconnected: true, disconnectTrigger: 'telemetry', cleanTelemetryCount: 0, powerLossSignal: null, missingSince: null, alerting: true, invalidPositionCount: 0 }
+  let restored = false
+  for (let i = 0; i < 6; i += 1) {
+    const out = reducePowerTelemetryState(state, { signature: 'k' + i, observedAt: i, now: i, powerLossSignal: null, powerRestoredSignal: null, supplyStillLow: false })
+    state = out.state
+    restored ||= out.restored
+  }
+  assert.equal(restored, true)
+})
