@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle, Bell, ChevronLeft, Car, MapPin,
-  Navigation, Zap, Clock, CheckCircle2, Shield, Activity, Gauge
+  AlertTriangle, Bell, ChevronLeft, Car, Map as MapIcon,
+  Zap, CheckCircle2, Activity, Gauge, PlugZap, WifiOff, Search, SatelliteDish, Route, Fence,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import VehicleCard from '../../components/VehicleCard'
@@ -25,6 +25,11 @@ const t = (key, lang) => ({
     noAlerts: 'لا توجد تنبيهات', noVehicles: 'لا توجد مركبات',
     quick: 'الوصول السريع', vehicles: 'المركبات', alerts: 'التنبيهات', trips: 'الرحلات',
     kmh: 'كم/س', ago: 'منذ', now: 'الآن',
+    total: 'مركبة', live: 'مباشر', reconnecting: 'إعادة اتصال…',
+    needsAttention: 'تحتاج متابعة', allGood: 'كل المركبات بحالة جيدة',
+    rPower: 'الطاقة مفصولة عن المركبة', rAlarm: 'إنذار من الجهاز', rOffline: 'غير متصلة', rNever: 'لم تتصل بعد', rNoGps: 'بدون إشارة GPS',
+    search: 'ابحث عن مركبة…', showMore: 'عرض كل المركبات', shortcuts: 'اختصارات',
+    map: 'الخريطة', reports: 'التقارير', geofences: 'المناطق',
   },
   fr: {
     home: 'Accueil', more: 'Plus',
@@ -36,6 +41,11 @@ const t = (key, lang) => ({
     noAlerts: 'Aucune alerte', noVehicles: 'Aucun véhicule',
     quick: 'Accès rapide', vehicles: 'Véhicules', alerts: 'Alertes', trips: 'Trajets',
     kmh: 'km/h', ago: 'il y a', now: 'maintenant',
+    total: 'véhicules', live: 'En direct', reconnecting: 'Reconnexion…',
+    needsAttention: 'À surveiller', allGood: 'Tous les véhicules vont bien',
+    rPower: 'Alimentation débranchée', rAlarm: "Alarme de l'appareil", rOffline: 'Hors ligne', rNever: 'Jamais connecté', rNoGps: 'Pas de signal GPS',
+    search: 'Rechercher un véhicule…', showMore: 'Voir tous les véhicules', shortcuts: 'Raccourcis',
+    map: 'Carte', reports: 'Rapports', geofences: 'Zones',
   },
 }[lang][key])
 
@@ -90,23 +100,43 @@ function BottomNav({ active, lang, navigate }) {
   )
 }
 
+// Why a vehicle needs the fleet manager's attention (most serious first).
+// Only real signals: nothing is inferred from a missing value.
+const REASON_ORDER = ['rPower', 'rAlarm', 'rOffline', 'rNever', 'rNoGps']
+function attentionReason(vehicle) {
+  if (vehicle.powerDisconnected) return 'rPower'
+  if (vehicle.status === 'alarm' || vehicle.alertType) return 'rAlarm'
+  const key = getDeviceStatusKey(vehicle)
+  if (key === 'offline') return vehicle.lastUpdate ? 'rOffline' : 'rNever'
+  if (key === 'awaiting_gps') return 'rNoGps'
+  return null
+}
+
+const REASON_STYLE = {
+  rPower: { Icon: PlugZap, box: 'bg-red-50 text-red-600', chip: 'bg-red-50 text-red-700 ring-red-200' },
+  rAlarm: { Icon: AlertTriangle, box: 'bg-orange-50 text-orange-600', chip: 'bg-orange-50 text-orange-700 ring-orange-200' },
+  rOffline: { Icon: WifiOff, box: 'bg-slate-100 text-slate-500', chip: 'bg-slate-100 text-slate-600 ring-slate-200' },
+  rNever: { Icon: WifiOff, box: 'bg-slate-100 text-slate-500', chip: 'bg-slate-100 text-slate-600 ring-slate-200' },
+  rNoGps: { Icon: SatelliteDish, box: 'bg-amber-50 text-amber-600', chip: 'bg-amber-50 text-amber-700 ring-amber-200' },
+}
+
+const VISIBLE_VEHICLES = 6
+
 export default function Home() {
   // `devices` already carries the live merged position (AppContext merges the
-  // websocket snapshot into it), and alerts live in `alertsList` — the old
-  // `positions` / `alerts` names do not exist on the context, which is why the
-  // bell badge and the "latest alert" card used to stay permanently empty.
-  const { clientAuth, devices = [], alertsList = [], unreadCount = 0 } = useApp()
+  // websocket snapshot into it), and alerts live in `alertsList`.
+  const { clientAuth, devices = [], alertsList = [], unreadCount = 0, wsConnected } = useApp()
   const navigate = useNavigate()
   const lang = useLang()
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
   const vehiclesRef = useRef(null)
+  const attentionRef = useRef(null)
+  const [query, setQuery] = useState('')
 
   const user = clientAuth || JSON.parse(localStorage.getItem('athargps_client') || '{}')
   const name = user?.name || user?.email?.split('@')[0] || (lang === 'ar' ? 'ضيف' : 'Invité')
   const initials = (name || 'U').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()
 
-  // AppContext already merges the live websocket position into each device
-  // (lat / lng / speed / voltage / lastUpdate), so Home only normalises here.
   const vehicles = useMemo(() => (devices || []).map(d => ({
     ...d,
     speed: Math.round(Number(d.speed) || 0),
@@ -119,9 +149,24 @@ export default function Home() {
 
   const fleet = useMemo(() => {
     const counts = { connected: 0, stopped: 0, offline: 0, attention: 0 }
-    vehicles.forEach(v => { const s = statusInfo(v); counts[s.label]++ })
+    vehicles.forEach(v => {
+      // A vehicle without power is counted once, as "attention", never as moving.
+      const s = v.powerDisconnected ? { label: 'attention' } : statusInfo(v)
+      counts[s.label]++
+    })
     return counts
   }, [vehicles])
+
+  const attention = useMemo(() => vehicles
+    .map(v => ({ v, reason: attentionReason(v) }))
+    .filter(x => x.reason)
+    .sort((a, b) => REASON_ORDER.indexOf(a.reason) - REASON_ORDER.indexOf(b.reason)), [vehicles])
+
+  const listed = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return vehicles
+    return vehicles.filter(v => [v.name, v.plate, v.uniqueId].filter(Boolean).some(x => String(x).toLowerCase().includes(q)))
+  }, [vehicles, query])
 
   const latestAlert = useMemo(() => {
     const arr = Array.isArray(alertsList) ? [...alertsList] : []
@@ -130,12 +175,31 @@ export default function Home() {
   }, [alertsList])
 
   const unreadAlerts = unreadCount
+  const total = vehicles.length
+  const segments = [
+    { key: 'connected', n: fleet.connected, bar: 'bg-emerald-400' },
+    { key: 'stopped', n: fleet.stopped, bar: 'bg-slate-400' },
+    { key: 'offline', n: fleet.offline, bar: 'bg-slate-600' },
+    { key: 'attention', n: fleet.attention, bar: 'bg-orange-400' },
+  ]
+  const tiles = [
+    { key: 'connected', n: fleet.connected, tone: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500', go: () => navigate('/client/vehicles?filter=moving') },
+    { key: 'stopped', n: fleet.stopped, tone: 'bg-slate-50 text-slate-700', dot: 'bg-slate-400', go: () => navigate('/client/vehicles?filter=stopped') },
+    { key: 'offline', n: fleet.offline, tone: 'bg-slate-100 text-slate-600', dot: 'bg-slate-500', go: () => navigate('/client/vehicles?filter=offline') },
+    { key: 'attention', n: fleet.attention, tone: 'bg-orange-50 text-orange-700', dot: 'bg-orange-500', go: () => attentionRef.current?.scrollIntoView({ behavior: 'smooth' }) },
+  ]
+  const shortcuts = [
+    { key: 'map', Icon: MapIcon, go: () => navigate('/client/map') },
+    { key: 'trips', Icon: Route, go: () => navigate('/client/trips') },
+    { key: 'reports', Icon: Gauge, go: () => navigate('/client/reports') },
+    { key: 'geofences', Icon: Fence, go: () => navigate('/client/geofences') },
+  ]
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 pb-20" dir={dir}>
+    <div className="min-h-[100dvh] bg-slate-50 pb-24" dir={dir}>
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div className="flex items-center justify-between px-5 py-4 max-w-3xl mx-auto">
+        <div className="flex items-center justify-between px-5 py-3.5 max-w-3xl mx-auto">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200">{initials}</div>
             <div>
@@ -143,90 +207,136 @@ export default function Home() {
               <h1 className="text-base font-bold text-slate-900 truncate max-w-[180px]">{name}</h1>
             </div>
           </div>
-          <button onClick={() => navigate('/client/alerts')} className="relative h-10 w-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
+          <button onClick={() => navigate('/client/alerts')} aria-label={t('alerts', lang)} className="relative h-10 w-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
             <Bell className="h-5 w-5 text-slate-700" />
             {unreadAlerts > 0 && <span className="absolute -top-0.5 -right-0.5 h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{unreadAlerts > 9 ? '9+' : unreadAlerts}</span>}
           </button>
         </div>
       </header>
 
-      <main className="px-5 py-6 space-y-6 max-w-3xl mx-auto">
-        {/* Hero */}
-        <section className="relative rounded-3xl overflow-hidden h-52 shadow-lg shadow-indigo-200/50">
+      <main className="px-5 py-5 space-y-5 max-w-3xl mx-auto">
+        {/* Fleet summary */}
+        <section className="relative rounded-3xl overflow-hidden shadow-lg shadow-indigo-200/50">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-indigo-800 to-slate-900" />
           <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 80% 20%, white 0.5px, transparent 1px), radial-gradient(circle at 30% 70%, white 0.5px, transparent 1px)', backgroundSize: '40px 40px'}} />
-          <div className="relative h-full flex flex-col justify-between p-6 text-white">
-            <div>
-              <h2 className="text-2xl font-bold mb-1.5">{t('heroTitle', lang)}</h2>
-              <p className="text-sm text-white/85 leading-relaxed">{t('heroSub', lang)}</p>
+          <div className="relative p-5 text-white">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[12px] font-semibold text-white/70">{t('fleet', lang)}</p>
+                <p className="mt-1 flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold tabular-nums leading-none">{total}</span>
+                  <span className="text-sm font-semibold text-white/80">{t('total', lang)}</span>
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold ring-1 ring-white/20" role="status">
+                <span className={`h-1.5 w-1.5 rounded-full ${wsConnected ? 'bg-emerald-400' : 'bg-amber-300 animate-pulse'}`} />
+                {wsConnected ? t('live', lang) : t('reconnecting', lang)}
+              </span>
             </div>
-            <button onClick={() => vehiclesRef.current?.scrollIntoView({behavior:'smooth'})}
-              className="self-start bg-white text-indigo-700 font-semibold px-5 py-2.5 rounded-full text-sm shadow-md hover:shadow-lg transition flex items-center gap-2">
-              {t('heroCta', lang)} <ChevronLeft className={`h-4 w-4 ${dir === 'rtl' ? '' : 'rotate-180'}`} />
-            </button>
+            {/* proportions of the fleet */}
+            <div className="mt-4 flex h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+              {total > 0 && segments.filter(x => x.n > 0).map(x => (
+                <span key={x.key} className={`${x.bar} transition-all duration-500`} style={{ width: `${(x.n / total) * 100}%` }} />
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Fleet Overview */}
-        <section className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-900 mb-4">{t('fleet', lang)}</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="text-center py-3 px-2 rounded-xl bg-green-50">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-                <span className="text-2xl font-bold text-green-600">{fleet.connected}</span>
-              </div>
-              <p className="text-[11px] text-slate-600 font-medium">{t('connected', lang)}</p>
+        {/* Status tiles (tap = open the matching list) */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-2.5" aria-label={t('fleet', lang)}>
+          {tiles.map(x => (
+            <button key={x.key} type="button" onClick={x.go} className={`rounded-2xl px-3 py-3 text-start ${x.tone} ring-1 ring-black/5 shadow-sm active:scale-[0.98] transition`}>
+              <span className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${x.dot}`} />
+                <span className="text-2xl font-extrabold tabular-nums">{x.n}</span>
+              </span>
+              <span className="mt-1 block text-[11px] font-semibold opacity-80">{t(x.key, lang)}</span>
+            </button>
+          ))}
+        </section>
+
+        {/* Shortcuts */}
+        <section aria-label={t('shortcuts', lang)} className="grid grid-cols-4 gap-2.5">
+          {shortcuts.map(x => (
+            <button key={x.key} type="button" onClick={x.go} className="flex flex-col items-center gap-1.5 rounded-2xl bg-white py-3 border border-slate-100 shadow-sm active:scale-[0.97] transition">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><x.Icon className="h-[18px] w-[18px]" /></span>
+              <span className="text-[11px] font-semibold text-slate-700">{t(x.key, lang)}</span>
+            </button>
+          ))}
+        </section>
+
+        {/* Needs attention */}
+        <section ref={attentionRef} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+            {t('needsAttention', lang)}
+            {attention.length > 0 && <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-bold text-orange-700">{attention.length}</span>}
+          </h3>
+          {attention.length === 0 ? (
+            <div className="flex items-center gap-3 py-1">
+              <span className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center"><CheckCircle2 className="h-5 w-5 text-emerald-500" /></span>
+              <p className="text-sm text-slate-600">{t('allGood', lang)}</p>
             </div>
-            <div className="text-center py-3 px-2 rounded-xl bg-slate-50">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <span className="h-2 w-2 rounded-full bg-slate-400" />
-                <span className="text-2xl font-bold text-slate-700">{fleet.stopped}</span>
-              </div>
-              <p className="text-[11px] text-slate-600 font-medium">{t('stopped', lang)}</p>
-            </div>
-            <div className="text-center py-3 px-2 rounded-xl bg-slate-100/60">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <span className="h-2 w-2 rounded-full bg-slate-300 ring-1 ring-slate-400" />
-                <span className="text-2xl font-bold text-slate-500">{fleet.offline}</span>
-              </div>
-              <p className="text-[11px] text-slate-600 font-medium">{t('offline', lang)}</p>
-            </div>
-            <div className="text-center py-3 px-2 rounded-xl bg-orange-50">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
-                <span className="text-2xl font-bold text-orange-600">{fleet.attention}</span>
-              </div>
-              <p className="text-[11px] text-slate-600 font-medium">{t('attention', lang)}</p>
-            </div>
-          </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {attention.slice(0, 5).map(({ v, reason }) => {
+                const st = REASON_STYLE[reason]
+                return (
+                  <li key={v.id || v.uniqueId}>
+                    <button type="button" onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)} className="flex w-full items-center gap-3 py-2.5 text-start">
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${st.box}`}><st.Icon className="h-[18px] w-[18px]" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-slate-900">{v.name || v.plate || '—'}</span>
+                        <span className="block truncate text-[11px] text-slate-500">
+                          {t(reason, lang)}{v.lastUpdate && reason !== 'rNever' ? ` · ${timeAgo(v.lastUpdate, lang)}` : ''}
+                        </span>
+                      </span>
+                      <ChevronLeft className={`h-4 w-4 text-slate-300 ${dir === 'rtl' ? '' : 'rotate-180'}`} />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </section>
 
         {/* Vehicles */}
         <section ref={vehiclesRef}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base font-bold text-slate-900">{t('myVehicles', lang)}</h3>
-            <button onClick={() => navigate('/client/map')} className="text-sm font-medium text-indigo-600">{t('viewAll', lang)}</button>
+            <button onClick={() => navigate('/client/vehicles')} className="text-sm font-medium text-indigo-600">{t('viewAll', lang)}</button>
           </div>
-          {vehicles.length === 0 ? (
+          {total > VISIBLE_VEHICLES && (
+            <label className="mb-3 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search', lang)} className="min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400" />
+            </label>
+          )}
+          {total === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center text-slate-500">{t('noVehicles', lang)}</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {vehicles.map(v => (
-                <VehicleCard
-                  key={v.id || v.uniqueId}
-                  vehicle={v}
-                  lang={lang}
-                  compact
-                  onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
-                 
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(query ? listed : listed.slice(0, VISIBLE_VEHICLES)).map(v => (
+                  <VehicleCard
+                    key={v.id || v.uniqueId}
+                    vehicle={v}
+                    lang={lang}
+                    compact
+                    onClick={() => navigate(`/client/vehicle/${v.id || v.uniqueId}`)}
+                  />
+                ))}
+              </div>
+              {!query && total > VISIBLE_VEHICLES && (
+                <button type="button" onClick={() => navigate('/client/vehicles')} className="mt-3 w-full rounded-2xl border border-indigo-100 bg-indigo-50 py-3 text-sm font-bold text-indigo-700 active:scale-[0.99] transition">
+                  {t('showMore', lang)} ({total})
+                </button>
+              )}
+            </>
           )}
         </section>
 
-        {/* Latest Alert */}
+        {/* Latest alert */}
         <section className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
           <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('latestAlert', lang)}</h3>
           {latestAlert ? (
@@ -249,8 +359,7 @@ export default function Home() {
             </div>
           )}
         </section>
-
-              </main>
+      </main>
 
       <BottomNav active="home" lang={lang} navigate={navigate} />
     </div>

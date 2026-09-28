@@ -112,6 +112,17 @@ export function formatVoltage(value, lang = 'ar', _lastUpdate = null, powerDisco
   return '—'
 }
 
+// Human label for a vehicle type value (never show the raw "car"/"bike" code).
+const VEHICLE_TYPE_LABEL = {
+  car: { ar: 'سيارة', fr: 'Voiture' },
+  bike: { ar: 'دراجة نارية', fr: 'Moto' },
+  truck: { ar: 'شاحنة', fr: 'Camion' },
+}
+export function vehicleTypeLabel(type, lang = 'ar') {
+  const entry = VEHICLE_TYPE_LABEL[type]
+  return entry ? (lang === 'fr' ? entry.fr : entry.ar) : ''
+}
+
 export function VehicleTypeControl({ value = 'bike', onChange, lang = 'ar', className = '' }) {
   const options = [
     { value: 'car', ar: 'سيارة', fr: 'Voiture' },

@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, useMap } from 'react-leaflet'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import MapTileLayer from '../../components/MapTileLayer'
-import { Activity, ArrowLeft, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, User, X, Zap } from 'lucide-react'
+import { Activity, ArrowLeft, ChevronDown, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, User, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -397,6 +397,29 @@ export default function VehicleControl() {
       </div>
 
       <main className="mx-auto max-w-3xl space-y-4 p-4">
+        {/* At-a-glance status (the same values as before, shown first) */}
+        <section aria-label={T.secStatus} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <p className="truncate text-[10px] font-bold text-slate-500">{T.status}</p>
+            <p className="mt-1 flex items-center gap-1.5 truncate text-sm font-extrabold text-slate-900">
+              <span className={'inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ' + (online ? 'bg-green-500' : 'bg-slate-400')}/>
+              {online ? T.online : T.offline}
+            </p>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <p className="truncate text-[10px] font-bold text-slate-500">{T.speed}</p>
+            <p className="mt-1 truncate text-sm font-extrabold text-slate-900"><bdi>{displayValue(speedLabel)}</bdi></p>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <p className="truncate text-[10px] font-bold text-slate-500">{T.voltage}</p>
+            <p className="mt-1 truncate text-sm font-extrabold text-slate-900"><bdi>{displayValue(voltageLabel)}</bdi></p>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <p className="truncate text-[10px] font-bold text-slate-500">{T.lastUpdate}</p>
+            <p className="mt-1 truncate text-[12px] font-extrabold text-slate-900"><bdi>{displayValue(lastUpLabel)}</bdi></p>
+          </div>
+        </section>
+
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           {point ? (
             <div
@@ -473,6 +496,13 @@ export default function VehicleControl() {
           </div>
         </section>
 
+        {/* Editing (collapsed by default so the page opens on the vehicle status) */}
+        <details className="group rounded-3xl border border-slate-200 bg-slate-50/60 shadow-sm open:bg-transparent open:shadow-none">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl bg-white px-4 py-3.5 text-sm font-extrabold text-slate-900 shadow-sm [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2"><Pencil size={15} className="text-indigo-600"/>{isAr ? 'تعديل بيانات المركبة والسائق' : 'Modifier les informations du véhicule'}</span>
+            <ChevronDown size={16} className="text-slate-400 transition-transform group-open:rotate-180"/>
+          </summary>
+          <div className="mt-3 space-y-4">
         {/* Vehicle information */}
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
@@ -484,7 +514,7 @@ export default function VehicleControl() {
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.vName}</label>
               <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.plate}</label>
                 <input type="text" value={form.plate} onChange={e => setForm(f => ({ ...f, plate: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
@@ -550,39 +580,13 @@ export default function VehicleControl() {
           </div>
         </section>
 
-        {/* Current status — read-only telemetry */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <Activity size={16} className="text-indigo-600"/>
-            <span className="text-sm font-extrabold text-slate-900">{T.secStatus}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.status}</p>
-              <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-extrabold text-slate-800">
-                <span className={'inline-block h-2 w-2 flex-shrink-0 rounded-full ' + (online ? 'bg-green-500' : 'bg-slate-400')}/>
-                {online ? T.online : T.offline}
-              </p>
-            </div>
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.speed}</p>
-              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(speedLabel)}</p>
-            </div>
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.lastUpdate}</p>
-              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(lastUpLabel)}</p>
-            </div>
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.voltage}</p>
-              <p className="mt-1 truncate text-xs font-extrabold text-slate-800"><bdi>{displayValue(voltageLabel)}</bdi></p>
-            </div>
-          </div>
-        </section>
-
         <button type="button" onClick={saveDetails} disabled={saving} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition disabled:opacity-60 ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
           {saving ? <><Loader2 size={14} className="animate-spin"/> {T.loading}</> : saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
         </button>
         {saveErr && <p role="alert" className="text-center text-[11px] font-bold text-red-600">{saveErr}</p>}
+
+          </div>
+        </details>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">

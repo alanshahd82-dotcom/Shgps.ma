@@ -14,7 +14,7 @@ import SubscriptionPlans from '../../components/SubscriptionPlans'
 import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
-import { formatVoltage, VehicleIcon, VehicleTypeControl } from '../../components/ui'
+import { formatVoltage, VehicleIcon, VehicleTypeControl, vehicleTypeLabel } from '../../components/ui'
 import AddDeviceModal from '../../components/admin/AddDeviceModal'
 
 function timeAgo(iso, lang) {
@@ -22,7 +22,9 @@ function timeAgo(iso, lang) {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
   if (diff < 1) return t(lang, 'just_now')
   if (diff < 60) return `${diff}m`
-  return `${Math.floor(diff / 60)}h`
+  const hours = Math.floor(diff / 60)
+  if (hours < 48) return `${hours}h`
+  return lang === 'ar' ? `${Math.floor(hours / 24)} ي` : `${Math.floor(hours / 24)} j`
 }
 
 function SyncResultModal({ open, onClose, result, lang }) {
@@ -217,13 +219,13 @@ export default function AllDevices() {
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full [&_td:not(:first-child)]:whitespace-nowrap [&_td]:px-3 [&_th]:px-3">
               <thead className="bg-slate-50 border-b border-gray-100">
                 <tr>
                   {[t(lang,'device'), 'IMEI', t(lang,'plate'), lang === 'ar' ? 'العميل' : 'Client',
                     t(lang,'speed'), lang === 'ar' ? 'الفولطاج' : 'Tension', t(lang,'status'), lang === 'ar' ? 'اشتراك الجهاز' : 'Abonnement appareil', t(lang,'lastUpdate'),
                     lang === 'ar' ? 'إجراءات' : 'Actions'].map((h, i) => (
-                    <th key={i} className="px-4 py-3 text-start text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+                    <th key={i} className={(i === 1 ? 'hidden 2xl:table-cell ' : '') + (i === 7 || i === 8 ? 'max-w-[110px] ' : 'whitespace-nowrap ') + 'px-4 py-3 text-start text-[11px] font-bold text-slate-400 uppercase tracking-wide'}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -248,11 +250,12 @@ export default function AllDevices() {
                           </div>
                           <div>
                             <p className="font-semibold text-sm text-primary-500">{device.name}</p>
-                            <p className="text-[10px] text-slate-400">{device.type}</p>
+                            <p className="text-[10px] text-slate-400">{vehicleTypeLabel(device.type, lang)}</p>
+                            <p dir="ltr" className="2xl:hidden font-mono text-[10px] text-slate-400">{device.imei || '—'}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs font-mono text-slate-500">{device.imei || '—'}</td>
+                      <td className="hidden 2xl:table-cell px-4 py-3 text-xs font-mono text-slate-500">{device.imei || '—'}</td>
                       <td className="px-4 py-3 text-sm text-slate-500">{device.plate || '—'}</td>
                       <td className="px-4 py-3 text-sm text-slate-500">{client?.name || (lang === 'ar' ? 'غير مسند' : 'Non assigné')}</td>
                       <td className="px-4 py-3 text-sm font-semibold text-primary-500">

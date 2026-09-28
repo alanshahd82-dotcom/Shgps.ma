@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { AlertCircle, CarFront, ChevronLeft, ChevronRight, Search } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { getDeviceStatusKey } from '../../components/ui'
 import SharedVehicleCard from '../../components/VehicleCard'
@@ -24,7 +24,8 @@ export function VehiclesScreen({ vehicles: providedVehicles, alertCount = 0, onT
   const { vehicles: realVehicles, alertCount: realAlertCount, loading, error } = useRealVehicles()
   const vehicles = providedVehicles ?? realVehicles
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('all')
+  const [searchParams] = useSearchParams()
+  const [filter, setFilter] = useState(() => (FILTERS.includes(searchParams.get('filter')) ? searchParams.get('filter') : 'all'))
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase()
     return vehicles.filter(vehicle => {

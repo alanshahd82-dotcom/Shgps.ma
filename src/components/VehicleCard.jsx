@@ -376,10 +376,10 @@ export function VehicleCard({
             disabled={engineLoading}
             className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-extrabold transition-colors disabled:opacity-70 ${
               engineConfirm
-                ? 'animate-pulse bg-red-600 text-white'
+                ? 'animate-pulse bg-red-700 text-white ring-4 ring-red-200'
                 : engineRunning
-                  ? 'bg-red-50 text-red-700 hover:bg-red-100 ring-1 ring-inset ring-red-200'
-                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 ring-1 ring-inset ring-emerald-200'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-200/70 hover:bg-red-700 active:scale-[0.99]'
+                  : 'bg-emerald-600 text-white shadow-md shadow-emerald-200/70 hover:bg-emerald-700 active:scale-[0.99]'
             }`}
             aria-label={engineRunning ? l.cutEngine : l.restoreEngine}
           >
