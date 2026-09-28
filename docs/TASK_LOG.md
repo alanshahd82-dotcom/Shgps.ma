@@ -2001,3 +2001,10 @@ write before subsequent packets arrive.
 - Test baseline found: 12 pre-existing failures unrelated to the engine flow (11 stale power-alert tests expecting `charge:false` as a loss, 1 layout test using `require` in an ES-module package). No test imports the real engine modules.
 - Source code changed: NO. Backend, Traccar, database, Docker, deployment, API contracts: unchanged.
 - Production behaviour, physical relay movement: `[UNCONFIRMED]` by this audit (owner reports it works).
+
+## 2026-09-28 — Client-reported issues: Phase A audit (documentation only)
+
+- Audited the 11 client-reported issues; full findings, proven vs unconfirmed causes, proposed order and open decisions are in `docs/AUDIT_CLIENT_REPORT_2026-09-28.md`.
+- Reproduced locally (mock API + headless Chromium): `/admin/setup` `removeChild` crash (external DOM mutation on the Next/Save button text, not Leaflet), `0.000, 0.000` / "Position indisponible" on client screens, admin map clusters that never separate at street zoom, map painting above the add-device modal on mobile, sidebar re-created on every render.
+- Found (not reported by the client): unauthenticated `/api/diag/offline` running `execSync`.
+- Source code changed: NO. Backend, Traccar, database, Docker, deployment, API contracts: unchanged. Production behaviour: `[UNCONFIRMED]`.
