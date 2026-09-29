@@ -61,8 +61,14 @@ test('admin flag comes from the database on refresh', async () => {
 })
 
 test('token expired beyond the grace window is refused', async () => {
-  const res = await post('/refresh', { Authorization: `Bearer ${expired(1, 200 * 86400)}` })
+  const res = await post('/refresh', { Authorization: `Bearer ${expired(1, 450 * 86400)}` })
   assert.equal(res.status, 401)
+})
+
+test('a phone that was not opened for ~10 months stays signed in', async () => {
+  const res = await post('/refresh', { Authorization: `Bearer ${expired(1, 300 * 86400)}` })
+  assert.equal(res.status, 200)
+  assert.ok((await res.json()).token)
 })
 
 test('revoked (logged out) token cannot be refreshed', async () => {

@@ -265,8 +265,16 @@ export function AppProvider({ children }) {
       return
     }
     let cancelled = false
+    // A slow or missing network at start-up must never look like a logout: the saved session stays,
+    // the app opens with what it has, and the session check is retried until it succeeds.
+    let needsRetry = false
+    let running = false
+    let attempts = 0
+    let retryTimer = null
 
     async function hydrateSession() {
+      if (running || cancelled || !localStorage.getItem('athargps_token')) return
+      running = true
       try {
         // Revalidate the persisted session so a closed/reopened app keeps working
         // while revoked or expired tokens are removed instead of showing a blank app.
@@ -284,6 +292,9 @@ export function AppProvider({ children }) {
           localStorage.removeItem('athargps_admin')
         }
         setMustChange(!!currentUser.mustChangePassword)
+        needsRetry = false
+        attempts = 0
+        setAuthBootstrapError(false)
         // Let protected pages render as soon as the session itself is valid.
         // Device/client/alert loading is secondary and must not blank the app.
         if (!cancelled) {
@@ -303,7 +314,13 @@ export function AppProvider({ children }) {
         const isNetworkFailure = error?.code === 'BOOT_TIMEOUT'
           || error?.name === 'AbortError'
           || error?.name === 'TypeError'
-        if (isNetworkFailure) setAuthBootstrapError(true)
+        if (isNetworkFailure) {
+          setAuthBootstrapError(true)
+          needsRetry = true
+          attempts += 1
+          clearTimeout(retryTimer)
+          retryTimer = window.setTimeout(hydrateSession, Math.min(4000 * attempts, 30000))
+        }
         // Keep the persisted session during temporary network/server errors.
         // Only a confirmed 401 means that the token is no longer usable.
         if (error?.status === 401) {
@@ -317,13 +334,24 @@ export function AppProvider({ children }) {
           setClientList([])
         }
       } finally {
+        running = false
         if (!cancelled) setAuthReady(true)
       }
     }
 
+    // The network is back / the app is brought to the foreground: check the session right away.
+    const retryNow = () => {
+      if (needsRetry && document.visibilityState !== 'hidden') { clearTimeout(retryTimer); hydrateSession() }
+    }
+    window.addEventListener('online', retryNow)
+    document.addEventListener('visibilitychange', retryNow)
+
     hydrateSession()
     return () => {
       cancelled = true
+      clearTimeout(retryTimer)
+      window.removeEventListener('online', retryNow)
+      document.removeEventListener('visibilitychange', retryNow)
       closeWebSocket()
     }
   }, []) // eslint-disable-line

@@ -2059,3 +2059,9 @@ write before subsequent packets arrive.
 - Status after saving follows the dates (a past end date gives "expired", tracking off, as for any expired plan); create responses no longer hard-code "active".
 - UI: `SubscriptionPlans` has a "Période personnalisée / فترة مخصصة" card with two date fields and inline validation; available in the renewal modal (admin pages only), quick add (menu + modal), page form and the setup wizard. The client renewal screen is unchanged.
 - Tests: `subscriptionCustomPeriod.test.js` (7); browser: renewal modal and quick add send the typed dates, wrong order is refused. Backend 301/302 (old layout test only). Engine code untouched.
+
+## 2026-09-29 — Stay signed in until logout (client, worker, admin; web and phone app)
+
+- Found: (1) a slow/missing network at start-up sent a signed-in person to the login form (route guards redirected on `authBootstrapError`) and the session check was never retried; (2) in the phone app an already signed-in **administrator** was always sent to the client login (`/` -> `/client` only knew client sessions); (3) the phone app renews an expired token through the legacy grace, limited to 180 days.
+- Fixed: the saved session is kept while offline (the app opens; the session check retries with back-off and on `online` / return to foreground); `/client` sends a signed-in admin to `/admin/dashboard`; grace raised to 400 days (`backend/src/routes/auth.js`, tests updated). A real sign-out (revoked token / refresh refused with 401) still shows the login form.
+- Browser tests: admin in the phone app opens the panel directly; network down at start keeps the app open and recovers; expired token is renewed without a login form; refused refresh shows login.
