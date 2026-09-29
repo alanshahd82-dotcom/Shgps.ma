@@ -9,14 +9,17 @@ const canMock = typeof mock.module === 'function'
 const skip = !canMock && 'needs --experimental-test-module-mocks'
 
 const hash = bcrypt.hashSync('Correct-Horse-9', 4)
-const state = { created: [], delivered: 0, audits: [] }
+const state = { created: [], delivered: 0, audits: [], slowLookupMs: 0 }
 const device = { id: 7, traccar_id: 37, name: 'Dacia', imei: '111111111111111', user_id: 5 }
 let base, server, resetAttempts
 async function setup() {
   if (server) return
   const query = async (sql) => {
     if (/FROM devices d WHERE d\.id=\$1/.test(sql)) return { rows: [{ ...device }] }
-    if (/SELECT password_hash FROM users/.test(sql)) return { rows: [{ password_hash: hash }] }
+    if (/SELECT password_hash FROM users/.test(sql)) {
+      if (state.slowLookupMs) await new Promise(r => setTimeout(r, state.slowLookupMs))
+      return { rows: [{ password_hash: hash }] }
+    }
     return { rows: [] }
   }
   mock.module('../src/db.js', { namedExports: { db: { query, connect: async () => ({ query, release() {} }), on() {} } } })
@@ -43,7 +46,7 @@ async function setup() {
   server = await new Promise(resolve => { const s = app.listen(0, () => resolve(s)) })
   base = `http://127.0.0.1:${server.address().port}`
 }
-const reset = () => { state.created = []; state.delivered = 0; state.audits = []; resetAttempts() }
+const reset = () => { state.created = []; state.delivered = 0; state.audits = []; state.slowLookupMs = 0; resetAttempts() }
 const send = body => fetch(`${base}/api/devices/7/command`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(async r => ({ status: r.status, body: await r.json() }))
 
 test('no password: refused, nothing is created or sent', { skip }, async () => {
@@ -101,3 +104,18 @@ test('a correct password resets the failed-attempt counter', { skip }, async () 
 })
 
 test.after(() => server?.close())
+
+test('five wrong passwords sent at the same time still lock the account', { skip }, async () => {
+  await setup(); reset(); state.slowLookupMs = 40 // makes the guesses truly overlap
+  const results = await Promise.all(Array.from({ length: 5 }, (_, i) => send({ type: 'engineStop', password: 'guess' + i })))
+  assert.deepEqual(results.map(r => r.status), [403, 403, 403, 403, 403])
+  const after = await send({ type: 'engineStop', password: 'Correct-Horse-9' })
+  assert.equal(after.status, 429, 'locked out even though the guesses were concurrent')
+  assert.equal(state.created.length, 0)
+})
+
+test('concurrent correct passwords still work (no deadlock in the queue)', { skip }, async () => {
+  await setup(); reset()
+  const results = await Promise.all([1, 2, 3].map(() => send({ type: 'engineStop', password: 'Correct-Horse-9' })))
+  assert.deepEqual(results.map(r => r.status), [200, 200, 200])
+})

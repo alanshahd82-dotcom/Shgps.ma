@@ -7,8 +7,12 @@ import bcrypt from 'bcryptjs'
 export const MAX_FAILED_ATTEMPTS = 5
 export const LOCK_MS = 10 * 60 * 1000
 const attempts = new Map() // userId -> { failures, lockedUntil }
+// One check at a time per account: without this, several wrong guesses sent in
+// parallel would all read the same failure count and the lockout would never
+// trigger. Each account's checks are chained onto its own promise.
+const inFlight = new Map() // userId -> Promise
 
-export function resetPasswordAttempts() { attempts.clear() }
+export function resetPasswordAttempts() { attempts.clear(); inFlight.clear() }
 
 function enabled() {
   return String(process.env.ENGINE_REQUIRE_PASSWORD ?? 'true').toLowerCase() !== 'false'
@@ -23,6 +27,19 @@ export async function confirmAccountPassword(db, user, password, now = Date.now(
   if (typeof password !== 'string' || password.length === 0 || password.length > 200) {
     return { ok: false, status: 400, code: 'PASSWORD_REQUIRED', error: 'Password is required' }
   }
+  const previous = inFlight.get(user.id) || Promise.resolve()
+  const run = previous.catch(() => {}).then(() => checkOnce(db, user, password))
+  const settled = run.catch(() => {})
+  inFlight.set(user.id, settled)
+  try {
+    return await run
+  } finally {
+    // Drop the chain entry only when no further check was queued behind this one.
+    if (inFlight.get(user.id) === settled) inFlight.delete(user.id)
+  }
+}
+
+async function checkOnce(db, user, password, now = Date.now()) {
   const state = attempts.get(user.id) || { failures: 0, lockedUntil: 0 }
   if (state.lockedUntil > now) {
     return { ok: false, status: 429, code: 'TOO_MANY_ATTEMPTS', error: 'Too many wrong attempts. Try again later.' }

@@ -173,15 +173,17 @@ export function useEngineControl(vehicle, lang = 'ar') {
 
   // A command that is still on its way (waiting for the vehicle, or handed to the
   // tracker) changes state on the server without any event reaching this screen,
-  // so keep it fresh: every 30 s, at most 40 times per command (~20 min).
+  // so keep it fresh for as long as it is in flight: every 30 s for the first
+  // 20 minutes, then every 2 minutes (the backend may keep a queued cut pending
+  // for up to 24 h). Stops as soon as the command is no longer in flight.
   const stateWatchRef = useRef({ id: null, n: 0 })
   useEffect(() => {
     if (commandId == null || !['requested', 'pending', 'sent'].includes(commandStatus)) return undefined
     if (stateWatchRef.current.id !== commandId) stateWatchRef.current = { id: commandId, n: 0 }
     const timer = setInterval(() => {
-      if (stateWatchRef.current.n >= 40) { clearInterval(timer); return }
       stateWatchRef.current.n += 1
-      fetchActiveCommand()
+      const n = stateWatchRef.current.n
+      if (n <= 40 || n % 4 === 0) fetchActiveCommand()
     }, 30000)
     return () => clearInterval(timer)
   }, [commandId, commandStatus, fetchActiveCommand])
@@ -275,9 +277,14 @@ export function useEngineControl(vehicle, lang = 'ar') {
     if (!vehicle?.id || !activeCommand?.id || sending) return false
     setSending(true); setError(''); setSuccess('')
     try {
-      await api.devices.cancelCommand(vehicle.id, activeCommand.id)
+      const response = await api.devices.cancelCommand(vehicle.id, activeCommand.id)
       try { await fetchActiveCommand() } catch {}
       try { await refreshDevices?.() } catch {}
+      // The server cannot recall a cut that already reached the tracker: say so.
+      if (response?.command && response.command.status !== 'cancelled') {
+        if (mounted.current) setError(lang === 'ar' ? 'لا يمكن الإلغاء: الأمر أُرسل إلى الجهاز بالفعل.' : "Annulation impossible : la commande est déjà arrivée à l'appareil.")
+        return false
+      }
       return true
     } catch {
       if (mounted.current) setError(t(lang, 'vehicleCommandFailed'))
