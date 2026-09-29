@@ -58,7 +58,7 @@ export const schemas = {
       lat: z.number({ required_error: 'Latitude is required' }),
       lng: z.number({ required_error: 'Longitude is required' }),
     }),
-    radius: z.number().positive('Radius must be a positive number'),
+    radius: z.number().positive('Radius must be a positive number').max(2000000, 'Radius must be at most 2000 km'),
   }),
 }
 

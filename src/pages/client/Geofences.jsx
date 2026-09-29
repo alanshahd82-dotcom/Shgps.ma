@@ -22,6 +22,23 @@ function MapClickHandler({ onMapClick, enabled }) {
   return null
 }
 
+const MIN_RADIUS = 50
+const MAX_RADIUS = 2000000 // 2,000 km: enough for a whole country
+const RADIUS_PRESETS = [500, 1000, 5000, 25000, 100000, 500000]
+const clampRadius = m => Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, Math.round(m)))
+function fmtRadius(m) {
+  const n = Number(m) || 0
+  return n >= 1000 ? `${Number((n / 1000).toFixed(n >= 10000 ? 0 : 1))} km` : `${Math.round(n)} m`
+}
+function radiusFromSlider(pos) {
+  const raw = MIN_RADIUS * Math.pow(MAX_RADIUS / MIN_RADIUS, pos / 100)
+  const step = raw < 1000 ? 10 : raw < 10000 ? 100 : raw < 100000 ? 1000 : 10000
+  return clampRadius(Math.round(raw / step) * step)
+}
+function sliderFromRadius(m) {
+  return (100 * Math.log(clampRadius(m) / MIN_RADIUS)) / Math.log(MAX_RADIUS / MIN_RADIUS)
+}
+
 function FitBounds({ center, radius }) {
   const map = useMap()
   useEffect(() => {
@@ -39,6 +56,8 @@ export default function Geofences() {
   const [drawing, setDrawing]     = useState(false)
   const [center, setCenter]       = useState(null)
   const [radius, setRadius]       = useState(500)
+  const [radiusUnit, setRadiusUnit] = useState('m')
+  const [radiusText, setRadiusText] = useState('500')
   const [name, setName]           = useState('')
   const [alertEnter, setAlertEnter] = useState(true)
   const [alertExit, setAlertExit]   = useState(true)
@@ -150,7 +169,7 @@ export default function Geofences() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-slate-800 font-bold text-sm">{geo.name}</p>
-                <p className="text-xs mt-0.5 text-slate-500">{geo.radius} m</p>
+                <p className="text-xs mt-0.5 text-slate-500">{fmtRadius(geo.radius)}</p>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="flex items-center gap-1 text-[10px]"
                     style={{ color: geo.alert_enter ? '#4f46e5' : '#94a3b8' }}>
@@ -210,10 +229,41 @@ export default function Geofences() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                  <label className="text-xs text-slate-600">{isAr ? 'نصف القطر' : 'Rayon'}</label>
-                 <span className="text-xs font-bold text-indigo-600">{radius} m</span>
+                 <span className="text-xs font-bold text-indigo-600" dir="ltr">{fmtRadius(radius)}</span>
                 </div>
-                <input type="range" min="100" max="5000" step="50" value={radius} onChange={e => setRadius(Number(e.target.value))}
-                   className="w-full" style={{ accentColor:'#4f46e5' }}/>
+                <div className="flex items-center gap-2" dir="ltr">
+                  <input type="number" inputMode="decimal" min="0" step="any" value={radiusText}
+                    onChange={e => {
+                      setRadiusText(e.target.value)
+                      const n = parseFloat(e.target.value)
+                      if (Number.isFinite(n) && n > 0) setRadius(clampRadius(n * (radiusUnit === 'km' ? 1000 : 1)))
+                    }}
+                    onBlur={() => setRadiusText(String(radiusUnit === 'km' ? Number((radius / 1000).toFixed(2)) : radius))}
+                    className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600"/>
+                  <div className="flex rounded-xl bg-slate-100 p-1">
+                    {['m', 'km'].map(u => (
+                      <button key={u} type="button" onClick={() => {
+                        setRadiusUnit(u)
+                        setRadiusText(String(u === 'km' ? Number((radius / 1000).toFixed(2)) : radius))
+                      }} className={`rounded-lg px-3 py-2 text-xs font-extrabold transition ${radiusUnit === u ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}>{u === 'm' ? (isAr ? 'متر' : 'm') : (isAr ? 'كم' : 'km')}</button>
+                    ))}
+                  </div>
+                </div>
+                <input type="range" min="0" max="100" step="0.5" value={sliderFromRadius(radius)}
+                  onChange={e => {
+                    const next = radiusFromSlider(Number(e.target.value))
+                    setRadius(next)
+                    setRadiusText(String(radiusUnit === 'km' ? Number((next / 1000).toFixed(2)) : next))
+                  }}
+                  className="mt-3 w-full" style={{ accentColor:'#4f46e5' }}/>
+                <div className="mt-2 flex flex-wrap gap-1.5" dir="ltr">
+                  {RADIUS_PRESETS.map(preset => (
+                    <button key={preset} type="button" onClick={() => {
+                      setRadius(preset)
+                      setRadiusText(String(radiusUnit === 'km' ? Number((preset / 1000).toFixed(2)) : preset))
+                    }} className={`rounded-full border px-3 py-1 text-[11px] font-bold transition ${radius === preset ? 'border-indigo-200 bg-indigo-50 text-indigo-600' : 'border-slate-200 bg-white text-slate-500'}`}>{fmtRadius(preset)}</button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex items-center gap-4 py-2">
