@@ -3,6 +3,7 @@ import { AlertTriangle, X } from 'lucide-react'
 import { api } from '../api/index.js'
 import { isUserAlertEvent } from '../utils/eventPolicy.js'
 import { mergeVoltageFields } from '../utils/voltageMerge.js'
+import { resolveWsBase } from '../utils/apiBase.js'
 
 const AppContext = createContext(null)
 
@@ -427,10 +428,7 @@ export function AppProvider({ children }) {
     if (!token) return
     if (wsRef.current && [WebSocket.OPEN, WebSocket.CONNECTING].includes(wsRef.current.readyState)) return
 
-    const wsBase = import.meta.env.VITE_WS_URL || (() => {
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      return `${protocol}://${window.location.host}/api/socket`
-    })()
+    const wsBase = resolveWsBase({ envUrl: import.meta.env.VITE_WS_URL })
     const url = `${wsBase}?token=${encodeURIComponent(token)}`
 
     const ws = new WebSocket(url)

@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
-  appId: 'ma.athargps.app',
+  appId: 'com.athargps.app',
   appName: 'AtharGPS',
   webDir: 'dist',
   plugins: {

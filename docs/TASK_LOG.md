@@ -2032,3 +2032,10 @@ write before subsequent packets arrive.
 - Review round 2 for PR #13: cancel() no longer loses a queued cut when Traccar is down (retry marker), cancel offered only before the command is sent, tile counts from the same raw data as the list, attention list can show all entries.
 - Review round 3 for PR #13: a cut already sent to the tracker never locks the card button (it offers the restore); the command state of a card refreshes every 30 s (max 40) while the command is on its way; retry test now runs the worker twice (down, then back).
 - Engine cut / resume now asks for the account password (checked by the server, brute-force limited, never logged); see `docs/ENGINE_CUT_BASELINE.md` 11d.
+
+## 2026-09-29 — Store readiness (branch `ccr-a2c52512-p85t46`, not merged, not deployed)
+
+- Phone app ↔ server: API / WebSocket base from `src/utils/apiBase.js`, CORS for `https://localhost` and `capacitor://localhost` (`backend/src/utils/corsOrigins.js`, tests), share links use `https://athargps.com`.
+- `android-build.yml`: fixed failing builds, version code/name, target SDK 35, signed AAB/APK with 4 secrets or a dry-run key; appId `com.athargps.app`.
+- New public page `/account-deletion`, legal links in client Settings, `store-assets/`, docs: `PLAY_STORE_RELEASE.md`, `APP_STORE_RELEASE.md`, `STORE_LISTING.md`, `READINESS_REPORT_2026-09-29.md`.
+- Engine code untouched; engine regression scripts (cut, queue, sent, password, admin, native) pass; backend 287/288 (1 old unrelated test file).

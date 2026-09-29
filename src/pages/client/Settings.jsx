@@ -390,6 +390,13 @@ export default function Settings() {
           </motion.div>
         )}
 
+        {/* Legal (required by the app stores) */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[12px] font-semibold text-slate-400">
+          <button type="button" onClick={() => navigate('/privacy')} className="underline-offset-2 hover:underline">{isAr ? 'سياسة الخصوصية' : 'Confidentialité'}</button>
+          <button type="button" onClick={() => navigate('/terms')} className="underline-offset-2 hover:underline">{isAr ? 'شروط الاستخدام' : 'Conditions'}</button>
+          <button type="button" onClick={() => navigate('/account-deletion')} className="underline-offset-2 hover:underline">{isAr ? 'حذف الحساب' : 'Supprimer le compte'}</button>
+        </div>
+
         {/* Logout */}
         <motion.button whileTap={{ scale:0.97 }} onClick={handleLogout}
           className="w-full py-3.5 rounded-xl font-semibold text-sm mt-4"

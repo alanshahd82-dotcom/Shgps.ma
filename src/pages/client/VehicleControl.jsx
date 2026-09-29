@@ -13,6 +13,7 @@ import { formatVoltage, getDeviceStatusKey } from '../../components/ui'
 import VehicleStage, { TONE } from '../../components/VehicleStage'
 import EnginePasswordModal from '../../components/EnginePasswordModal'
 import { normalizeVehicleType } from '../../utils/vehicleAssets'
+import { publicOrigin } from '../../utils/apiBase.js'
 import { useEngineControl } from '../../hooks/useEngineControl'
 import { agoLabel, locationState } from '../../utils/location'
 import { canManageAccount } from '../../utils/permissions.js'
@@ -346,7 +347,7 @@ export default function VehicleControl() {
       const data = await api.sharing.create(vehicle.id, 24)
       const token = data?.token || data?.share_token || data?.shareToken
       if (!token) throw new Error('no token')
-      setShareLink(window.location.origin + '/share/' + token)
+      setShareLink(publicOrigin() + '/share/' + token)
       setShareExpiresAt(data?.expiresAt || data?.expires_at || null)
     } catch (e) {
       setShareLink(''); setShareExpiresAt(null)

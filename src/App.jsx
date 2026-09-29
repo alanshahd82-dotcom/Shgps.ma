@@ -39,6 +39,7 @@ import PublicMap from './pages/PublicMap'
 import PublicShare from './pages/PublicShare'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
+import AccountDeletion from './pages/AccountDeletion'
 import ForcePasswordModal from './components/ForcePasswordModal'
 import PageBoundary from './components/PageBoundary'
 
@@ -162,6 +163,7 @@ export default function App() {
           <Route path="/share/:token" element={<PublicShare />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/account-deletion" element={<AccountDeletion />} />
 
           {/* ── Client app ─────────────────────────────────────────────── */}
           <Route path="/client" element={<ClientEntry />} />
