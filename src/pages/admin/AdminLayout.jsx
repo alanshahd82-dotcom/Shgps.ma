@@ -13,6 +13,7 @@ import Logo from '../../components/Logo'
 import ForcePasswordModal from '../../components/ForcePasswordModal'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 import PageBoundary from '../../components/PageBoundary'
+import { VehicleTypeControl } from '../../components/ui'
 
 // Remembers the menu scroll position while moving between admin pages.
 let sidebarScrollTop = 0
@@ -24,6 +25,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
   // ── required fields
   const [imei,    setImei]    = useState('')
   const [phone,   setPhone]   = useState('')
+  const [vType,   setVType]   = useState('')   // no preselection: the admin must choose car / moto / truck
 
   // ── optional (expandable)
   const [expanded,  setExpanded]  = useState(false)
@@ -46,7 +48,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
   const selectedClient = clientList.find(c => String(c.id) === String(clientId))
 
   const reset = () => {
-    setImei(''); setPhone(''); setClientId(''); setMaxDev('')
+    setImei(''); setPhone(''); setVType(''); setClientId(''); setMaxDev('')
     setExpires(''); setSubscriptionPlanId('3_months'); setSearch(''); setError(''); setDone(null); setExpanded(false)
   }
   const handleClose = () => { reset(); onClose() }
@@ -58,6 +60,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
       const result = await api.devices.quickAdd({
         imei:      imei.trim(),
         phone:     phone.trim() || null,
+        type:      vType,
         clientId:  clientId ? Number(clientId) : null,
         // Only sent when the admin typed a new limit; otherwise the client's saved limit is kept.
         maxDevices: clientId && maxDev !== '' ? Number(maxDev) : null,
@@ -96,7 +99,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                     {isAr ? 'إضافة جهاز' : 'Ajouter un appareil'}
                   </h3>
                   <p className="text-white/60 text-[11px]">
-                    {isAr ? 'حقلان فقط — سريع وبسيط' : 'Deux champs seulement'}
+                    {isAr ? 'بيانات قليلة فقط — سريع وبسيط' : 'Quelques champs seulement'}
                   </p>
                 </div>
               </div>
@@ -186,6 +189,15 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                     onChange={e => setPhone(e.target.value)}
                     required
                   />
+                </div>
+
+                {/* Vehicle type: required and never preselected (a car saved as a moto showed a bike on the map) */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
+                    {isAr ? 'نوع المركبة' : 'Type de véhicule'}
+                    <span className="text-red-400 text-[10px] font-normal ml-1">{isAr ? '(إلزامي)' : '(requis)'}</span>
+                  </label>
+                  <VehicleTypeControl value={vType} onChange={setVType} lang={lang} />
                 </div>
 
                 {/* ── Optional section toggle ── */}
@@ -308,7 +320,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                 {/* Submit */}
                 <button
                   type="submit"
-                  disabled={loading || imei.length !== 15 || !phone.trim()}
+                  disabled={loading || imei.length !== 15 || !phone.trim() || !vType}
                   className="w-full py-3.5 rounded-xl bg-primary-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-primary-600 active:scale-[0.98] transition-all"
                 >
                   {loading

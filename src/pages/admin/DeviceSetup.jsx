@@ -94,7 +94,7 @@ export default function DeviceSetup() {
   const [imeiValid, setImeiValid]     = useState(null)
   const [name, setName]               = useState('')
   const [plate, setPlate]             = useState('')
-  const [vehicleType, setVehicleType] = useState('bike')
+  const [vehicleType, setVehicleType] = useState('')
   const [apnIndex, setApnIndex]       = useState(0)
   const [customApn, setCustomApn]     = useState({ apn: '', user: '', pass: '' })
   const [simPhone, setSimPhone]       = useState('')
@@ -189,7 +189,7 @@ export default function DeviceSetup() {
 
   const canNext = () => {
     if (step === 0) return !!deviceType
-    if (step === 1) return imeiValid && name.trim()
+    if (step === 1) return imeiValid && name.trim() && vehicleType
     if (step === 2) return true
     if (step === 3) return true
     if (step === 4) return true

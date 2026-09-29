@@ -28,8 +28,8 @@ export default function AddDeviceModal({
 
   // ── Global / client-scoped state (UNCHANGED) ──
   const initialForm = isGlobal
-    ? { name: '', imei: '', type: 'bike', plate: '', clientId: '', subscriptionPlanId: '3_months' }
-    : { name: '', imei: '', type: 'bike', plate: '', clientId, subscriptionPlanId: '3_months' }
+    ? { name: '', imei: '', type: '', plate: '', clientId: '', subscriptionPlanId: '3_months' }
+    : { name: '', imei: '', type: '', plate: '', clientId, subscriptionPlanId: '3_months' }
 
   const [form, setForm] = useState(initialForm)
   const [loading, setLoading] = useState(false)
@@ -38,12 +38,13 @@ export default function AddDeviceModal({
   const imeiValid = /^\d{15}$/.test(form.imei)
 
   const resetForm = () => isGlobal
-    ? { name: '', imei: '', type: 'bike', plate: '', clientId: '', subscriptionPlanId: '3_months' }
-    : { name: '', imei: '', type: 'bike', plate: '', clientId, subscriptionPlanId: '3_months' }
+    ? { name: '', imei: '', type: '', plate: '', clientId: '', subscriptionPlanId: '3_months' }
+    : { name: '', imei: '', type: '', plate: '', clientId, subscriptionPlanId: '3_months' }
 
   // ── Quick-add state (NEW — self-contained) ──
   const [qaImei, setQaImei] = useState('')
   const [qaPhone, setQaPhone] = useState('')
+  const [qaType, setQaType] = useState('')   // no preselection: the admin must choose car / moto / truck
   const [qaExpanded, setQaExpanded] = useState(false)
   const [qaClientId, setQaClientId] = useState('')
   const [qaMaxDev, setQaMaxDev] = useState('')   // empty = keep the client's current limit
@@ -60,7 +61,7 @@ export default function AddDeviceModal({
   const qaSelectedClient = (clientList || []).find(c => String(c.id) === String(qaClientId))
 
   const qaReset = () => {
-    setQaImei(''); setQaPhone(''); setQaClientId(''); setQaMaxDev('')
+    setQaImei(''); setQaPhone(''); setQaType(''); setQaClientId(''); setQaMaxDev('')
     setQaExpires(''); setQaSubscriptionPlanId('3_months'); setQaSearch(''); setError(''); setQaDone(null); setQaExpanded(false)
   }
 
@@ -73,6 +74,7 @@ export default function AddDeviceModal({
       const result = await api.devices.quickAdd({
         imei:      qaImei.trim(),
         phone:     qaPhone.trim() || null,
+        type:      qaType,
         clientId:  qaClientId ? Number(qaClientId) : null,
         // Only sent when the admin typed a new limit; otherwise the client's saved limit is kept.
         maxDevices: qaClientId && qaMaxDev !== '' ? Number(qaMaxDev) : null,
@@ -90,6 +92,7 @@ export default function AddDeviceModal({
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (isGlobal) {
+      if (!form.type) { setError(isAr ? 'اختر نوع المركبة' : 'Choisissez le type de véhicule'); return }
       if (!imeiValid) { setError(isAr ? 'إ م ت ج ب أن تكون 15 رقماً' : 'IMEI doit contenir 15 chiffres'); return }
       setLoading(true); setError('')
       try {
@@ -149,7 +152,7 @@ export default function AddDeviceModal({
                       {isAr ? 'إضافة جهاز' : 'Ajouter un appareil'}
                     </h3>
                     <p className="text-white/60 text-[11px]">
-                      {isAr ? 'حقلان فقط — سريع وبسيط' : 'Deux champs seulement'}
+                      {isAr ? 'بيانات قليلة فقط — سريع وبسيط' : 'Quelques champs seulement'}
                     </p>
                   </div>
                 </div>
@@ -239,6 +242,15 @@ export default function AddDeviceModal({
                       onChange={e => setQaPhone(e.target.value)}
                       required
                     />
+                  </div>
+
+                  {/* Vehicle type — required, never preselected (a car saved as a moto looked wrong on the map) */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-1.5">
+                      {isAr ? 'نوع المركبة' : 'Type de véhicule'}
+                      <span className="text-red-400 text-[10px] font-normal ml-1">{isAr ? '(إلزامي)' : '(requis)'}</span>
+                    </label>
+                    <VehicleTypeControl value={qaType} onChange={setQaType} lang={lang} />
                   </div>
 
                   {/* ── Optional section toggle ── */}
@@ -361,7 +373,7 @@ export default function AddDeviceModal({
                   {/* Submit */}
                   <button
                     type="submit"
-                    disabled={loading || qaImei.length !== 15 || !qaPhone.trim()}
+                    disabled={loading || qaImei.length !== 15 || !qaPhone.trim() || !qaType}
                     className="w-full py-3.5 rounded-xl bg-primary-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-primary-600 active:scale-[0.98] transition-all"
                   >
                     {loading
@@ -498,7 +510,7 @@ export default function AddDeviceModal({
             <div className={"flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 " + (isGlobal ? "bg-white rounded-b-3xl" : "")}>
               <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
               <Button type="submit" form={formId}
-                disabled={isGlobal ? (loading || !form.name || !imeiValid) : loading}
+                disabled={isGlobal ? (loading || !form.name || !imeiValid || !form.type) : (loading || !form.type)}
                 variant="primary" className="flex-1 py-3">
                 {loading ? '...' : t(lang, 'add')}
               </Button>
