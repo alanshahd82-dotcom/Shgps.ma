@@ -5,6 +5,7 @@ import { AppProvider, useApp } from './context/AppContext'
 
 // Pages
 import LandingPage from './pages/LandingPage'
+import CinematicIntro from './pages/client/CinematicIntro'
 import ClientWelcome from './pages/client/ClientWelcome'
 import ClientLogin from './pages/client/Login'
 import ForgotPassword from './pages/client/ForgotPassword'
@@ -118,6 +119,7 @@ function ClientEntry() {
     <Navigate
       to={!authBootstrapError && isClientAuthenticated(clientAuth)
         ? '/client/home'
+        : !sessionStorage.getItem('athargps_intro_seen') ? '/client/cinematic'
         : hasSeenOnboarding ? '/client/login' : '/client/start'}
       replace
     />
@@ -154,6 +156,7 @@ export default function App() {
 
           {/* ── Client app ─────────────────────────────────────────────── */}
           <Route path="/client" element={<ClientEntry />} />
+          <Route path="/client/cinematic"       element={<CinematicIntro />} />
           <Route path="/client/start"            element={<ClientWelcome />} />
           <Route path="/client/login"           element={<ClientLogin />} />
           <Route path="/client/forgot-password" element={<ForgotPassword />} />
