@@ -80,11 +80,15 @@ export default function MyLocationControl({ isAr = true }) {
     )
   }, [flyToMe, stop, t.denied, t.failed, t.unsupported])
 
+  // Ask for the position as soon as the map opens (the browser / OS shows its
+  // one-time prompt). Only a permission the user already denied is left alone.
   useEffect(() => {
     let cancelled = false
-    navigator.permissions?.query({ name: 'geolocation' })
-      .then(result => { if (!cancelled && result.state === 'granted') start(true) })
-      .catch(() => {})
+    const begin = () => { if (!cancelled) start(true) }
+    if (!navigator.permissions?.query) { begin(); return () => { cancelled = true } }
+    navigator.permissions.query({ name: 'geolocation' })
+      .then(result => { if (result.state !== 'denied') begin() })
+      .catch(begin)
     return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
