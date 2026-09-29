@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Search, Wifi, WifiOff, Plus, X, AlertCircle,
+  Search, Wifi, WifiOff, X, AlertCircle,
   RefreshCw, CheckCircle2, AlertTriangle, Trash2
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
@@ -11,11 +11,9 @@ import { t } from '../../i18n/translations'
 import AdminLayout from './AdminLayout'
 import ConfirmModal from '../../components/ConfirmModal'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
-import SubscriptionBadge from '../../components/SubscriptionBadge'
 import SubscriptionRenewalModal from '../../components/SubscriptionRenewalModal'
 import Button from '../../components/ui/Button'
 import { formatVoltage, VehicleIcon, VehicleTypeControl, vehicleTypeLabel } from '../../components/ui'
-import AddDeviceModal from '../../components/admin/AddDeviceModal'
 
 function timeAgo(iso, lang) {
   if (!iso) return '—'
@@ -119,20 +117,13 @@ export default function AllDevices() {
   // Opens the official vehicle detail screen through the admin-authorized
   // route, using the application device id (never Traccar id / IMEI / index).
   const openVehicle = device => { if (device?.id != null) navigate('/admin/vehicle/' + device.id) }
-  const { devices, clientList, addDeviceDirect, deleteDevice, lang, clientsError, refreshClients } = useApp()
+  const { devices, clientList, deleteDevice, lang } = useApp()
   const [search, setSearch]         = useState('')
-  const [showAdd, setShowAdd]       = useState(false)
   const [syncing, setSyncing]       = useState(false)
   const [syncResult, setSyncResult] = useState(null)
   const [toDelete, setToDelete]     = useState(null)
   const [renewDevice, setRenewDevice] = useState(null)
   const [deleting, setDeleting]     = useState(false)
-
-  useEffect(() => {
-    if (showAdd && !clientList.length) refreshClients?.()
-    // Load the clients when this modal is opened, without refetching on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAdd])
 
   const handleDelete = async () => {
     if (!toDelete) return
@@ -202,10 +193,6 @@ export default function AllDevices() {
                 ? (lang === 'ar' ? 'مزامنة...' : 'Sync...')
                 : (lang === 'ar' ? 'مزامنة Traccar' : 'Sync Traccar')}
             </button>
-            <Button onClick={() => setShowAdd(true)} variant="primary" className="text-sm">
-              <Plus size={16} />
-              {t(lang, 'addDevice')}
-            </Button>
           </div>
         </div>
 
@@ -223,9 +210,9 @@ export default function AllDevices() {
               <thead className="bg-slate-50 border-b border-gray-100">
                 <tr>
                   {[t(lang,'device'), 'IMEI', t(lang,'plate'), lang === 'ar' ? 'العميل' : 'Client',
-                    t(lang,'speed'), lang === 'ar' ? 'الفولطاج' : 'Tension', t(lang,'status'), lang === 'ar' ? 'اشتراك الجهاز' : 'Abonnement appareil', t(lang,'lastUpdate'),
+                    t(lang,'speed'), lang === 'ar' ? 'الفولطاج' : 'Tension', t(lang,'status'), t(lang,'lastUpdate'),
                     lang === 'ar' ? 'إجراءات' : 'Actions'].map((h, i) => (
-                    <th key={i} className={(i === 1 ? 'hidden 2xl:table-cell ' : '') + (i === 7 || i === 8 ? 'max-w-[110px] ' : 'whitespace-nowrap ') + 'px-4 py-3 text-start text-[11px] font-bold text-slate-400 uppercase tracking-wide'}>{h}</th>
+                    <th key={i} className={(i === 1 ? 'hidden 2xl:table-cell ' : '') + (i === 7 ? 'max-w-[110px] ' : 'whitespace-nowrap ') + 'px-4 py-3 text-start text-[11px] font-bold text-slate-400 uppercase tracking-wide'}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -274,7 +261,6 @@ export default function AllDevices() {
                           }
                         </div>
                       </td>
-                      <td className="px-4 py-3"><SubscriptionBadge device={device} lang={lang} /></td>
                       <td className="px-4 py-3 text-xs text-slate-400">{timeAgo(device.lastUpdate, lang)}</td>
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
@@ -325,7 +311,6 @@ export default function AllDevices() {
                       <span className="text-xs text-slate-400">
                         {formatVoltage(device.voltage, lang, device.lastUpdate ?? device.last_update, device.powerDisconnected, device.voltageStale)}
                       </span>
-                      <SubscriptionBadge device={device} lang={lang} />
                     </div>
                   </div>
                   <button
@@ -347,16 +332,6 @@ export default function AllDevices() {
         </div>
       </div>
 
-      <AddDeviceModal
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onAdd={addDeviceDirect}
-        mode="global"
-        clientList={clientList}
-        lang={lang}
-        clientsError={clientsError}
-        onRefreshClients={refreshClients}
-      />
       <SubscriptionRenewalModal
         open={!!renewDevice}
         device={renewDevice}
