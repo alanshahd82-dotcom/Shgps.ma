@@ -11,6 +11,7 @@ import { vehiclePoint } from '../../utils/location'
 import { getDeviceStatusKey } from '../../components/ui'
 import { fleetBucket } from '../../utils/fleetBucket'
 import TabBar from '../../components/TabBar'
+import FleetScene from '../../components/FleetScene'
 
 function useLang() {
   const { lang } = useApp()
@@ -225,10 +226,12 @@ export default function Home() {
 
       <main className="px-5 py-5 space-y-5 max-w-3xl mx-auto">
         {/* Fleet summary */}
-        <section className="relative rounded-3xl overflow-hidden shadow-lg shadow-indigo-200/50">
+        <section className="relative rounded-3xl overflow-hidden shadow-lg shadow-indigo-200/50 min-h-[168px]">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-indigo-800 to-slate-900" />
-          <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 80% 20%, white 0.5px, transparent 1px), radial-gradient(circle at 30% 70%, white 0.5px, transparent 1px)', backgroundSize: '40px 40px'}} />
-          <div className="relative p-5 text-white">
+          <FleetScene live={fleet.connected} rtl={dir === 'rtl'} />
+          {/* keeps the numbers readable on top of the animated scene */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/30" />
+          <div className="relative p-5 text-white [text-shadow:0_1px_8px_rgba(2,6,23,.55)]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[12px] font-semibold text-white/70">{t('fleet', lang)}</p>
