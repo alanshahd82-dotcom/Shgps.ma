@@ -8,18 +8,26 @@ import assert from 'node:assert/strict'
 const canMock = typeof mock.module === 'function'
 const skip = !canMock && 'needs --experimental-test-module-mocks'
 
-const state = { expiredRows: [], sql: [], cancelled: [], cancelError: null }
+const state = { expiredRows: [], sql: [], cancelled: [], cancelError: null, cmdRow: null }
 let engine
 async function load() {
   if (engine) return engine
   const query = async (sql, params) => {
     state.sql.push(sql)
     if (/RETURNING \*/.test(sql) && /status = 'expired'/.test(sql)) return { rowCount: state.expiredRows.length, rows: state.expiredRows }
+    if (/FROM engine_commands WHERE id = \$1( AND device_id = \$2)? LIMIT 1/.test(sql)) return state.cmdRow ? { rowCount: 1, rows: [state.cmdRow] } : { rowCount: 0, rows: [] }
     if (/cancellation_state = 'pending' AND traccar_command_id > 0 ORDER BY/.test(sql)) return { rows: [] }
     if (/status = 'pending' AND e\.superseded_by_command_id IS NULL/.test(sql)) return { rows: [] }
     return { rowCount: 1, rows: [] }
   }
-  mock.module('../src/db.js', { namedExports: { db: { query, connect: async () => ({ query, release() {} }) } } })
+  const clientQuery = async (sql, params) => {
+    state.sql.push(sql)
+    if (/^(BEGIN|COMMIT|ROLLBACK)/.test(sql)) return { rowCount: 0, rows: [] }
+    if (/FOR UPDATE/.test(sql)) return { rowCount: 1, rows: [state.cmdRow] }
+    if (/UPDATE engine_commands SET status/.test(sql)) return { rowCount: 1, rows: [{ ...state.cmdRow, status: params[1] }] }
+    return query(sql, params)
+  }
+  mock.module('../src/db.js', { namedExports: { db: { query, connect: async () => ({ query: clientQuery, release() {} }) } } })
   mock.module('../src/services/traccar.js', {
     namedExports: {
       cancelQueuedCommand: async id => { state.cancelled.push(id); if (state.cancelError) throw state.cancelError },
@@ -30,7 +38,7 @@ async function load() {
   engine = await import('../src/services/engineCommands.js')
   return engine
 }
-const reset = rows => Object.assign(state, { expiredRows: rows, sql: [], cancelled: [], cancelError: null })
+const reset = rows => Object.assign(state, { expiredRows: rows, sql: [], cancelled: [], cancelError: null, cmdRow: null })
 const row = (id, traccarId) => ({ id, device_id: 7, command_type: 'engineStop', requested_state: 'stopped', status: 'expired', traccar_command_id: traccarId, cancellation_state: traccarId > 0 ? 'pending' : null })
 
 test('expiry marks a queued command for cancellation and removes it from Traccar', { skip }, async () => {
@@ -52,4 +60,27 @@ test('if Traccar cannot cancel now, the cancellation stays pending for the worke
   await processPendingCommands()
   assert.deepEqual(state.cancelled, [88])
   assert.equal(state.sql.some(q => /cancellation_state = 'confirmed'/.test(q)), false)
+})
+
+// ── cancel(): a queued cut must not survive a failed removal ──────────────────
+const cmdRow = { id: 5, device_id: 7, command_type: 'engineStop', requested_state: 'stopped', status: 'pending', traccar_command_id: 55, cancellation_state: null }
+async function loadCancel() {
+  // the module is already loaded with the faked db of the first tests; extend its behaviour through the same state object
+  return (await load()).cancel
+}
+test('cancel: removal is marked pending first, so a failed Traccar call is retried by the worker', { skip }, async () => {
+  const cancel = await loadCancel(); reset([]); state.cancelError = Object.assign(new Error('down'), { status: 503 }); state.cmdRow = cmdRow
+  const result = await cancel(5, 7)
+  assert.equal(result.status, 'cancelled')
+  const pendingIdx = state.sql.findIndex(q => /SET cancellation_state = 'pending'/.test(q))
+  assert.ok(pendingIdx >= 0, 'cancellation marked pending')
+  assert.deepEqual(state.cancelled, [55])
+  assert.equal(state.sql.some(q => /cancellation_state = 'confirmed'/.test(q)), false, 'not confirmed while Traccar failed')
+})
+
+test('cancel: confirmed once Traccar removed the queued command', { skip }, async () => {
+  const cancel = await loadCancel(); reset([]); state.cmdRow = cmdRow
+  const result = await cancel(5, 7)
+  assert.equal(result.status, 'cancelled')
+  assert.ok(state.sql.some(q => /cancellation_state = 'confirmed'/.test(q)))
 })

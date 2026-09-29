@@ -267,8 +267,12 @@ export function useEngineControl(vehicle, lang = 'ar') {
 
   const cutPending = isCutPending(activeCommand)
   const resumePending = isResumePending(activeCommand)
+  // Only a command that has not left the server yet can be cancelled; once it was
+  // handed to the tracker ('sent') the endpoint can no longer recall it.
+  const cutCancellable = cutPending && ['requested', 'pending'].includes(activeCommand?.status)
+  const cutSent = cutPending && activeCommand?.status === 'sent'
 
-  return { engineRunning, canControl, reachable, cutPending, resumePending, cancelPending, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
+  return { engineRunning, canControl, reachable, cutPending, cutCancellable, cutSent, resumePending, cancelPending, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
 }
 
 export default useEngineControl

@@ -319,6 +319,14 @@ export async function cancel(commandId, deviceId = null) {
   // If still queued in Traccar, attempt cancellation there first (best-effort,
   // outside any transaction). The gate stays held until Traccar confirms.
   if (isQueuedLive(cmd)) {
+    // Mark the removal as pending BEFORE trying it: if Traccar cannot be reached
+    // right now the worker (stage 1) keeps retrying and the device gate stays
+    // held until the queued command is really gone, so a cancelled cut can never
+    // survive in Traccar and run on reconnect.
+    await db.query(
+      "UPDATE engine_commands SET cancellation_state = 'pending', updated_at = NOW() WHERE id = $1 AND cancellation_state IS DISTINCT FROM 'confirmed'",
+      [cmd.id]
+    )
     await attemptCancellation(cmd)
   }
   return transition(commandId, 'cancelled')

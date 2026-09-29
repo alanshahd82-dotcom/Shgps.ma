@@ -29,7 +29,7 @@ const t = (key, lang) => ({
     total: 'مركبة', live: 'مباشر', reconnecting: 'إعادة اتصال…',
     needsAttention: 'تحتاج متابعة', allGood: 'كل المركبات بحالة جيدة',
     rPower: 'الطاقة مفصولة عن المركبة', rAlarm: 'إنذار من الجهاز', rOffline: 'غير متصلة', rNever: 'لم تتصل بعد', rNoGps: 'بدون إشارة GPS',
-    search: 'ابحث عن مركبة…', showMore: 'عرض كل المركبات', shortcuts: 'اختصارات',
+    search: 'ابحث عن مركبة…', showLess: 'عرض أقل', showMore: 'عرض كل المركبات', shortcuts: 'اختصارات',
     map: 'الخريطة', reports: 'التقارير', geofences: 'المناطق',
   },
   fr: {
@@ -45,7 +45,7 @@ const t = (key, lang) => ({
     total: 'véhicules', live: 'En direct', reconnecting: 'Reconnexion…',
     needsAttention: 'À surveiller', allGood: 'Tous les véhicules vont bien',
     rPower: 'Alimentation débranchée', rAlarm: "Alarme de l'appareil", rOffline: 'Hors ligne', rNever: 'Jamais connecté', rNoGps: 'Pas de signal GPS',
-    search: 'Rechercher un véhicule…', showMore: 'Voir tous les véhicules', shortcuts: 'Raccourcis',
+    search: 'Rechercher un véhicule…', showLess: 'Voir moins', showMore: 'Voir tous les véhicules', shortcuts: 'Raccourcis',
     map: 'Carte', reports: 'Rapports', geofences: 'Zones',
   },
 }[lang][key])
@@ -134,6 +134,7 @@ export default function Home() {
   const vehiclesRef = useRef(null)
   const attentionRef = useRef(null)
   const [query, setQuery] = useState('')
+  const [showAllAttention, setShowAllAttention] = useState(false)
 
   const user = clientAuth || JSON.parse(localStorage.getItem('athargps_client') || '{}')
   const name = user?.name || user?.email?.split('@')[0] || (lang === 'ar' ? 'ضيف' : 'Invité')
@@ -172,12 +173,12 @@ export default function Home() {
   // length of the list right below it.
   const fleet = useMemo(() => {
     const counts = { connected: 0, stopped: 0, offline: 0, attention: attention.length }
-    vehicles.forEach(v => {
+    ;(devices || []).forEach(v => {
       const bucket = fleetBucket(v)
       counts[bucket === 'moving' ? 'connected' : bucket]++
     })
     return counts
-  }, [vehicles, attention])
+  }, [devices, attention])
 
   const listed = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -295,7 +296,7 @@ export default function Home() {
             </div>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {attention.slice(0, 5).map(({ v, reason }) => {
+              {(showAllAttention ? attention : attention.slice(0, 5)).map(({ v, reason }) => {
                 const st = REASON_STYLE[reason]
                 return (
                   <li key={v.id || v.uniqueId}>
@@ -313,6 +314,11 @@ export default function Home() {
                 )
               })}
             </ul>
+          )}
+          {attention.length > 5 && (
+            <button type="button" onClick={() => setShowAllAttention(x => !x)} className="mt-2 w-full rounded-xl bg-orange-50 py-2 text-[12px] font-bold text-orange-700">
+              {showAllAttention ? t('showLess', lang) : `${t('viewAll', lang)} (${attention.length})`}
+            </button>
           )}
         </section>
 
