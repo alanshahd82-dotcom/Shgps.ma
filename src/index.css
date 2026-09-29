@@ -2915,3 +2915,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    The page is declared color-scheme: dark, which turned unstyled inputs into
    dark grey boxes on white modals (add-device, edit forms). */
 .bg-white input, .bg-white select, .bg-white textarea { color-scheme: light; }
+
+/* ── Vehicle stage / graphics animations (shared by the card and the vehicle page) ── */
+@keyframes vc-breathe { 0%, 100% { transform: scale(1); opacity: .8; } 50% { transform: scale(1.15); opacity: .45; } }
+@keyframes vc-road { from { background-position-x: 0; } to { background-position-x: -80px; } }
+@keyframes vc-road-rtl { from { background-position-x: 0; } to { background-position-x: 80px; } }
+@keyframes vc-city { from { background-position-x: 0; } to { background-position-x: -288px; } }
+@keyframes vc-city-rtl { from { background-position-x: 0; } to { background-position-x: 288px; } }
+@keyframes vc-streak { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateX(-140px); opacity: 0; } }
+@keyframes vc-streak-rtl { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateX(140px); opacity: 0; } }
+@keyframes vc-drive { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+@keyframes vc-drive-rtl { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
+@keyframes vg-spin { to { transform: rotate(360deg); } }
+@keyframes vg-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2px); } }
+@keyframes vg-puff { 0% { transform: translate(0, 0) scale(.6); opacity: .6; } 100% { transform: translate(-14px, -12px) scale(1.9); opacity: 0; } }
+@keyframes vg-beam { 0%, 100% { opacity: 1; } 50% { opacity: .78; } }
+@media (prefers-reduced-motion: reduce) {
+  [style*="vc-breathe"], [style*="vc-road"], [style*="vc-city"], [style*="vc-streak"], [style*="vc-drive"],
+  [style*="vg-spin"], [style*="vg-bob"], [style*="vg-puff"], [style*="vg-beam"] { animation: none !important; }
+}
+
+/* soft ground halo under a map marker, coloured by the vehicle's situation */
+.athar-live-marker-visual::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--athar-live-glow, transparent) 0%, transparent 68%);
+  z-index: 0;
+  pointer-events: none;
+}

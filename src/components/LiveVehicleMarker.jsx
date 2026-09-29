@@ -8,11 +8,14 @@ import { speedDisplay, speedBadgeHtml } from '../utils/mapSpeed'
 
 const ANIMATION_MS = 1400
 const TRAIL_LIMIT = 20
+// Same palette as the vehicle cards: moving green, idle amber, stopped blue,
+// offline grey, power cut red.
 const STATUS_COLORS = {
-  moving: 'var(--ds-color-primary)',
-  idle: 'var(--ds-color-warning)',
-  stopped: 'var(--ds-color-cool-gray)',
-  offline: 'var(--ds-color-danger)',
+  moving: ['#22c55e', 'rgba(34,197,94,.5)'],
+  idle: ['#f59e0b', 'rgba(245,158,11,.5)'],
+  stopped: ['#3b82f6', 'rgba(59,130,246,.5)'],
+  offline: ['#94a3b8', 'rgba(148,163,184,.25)'],
+  power: ['#ef4444', 'rgba(239,68,68,.5)'],
 }
 
 // Keep these values together so mobile marker sizing is a one-line tune per type.
@@ -48,7 +51,7 @@ function getCourse(device) {
 function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'ar', zoom = 13) {
   const marker = markerFor(device?.type)
   const status = device?.powerDisconnected ? 'offline' : getDeviceStatusKey(device)
-  const color = STATUS_COLORS[status] || STATUS_COLORS.offline
+  const [color, glow] = device?.powerDisconnected ? STATUS_COLORS.power : (STATUS_COLORS[status] || STATUS_COLORS.offline)
   const vehicleType = device?.type || 'bike'
   const markerWidth = Math.round(((MARKER_SIZE[vehicleType] || MARKER_SIZE.bike) + (isSelected ? SELECTED_BOOST : 0)) * markerScaleForZoom(zoom))
   const markerHeight = Math.round(markerWidth * MARKER_ASPECT_RATIO)
@@ -57,7 +60,7 @@ function createLiveVehicleIcon(device, isSelected, initialBearing = 0, lang = 'a
   return L.divIcon({
     className: 'athar-live-marker-icon',
     html: `
-      <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color}">
+      <div class="athar-live-marker" style="width:${iconWidth}px;height:${iconHeight}px;--athar-live-color:${color};--athar-live-glow:${glow}">
         ${speedBadgeHtml(device, status)}
         <span class="athar-live-marker-visual" style="width:${markerWidth}px;height:${markerHeight}px">
           <img data-live-vehicle src="${marker.url}" alt="" style="transform:rotate(${initialBearing + marker.offset}deg)" />

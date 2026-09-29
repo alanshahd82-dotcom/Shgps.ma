@@ -9,7 +9,9 @@ import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
 import { t } from '../../i18n/translations'
 import { APP_TZ } from '../../utils/datetime.js'
-import { formatVoltage } from '../../components/ui'
+import { formatVoltage, getDeviceStatusKey } from '../../components/ui'
+import VehicleStage, { TONE } from '../../components/VehicleStage'
+import { normalizeVehicleType } from '../../utils/vehicleAssets'
 import { useEngineControl } from '../../hooks/useEngineControl'
 import { agoLabel, locationState } from '../../utils/location'
 
@@ -397,19 +399,42 @@ export default function VehicleControl() {
       </div>
 
       <main className="mx-auto max-w-3xl space-y-4 p-4">
-        {/* At-a-glance status (the same values as before, shown first) */}
-        <section aria-label={T.secStatus} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <p className="truncate text-[10px] font-bold text-slate-500">{T.status}</p>
-            <p className="mt-1 flex items-center gap-1.5 truncate text-sm font-extrabold text-slate-900">
-              <span className={'inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ' + (online ? 'bg-green-500' : 'bg-slate-400')}/>
-              {online ? T.online : T.offline}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <p className="truncate text-[10px] font-bold text-slate-500">{T.speed}</p>
-            <p className="mt-1 truncate text-sm font-extrabold text-slate-900"><bdi>{displayValue(speedLabel)}</bdi></p>
-          </div>
+        {/* Hero: the vehicle on its road, coloured by its situation */}
+        {(() => {
+          const key = getDeviceStatusKey(vehicle)
+          const mode = !online ? 'off' : key === 'moving' ? 'move' : key === 'idle' ? 'idle' : key === 'stopped' ? 'stopped' : 'live'
+          const powerCut = vehicle.powerDisconnected === true
+          const tone = powerCut ? 'power' : mode
+          const spd = online && Number.isFinite(Number(vehicle.speed)) ? Math.round(Number(vehicle.speed)) : null
+          const rtl = isAr
+          const modeLabel = !online ? T.offline : mode === 'move' ? (isAr ? 'متحرك' : 'En marche') : mode === 'idle' ? (isAr ? 'خاملة' : 'Ralenti') : mode === 'stopped' ? (isAr ? 'متوقفة' : 'Arrêté') : T.online
+          const start = rtl ? 'right' : 'left'
+          return (
+            <section className="overflow-hidden rounded-3xl shadow-sm ring-1 ring-slate-200" aria-label={T.secStatus}>
+              <VehicleStage type={normalizeVehicleType(vehicle.type)} mode={mode} tone={tone} speed={spd ?? 0} rtl={rtl} height={168} vehicleWidth={236}>
+                <span className="absolute top-3 inline-flex items-center gap-1.5 rounded-full bg-white/12 px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-white/20" style={{ [start]: 14 }}>
+                  <span className="relative flex h-1.5 w-1.5">
+                    {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />}
+                    <span className={'relative inline-flex h-1.5 w-1.5 rounded-full ' + (online ? 'bg-emerald-400' : 'bg-slate-400')} />
+                  </span>
+                  {modeLabel}
+                </span>
+                {powerCut && (
+                  <span className="absolute top-3 rounded-full bg-white px-2 py-1 text-[10px] font-bold text-red-700" style={{ [rtl ? 'left' : 'right']: 14 }}>
+                    {isAr ? 'الطاقة مفصولة' : 'Alimentation coupée'}
+                  </span>
+                )}
+                <div className="absolute flex items-baseline gap-1.5 text-white" style={{ [start]: 14, bottom: 34 }}>
+                  <span className="text-[34px] font-extrabold leading-none tabular-nums" style={{ textShadow: '0 0 16px ' + (TONE[tone]?.glow || 'transparent') }}>{spd ?? '—'}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-white/60">{isAr ? 'كم/س' : 'km/h'}</span>
+                </div>
+              </VehicleStage>
+            </section>
+          )
+        })()}
+
+        {/* Remaining live values */}
+        <section aria-label={T.secStatus} className="grid grid-cols-2 gap-2">
           <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
             <p className="truncate text-[10px] font-bold text-slate-500">{T.voltage}</p>
             <p className="mt-1 truncate text-sm font-extrabold text-slate-900"><bdi>{displayValue(voltageLabel)}</bdi></p>
