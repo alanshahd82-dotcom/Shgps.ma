@@ -11,6 +11,7 @@ import { MapContainer, Polyline, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import GeoapifyTileLayer from '../../components/GeoapifyTileLayer'
 import { useEngineControl } from '../../hooks/useEngineControl'
+import EnginePasswordModal from '../../components/EnginePasswordModal'
 import { useApp } from '../../context/AppContext'
 import { api } from '../../api/index.js'
 import { t } from '../../i18n/translations'
@@ -136,7 +137,12 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
     }
   }
 
-  const handleEngine = async () => { await engine.send(engine.engineRunning) }
+  const [enginePwOpen, setEnginePwOpen] = useState(false)
+  const handleEngine = () => { engine.clearFeedback(); setEnginePwOpen(true) }
+  const submitEnginePassword = async password => {
+    const ok = await engine.send(engine.engineRunning, password)
+    if (ok) setEnginePwOpen(false)
+  }
 
   const fetchRoute = async () => {
     setRouteLoading(true); setRouteError(''); setRouteData(null); setSelectedTrip(null)
@@ -214,6 +220,17 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
                 : engine.engineRunning ? <ZapOff size={12}/> : <Zap size={12}/>}
               {engine.engineRunning ? (isAr ? 'قطع المحرك' : 'Couper moteur') : (isAr ? 'تشغيل المحرك' : 'Démarrer')}
             </button>
+            <EnginePasswordModal
+              open={enginePwOpen}
+              lang={lang}
+              name={live.name}
+              turnOff={engine.engineRunning}
+              offline={!engine.reachable}
+              sending={engineLoading}
+              error={engine.error}
+              onCancel={() => { setEnginePwOpen(false); engine.clearFeedback() }}
+              onSubmit={submitEnginePassword}
+            />
           </div>
         </div>
 

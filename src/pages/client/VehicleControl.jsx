@@ -3,13 +3,16 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, useMap } from 'react-leaflet'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import MapTileLayer from '../../components/MapTileLayer'
-import { Activity, ArrowLeft, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, User, X, Zap } from 'lucide-react'
+import { Activity, ArrowLeft, ChevronDown, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, User, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
 import { t } from '../../i18n/translations'
 import { APP_TZ } from '../../utils/datetime.js'
-import { formatVoltage } from '../../components/ui'
+import { formatVoltage, getDeviceStatusKey } from '../../components/ui'
+import VehicleStage, { TONE } from '../../components/VehicleStage'
+import EnginePasswordModal from '../../components/EnginePasswordModal'
+import { normalizeVehicleType } from '../../utils/vehicleAssets'
 import { useEngineControl } from '../../hooks/useEngineControl'
 import { agoLabel, locationState } from '../../utils/location'
 
@@ -298,11 +301,10 @@ export default function VehicleControl() {
     }
   }
 
-  async function confirmCommand() {
+  async function confirmCommand(password) {
     if (!vehicle || sending || !command) return
-    const turnOff = command.turnOff
-    setCommand(null)
-    await engine.send(turnOff)
+    const ok = await engine.send(command.turnOff, password)
+    if (ok) setCommand(null)
   }
 
   // Vehicle information edit — migrated from the legacy DeviceDetail page.
@@ -397,6 +399,52 @@ export default function VehicleControl() {
       </div>
 
       <main className="mx-auto max-w-3xl space-y-4 p-4">
+        {/* Hero: the vehicle on its road, coloured by its situation */}
+        {(() => {
+          const key = getDeviceStatusKey(vehicle)
+          const mode = !online ? 'off' : key === 'moving' ? 'move' : key === 'idle' ? 'idle' : key === 'stopped' ? 'stopped' : 'live'
+          const powerCut = vehicle.powerDisconnected === true
+          const tone = powerCut ? 'power' : mode
+          const spd = online && Number.isFinite(Number(vehicle.speed)) ? Math.round(Number(vehicle.speed)) : null
+          const rtl = isAr
+          const modeLabel = !online ? T.offline : mode === 'move' ? (isAr ? 'متحرك' : 'En marche') : mode === 'idle' ? (isAr ? 'خاملة' : 'Ralenti') : mode === 'stopped' ? (isAr ? 'متوقفة' : 'Arrêté') : T.online
+          const start = rtl ? 'right' : 'left'
+          return (
+            <section className="overflow-hidden rounded-3xl shadow-sm ring-1 ring-slate-200" aria-label={T.secStatus}>
+              <VehicleStage type={normalizeVehicleType(vehicle.type)} mode={mode} tone={tone} speed={spd ?? 0} rtl={rtl} height={168} vehicleWidth={236}>
+                <span className="absolute top-3 inline-flex items-center gap-1.5 rounded-full bg-white/12 px-2.5 py-1 text-[11px] font-bold text-white ring-1 ring-white/20" style={{ [start]: 14 }}>
+                  <span className="relative flex h-1.5 w-1.5">
+                    {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />}
+                    <span className={'relative inline-flex h-1.5 w-1.5 rounded-full ' + (online ? 'bg-emerald-400' : 'bg-slate-400')} />
+                  </span>
+                  {modeLabel}
+                </span>
+                {powerCut && (
+                  <span className="absolute top-3 rounded-full bg-white px-2 py-1 text-[10px] font-bold text-red-700" style={{ [rtl ? 'left' : 'right']: 14 }}>
+                    {isAr ? 'الطاقة مفصولة' : 'Alimentation coupée'}
+                  </span>
+                )}
+                <div className="absolute flex items-baseline gap-1.5 text-white" style={{ [start]: 14, bottom: 34 }}>
+                  <span className="text-[34px] font-extrabold leading-none tabular-nums" style={{ textShadow: '0 0 16px ' + (TONE[tone]?.glow || 'transparent') }}>{spd ?? '—'}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-white/60">{isAr ? 'كم/س' : 'km/h'}</span>
+                </div>
+              </VehicleStage>
+            </section>
+          )
+        })()}
+
+        {/* Remaining live values */}
+        <section aria-label={T.secStatus} className="grid grid-cols-2 gap-2">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <p className="truncate text-[10px] font-bold text-slate-500">{T.voltage}</p>
+            <p className="mt-1 truncate text-sm font-extrabold text-slate-900"><bdi>{displayValue(voltageLabel)}</bdi></p>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <p className="truncate text-[10px] font-bold text-slate-500">{T.lastUpdate}</p>
+            <p className="mt-1 truncate text-[12px] font-extrabold text-slate-900"><bdi>{displayValue(lastUpLabel)}</bdi></p>
+          </div>
+        </section>
+
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           {point ? (
             <div
@@ -452,7 +500,7 @@ export default function VehicleControl() {
               <EngineCutoffButton
                 lang={lang}
                 engineRunning={engineRunning}
-                onClick={() => setCommand({ turnOff: engineRunning })}
+                onClick={() => { engine.clearFeedback(); setCommand({ turnOff: engineRunning }) }}
               />
               {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
               {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
@@ -473,6 +521,13 @@ export default function VehicleControl() {
           </div>
         </section>
 
+        {/* Editing (collapsed by default so the page opens on the vehicle status) */}
+        <details className="group rounded-3xl border border-slate-200 bg-slate-50/60 shadow-sm open:bg-transparent open:shadow-none">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl bg-white px-4 py-3.5 text-sm font-extrabold text-slate-900 shadow-sm [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2"><Pencil size={15} className="text-indigo-600"/>{isAr ? 'تعديل بيانات المركبة والسائق' : 'Modifier les informations du véhicule'}</span>
+            <ChevronDown size={16} className="text-slate-400 transition-transform group-open:rotate-180"/>
+          </summary>
+          <div className="mt-3 space-y-4">
         {/* Vehicle information */}
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
@@ -484,7 +539,7 @@ export default function VehicleControl() {
               <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.vName}</label>
               <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-[11px] font-bold text-slate-500">{T.plate}</label>
                 <input type="text" value={form.plate} onChange={e => setForm(f => ({ ...f, plate: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"/>
@@ -550,39 +605,13 @@ export default function VehicleControl() {
           </div>
         </section>
 
-        {/* Current status — read-only telemetry */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <Activity size={16} className="text-indigo-600"/>
-            <span className="text-sm font-extrabold text-slate-900">{T.secStatus}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.status}</p>
-              <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-extrabold text-slate-800">
-                <span className={'inline-block h-2 w-2 flex-shrink-0 rounded-full ' + (online ? 'bg-green-500' : 'bg-slate-400')}/>
-                {online ? T.online : T.offline}
-              </p>
-            </div>
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.speed}</p>
-              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(speedLabel)}</p>
-            </div>
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.lastUpdate}</p>
-              <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{displayValue(lastUpLabel)}</p>
-            </div>
-            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="truncate text-[10px] font-bold text-slate-500">{T.voltage}</p>
-              <p className="mt-1 truncate text-xs font-extrabold text-slate-800"><bdi>{displayValue(voltageLabel)}</bdi></p>
-            </div>
-          </div>
-        </section>
-
         <button type="button" onClick={saveDetails} disabled={saving} className={'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-extrabold text-white transition disabled:opacity-60 ' + (saved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-700')}>
           {saving ? <><Loader2 size={14} className="animate-spin"/> {T.loading}</> : saved ? <><Save size={14}/> {T.saved}</> : <><Pencil size={14}/> {T.save}</>}
         </button>
         {saveErr && <p role="alert" className="text-center text-[11px] font-bold text-red-600">{saveErr}</p>}
+
+          </div>
+        </details>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
@@ -616,7 +645,7 @@ export default function VehicleControl() {
       </main>
 
       {!isAdminView && <BottomNav navigate={navigate} lang={lang}/>}
-      {command && <ConfirmDialog lang={lang} name={vehicle.name} turnOff={command.turnOff} sending={sending} onCancel={() => setCommand(null)} onConfirm={confirmCommand}/>}
+      <EnginePasswordModal open={!!command} lang={lang} name={vehicle.name} turnOff={!!command?.turnOff} offline={!engine.reachable} sending={sending} error={engine.error} onCancel={() => { setCommand(null); engine.clearFeedback() }} onSubmit={confirmCommand} />
     </div>
   )
 }

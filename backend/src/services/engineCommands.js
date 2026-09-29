@@ -319,6 +319,14 @@ export async function cancel(commandId, deviceId = null) {
   // If still queued in Traccar, attempt cancellation there first (best-effort,
   // outside any transaction). The gate stays held until Traccar confirms.
   if (isQueuedLive(cmd)) {
+    // Mark the removal as pending BEFORE trying it: if Traccar cannot be reached
+    // right now the worker (stage 1) keeps retrying and the device gate stays
+    // held until the queued command is really gone, so a cancelled cut can never
+    // survive in Traccar and run on reconnect.
+    await db.query(
+      "UPDATE engine_commands SET cancellation_state = 'pending', updated_at = NOW() WHERE id = $1 AND cancellation_state IS DISTINCT FROM 'confirmed'",
+      [cmd.id]
+    )
     await attemptCancellation(cmd)
   }
   return transition(commandId, 'cancelled')
@@ -502,11 +510,20 @@ export async function processPendingCommands() {
   // the delivery queue safely (terminal 'expired' state, never physically sent).
   try {
     const cutoff = new Date(Date.now() - COMMAND_TTL_MS)
+    // A command that was already queued inside Traccar (offline at request time)
+    // would still be pushed to the tracker on reconnect, so expiring it here
+    // must also remove it from Traccar: mark the cancellation pending (the gate
+    // and the stage-1 retry then apply) and try it right away.
     const exp = await db.query(
-      "UPDATE engine_commands SET status = 'expired', updated_at = NOW(), resolved_at = NOW() WHERE status = 'pending' AND superseded_by_command_id IS NULL AND created_at < $1",
+      "UPDATE engine_commands SET status = 'expired', cancellation_state = CASE WHEN traccar_command_id > 0 THEN 'pending' ELSE cancellation_state END, updated_at = NOW(), resolved_at = NOW() WHERE status = 'pending' AND superseded_by_command_id IS NULL AND created_at < $1 RETURNING *",
       [cutoff]
     )
     if (exp.rowCount > 0) console.log('[engine-worker] expired', exp.rowCount, 'stale pending commands (TTL=' + COMMAND_TTL_MS + 'ms)')
+    for (const row of exp.rows || []) {
+      if (row.traccar_command_id > 0) {
+        try { await attemptCancellation(mapRow(row)) } catch (e) { console.warn('[engine-worker] expiry cancellation failed', row.id, e.message) }
+      }
+    }
   } catch (e) { console.error('[engine-worker] expiration failed:', e.message) }
 }
 

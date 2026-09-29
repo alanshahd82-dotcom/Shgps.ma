@@ -70,6 +70,15 @@ function statusMessage(status, lang) {
   }
 }
 
+// Messages for the password check (the server decides; the UI only explains).
+function passwordErrorMessage(code, lang) {
+  const ar = lang === 'ar'
+  if (code === 'INVALID_PASSWORD') return ar ? 'كلمة السر غير صحيحة. لم يُنفَّذ أي أمر.' : 'Mot de passe incorrect. Aucune commande envoyée.'
+  if (code === 'TOO_MANY_ATTEMPTS') return ar ? 'محاولات خاطئة كثيرة. انتظر بضع دقائق ثم أعد المحاولة.' : 'Trop de tentatives. Réessayez dans quelques minutes.'
+  if (code === 'PASSWORD_REQUIRED') return ar ? 'أدخل كلمة سر حسابك.' : 'Saisissez le mot de passe de votre compte.'
+  return ''
+}
+
 function conflictMessage(lang) {
   const ar = lang === 'ar'
   const fr = lang === 'fr'
@@ -86,6 +95,7 @@ export function useEngineControl(vehicle, lang = 'ar') {
   const { refreshDevices, wsConnected } = useApp()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState(null)
   const [success, setSuccess] = useState('')
   const [activeCommand, setActiveCommand] = useState(null)
   // What the tracker itself answered (read-only, additive; never drives the button).
@@ -161,6 +171,23 @@ export function useEngineControl(vehicle, lang = 'ar') {
     return () => clearTimeout(timer)
   }, [commandId, commandStatus, deviceReply, fetchActiveCommand, replyTick])
 
+  // A command that is still on its way (waiting for the vehicle, or handed to the
+  // tracker) changes state on the server without any event reaching this screen,
+  // so keep it fresh for as long as it is in flight: every 30 s for the first
+  // 20 minutes, then every 2 minutes (the backend may keep a queued cut pending
+  // for up to 24 h). Stops as soon as the command is no longer in flight.
+  const stateWatchRef = useRef({ id: null, n: 0 })
+  useEffect(() => {
+    if (commandId == null || !['requested', 'pending', 'sent'].includes(commandStatus)) return undefined
+    if (stateWatchRef.current.id !== commandId) stateWatchRef.current = { id: commandId, n: 0 }
+    const timer = setInterval(() => {
+      stateWatchRef.current.n += 1
+      const n = stateWatchRef.current.n
+      if (n <= 40 || n % 4 === 0) fetchActiveCommand()
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [commandId, commandStatus, fetchActiveCommand])
+
   // Re-fetch after WebSocket reconnect (wsConnected transitions false->true).
   const prevWsConnectedRef = useRef(false)
   useEffect(() => {
@@ -187,7 +214,11 @@ export function useEngineControl(vehicle, lang = 'ar') {
   // Once hasFetchedRef is true (backend confirmed state, even if null) or
   // activeCommand is non-null, the control is actionable (subject to reach).
   const commandReady = hasFetchedRef.current || activeCommand !== null
-  const canControl = commandReady && isVehicleReachable(vehicle)
+  // The control stays available without a signal: the backend queues the command
+  // (Traccar holds it) and sends it when the tracker reconnects. `reachable` is
+  // exposed so the UI can say "will run when the signal returns".
+  const reachable = isVehicleReachable(vehicle)
+  const canControl = commandReady
 
   // Phase 1: derive the UI feedback message from the authoritative command.
   // FIX B: only derive the success message from activeCommand after the
@@ -205,12 +236,12 @@ export function useEngineControl(vehicle, lang = 'ar') {
     }
   }, [activeCommand, lang])
 
-  const send = useCallback(async (turnOff) => {
+  const send = useCallback(async (turnOff, password) => {
     if (!vehicle?.id || sending) return false
-    setSending(true); setError(''); setSuccess('')
+    setSending(true); setError(''); setErrorCode(null); setSuccess('')
     const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random())
     try {
-      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey })
+      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey }, password)
       const status = response?.command?.status || response?.status
       const gateHeld = !!response?.command?.gateHeld || !!response?.gateHeld
       if (mounted.current) {
@@ -231,7 +262,8 @@ export function useEngineControl(vehicle, lang = 'ar') {
       return true
     } catch (e) {
       if (mounted.current) {
-        setError(t(lang, 'vehicleCommandFailed'))
+        setErrorCode(e?.code || null)
+        setError(passwordErrorMessage(e?.code, lang) || t(lang, 'vehicleCommandFailed'))
       }
       return false
     } finally {
@@ -239,11 +271,41 @@ export function useEngineControl(vehicle, lang = 'ar') {
     }
   }, [lang, refreshDevices, sending, vehicle?.id, fetchActiveCommand])
 
-  const clearFeedback = useCallback(() => { setError(''); setSuccess('') }, [])
+  // Cancel a cut that is still waiting for the signal, with the dedicated cancel
+  // endpoint (no opposite command is created, so nothing can run later).
+  const cancelPending = useCallback(async () => {
+    if (!vehicle?.id || !activeCommand?.id || sending) return false
+    setSending(true); setError(''); setSuccess('')
+    try {
+      const response = await api.devices.cancelCommand(vehicle.id, activeCommand.id)
+      try { await fetchActiveCommand() } catch {}
+      try { await refreshDevices?.() } catch {}
+      // The server cannot recall a cut that already reached the tracker: say so.
+      if (response?.command && response.command.status !== 'cancelled') {
+        if (mounted.current) setError(lang === 'ar' ? 'لا يمكن الإلغاء: الأمر أُرسل إلى الجهاز بالفعل.' : "Annulation impossible : la commande est déjà arrivée à l'appareil.")
+        return false
+      }
+      return true
+    } catch {
+      if (mounted.current) setError(t(lang, 'vehicleCommandFailed'))
+      return false
+    } finally {
+      if (mounted.current) setSending(false)
+    }
+  }, [activeCommand?.id, fetchActiveCommand, lang, refreshDevices, sending, vehicle?.id])
+
+  const clearFeedback = useCallback(() => { setError(''); setErrorCode(null); setSuccess('') }, [])
 
   const deviceReplyInfo = describeDeviceReply(deviceReply, lang)
 
-  return { engineRunning, canControl, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
+  const cutPending = isCutPending(activeCommand)
+  const resumePending = isResumePending(activeCommand)
+  // Only a command that has not left the server yet can be cancelled; once it was
+  // handed to the tracker ('sent') the endpoint can no longer recall it.
+  const cutCancellable = cutPending && ['requested', 'pending'].includes(activeCommand?.status)
+  const cutSent = cutPending && activeCommand?.status === 'sent'
+
+  return { engineRunning, canControl, reachable, cutPending, cutCancellable, cutSent, resumePending, cancelPending, sending, error, errorCode, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
 }
 
 export default useEngineControl
