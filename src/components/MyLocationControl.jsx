@@ -54,11 +54,13 @@ export default function MyLocationControl({ isAr = true }) {
     try { map.flyTo([point.lat, point.lng], Math.max(map.getZoom?.() ?? 15, 16), { duration: 0.8 }) } catch { /* map not ready */ }
   }, [map])
 
-  const start = useCallback(() => {
-    if (!navigator.geolocation) { setMessage(t.unsupported); return }
+  const start = useCallback((auto = false) => {
+    if (!navigator.geolocation) { if (!auto) setMessage(t.unsupported); return }
+    if (watchRef.current != null) return
     setStatus('locating')
     setMessage('')
-    firstFixRef.current = false
+    // Auto-start (permission already granted) shows the dot without moving the map.
+    firstFixRef.current = auto
     watchRef.current = navigator.geolocation.watchPosition(
       ({ coords }) => {
         const point = { lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy }
@@ -72,17 +74,25 @@ export default function MyLocationControl({ isAr = true }) {
         setStatus('idle')
         setMe(null)
         meRef.current = null
-        setMessage(error?.code === 1 ? t.denied : t.failed)
+        if (!auto) setMessage(error?.code === 1 ? t.denied : t.failed)
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     )
   }, [flyToMe, stop, t.denied, t.failed, t.unsupported])
 
+  useEffect(() => {
+    let cancelled = false
+    navigator.permissions?.query({ name: 'geolocation' })
+      .then(result => { if (!cancelled && result.state === 'granted') start(true) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const onClick = event => {
     event.stopPropagation()
     if (status === 'active' && meRef.current) { flyToMe(meRef.current); return }
     if (status === 'locating') return
-    start()
+    start(false)
   }
 
   return (
