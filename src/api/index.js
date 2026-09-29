@@ -1,5 +1,6 @@
 // ATHAR GPS API Client
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+import { resolveApiBase } from '../utils/apiBase.js'
+const API_URL = resolveApiBase({ envUrl: import.meta.env.VITE_API_URL })
 export const BOOT_TIMEOUT_MS = 8000
 
 function getToken() { return localStorage.getItem('athargps_token') }

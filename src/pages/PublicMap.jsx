@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { resolveApiBase } from '../utils/apiBase.js'
 import { useParams } from 'react-router-dom'
 import { MapContainer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
@@ -15,7 +16,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+const API_URL = resolveApiBase({ envUrl: import.meta.env.VITE_API_URL })
 
 // Public page has no auth session, so it follows the same language signal the
 // rest of the app persists: the "athargps_lang" localStorage key. Default is

@@ -1,3 +1,4 @@
+import { resolveApiBase } from '../utils/apiBase.js'
 /**
  * ATHAR GPS — إعدادات الخريطة (المرجع الوحيد لكل الخرائط فالتطبيق)
  *
@@ -63,7 +64,7 @@ export async function loadMapboxToken() {
   const cached = getCachedMapboxToken()
   if (cached !== null) return cached
   if (inflight) return inflight
-  inflight = fetch('/api/map/config')
+  inflight = fetch(`${resolveApiBase({ envUrl: import.meta.env.VITE_API_URL })}/map/config`)
     .then(res => (res.ok ? res.json() : null))
     .then(data => {
       cachedToken = data?.mapboxToken || ''

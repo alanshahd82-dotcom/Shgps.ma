@@ -1,6 +1,7 @@
 import './env.js'        // ← must be first: populates process.env before config.js is evaluated
 import express from 'express'
 import cors from 'cors'
+import { corsOriginCheck } from './utils/corsOrigins.js'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
 import { startCommandWorker, onDeviceActivity } from './services/engineCommands.js'
@@ -446,7 +447,7 @@ app.disable('x-powered-by') // hide Express server fingerprint
 const PORT = process.env.PORT || 3001
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || false,
+  origin: corsOriginCheck(process.env.FRONTEND_URL),
   credentials: true,
 }))
 
