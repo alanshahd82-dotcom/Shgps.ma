@@ -83,7 +83,10 @@ jobs:
       # ── 8. Copy app icon to all mipmap densities ─────────────────────────────
       - name: Copy app icon
         run: |
-          sudo apt-get install -y imagemagick -q
+          # Refresh the package index first: on a fresh runner the cached index points at
+          # files the mirror no longer has (404 on ghostscript), which failed every build.
+          sudo apt-get update -q
+          sudo apt-get install -y imagemagick -q --fix-missing
 
           ICON_SRC="public/icon.png"
           declare -A SIZES=(
@@ -122,8 +125,14 @@ jobs:
           java-version: '21'
 
       # ── 11. Android SDK ──────────────────────────────────────────────────────
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # The runner image already ships the Android SDK. The old setup-android action now
+      # crashes ("Failed to find package 'tools'"), so it is replaced by a license accept.
+      - name: Accept Android SDK licenses (SDK is preinstalled)
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          echo "Using SDK at $SDK"
+          ls "$SDK/platforms" || true
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       # ── 12. Make gradlew executable ──────────────────────────────────────────
       - name: Make gradlew executable
