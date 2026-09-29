@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { canManageAccount } from '../../utils/permissions.js'
 import { Plus, Trash2, ChevronDown, Wrench, AlertTriangle, Calendar, Gauge, X } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { t } from '../../i18n/translations'
@@ -21,7 +22,8 @@ const SERVICE_TYPES = [
 ]
 
 export default function Maintenance() {
-  const { devices, lang } = useApp()
+  const { devices, lang, clientAuth } = useApp()
+  const canManage = canManageAccount(clientAuth)
   const [deviceId, setDeviceId]     = useState('')
   const [logs, setLogs]             = useState([])
   const [loading, setLoading]       = useState(false)
@@ -84,10 +86,10 @@ export default function Maintenance() {
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-indigo-600 font-extrabold text-xl">{isAr ? 'سجلات الصيانة' : 'Maintenance'}</h1>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowForm(true)}
+        {canManage && (<motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowForm(true)}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700">
           <Plus size={20} color="white"/>
-        </motion.button>
+        </motion.button>)}
       </div>
 
       {/* Device picker */}
@@ -131,10 +133,10 @@ export default function Maintenance() {
             <p className="text-sm text-slate-500">
               {isAr ? 'لا توجد سجلات' : 'Aucun enregistrement'}
             </p>
-            <button onClick={() => setShowForm(true)}
+            {canManage && (<button onClick={() => setShowForm(true)}
                className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-600">
               {isAr ? '+ إضافة سجل' : '+ Ajouter'}
-            </button>
+            </button>)}
           </div>
         ) : logs.map((log, i) => {
           const svc = getSvc(log.type)
@@ -153,9 +155,9 @@ export default function Maintenance() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-slate-800 font-bold text-sm">{svc[isAr ? 'ar' : 'fr']}</p>
-                    <button onClick={() => handleDelete(log.id)} className="p-1">
+                    {canManage && (<button onClick={() => handleDelete(log.id)} className="p-1">
                       <Trash2 size={14} style={{ color: 'rgba(255,59,48,0.6)' }}/>
-                    </button>
+                    </button>)}
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     {log.date && (

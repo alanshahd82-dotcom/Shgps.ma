@@ -15,6 +15,7 @@ import EnginePasswordModal from '../../components/EnginePasswordModal'
 import { normalizeVehicleType } from '../../utils/vehicleAssets'
 import { useEngineControl } from '../../hooks/useEngineControl'
 import { agoLabel, locationState } from '../../utils/location'
+import { canManageAccount } from '../../utils/permissions.js'
 
 const VEHICLE_TYPES = ['car', 'bike', 'truck']
 const FIELD_LABEL = 'mb-1.5 block text-[11px] font-bold text-slate-500'
@@ -169,7 +170,8 @@ export default function VehicleControl() {
   // differs so an admin is never sent into client-only routes.
   const isAdminView = location.pathname.startsWith('/admin/')
   const backRoute = isAdminView ? '/admin/devices' : '/client/vehicles'
-  const { lang, refreshDevices } = useApp()
+  const { lang, refreshDevices, clientAuth } = useApp()
+  const canManage = canManageAccount(clientAuth)
   const { vehicles, loading, error } = useRealVehicles()
   const [command, setCommand] = useState(null)
   // Editable vehicle information. The backend (PATCH /devices/:id/info) is the
@@ -523,6 +525,8 @@ export default function VehicleControl() {
           </div>
         </section>
 
+        {canManage && (
+          <>
         {/* Editing (collapsed by default so the page opens on the vehicle status) */}
         <details className="group rounded-3xl border border-slate-200 bg-slate-50/60 shadow-sm open:bg-transparent open:shadow-none">
           <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl bg-white px-4 py-3.5 text-sm font-extrabold text-slate-900 shadow-sm [&::-webkit-details-marker]:hidden">
@@ -640,6 +644,8 @@ export default function VehicleControl() {
           )}
           {shareErr && <p role="alert" className="mt-2 text-center text-[11px] font-bold text-red-600">{shareErr}</p>}
         </section>
+          </>
+        )}
       </main>
 
       {!isAdminView && <BottomNav navigate={navigate} lang={lang}/>}

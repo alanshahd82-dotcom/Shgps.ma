@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { canManageAccount } from '../../utils/permissions.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Trash2, MapPin, Bell, BellOff, X, ChevronDown, Loader2 } from 'lucide-react'
 import { MapContainer, Circle as LeafletCircle, Marker, useMapEvents, useMap } from 'react-leaflet'
@@ -48,7 +49,8 @@ function FitBounds({ center, radius }) {
 }
 
 export default function Geofences() {
-  const { devices, lang } = useApp()
+  const { devices, lang, clientAuth } = useApp()
+  const canManage = canManageAccount(clientAuth)
   const [geofences, setGeofences] = useState([])
   const [deviceId, setDeviceId]   = useState('')
   const [loading, setLoading]     = useState(false)
@@ -110,10 +112,10 @@ export default function Geofences() {
       {/* Header */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between">
         <h1 className="text-primary-500 font-extrabold text-xl">{isAr ? 'المناطق الجغرافية' : 'Géofences'}</h1>
-        <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowMap(true)}
+        {canManage && (        <motion.button whileTap={{ scale:0.9 }} onClick={() => setShowMap(true)}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700">
           <Plus size={20} color="white"/>
-        </motion.button>
+        </motion.button>)}
       </div>
 
       {/* Device picker */}
@@ -155,10 +157,10 @@ export default function Geofences() {
               <MapPin size={26} className="text-slate-300"/>
             </div>
             <p className="text-sm text-slate-500">{isAr ? 'لا توجد مناطق جغرافية' : 'Aucune zone'}</p>
-            <button onClick={() => setShowMap(true)}
+            {canManage && (<button onClick={() => setShowMap(true)}
                className="rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-600">
               {isAr ? '+ إضافة منطقة' : '+ Ajouter zone'}
-            </button>
+            </button>)}
           </div>
         ) : geofences.map((geo, i) => (
           <motion.div key={geo.id || i} initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} transition={{ delay:i*0.04 }}
@@ -181,9 +183,9 @@ export default function Geofences() {
                   </span>
                 </div>
               </div>
-              <button onClick={() => handleDelete(geo.id)} className="p-2">
+              {canManage && (<button onClick={() => handleDelete(geo.id)} className="p-2">
                 <Trash2 size={15} style={{ color:'rgba(255,59,48,0.6)' }}/>
-              </button>
+              </button>)}
             </div>
           </motion.div>
         ))}

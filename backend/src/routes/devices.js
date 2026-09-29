@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireAuth, requireMainAdmin }  from '../middleware/auth.js'
+import { requireRole } from '../middleware/requireRole.js'
 import { logAudit }    from '../services/auditLog.js'
 import { validateBody, schemas } from '../validation/schemas.js'
     import { db }          from '../db.js'
@@ -393,17 +394,17 @@ import {
     }
 
     // POST / — canonical device creation (admin only). name optional → auto-generated.
-    devicesRouter.post('/', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
+    devicesRouter.post('/', requireAuth, requireRole('manager'), validateBody(schemas.addDevice), async (req, res) => {
       return createDeviceCore(req, res, { requirePhone: false })
     })
 
     // POST /quick-add — حقلان إلزاميان فقط: IMEI + phone، مع خطة الجهاز.
-    devicesRouter.post('/quick-add', requireAuth, validateBody(schemas.addDevice), async (req, res) => {
+    devicesRouter.post('/quick-add', requireAuth, requireRole('manager'), validateBody(schemas.addDevice), async (req, res) => {
       return createDeviceCore(req, res, { requirePhone: true })
     })
 
     // PATCH /:id/info — device owner (or admin) can edit name / driver / phone / plate
-    devicesRouter.patch('/:id/info', requireAuth, requireDeviceOwner, async (req, res) => {
+    devicesRouter.patch('/:id/info', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       const { name, driver, phone, plate, type } = req.body
       if (name === undefined && driver === undefined && phone === undefined && plate === undefined && type === undefined)
         return res.status(400).json({ error: 'Nothing to update' })
@@ -433,7 +434,7 @@ import {
 
     // POST /:id/replace — the tracker of an existing vehicle was replaced by a new
     // one (new IMEI). Name, plate, client, subscription and history are kept.
-    devicesRouter.post('/:id/replace', requireAuth, requireDeviceOwner, async (req, res) => {
+    devicesRouter.post('/:id/replace', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       const dev = req.device
       const imei = String(req.body?.imei ?? '').trim()
@@ -495,7 +496,7 @@ import {
     // PATCH /:id/subscription — admin or the device owner can renew by plan.
     // Renewal starts at the later of today or the current end date so active
     // time is never lost. This endpoint never changes user-level subscriptions.
-    devicesRouter.patch('/:id/subscription', requireAuth, requireDeviceOwner, async (req, res) => {
+    devicesRouter.patch('/:id/subscription', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       const { subscriptionPlanId } = req.body
       const plan = getSubscriptionPlan(subscriptionPlanId)
       if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
@@ -662,7 +663,7 @@ import {
       }
     })
 
-        devicesRouter.post('/:id/command', requireAuth, requireDeviceOwner, async (req, res) => {
+        devicesRouter.post('/:id/command', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
         const type = req.body.type
@@ -736,7 +737,7 @@ import {
     // pending) may be cancelled. If still queued in Traccar, a best-effort
     // DELETE is attempted; the device gate stays held until Traccar confirms.
     // No automatic opposite command is ever issued (no auto-restore).
-    devicesRouter.post('/:id/command/:commandId/cancel', requireAuth, requireDeviceOwner, async (req, res) => {
+    devicesRouter.post('/:id/command/:commandId/cancel', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
         const commandId = Number(req.params.commandId)
@@ -758,7 +759,7 @@ import {
     })
 
     // POST /:id/geofence — ينشئ سياجاً جغرافياً ويخزّنه محلياً وفي Traccar (إن أمكن)
-    devicesRouter.post('/:id/geofence', requireAuth, requireDeviceOwner, async (req, res) => {
+    devicesRouter.post('/:id/geofence', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
 
@@ -805,7 +806,7 @@ import {
     })
 
     // DELETE /:id — admin only — حذف الجهاز نهائياً
-    devicesRouter.delete('/:id', requireAuth, requireDeviceOwner, async (req, res) => {
+    devicesRouter.delete('/:id', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       try {
         const dev = req.device
@@ -825,7 +826,7 @@ import {
     })
 
     // DELETE /:id/geofence — يحذف السياج الجغرافي من المحلي ومن Traccar (إن أمكن)
-    devicesRouter.delete('/:id/geofence', requireAuth, requireDeviceOwner, async (req, res) => {
+    devicesRouter.delete('/:id/geofence', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
       try {
         const dev = req.device
 
