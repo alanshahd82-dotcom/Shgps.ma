@@ -140,13 +140,11 @@ export default function Maintenance() {
           </div>
         ) : logs.map((log, i) => {
           const svc = getSvc(log.type)
-          const isDue = log.next_mileage && log.current_mileage && log.next_mileage - log.current_mileage < 500
           return (
             <motion.div key={log.id || i}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                 className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
-               style={{ background: isDue ? '#fffaf0' : '#ffffff',
-                        border: '1px solid ' + (isDue ? '#ead8b4' : '#e2e8f0') }}>
+               style={{ background: '#ffffff', border: '1px solid #e2e8f0' }}>
               <div className="flex items-start gap-3">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: svc.color + '1a' }}>
@@ -171,11 +169,11 @@ export default function Maintenance() {
                       </span>
                     )}
                   </div>
-                  {isDue && (
+                  {log.next_mileage && (
                     <div className="flex items-center gap-1 mt-1.5">
-                      <AlertTriangle size={11} style={{ color: '#FF9500' }}/>
-                      <span className="text-[10px] font-semibold" style={{ color: '#FF9500' }}>
-                        {isAr ? 'موعد الصيانة قريب' : 'Entretien bientôt dû'}
+                      <AlertTriangle size={11} style={{ color: '#d97706' }}/>
+                      <span className="text-[11px] font-semibold" style={{ color: '#b45309' }}>
+                        {isAr ? `الصيانة القادمة عند ${Number(log.next_mileage).toLocaleString('en')} كم` : `Prochain entretien à ${Number(log.next_mileage).toLocaleString('fr-FR')} km`}
                       </span>
                     </div>
                   )}
