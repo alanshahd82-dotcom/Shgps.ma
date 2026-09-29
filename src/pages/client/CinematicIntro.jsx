@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+function nextRoute() {
+  sessionStorage.setItem('athargps_intro_seen', 'true')
+  return localStorage.getItem('athargps_onboarding_seen') === 'true' ? '/client/login' : '/client/start'
+}
+
 export default function CinematicIntro() {
   const navigate = useNavigate()
   const [showSkip, setShowSkip] = useState(false)
@@ -11,7 +16,7 @@ export default function CinematicIntro() {
 
     // انتقل إلى الشاشة التالية بعد انتهاء الفيديو (10 ثواني)
     const transitionTimer = setTimeout(() => {
-      navigate('/client/start', { replace: true })
+      navigate(nextRoute(), { replace: true })
     }, 10000)
 
     return () => {
@@ -21,7 +26,7 @@ export default function CinematicIntro() {
   }, [navigate])
 
   const handleSkip = () => {
-    navigate('/client/start', { replace: true })
+    navigate(nextRoute(), { replace: true })
   }
 
   return (

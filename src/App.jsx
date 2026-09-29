@@ -119,7 +119,8 @@ function ClientEntry() {
     <Navigate
       to={!authBootstrapError && isClientAuthenticated(clientAuth)
         ? '/client/home'
-        : hasSeenOnboarding ? '/client/login' : '/client/cinematic'}
+        : !sessionStorage.getItem('athargps_intro_seen') ? '/client/cinematic'
+        : hasSeenOnboarding ? '/client/login' : '/client/start'}
       replace
     />
   )
