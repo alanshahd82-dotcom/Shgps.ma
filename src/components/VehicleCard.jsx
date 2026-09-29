@@ -10,6 +10,7 @@ import { useReverseGeocode } from '../utils/reverseGeocode'
 import { useEngineControl } from '../hooks/useEngineControl'
 import { agoLabel, locationState } from '../utils/location'
 import VehicleGraphic from './VehicleGraphic'
+import EnginePasswordModal from './EnginePasswordModal'
 
 // Unified vehicle/device card used everywhere a vehicle is listed.
 // The artwork always matches the vehicle type: car / bike / truck,
@@ -182,22 +183,37 @@ export function VehicleCard({
   const [engineConfirm, setEngineConfirm] = useState(false)
   const engineTimerRef = useRef(null)
 
+  const [pwOpen, setPwOpen] = useState(false)
+
   function handleEngineClick(e) {
     e.stopPropagation()
     if (engineLoading || !canControlEngine) return
-    if (!engineConfirm) {
-      setEngineConfirm(true)
-      engineTimerRef.current = setTimeout(() => setEngineConfirm(false), 3000)
+    // Cancelling a cut that is still waiting for the signal: two taps, no password
+    // (it can only make the vehicle safer, and uses the dedicated cancel endpoint).
+    if (engine.cutCancellable) {
+      if (!engineConfirm) {
+        setEngineConfirm(true)
+        engineTimerRef.current = setTimeout(() => setEngineConfirm(false), 3000)
+        return
+      }
+      clearTimeout(engineTimerRef.current)
+      setEngineConfirm(false)
+      Promise.resolve(engine.cancelPending()).finally(() => { setTimeout(() => engine.clearFeedback(), 4000) })
       return
     }
-    clearTimeout(engineTimerRef.current)
-    setEngineConfirm(false)
-    // A cut that is still waiting for the signal is cancelled with the cancel endpoint
-    // (never with an opposite command, which could itself run later).
-    // A cut already handed to the tracker cannot be recalled: the button then offers the restore.
-    const action = engine.cutCancellable ? engine.cancelPending() : engine.send(engine.cutSent ? false : engineRunning)
-    Promise.resolve(action)
-      .finally(() => { setTimeout(() => engine.clearFeedback(), 4000) })
+    // Cut / start: the account password is asked first (checked by the server).
+    engine.clearFeedback()
+    setPwOpen(true)
+  }
+
+  // A cut already handed to the tracker cannot be recalled: the button then offers the restore.
+  const pwTurnOff = engine.cutSent ? false : engineRunning
+  async function submitPassword(password) {
+    const ok = await engine.send(pwTurnOff, password)
+    if (ok) {
+      setPwOpen(false)
+      setTimeout(() => engine.clearFeedback(), 4000)
+    }
   }
 
   useEffect(() => () => clearTimeout(engineTimerRef.current), [])
@@ -339,12 +355,12 @@ export function VehicleCard({
         const pending = engine.cutPending
         const sent = engine.cutSent
         const label = engineLoading ? l.loading
-          : engineErr ? l.failed
-            : engineConfirm ? (engine.cutCancellable ? l.cancelConfirm : sent ? l.confirmResume : (offline && engineRunning ? l.confirmQueued : l.confirm))
+          : engineErr && !pwOpen ? l.failed
+            : engineConfirm ? l.cancelConfirm
               : sent ? l.cutSent
                 : pending ? l.cutPending
-                : engineRunning ? (offline ? l.cutQueued : l.cutEngine)
-                  : (offline ? l.restoreQueued : l.restoreEngine)
+                  : engineRunning ? (offline ? l.cutQueued : l.cutEngine)
+                    : (offline ? l.restoreQueued : l.restoreEngine)
         const tone = engineConfirm
           ? 'animate-pulse bg-red-700 text-white ring-4 ring-red-200'
           : pending
@@ -367,6 +383,17 @@ export function VehicleCard({
             {offline && !pending && (
               <p className="mt-1 px-1 text-center text-[10px] font-semibold leading-4 text-slate-400">{l.queuedHint}</p>
             )}
+            <EnginePasswordModal
+              open={pwOpen}
+              lang={lang}
+              turnOff={pwTurnOff}
+              name={vehicle.name}
+              offline={offline}
+              sending={engineLoading}
+              error={engine.error}
+              onCancel={() => { setPwOpen(false); engine.clearFeedback() }}
+              onSubmit={submitPassword}
+            />
             {engine.deviceReplyInfo && (
               <p
                 role="status"

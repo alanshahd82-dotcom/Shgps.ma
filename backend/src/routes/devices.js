@@ -16,6 +16,7 @@ import {
 import { speedKmh } from '../utils/speed.js'
 import { pickLocation } from '../utils/location.js'
 import { findDeviceReply } from '../services/deviceReply.js'
+import { confirmAccountPassword } from '../utils/passwordConfirm.js'
 import {
   isVehicleDisconnected,
   positionIsFresh,
@@ -670,6 +671,13 @@ import {
         }
         if (!dev.traccar_id) {
           return res.status(400).json({ error: 'Device has no Traccar mapping' })
+        }
+
+        // The account password is required for every cut / resume and is checked
+        // here, before anything is created or sent. It is never logged or stored.
+        const passwordCheck = await confirmAccountPassword(db, req.user, req.body.password)
+        if (!passwordCheck.ok) {
+          return res.status(passwordCheck.status).json({ error: passwordCheck.error, code: passwordCheck.code })
         }
 
         const idempotencyKey = req.headers['idempotency-key'] || null

@@ -11,6 +11,7 @@ import { t } from '../../i18n/translations'
 import { APP_TZ } from '../../utils/datetime.js'
 import { formatVoltage, getDeviceStatusKey } from '../../components/ui'
 import VehicleStage, { TONE } from '../../components/VehicleStage'
+import EnginePasswordModal from '../../components/EnginePasswordModal'
 import { normalizeVehicleType } from '../../utils/vehicleAssets'
 import { useEngineControl } from '../../hooks/useEngineControl'
 import { agoLabel, locationState } from '../../utils/location'
@@ -300,11 +301,10 @@ export default function VehicleControl() {
     }
   }
 
-  async function confirmCommand() {
+  async function confirmCommand(password) {
     if (!vehicle || sending || !command) return
-    const turnOff = command.turnOff
-    setCommand(null)
-    await engine.send(turnOff)
+    const ok = await engine.send(command.turnOff, password)
+    if (ok) setCommand(null)
   }
 
   // Vehicle information edit — migrated from the legacy DeviceDetail page.
@@ -500,7 +500,7 @@ export default function VehicleControl() {
               <EngineCutoffButton
                 lang={lang}
                 engineRunning={engineRunning}
-                onClick={() => setCommand({ turnOff: engineRunning })}
+                onClick={() => { engine.clearFeedback(); setCommand({ turnOff: engineRunning }) }}
               />
               {cmdErr && <p role="alert" className="vehicle-control-map__engine-error">{cmdErr}</p>}
               {cmdSuccess && <p role="status" className="vehicle-control-map__engine-success">{cmdSuccess}</p>}
@@ -645,7 +645,7 @@ export default function VehicleControl() {
       </main>
 
       {!isAdminView && <BottomNav navigate={navigate} lang={lang}/>}
-      {command && <ConfirmDialog lang={lang} name={vehicle.name} turnOff={command.turnOff} sending={sending} onCancel={() => setCommand(null)} onConfirm={confirmCommand}/>}
+      <EnginePasswordModal open={!!command} lang={lang} name={vehicle.name} turnOff={!!command?.turnOff} offline={!engine.reachable} sending={sending} error={engine.error} onCancel={() => { setCommand(null); engine.clearFeedback() }} onSubmit={confirmCommand} />
     </div>
   )
 }

@@ -70,6 +70,15 @@ function statusMessage(status, lang) {
   }
 }
 
+// Messages for the password check (the server decides; the UI only explains).
+function passwordErrorMessage(code, lang) {
+  const ar = lang === 'ar'
+  if (code === 'INVALID_PASSWORD') return ar ? 'كلمة السر غير صحيحة. لم يُنفَّذ أي أمر.' : 'Mot de passe incorrect. Aucune commande envoyée.'
+  if (code === 'TOO_MANY_ATTEMPTS') return ar ? 'محاولات خاطئة كثيرة. انتظر بضع دقائق ثم أعد المحاولة.' : 'Trop de tentatives. Réessayez dans quelques minutes.'
+  if (code === 'PASSWORD_REQUIRED') return ar ? 'أدخل كلمة سر حسابك.' : 'Saisissez le mot de passe de votre compte.'
+  return ''
+}
+
 function conflictMessage(lang) {
   const ar = lang === 'ar'
   const fr = lang === 'fr'
@@ -86,6 +95,7 @@ export function useEngineControl(vehicle, lang = 'ar') {
   const { refreshDevices, wsConnected } = useApp()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState(null)
   const [success, setSuccess] = useState('')
   const [activeCommand, setActiveCommand] = useState(null)
   // What the tracker itself answered (read-only, additive; never drives the button).
@@ -224,12 +234,12 @@ export function useEngineControl(vehicle, lang = 'ar') {
     }
   }, [activeCommand, lang])
 
-  const send = useCallback(async (turnOff) => {
+  const send = useCallback(async (turnOff, password) => {
     if (!vehicle?.id || sending) return false
-    setSending(true); setError(''); setSuccess('')
+    setSending(true); setError(''); setErrorCode(null); setSuccess('')
     const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random())
     try {
-      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey })
+      const response = await api.devices.sendCommand(vehicle.id, turnOff ? 'engineStop' : 'engineResume', { 'Idempotency-Key': idempotencyKey }, password)
       const status = response?.command?.status || response?.status
       const gateHeld = !!response?.command?.gateHeld || !!response?.gateHeld
       if (mounted.current) {
@@ -250,7 +260,8 @@ export function useEngineControl(vehicle, lang = 'ar') {
       return true
     } catch (e) {
       if (mounted.current) {
-        setError(t(lang, 'vehicleCommandFailed'))
+        setErrorCode(e?.code || null)
+        setError(passwordErrorMessage(e?.code, lang) || t(lang, 'vehicleCommandFailed'))
       }
       return false
     } finally {
@@ -276,7 +287,7 @@ export function useEngineControl(vehicle, lang = 'ar') {
     }
   }, [activeCommand?.id, fetchActiveCommand, lang, refreshDevices, sending, vehicle?.id])
 
-  const clearFeedback = useCallback(() => { setError(''); setSuccess('') }, [])
+  const clearFeedback = useCallback(() => { setError(''); setErrorCode(null); setSuccess('') }, [])
 
   const deviceReplyInfo = describeDeviceReply(deviceReply, lang)
 
@@ -287,7 +298,7 @@ export function useEngineControl(vehicle, lang = 'ar') {
   const cutCancellable = cutPending && ['requested', 'pending'].includes(activeCommand?.status)
   const cutSent = cutPending && activeCommand?.status === 'sent'
 
-  return { engineRunning, canControl, reachable, cutPending, cutCancellable, cutSent, resumePending, cancelPending, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
+  return { engineRunning, canControl, reachable, cutPending, cutCancellable, cutSent, resumePending, cancelPending, sending, error, errorCode, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
 }
 
 export default useEngineControl

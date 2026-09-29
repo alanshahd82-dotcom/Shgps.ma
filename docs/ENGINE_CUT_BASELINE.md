@@ -166,3 +166,12 @@ The client UI now cancels a waiting cut with `POST /devices/:id/command/:command
 ### 11c. Second worker change: cancel() (2026-09-29)
 
 `cancel()` now marks `cancellation_state='pending'` BEFORE trying to remove a queued command from Traccar (previously a failed removal was silently ignored and the command was still marked cancelled while it stayed queued in Traccar). The stage-1 worker retries until Traccar confirms, and the device gate holds new commands meanwhile. New sha256 of `engineCommands.js`: `a9f53e45753becca5e0cfacc177611ac27b075a5c9cf28ac1f65e772904efa18`. Tests in `backend/test/engineExpiryCancel.test.js` (fail on the previous code). The UI offers cancellation only for `requested`/`pending` cuts; a cut already `sent` is shown as waiting for confirmation and cannot be cancelled.
+
+### 11d. Account password for every cut / resume (2026-09-29)
+
+`POST /devices/:id/command` now requires the `password` of the signed-in account (bcrypt-compared with `users.password_hash`) BEFORE anything is created or sent (`backend/src/utils/passwordConfirm.js`, called in `devices.js`). Answers: `400 PASSWORD_REQUIRED`, `403 INVALID_PASSWORD`, `429 TOO_MANY_ATTEMPTS` (5 wrong attempts lock that account for 10 minutes; a correct password resets the counter). The password is never logged, audited or stored. Cancelling a waiting cut (`/command/:id/cancel`) does not need it (it can only make the vehicle safer).
+
+- Emergency switch: set `ENGINE_REQUIRE_PASSWORD=false` in the backend environment to disable the check (default: enabled).
+- Compatibility: an old cached web page or an old mobile build that does not send the password gets `PASSWORD_REQUIRED` until it is refreshed / rebuilt.
+- UI: shared dialog `src/components/EnginePasswordModal.jsx` used by the vehicle card, the vehicle page and the admin client drawer; a wrong password keeps the dialog open and sends nothing.
+- Tests: `backend/test/enginePassword.test.js` (no / wrong / right password for cut and resume, lockout, reset, no password in the audit log).
