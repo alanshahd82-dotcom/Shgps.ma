@@ -48,6 +48,7 @@ function clearAttempts(ip) { loginAttempts.delete(ip) }
 const ATHARG_REFRESH_COOKIE = 'athargps_refresh'
 const REFRESH_SESSION_DAYS = 365
 const REFRESH_SESSION_MS = REFRESH_SESSION_DAYS * 24 * 60 * 60 * 1000
+const LEGACY_REFRESH_GRACE_SEC = 180 * 24 * 60 * 60
 
 function hashRefreshToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -157,88 +158,82 @@ authRouter.post('/login', validateBody(schemas.login), async (req, res) => {
 authRouter.post('/refresh', async (req, res) => {
   const rawRefreshToken = readRefreshCookie(req)
 
-  if (!rawRefreshToken) {
-    clearRefreshCookie(res)
-    return res.status(401).json({ error: 'Refresh session missing' })
+  const issueAccess = async (userId) => {
+    const { rows } = await db.query('SELECT is_admin, is_active FROM users WHERE id=$1', [userId])
+    if (!rows[0] || !rows[0].is_active) return null
+    return jwt.sign(
+      { userId, isAdmin: !!rows[0].is_admin },
+      config.jwtSecret,
+      { expiresIn: config.jwtExpiry },
+    )
   }
 
-  const tokenHash = hashRefreshToken(rawRefreshToken)
-
   try {
-    await db.query('BEGIN')
+    if (rawRefreshToken) {
+      const tokenHash = hashRefreshToken(rawRefreshToken)
 
-    const { rows } = await db.query(
-      `SELECT
-         rt.id,
-         rt.user_id,
-         rt.expires_at,
-         u.is_active
-       FROM refresh_tokens rt
-       JOIN users u ON u.id = rt.user_id
-       WHERE rt.token_hash = $1
-         AND rt.revoked_at IS NULL
-         AND rt.expires_at > NOW()
-       FOR UPDATE`,
-      [tokenHash],
-    )
+      // Atomically claim the live refresh token and rotate it.
+      const claimed = await db.query(
+        `UPDATE refresh_tokens
+         SET revoked_at = NOW(), last_used_at = NOW()
+         WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > NOW()
+         RETURNING id, user_id`,
+        [tokenHash],
+      )
 
-    if (!rows.length || !rows[0].is_active) {
-      await db.query('ROLLBACK')
-      clearRefreshCookie(res)
-      return res.status(401).json({ error: 'Invalid or expired refresh session' })
+      if (claimed.rows.length) {
+        const session = claimed.rows[0]
+        const accessToken = await issueAccess(session.user_id)
+        if (accessToken) {
+          const newRefreshToken = crypto.randomBytes(48).toString('base64url')
+          const inserted = await db.query(
+            `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+             VALUES ($1, $2, $3) RETURNING id`,
+            [session.user_id, hashRefreshToken(newRefreshToken), new Date(Date.now() + REFRESH_SESSION_MS)],
+          )
+          await db.query('UPDATE refresh_tokens SET replaced_by = $2 WHERE id = $1', [session.id, inserted.rows[0].id])
+          setRefreshCookie(res, newRefreshToken)
+          return res.json({ token: accessToken })
+        }
+      } else {
+        // A token rotated a moment ago (concurrent tabs, lost response) is still
+        // accepted for a short window so the user is not logged out by a race.
+        const recent = await db.query(
+          `SELECT user_id FROM refresh_tokens
+           WHERE token_hash = $1 AND replaced_by IS NOT NULL
+             AND revoked_at > NOW() - INTERVAL '2 minutes' AND expires_at > NOW()`,
+          [tokenHash],
+        )
+        if (recent.rows.length) {
+          const accessToken = await issueAccess(recent.rows[0].user_id)
+          if (accessToken) return res.json({ token: accessToken })
+        }
+      }
     }
 
-    const session = rows[0]
-    const newRefreshToken = crypto.randomBytes(48).toString('base64url')
-    const newTokenHash = hashRefreshToken(newRefreshToken)
-    const newExpiresAt = new Date(Date.now() + REFRESH_SESSION_MS)
+    // Fallback for sessions without a usable refresh cookie (logins that predate
+    // the cookie, native app): accept the previous access token even if it expired
+    // recently, as long as it was not revoked by a logout and the account is active.
+    const bearer = req.headers.authorization?.split(' ')[1]
+    if (bearer && !isRevoked(bearer)) {
+      try {
+        const payload = jwt.verify(bearer, config.jwtSecret, { ignoreExpiration: true })
+        const ageSec = payload.exp ? Date.now() / 1000 - payload.exp : 0
+        if (payload.userId && ageSec < LEGACY_REFRESH_GRACE_SEC) {
+          const accessToken = await issueAccess(payload.userId)
+          if (accessToken) {
+            await createRefreshSession(payload.userId, res)
+            return res.json({ token: accessToken })
+          }
+        }
+      } catch { /* invalid signature: fall through */ }
+    }
 
-    const inserted = await db.query(
-      `INSERT INTO refresh_tokens
-         (user_id, token_hash, expires_at)
-       VALUES ($1, $2, $3)
-       RETURNING id`,
-      [session.user_id, newTokenHash, newExpiresAt],
-    )
-
-    await db.query(
-      `UPDATE refresh_tokens
-       SET revoked_at = NOW(),
-           replaced_by = $2,
-           last_used_at = NOW()
-       WHERE id = $1`,
-      [session.id, inserted.rows[0].id],
-    )
-
-    await db.query('COMMIT')
-
-    const accessToken = jwt.sign(
-      { userId: session.user_id, isAdmin: false },
-      config.jwtSecret,
-      { expiresIn: config.jwtExpiry },
-    )
-
-    const { rows: users } = await db.query(
-      'SELECT is_admin FROM users WHERE id=$1',
-      [session.user_id],
-    )
-
-    const correctedToken = jwt.sign(
-      {
-        userId: session.user_id,
-        isAdmin: !!users[0]?.is_admin,
-      },
-      config.jwtSecret,
-      { expiresIn: config.jwtExpiry },
-    )
-
-    setRefreshCookie(res, newRefreshToken)
-    res.json({ token: correctedToken })
-  } catch (err) {
-    try { await db.query('ROLLBACK') } catch {}
-    console.error('[auth/refresh]', err.message)
     clearRefreshCookie(res)
-    res.status(401).json({ error: 'Refresh session failed' })
+    return res.status(401).json({ error: 'Invalid or expired refresh session' })
+  } catch (err) {
+    console.error('[auth/refresh]', err.message)
+    return res.status(500).json({ error: 'Refresh temporarily unavailable' })
   }
 })
 
