@@ -12,7 +12,7 @@ import { APP_TZ } from '../../utils/datetime.js'
 
 const TripReplay = lazy(() => import('../../components/TripReplay'))
 
-const RANGES = ['today', 'yesterday', 'last3', 'custom']
+const RANGES = ['today', 'yesterday', 'last2', 'last3', 'last4', 'last7', 'custom']
 
 function Chip({ active, onClick, children }) {
   return (
@@ -81,8 +81,8 @@ function getPeriodBounds(range) {
     end.setHours(0, 0, 0, 0)
     start.setDate(start.getDate() - 1)
     start.setHours(0, 0, 0, 0)
-  } else if (range === 'last3') {
-    start.setDate(start.getDate() - 2)
+  } else if (/^last\d+$/.test(range)) {
+    start.setDate(start.getDate() - (Number(range.slice(4)) - 1))
     start.setHours(0, 0, 0, 0)
   } else {
     start.setHours(0, 0, 0, 0)
@@ -210,7 +210,8 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
   const { lang } = useApp()
   const L = lang === 'fr' ? {
     title: 'Trajets', vehicle: 'Véhicule', unnamedVehicle: 'Véhicule sans nom', timeRange: 'Période',
-    ranges: { today: 'Aujourd’hui', yesterday: 'Hier', last3: '3 derniers jours', custom: 'Période personnalisée' },
+    ranges: { today: 'Aujourd’hui', yesterday: 'Hier', last2: '2 jours', last3: '3 jours', last4: '4 jours', last7: '7 jours', custom: 'Période personnalisée' },
+    fullRoute: 'Voir tout l’itinéraire de la période', fullRouteLoading: 'Chargement de l’itinéraire…',
     customFrom: 'Date de début', customTo: 'Date de fin', customFromTime: 'Heure de début (optionnel)', customToTime: 'Heure de fin (optionnel)',
     startLocation: 'Lieu de départ', endLocation: 'Lieu d’arrivée',
     loadingTrips: 'Chargement des trajets', loadError: 'Impossible de charger les trajets', retry: 'Réessayer',
@@ -222,7 +223,8 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
     openVehicle: 'Ouvrir le véhicule', unavailableVehicle: 'Véhicule indisponible',
   } : {
     title: 'الرحلات', vehicle: 'المركبة', unnamedVehicle: 'مركبة غير مسماة', timeRange: 'الفترة الزمنية',
-    ranges: { today: 'اليوم', yesterday: 'الأمس', last3: 'آخر 3 أيام', custom: 'فترة مخصة' },
+    ranges: { today: 'اليوم', yesterday: 'الأمس', last2: 'يومان', last3: '3 أيام', last4: '4 أيام', last7: '7 أيام', custom: 'فترة مخصصة' },
+    fullRoute: 'عرض المسار الكامل للفترة', fullRouteLoading: 'جاري تحميل المسار…',
     customFrom: 'تاريخ البداية', customTo: 'تاريخ النهاية', customFromTime: 'وقت البداية (اختياري)', customToTime: 'وقت النهاية (اختياري)',
     startLocation: 'موقع البداية', endLocation: 'موقع النهاية',
     loadingTrips: 'جاري تحميل الرحلات', loadError: 'تعذّر تحميل الرحلات', retry: 'إعادة المحاولة',
@@ -248,6 +250,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
   const [replayLoading, setReplayLoading] = useState('')
   const [replayError, setReplayError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [periodBounds, setPeriodBounds] = useState(null)
 
   useEffect(() => {
     if (!selectedVehicleId && vehicles[0]?.id != null) setSelectedVehicleId(String(vehicles[0].id))
@@ -278,6 +281,7 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
     setLoading(true)
     setError('')
     setReplayError('')
+    setPeriodBounds({ from, to })
     api.reports.get(selectedVehicleId, from, to)
       .then(data => {
         if (!cancelled) setTrips(Array.isArray(data?.trips) ? data.trips : [])
@@ -293,6 +297,24 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
       })
     return () => { cancelled = true }
   }, [hasProvidedTrips, range, reloadKey, selectedVehicleId, customFrom, customTo, customFromTime, customToTime])
+
+  async function openFullReplay() {
+    if (!selectedVehicleId || !periodBounds || replayLoading) return
+    setReplayLoading('full')
+    setReplayError('')
+    try {
+      const points = await api.stats.getPositions(selectedVehicleId, periodBounds.from, periodBounds.to, 5000)
+      if (!Array.isArray(points) || points.length < 2) {
+        setReplayError(L.routeUnavailable)
+      } else {
+        setReplay({ startTime: periodBounds.from, endTime: periodBounds.to, positions: points })
+      }
+    } catch (nextError) {
+      setReplayError(nextError?.message || L.routeUnavailable)
+    } finally {
+      setReplayLoading('')
+    }
+  }
 
   async function openReplay(trip, tripKey) {
     const start = getTripStart(trip)
@@ -375,6 +397,17 @@ export function TripsScreen({ vehicles: providedVehicles, trips: providedTrips, 
                 {L.retry}
               </button>
             </div>
+          )}
+          {!loading && !error && trips.length > 1 && (
+            <button
+              type="button"
+              onClick={openFullReplay}
+              disabled={replayLoading === 'full'}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition disabled:opacity-60"
+            >
+              {replayLoading === 'full' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RouteIcon className="h-4 w-4" aria-hidden="true" />}
+              {replayLoading === 'full' ? L.fullRouteLoading : L.fullRoute}
+            </button>
           )}
           {!loading && !error && trips.length > 0 && trips.map((trip, index) => (
             <TripCard
