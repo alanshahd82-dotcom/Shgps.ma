@@ -4,10 +4,20 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      dry_run_signing:
+        description: 'Prove the signed-release pipeline with a throwaway key (result is NOT for the store)'
+        type: boolean
+        default: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Play Store requires the newest target API level: change it here when Google raises it.
+      ANDROID_TARGET_SDK: '35'
+      # Signing secrets (see docs/PLAY_STORE_RELEASE.md). Without them only the debug APK is built.
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
@@ -138,6 +148,21 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      # ── 12b. Version + API levels (Play Store needs a rising versionCode and a current target SDK) ──
+      - name: Set version and SDK levels
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          T="$ANDROID_TARGET_SDK"
+          [ -d "$SDK/platforms/android-$T" ] || "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-$T" || true
+          VERSION_NAME=$(node -p "require('./package.json').version")
+          VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))
+          sed -i -E "s/versionCode [0-9]+/versionCode $VERSION_CODE/; s/versionName \"[^\"]*\"/versionName \"$VERSION_NAME\"/" android/app/build.gradle
+          sed -i -E "s/(targetSdkVersion *= *)[0-9]+/\1$T/; s/(compileSdkVersion *= *)[0-9]+/\1$T/" android/variables.gradle
+          echo "android.suppressUnsupportedCompileSdk=$T" >> android/gradle.properties
+          echo "versionName=$VERSION_NAME versionCode=$VERSION_CODE targetSdk=$T"
+          grep -n "versionCode\|versionName\|applicationId" android/app/build.gradle
+          grep -n "SdkVersion" android/variables.gradle
+
       # ── 13. Build debug APK ──────────────────────────────────────────────────
       - name: Build debug APK
         working-directory: android
@@ -160,3 +185,84 @@ jobs:
           else
             echo "❌ APK not found"; exit 1
           fi
+
+      # ── 16. Signed release (Play Store) ──────────────────────────────────────────────────
+      # Real signing needs the 4 secrets in docs/PLAY_STORE_RELEASE.md. A manual run with
+      # "dry_run_signing" uses a throwaway key to prove the pipeline (artifacts are named DRYRUN).
+      - name: Prepare signing key
+        id: sign
+        run: |
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            {
+              echo "SIGN=true"
+              echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore"
+              echo "KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+              echo "KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}"
+              echo "KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}"
+              echo "ARTIFACT_SUFFIX="
+            } >> "$GITHUB_ENV"
+          elif [ "${{ inputs.dry_run_signing }}" = "true" ]; then
+            keytool -genkeypair -v -keystore "$RUNNER_TEMP/release.keystore" -alias dryrun -keyalg RSA -keysize 2048 -validity 30 \
+              -storepass dryrunpass -keypass dryrunpass -dname "CN=DRY RUN, O=not for the store" > /dev/null
+            {
+              echo "SIGN=true"
+              echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore"
+              echo "KEYSTORE_PASSWORD=dryrunpass"
+              echo "KEY_ALIAS=dryrun"
+              echo "KEY_PASSWORD=dryrunpass"
+              echo "ARTIFACT_SUFFIX=-DRYRUN-NOT-FOR-STORE"
+            } >> "$GITHUB_ENV"
+          else
+            echo "No signing secrets: only the debug APK was built."
+          fi
+
+      - name: Configure release signing
+        if: env.SIGN == 'true'
+        run: |
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv('KEYSTORE_PATH'))
+                      storePassword System.getenv('KEYSTORE_PASSWORD')
+                      keyAlias System.getenv('KEY_ALIAS')
+                      keyPassword System.getenv('KEY_PASSWORD')
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                  }
+              }
+          }
+          GRADLE
+
+      - name: Build signed release (AAB for Play + APK)
+        if: env.SIGN == 'true'
+        working-directory: android
+        run: ./gradlew bundleRelease assembleRelease --no-daemon --stacktrace
+
+      - name: Verify the signature
+        if: env.SIGN == 'true'
+        run: |
+          keytool -printcert -jarfile android/app/build/outputs/apk/release/app-release.apk | head -8
+          ls -lh android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload signed AAB (upload this file to Play Console)
+        if: env.SIGN == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATHAR-GPS-release-aab${{ env.ARTIFACT_SUFFIX }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Upload signed release APK
+        if: env.SIGN == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATHAR-GPS-release-apk${{ env.ARTIFACT_SUFFIX }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
