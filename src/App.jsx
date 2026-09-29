@@ -84,6 +84,15 @@ function AuthLoading() {
   )
 }
 
+function IntroGate({ children }) {
+  const { clientAuth, authReady } = useApp()
+  if (!authReady) return <AuthLoading />
+  if (!isClientAuthenticated(clientAuth) && !sessionStorage.getItem('athargps_intro_seen')) {
+    return <Navigate to="/client/cinematic" replace />
+  }
+  return children
+}
+
 function ClientRoute({ children }) {
   const { clientAuth, authReady, authBootstrapError, mustChangePassword, clearMustChange, lang } = useApp()
   const location = useLocation()
@@ -157,8 +166,8 @@ export default function App() {
           {/* ── Client app ─────────────────────────────────────────────── */}
           <Route path="/client" element={<ClientEntry />} />
           <Route path="/client/cinematic"       element={<CinematicIntro />} />
-          <Route path="/client/start"            element={<ClientWelcome />} />
-          <Route path="/client/login"           element={<ClientLogin />} />
+          <Route path="/client/start"            element={<IntroGate><ClientWelcome /></IntroGate>} />
+          <Route path="/client/login"           element={<IntroGate><ClientLogin /></IntroGate>} />
           <Route path="/client/forgot-password" element={<ForgotPassword />} />
           <Route path="/client/reset-password"  element={<ResetPassword />} />
 
