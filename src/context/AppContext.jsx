@@ -215,14 +215,13 @@ export function AppProvider({ children }) {
   }
 
   // ── Dark mode ─────────────────────────────────────────────────────────────
+  // Most screens use fixed light colours, so the dark theme renders half-dark
+  // and unreadable. The app is light-only until a full dark theme exists; any
+  // previously saved preference is ignored and cleared.
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-    localStorage.setItem('athargps_darkmode', String(darkMode))
-  }, [darkMode])
+    document.documentElement.classList.remove('dark')
+    localStorage.removeItem('athargps_darkmode')
+  }, [])
 
   const toggleDarkMode = () => setDarkModeState(prev => !prev)
   const setDarkMode = (val) => setDarkModeState(val)

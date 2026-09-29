@@ -288,7 +288,6 @@ export default function Settings() {
                   ))}
                 </div>
               )},
-               { Icon: Moon, label: isAr ? 'الوضع الداكن' : 'Mode sombre', ctrl: <Toggle checked={!!darkMode} isAr={isAr} onChange={toggleDarkMode}/> },
                { Icon: Bell, label: isAr ? 'الإشعارات الفورية' : 'Notifications push', ctrl: <Toggle checked={!!pushEnabled} isAr={isAr} onChange={v => v ? requestPushPermission() : disablePush()}/> },
                { Icon: Volume2, label: isAr ? 'تنبيه صوتي' : 'Alerte sonore', ctrl: <Toggle checked={soundEnabled} isAr={isAr} onChange={setSoundEnabled}/> },
             ].map(({ Icon, label, ctrl }, i, rows) => (
