@@ -12,10 +12,47 @@ export const FREE_TRIAL_PLAN = Object.freeze({
   trial: true,
 })
 
+// An administrator can also set the exact period: "from" a date "to" a date.
+export const CUSTOM_PLAN = Object.freeze({
+  id: 'custom',
+  label: 'فترة مخصصة',
+  labelFr: 'Période personnalisée',
+  price: null,
+  custom: true,
+})
+
 const DAY_MS = 24 * 60 * 60 * 1000
+const MAX_CUSTOM_DAYS = 3660   // ~10 years: protects against typing a wrong year
 
 export function getSubscriptionPlan(planId) {
-  return [...SUBSCRIPTION_PLANS, FREE_TRIAL_PLAN].find(plan => plan.id === planId) || null
+  return [...SUBSCRIPTION_PLANS, FREE_TRIAL_PLAN, CUSTOM_PLAN].find(plan => plan.id === planId) || null
+}
+
+const isRealDate = value => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+/**
+ * Turns "plan + optional dates" into the subscription period to store.
+ *  - fixed plans: start = `defaultStart` (today, or the current end when renewing early), end = start + N months;
+ *  - custom plan: exactly the dates typed by the administrator (start <= end, at most ~10 years).
+ * Returns { plan, startDate, endDate } or { error }.
+ */
+export function resolveSubscriptionPeriod(planId, { startDate, endDate } = {}, defaultStart) {
+  const plan = getSubscriptionPlan(planId)
+  if (!plan) return { error: 'A valid subscription plan is required' }
+  if (!plan.custom) {
+    return { plan, startDate: defaultStart, endDate: addMonths(defaultStart, plan.durationMonths) }
+  }
+  if (!isRealDate(startDate) || !isRealDate(endDate)) {
+    return { error: 'A custom period needs a start date and an end date (YYYY-MM-DD)' }
+  }
+  if (endDate < startDate) return { error: 'The end date must not be before the start date' }
+  const days = Math.round((Date.parse(`${endDate}T00:00:00.000Z`) - Date.parse(`${startDate}T00:00:00.000Z`)) / DAY_MS)
+  if (days > MAX_CUSTOM_DAYS) return { error: 'A custom period cannot be longer than 10 years' }
+  return { plan, startDate, endDate }
 }
 
 export function dateOnly(value) {
@@ -93,7 +130,9 @@ export async function syncSubscriptionState(db, device, clientName = null, now =
     ? 'subscription_expired'
     : 'subscription_expiring'
   const plan = getSubscriptionPlan(snapshot.subscriptionPlanId)
-  const planText = plan ? `${plan.label} — ${plan.price} MAD` : 'خطة غير محددة'
+  const planText = plan
+    ? (plan.custom ? `${plan.label} — حتى ${snapshot.subscriptionEndDate}` : `${plan.label} — ${plan.price} MAD`)
+    : 'خطة غير محددة'
   const message = snapshot.subscriptionStatus === 'expired'
     ? `انتهى اشتراك جهاز ${device.name}. تم إيقاف التتبع المباشر. الخطة: ${planText}.`
     : `اشتراك جهاز ${device.name} سينتهي خلال ${snapshot.subscriptionDaysRemaining} يوم. الخطة: ${planText}.`

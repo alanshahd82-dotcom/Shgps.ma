@@ -3,26 +3,33 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, RefreshCw, X, AlertCircle } from 'lucide-react'
 import { api } from '../api/index.js'
 import SubscriptionPlans from './SubscriptionPlans'
+import { customRangeError } from '../utils/subscriptions'
 
-export default function SubscriptionRenewalModal({ open, device, lang = 'ar', onClose, onSaved }) {
+export default function SubscriptionRenewalModal({ open, device, lang = 'ar', onClose, onSaved, allowCustom = false }) {
   const isAr = lang === 'ar'
   const [planId, setPlanId] = useState(device?.subscriptionPlanId || '3_months')
+  const [range, setRange] = useState({ start: '', end: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   React.useEffect(() => {
     if (open) {
-      setPlanId(device?.subscriptionPlanId || '3_months')
+      setPlanId(device?.subscriptionPlanId && (allowCustom || device.subscriptionPlanId !== 'custom') ? device.subscriptionPlanId : '3_months')
+      setRange({ start: device?.subscriptionPlanId === 'custom' ? (device?.subscriptionStartDate || '') : '', end: device?.subscriptionPlanId === 'custom' ? (device?.subscriptionEndDate || '') : '' })
       setError('')
     }
   }, [open, device?.id, device?.subscriptionPlanId])
 
   const submit = async (event) => {
     event.preventDefault()
+    if (planId === 'custom') {
+      const problem = customRangeError(range, isAr)
+      if (problem) { setError(problem); return }
+    }
     setSaving(true)
     setError('')
     try {
-      const result = await api.devices.renewSubscription(device.id, planId)
+      const result = await api.devices.renewSubscription(device.id, planId, range)
       onSaved?.(result)
       onClose?.()
     } catch (err) {
@@ -56,8 +63,8 @@ export default function SubscriptionRenewalModal({ open, device, lang = 'ar', on
               </div>
               {error && <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 px-3 py-2 rounded-xl border border-red-100"><AlertCircle size={14} />{error}</div>}
               <div>
-                <label className="text-xs font-bold text-slate-500">{isAr ? 'اختر الخطة — الدفع نقداً' : 'Choisissez le forfait — paiement comptant'}</label>
-                <SubscriptionPlans value={planId} onChange={setPlanId} lang={lang} />
+                <label className="text-xs font-bold text-slate-500">{allowCustom ? (isAr ? 'اختر الخطة أو حدّد الفترة بنفسك' : 'Choisissez un forfait ou fixez la période') : (isAr ? 'اختر الخطة — الدفع نقداً' : 'Choisissez le forfait — paiement comptant')}</label>
+                <SubscriptionPlans value={planId} onChange={setPlanId} lang={lang} allowCustom={allowCustom} range={range} onRangeChange={setRange} />
               </div>
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-slate-500">

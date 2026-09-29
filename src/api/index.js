@@ -1,5 +1,6 @@
 // ATHAR GPS API Client
 import { resolveApiBase } from '../utils/apiBase.js'
+import { planPayload } from '../utils/subscriptions.js'
 const API_URL = resolveApiBase({ envUrl: import.meta.env.VITE_API_URL })
 export const BOOT_TIMEOUT_MS = 8000
 
@@ -165,8 +166,9 @@ export const api = {
     quickAdd:       (data)          => apiFetch('/devices/quick-add', { method: 'POST', body: JSON.stringify(data) }),
     updateInfo:        (id, data) =>
       apiFetch(`/devices/${id}/info`, { method: 'PATCH', body: JSON.stringify(data) }),
-    renewSubscription: (id, subscriptionPlanId) =>
-      apiFetch(`/devices/${id}/subscription`, { method: 'PATCH', body: JSON.stringify({ subscriptionPlanId }) }),
+    // `range` ({ start, end }) is only used with the custom plan (admin).
+    renewSubscription: (id, subscriptionPlanId, range) =>
+      apiFetch(`/devices/${id}/subscription`, { method: 'PATCH', body: JSON.stringify(planPayload(subscriptionPlanId, range)) }),
     delete:         (id)            => apiFetch(`/devices/${id}`,    { method: 'DELETE' }),
     replace:        (id, data)      => apiFetch(`/devices/${id}/replace`, { method: 'POST', body: JSON.stringify(data) }),
     sendCommand:    (id, type, headers = {}, password) => apiFetch(`/devices/${id}/command`, { method: 'POST', body: JSON.stringify({ type, password }), ...(Object.keys(headers).length ? { headers } : {}) }),

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import { requireAuth, requireAdmin, requireMainAdmin } from '../middleware/auth.js'
 import { db }       from '../db.js'
 import * as traccar from '../services/traccar.js'
-import { addMonths, dateOnly, getSubscriptionPlan } from '../services/subscriptions.js'
+import { dateOnly, getSubscriptionSnapshot, resolveSubscriptionPeriod } from '../services/subscriptions.js'
 import { getAccessibleClient } from '../middleware/deviceAccess.js'
 
 export const clientsRouter = Router()
@@ -188,13 +188,14 @@ clientsRouter.patch('/:id/subscription', requireAuth, requireAdmin, async (req, 
 })
 
 clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) => {
-  const { name, imei, type, plate, subscriptionPlanId } = req.body
+  const { name, imei, type, plate, subscriptionPlanId, subscriptionStartDate: customStart, subscriptionEndDate: customEnd } = req.body
   if (!name||!imei) return res.status(400).json({ error:'Name and IMEI required' })
   if (type !== undefined && !['car', 'bike', 'truck'].includes(type)) {
     return res.status(400).json({ error: 'Type must be car, bike, or truck' })
   }
-  const plan = getSubscriptionPlan(subscriptionPlanId)
-  if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
+  const period = resolveSubscriptionPeriod(subscriptionPlanId, { startDate: customStart, endDate: customEnd }, dateOnly(new Date()))
+  if (period.error) return res.status(400).json({ error: period.error })
+  const { plan } = period
   const clientId = req.params.id
   try {
     const clientScope = await getAccessibleClient(db, req.user, clientId)
@@ -214,8 +215,7 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
         error: `Device limit reached (${client.devices_count}/${maxDevices}). Increase the client limit before adding another device. / Limite d'appareils atteinte.`,
       })
     }
-    const subscriptionStartDate = dateOnly(new Date())
-    const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
+    const { startDate: subscriptionStartDate, endDate: subscriptionEndDate } = period
     let traccarId = null
     try {
       const td = await traccar.createDevice(name, imei)
@@ -239,9 +239,9 @@ clientsRouter.post('/:id/devices', requireAuth, requireAdmin, async (req, res) =
       subscriptionPlanId: d.subscription_plan_id,
       subscriptionStartDate: d.subscription_start_date,
       subscriptionEndDate: d.subscription_end_date,
-      subscriptionStatus: 'active',
-      subscriptionDaysRemaining: plan.durationMonths * 30,
-      trackingEnabled: true,
+      subscriptionStatus: getSubscriptionSnapshot(d).subscriptionStatus,
+      subscriptionDaysRemaining: getSubscriptionSnapshot(d).subscriptionDaysRemaining,
+      trackingEnabled: getSubscriptionSnapshot(d).trackingEnabled,
     })
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'IMEI already registered' })

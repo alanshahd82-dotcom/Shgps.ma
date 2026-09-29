@@ -2052,3 +2052,10 @@ write before subsequent packets arrive.
 - New `backend/src/services/lastKnownLocation.js`: a device with no valid live fix and no stored location (its last packets had no GPS fix and it went silent before a position was stored) gets its newest valid fix from Traccar's history (windows 0–2, 2–10, 10–45 days), stored once in `devices.last_lat/last_lng/last_update`. Bounded: 4 devices per request, 2.5 s budget, 15 min pause for devices without history. Wired into `GET /devices`, `GET /devices/:id` and `/map/positions`; a failing Traccar/database never breaks the response.
 - Tests: `lastKnownLocation.test.js` (6) and `devicesLocationRecovery.test.js` (route). Backend 294/295 (the old `vehiclesPageLayout.test.js` only). Engine code untouched.
 - Rule kept: an expired subscription still hides the location (existing `trackingEnabled` rule).
+
+## 2026-09-29 — Subscriptions: exact period "from - to"
+
+- New plan `custom` (admin only): the administrator types the start and end dates instead of choosing 3 / 6 / 12 months. Server: `resolveSubscriptionPeriod()` in `backend/src/services/subscriptions.js` (real dates, end not before start, at most ~10 years); used by device creation (`POST /devices`, `/devices/quick-add`, `POST /clients/:id/devices`) and by `PATCH /devices/:id/subscription` (a custom period replaces the current one exactly; fixed plans still extend from the current end). A non-admin gets 403 for `custom`.
+- Status after saving follows the dates (a past end date gives "expired", tracking off, as for any expired plan); create responses no longer hard-code "active".
+- UI: `SubscriptionPlans` has a "Période personnalisée / فترة مخصصة" card with two date fields and inline validation; available in the renewal modal (admin pages only), quick add (menu + modal), page form and the setup wizard. The client renewal screen is unchanged.
+- Tests: `subscriptionCustomPeriod.test.js` (7); browser: renewal modal and quick add send the typed dates, wrong order is refused. Backend 301/302 (old layout test only). Engine code untouched.

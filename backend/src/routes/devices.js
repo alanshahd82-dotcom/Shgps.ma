@@ -8,10 +8,10 @@ import { validateBody, schemas } from '../validation/schemas.js'
     import * as engineCommands from '../services/engineCommands.js'
 import { deviceAccessScope, getAccessibleClient, getAccessibleDevice, requireDeviceOwner } from '../middleware/deviceAccess.js'
 import {
-  addMonths,
   dateOnly,
-  getSubscriptionPlan,
   getSubscriptionSnapshot,
+  getSubscriptionStatus,
+  resolveSubscriptionPeriod,
   syncSubscriptionState,
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
@@ -302,7 +302,7 @@ import {
     // POST / — إنشاء جهاز جديد مباشرة (أدمن فقط)
     // ── Canonical device-creation core ── shared by POST / and POST /quick-add
     async function createDeviceCore(req, res, opts = {}) {
-      const { name: rawName, imei, type, plate, phone, clientId: rawClientId, maxDevices, subscriptionPlanId } = req.body
+      const { name: rawName, imei, type, plate, phone, clientId: rawClientId, maxDevices, subscriptionPlanId, subscriptionStartDate: customStart, subscriptionEndDate: customEnd } = req.body
 
       if (!req.user.is_admin) return res.status(403).json({ error: 'Admin only' })
       if (req.user.is_sub_admin && !rawClientId) {
@@ -312,8 +312,9 @@ import {
       if (!/^\d{15}$/.test(imei)) return res.status(400).json({ error: 'IMEI must be exactly 15 digits' })
       if (opts.requirePhone && !phone) return res.status(400).json({ error: 'Phone required' })
 
-      const plan = getSubscriptionPlan(subscriptionPlanId)
-      if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
+      const period = resolveSubscriptionPeriod(subscriptionPlanId, { startDate: customStart, endDate: customEnd }, dateOnly(new Date()))
+      if (period.error) return res.status(400).json({ error: period.error })
+      const { plan } = period
 
       try {
         let deviceName = rawName || `GPS-${imei.slice(-6)}`
@@ -367,8 +368,7 @@ import {
           }
         } catch (e) { console.warn('Traccar device skipped:', e.message) }
 
-        const subscriptionStartDate = dateOnly(new Date())
-        const subscriptionEndDate = addMonths(subscriptionStartDate, plan.durationMonths)
+        const { startDate: subscriptionStartDate, endDate: subscriptionEndDate } = period
 
         await db.query('BEGIN')
         try {
@@ -395,9 +395,9 @@ import {
             subscriptionPlanId: d.subscription_plan_id,
             subscriptionStartDate: d.subscription_start_date,
             subscriptionEndDate: d.subscription_end_date,
-            subscriptionStatus: 'active',
-            subscriptionDaysRemaining: plan.durationMonths * 30,
-            trackingEnabled: true,
+            subscriptionStatus: getSubscriptionSnapshot(d).subscriptionStatus,
+            subscriptionDaysRemaining: getSubscriptionSnapshot(d).subscriptionDaysRemaining,
+            trackingEnabled: getSubscriptionSnapshot(d).trackingEnabled,
             geofenceActive: false, activeGeofenceId: null, geofence: null,
           })
         } catch (e) { await db.query('ROLLBACK'); throw e }
@@ -512,9 +512,16 @@ import {
     // Renewal starts at the later of today or the current end date so active
     // time is never lost. This endpoint never changes user-level subscriptions.
     devicesRouter.patch('/:id/subscription', requireAuth, requireRole('manager'), requireDeviceOwner, async (req, res) => {
-      const { subscriptionPlanId } = req.body
-      const plan = getSubscriptionPlan(subscriptionPlanId)
-      if (!plan) return res.status(400).json({ error: 'A valid subscription plan is required' })
+      const { subscriptionPlanId, subscriptionStartDate: customStart, subscriptionEndDate: customEnd } = req.body
+      const today = dateOnly(new Date())
+      const currentEndDate = dateOnly(req.device.subscription_end_date)
+      const defaultStart = currentEndDate && currentEndDate >= today ? currentEndDate : today
+      const period = resolveSubscriptionPeriod(subscriptionPlanId, { startDate: customStart, endDate: customEnd }, defaultStart)
+      if (period.error) return res.status(400).json({ error: period.error })
+      const { plan } = period
+      if (plan.custom && !req.user.is_admin) {
+        return res.status(403).json({ error: 'Only an administrator can set a custom period.' })
+      }
       try {
         const device = req.device
          if (plan.trial && !req.user.is_admin) {
@@ -530,16 +537,13 @@ import {
            })
          }
 
-        const today = dateOnly(new Date())
-        const currentEnd = dateOnly(device.subscription_end_date)
-        const startDate = currentEnd && currentEnd >= today ? currentEnd : today
-        const endDate = addMonths(startDate, plan.durationMonths)
+        const { startDate, endDate } = period
         const result = await db.query(
           `UPDATE devices
            SET subscription_plan_id=$1, subscription_start_date=$2,
-               subscription_end_date=$3, subscription_status='active', updated_at=NOW()
+               subscription_end_date=$3, subscription_status=$5, updated_at=NOW()
            WHERE id=$4 RETURNING *`,
-          [plan.id, startDate, endDate, device.id]
+          [plan.id, startDate, endDate, device.id, getSubscriptionStatus(endDate)]
         )
         const updated = result.rows[0]
         res.json({
@@ -547,9 +551,9 @@ import {
           subscriptionPlanId: updated.subscription_plan_id,
           subscriptionStartDate: updated.subscription_start_date,
           subscriptionEndDate: updated.subscription_end_date,
-          subscriptionStatus: 'active',
+          subscriptionStatus: getSubscriptionSnapshot(updated).subscriptionStatus,
           subscriptionDaysRemaining: getSubscriptionSnapshot(updated).subscriptionDaysRemaining,
-          trackingEnabled: true,
+          trackingEnabled: getSubscriptionSnapshot(updated).trackingEnabled,
         })
       } catch (err) {
         console.error(err)
