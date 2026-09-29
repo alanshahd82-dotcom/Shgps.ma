@@ -4,7 +4,7 @@ import {
 } from 'lucide-react'
 import { normalizeVehicleType } from '../utils/vehicleAssets'
 import {
-  formatVoltage, getBatteryPercent, getVoltageColor, isMeasuredNoSupply, timeAgo,
+  formatVoltage, getBatteryPercent, getDeviceStatusKey, getVoltageColor, isMeasuredNoSupply, timeAgo,
 } from './ui'
 import { useReverseGeocode } from '../utils/reverseGeocode'
 import { useEngineControl } from '../hooks/useEngineControl'
@@ -25,7 +25,7 @@ const L = {
   ar: {
     online: 'متصل', offline: 'غير متصل', moving: 'متحرك', stopped: 'متوقف',
     speed: 'السرعة', status: 'الحالة', powerCut: 'الطاقة مفصولة', kmh: 'كم/س', lastUpdate: 'آخر تحديث', na: '—',
-    overspeed: 'تجاوز السرعة', battery: 'البطارية', signal: 'الإشارة',
+    idle: 'خاملة', overspeed: 'تجاوز السرعة', battery: 'البطارية', signal: 'الإشارة',
     cutEngine: 'قطع', restoreEngine: 'تشغيل', confirm: 'تأكيد؟',
     cutQueued: 'قطع عند عودة الإشارة', restoreQueued: 'تشغيل عند عودة الإشارة', confirmQueued: 'تأكيد: يُنفَّذ عند عودة الإشارة', cutPending: 'قطع بانتظار الإشارة · اضغط للإلغاء', cancelConfirm: 'تأكيد إلغاء القطع؟', queuedHint: 'الأمر يُحفظ ويُنفَّذ تلقائياً عند عودة الإشارة',
     address: 'العنوان', km: 'كم', loading: '...', failed: 'فشل',
@@ -34,7 +34,7 @@ const L = {
   fr: {
     online: 'En ligne', offline: 'Hors ligne', moving: 'En marche', stopped: 'Arrêté',
     speed: 'Vitesse', status: 'Statut', powerCut: 'Alimentation coupée', kmh: 'km/h', lastUpdate: 'Dernière maj', na: '—',
-    overspeed: 'Excès de vitesse', battery: 'Batterie', signal: 'Signal',
+    idle: 'Ralenti', overspeed: 'Excès de vitesse', battery: 'Batterie', signal: 'Signal',
     cutEngine: 'Couper', restoreEngine: 'Démarrer', confirm: 'Confirmer?',
     cutQueued: 'Couper dès le retour du signal', restoreQueued: 'Démarrer dès le retour du signal', confirmQueued: 'Confirmer : exécuté au retour du signal', cutPending: 'Coupure en attente du signal · appuyer pour annuler', cancelConfirm: 'Confirmer l’annulation ?', queuedHint: 'La commande est gardée et exécutée automatiquement au retour du signal',
     address: 'Adresse', km: 'km', loading: '...', failed: 'Échec',
@@ -120,11 +120,13 @@ function BatteryIcon({ voltage, powerDisconnected }) {
 // ── Stage behind the vehicle ─────────────────────────────────────────────────
 // The vehicle's own body colour tells the situation; the scene stays calm.
 const TONE = {
-  move:  { body: '#22c55e', glow: 'rgba(34,197,94,.42)' },
-  live:  { body: '#818cf8', glow: 'rgba(129,140,248,.38)' },
-  off:   { body: '#94a3b8', glow: 'rgba(148,163,184,.16)' },
-  power: { body: '#ef4444', glow: 'rgba(239,68,68,.42)' },
-  alarm: { body: '#f97316', glow: 'rgba(249,115,22,.42)' },
+  move:    { body: '#22c55e', glow: 'rgba(34,197,94,.42)' },    // driving
+  idle:    { body: '#f59e0b', glow: 'rgba(245,158,11,.40)' },   // engine on, not moving
+  stopped: { body: '#3b82f6', glow: 'rgba(59,130,246,.40)' },   // engine off / parked
+  live:    { body: '#818cf8', glow: 'rgba(129,140,248,.38)' },  // online, no ignition information
+  off:     { body: '#94a3b8', glow: 'rgba(148,163,184,.16)' },
+  power:   { body: '#ef4444', glow: 'rgba(239,68,68,.42)' },
+  alarm:   { body: '#f97316', glow: 'rgba(249,115,22,.42)' },
 }
 const SKYLINE = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='40'%3E%3Cpath fill='white' fill-opacity='.09' d='M0 40V22h14V12h12v10h10V6h16v16h12V16h14v24zm120 0V20h12V10h14v10h10V14h16v26zm100 0V24h20v16z'/%3E%3C/svg%3E\")"
 
@@ -219,13 +221,15 @@ export function VehicleCard({
       {/* Stage: the vehicle drives on a road; its colour follows the situation */}
       {(() => {
         const powerCut = vehicle.powerDisconnected === true
-        const tone = powerCut ? 'power' : overspeed ? 'alarm' : !online ? 'off' : moving ? 'move' : 'live'
+        const key = getDeviceStatusKey(vehicle)
+        const mode = !online ? 'off' : moving ? 'move' : key === 'idle' ? 'idle' : key === 'stopped' ? 'stopped' : 'live'
+        const tone = powerCut ? 'power' : overspeed ? 'alarm' : mode === 'off' ? 'off' : mode
         const tn = TONE[tone]
         const rtl = dir === 'rtl'
         const side = rtl ? 'left' : 'right'
         const start = rtl ? 'right' : 'left'
         const height = compact ? 128 : 140
-        const carW = compact ? 148 : 164
+        const carW = compact ? 168 : 184
         const spd = online && rawSpeed != null ? speed : null
         return (
           <div className="relative overflow-hidden" style={{ height, background: 'linear-gradient(135deg,#0a1020 0%,#111b33 60%,#16233f 130%)' }}>
@@ -249,8 +253,8 @@ export function VehicleCard({
 
             {/* the vehicle */}
             <span className="pointer-events-none absolute" style={{ [side]: compact ? 8 : 12, bottom: 11, width: carW, animation: moving ? `vc-drive ${fast ? 1.2 : 2}s ease-in-out infinite` : 'none' }}>
-              <VehicleGraphic type={type} color={tn.body} moving={moving} speed={Number(rawSpeed) || 0} muted={!online}
-                className="block w-full" style={{ transform: rtl ? 'scaleX(-1)' : undefined, filter: online ? 'drop-shadow(0 6px 6px rgba(0,0,0,.5))' : undefined }} />
+              <VehicleGraphic type={type} color={tn.body} mode={mode} speed={Number(rawSpeed) || 0}
+                className="block w-full" style={{ transform: rtl ? 'scaleX(-1)' : undefined }} />
             </span>
 
             {/* battery + signal (top corner opposite the text) */}
@@ -267,7 +271,7 @@ export function VehicleCard({
                     {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />}
                     <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-400'}`} />
                   </span>
-                  {online ? (moving ? l.moving : l.online) : l.offline}
+                  {!online ? l.offline : moving ? l.moving : key === 'idle' ? l.idle : key === 'stopped' ? l.stopped : l.online}
                 </span>
                 {powerCut && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold text-red-700"><PlugZap size={9} /> {l.powerCut}</span>
@@ -398,6 +402,8 @@ export function VehicleCard({
           0%, 100% { transform: translateX(0); }
           50% { transform: translateX(${dir === 'rtl' ? '-' : ''}5px); }
         }
+        @keyframes vg-puff { 0% { transform: translate(0,0) scale(.6); opacity: .6; } 100% { transform: translate(-14px,-12px) scale(1.9); opacity: 0; } }
+        @keyframes vg-beam { 0%, 100% { opacity: 1; } 50% { opacity: .78; } }
         @keyframes vg-spin { to { transform: rotate(360deg); } }
         @keyframes vg-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2px); } }
         @keyframes vc-streak {
@@ -406,7 +412,7 @@ export function VehicleCard({
           100% { transform: translateX(${dir === 'rtl' ? '' : '-'}140px); opacity: 0; }
         }
         @media (prefers-reduced-motion: reduce) {
-          [style*="vc-float"], [style*="vc-shadow"], [style*="vc-breathe"], [style*="vc-streak"], [style*="vc-road"], [style*="vc-city"], [style*="vc-drive"], [style*="vg-spin"], [style*="vg-bob"] { animation: none !important; }
+          [style*="vc-float"], [style*="vc-shadow"], [style*="vc-breathe"], [style*="vc-streak"], [style*="vc-road"], [style*="vc-city"], [style*="vc-drive"], [style*="vg-spin"], [style*="vg-bob"], [style*="vg-puff"], [style*="vg-beam"] { animation: none !important; }
         }
       `}</style>
     </div>
