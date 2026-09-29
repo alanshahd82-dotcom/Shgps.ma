@@ -126,7 +126,7 @@ geofencesRouter.post('/', requireAuth, requireRole('manager'), validateBody(sche
 })
 
 // DELETE /api/geofences/:id
-geofencesRouter.delete('/:id', requireAuth, async (req, res) => {
+geofencesRouter.delete('/:id', requireAuth, requireRole('manager'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT lg.*, d.id AS device_id

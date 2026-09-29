@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import { requireRole } from '../middleware/requireRole.js'
 import { db } from '../db.js'
 import { getAccessibleDevice } from '../middleware/deviceAccess.js'
 
@@ -24,7 +25,7 @@ maintenanceRouter.get('/', requireAuth, async (req, res) => {
 })
 
 // POST /api/maintenance — add log
-maintenanceRouter.post('/', requireAuth, async (req, res) => {
+maintenanceRouter.post('/', requireAuth, requireRole('manager'), async (req, res) => {
   try {
     const { deviceId, type, note, mileage, date, nextDueMileage } = req.body
     if (!deviceId || !type) return res.status(400).json({ error: 'deviceId and type are required' })
@@ -42,7 +43,7 @@ maintenanceRouter.post('/', requireAuth, async (req, res) => {
 })
 
 // DELETE /api/maintenance/:id
-maintenanceRouter.delete('/:id', requireAuth, async (req, res) => {
+maintenanceRouter.delete('/:id', requireAuth, requireRole('manager'), async (req, res) => {
   try {
     const { rows } = await db.query('SELECT ml.*, d.user_id FROM maintenance_logs ml JOIN devices d ON d.id=ml.device_id WHERE ml.id=$1', [req.params.id])
     const log = rows[0]
