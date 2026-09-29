@@ -27,7 +27,7 @@ const L = {
     speed: 'السرعة', status: 'الحالة', powerCut: 'الطاقة مفصولة', kmh: 'كم/س', lastUpdate: 'آخر تحديث', na: '—',
     idle: 'خاملة', overspeed: 'تجاوز السرعة', battery: 'البطارية', signal: 'الإشارة',
     cutEngine: 'قطع', restoreEngine: 'تشغيل', confirm: 'تأكيد؟',
-    cutQueued: 'قطع عند عودة الإشارة', restoreQueued: 'تشغيل عند عودة الإشارة', confirmQueued: 'تأكيد: يُنفَّذ عند عودة الإشارة', cutPending: 'قطع بانتظار الإشارة · اضغط للإلغاء', cutSent: 'قطع أُرسل للجهاز · بانتظار التأكيد', cancelConfirm: 'تأكيد إلغاء القطع؟', queuedHint: 'الأمر يُحفظ ويُنفَّذ تلقائياً عند عودة الإشارة',
+    cutQueued: 'قطع عند عودة الإشارة', restoreQueued: 'تشغيل عند عودة الإشارة', confirmQueued: 'تأكيد: يُنفَّذ عند عودة الإشارة', cutPending: 'قطع بانتظار الإشارة · اضغط للإلغاء', cutSent: 'قطع أُرسل للجهاز · اضغط لإعادة التشغيل', confirmResume: 'تأكيد إعادة التشغيل؟', cancelConfirm: 'تأكيد إلغاء القطع؟', queuedHint: 'الأمر يُحفظ ويُنفَّذ تلقائياً عند عودة الإشارة',
     address: 'العنوان', km: 'كم', loading: '...', failed: 'فشل',
     lastKnown: 'آخر موقع معروف', noGps: 'لا توجد إشارة GPS', noLocation: 'الموقع غير متاح',
   },
@@ -36,7 +36,7 @@ const L = {
     speed: 'Vitesse', status: 'Statut', powerCut: 'Alimentation coupée', kmh: 'km/h', lastUpdate: 'Dernière maj', na: '—',
     idle: 'Ralenti', overspeed: 'Excès de vitesse', battery: 'Batterie', signal: 'Signal',
     cutEngine: 'Couper', restoreEngine: 'Démarrer', confirm: 'Confirmer?',
-    cutQueued: 'Couper dès le retour du signal', restoreQueued: 'Démarrer dès le retour du signal', confirmQueued: 'Confirmer : exécuté au retour du signal', cutPending: 'Coupure en attente du signal · appuyer pour annuler', cutSent: 'Coupure envoyée · en attente de confirmation', cancelConfirm: 'Confirmer l’annulation ?', queuedHint: 'La commande est gardée et exécutée automatiquement au retour du signal',
+    cutQueued: 'Couper dès le retour du signal', restoreQueued: 'Démarrer dès le retour du signal', confirmQueued: 'Confirmer : exécuté au retour du signal', cutPending: 'Coupure en attente du signal · appuyer pour annuler', cutSent: 'Coupure envoyée · appuyer pour rétablir', confirmResume: 'Confirmer le rétablissement ?', cancelConfirm: 'Confirmer l’annulation ?', queuedHint: 'La commande est gardée et exécutée automatiquement au retour du signal',
     address: 'Adresse', km: 'km', loading: '...', failed: 'Échec',
     lastKnown: 'Dernière position connue', noGps: 'Pas de signal GPS', noLocation: 'Position indisponible',
   },
@@ -184,7 +184,7 @@ export function VehicleCard({
 
   function handleEngineClick(e) {
     e.stopPropagation()
-    if (engineLoading || !canControlEngine || engine.cutSent) return
+    if (engineLoading || !canControlEngine) return
     if (!engineConfirm) {
       setEngineConfirm(true)
       engineTimerRef.current = setTimeout(() => setEngineConfirm(false), 3000)
@@ -194,7 +194,8 @@ export function VehicleCard({
     setEngineConfirm(false)
     // A cut that is still waiting for the signal is cancelled with the cancel endpoint
     // (never with an opposite command, which could itself run later).
-    const action = engine.cutCancellable ? engine.cancelPending() : engine.send(engineRunning)
+    // A cut already handed to the tracker cannot be recalled: the button then offers the restore.
+    const action = engine.cutCancellable ? engine.cancelPending() : engine.send(engine.cutSent ? false : engineRunning)
     Promise.resolve(action)
       .finally(() => { setTimeout(() => engine.clearFeedback(), 4000) })
   }
@@ -339,7 +340,7 @@ export function VehicleCard({
         const sent = engine.cutSent
         const label = engineLoading ? l.loading
           : engineErr ? l.failed
-            : engineConfirm ? (engine.cutCancellable ? l.cancelConfirm : (offline && engineRunning ? l.confirmQueued : l.confirm))
+            : engineConfirm ? (engine.cutCancellable ? l.cancelConfirm : sent ? l.confirmResume : (offline && engineRunning ? l.confirmQueued : l.confirm))
               : sent ? l.cutSent
                 : pending ? l.cutPending
                 : engineRunning ? (offline ? l.cutQueued : l.cutEngine)
@@ -356,7 +357,7 @@ export function VehicleCard({
             <button
               type="button"
               onClick={handleEngineClick}
-              disabled={engineLoading || sent}
+              disabled={engineLoading}
               className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-extrabold transition-colors disabled:opacity-70 ${tone}`}
               aria-label={label}
             >

@@ -161,6 +161,21 @@ export function useEngineControl(vehicle, lang = 'ar') {
     return () => clearTimeout(timer)
   }, [commandId, commandStatus, deviceReply, fetchActiveCommand, replyTick])
 
+  // A command that is still on its way (waiting for the vehicle, or handed to the
+  // tracker) changes state on the server without any event reaching this screen,
+  // so keep it fresh: every 30 s, at most 40 times per command (~20 min).
+  const stateWatchRef = useRef({ id: null, n: 0 })
+  useEffect(() => {
+    if (commandId == null || !['requested', 'pending', 'sent'].includes(commandStatus)) return undefined
+    if (stateWatchRef.current.id !== commandId) stateWatchRef.current = { id: commandId, n: 0 }
+    const timer = setInterval(() => {
+      if (stateWatchRef.current.n >= 40) { clearInterval(timer); return }
+      stateWatchRef.current.n += 1
+      fetchActiveCommand()
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [commandId, commandStatus, fetchActiveCommand])
+
   // Re-fetch after WebSocket reconnect (wsConnected transitions false->true).
   const prevWsConnectedRef = useRef(false)
   useEffect(() => {
