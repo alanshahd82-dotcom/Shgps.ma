@@ -106,7 +106,7 @@ function makeHarness(opts = {}) {
 }
 
 const CONNECTED = { charge: true, ignition: true, batteryLevel: 100, adc1: 13.6 }
-const STANDALONE_LOSS = { charge: false, ignition: false, batteryLevel: 16, alarm: 'lowBattery', blocked: true }
+const STANDALONE_LOSS = { powerCut: true, ignition: false, batteryLevel: 16, alarm: 'lowBattery', blocked: true }
 
 test.beforeEach(() => {
   markVehicleConnected(TRACCAR_ID)
@@ -115,13 +115,12 @@ test.beforeEach(() => {
 
 // ── Pure detector tests ──────────────────────────────────────────────────────
 
-test('FIX 1: charge:false is gated by everSeenBatteryVoltage', () => {
+test('FIX 1: charge:false alone is never a loss, explicit signals still are', () => {
   // A standalone tracker that never reported a vehicle voltage must not fire.
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }, { everSeenBatteryVoltage: false }), null)
-  // A device that previously reported a vehicle voltage: charge:false is a loss.
-  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }, { everSeenBatteryVoltage: true })?.source, 'charge:false')
-  // Default (no per-device flag) preserves the legacy/UI behaviour.
-  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } })?.source, 'charge:false')
+  // Even a device that previously reported a vehicle voltage: charge:false alone is not proof.
+  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }, { everSeenBatteryVoltage: true }), null)
+  assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false } }), null)
   // A battery-range voltage in the same packet still proves the battery is wired.
   assert.equal(detectExternalPowerLoss({ deviceId: 1, attributes: { charge: false, voltage: 12.7 } }, { everSeenBatteryVoltage: true }), null)
   // Explicit electrical signals (direct keys) are unaffected by the gate.
@@ -200,11 +199,11 @@ test('6. reconnect snapshot replay same signature -> no duplicate', async () => 
   assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 1) // FIX 3: no duplicate
 })
 
-// 7. Real external-power context then validated loss -> exactly ONE disconnect
+// 7. Real external-power context then validated (explicit) loss -> exactly ONE disconnect
 test('7. real vehicle context then validated loss -> one disconnect', async () => {
   const h = makeHarness()
   await h.send(CONNECTED)        // adc1:13.6 -> everSeenBatteryVoltage = true
-  await h.send(STANDALONE_LOSS) // charge:false, no voltage, everSeen=true -> loss
+  await h.send(STANDALONE_LOSS) // explicit powerCut -> loss
   await h.send(STANDALONE_LOSS)
   await h.send(STANDALONE_LOSS)
   assert.equal(h.alerts.filter((a) => a === 'power_disconnected').length, 1)

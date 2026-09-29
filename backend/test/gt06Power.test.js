@@ -41,18 +41,19 @@ test.beforeEach(() => {
 
 // ── Pure detector tests ──────────────────────────────────────────────────────
 
-test('TEST 1 — charge:false is an external power loss', () => {
-  assert.deepEqual(detectExternalPowerLoss(pos({ charge: false })), { source: 'charge:false' })
+test('TEST 1 — charge:false alone is NOT a power loss; an explicit powerCut is', () => {
+  assert.equal(detectExternalPowerLoss(pos({ charge: false })), null)
+  assert.deepEqual(detectExternalPowerLoss(pos({ powerCut: true })), { source: 'powerCut' })
 })
 
-test('charge:false with a healthy vehicle voltage is NOT a power loss', () => {
+test('charge:false is never a power loss, with or without a voltage', () => {
   // Parked GT06 vehicles report charge:false (alternator idle) on every packet
   // while still delivering 12.7 V from the vehicle battery. That must not be
   // treated as a battery disconnect, otherwise alerts flap endlessly.
   assert.equal(detectExternalPowerLoss(pos({ charge: false, power: 12.7 })), null)
   assert.equal(detectExternalPowerLoss(pos({ charge: false, voltage: 24.2 })), null)
-  // A cut supply reads far below the vehicle-battery range → still an alert.
-  assert.deepEqual(detectExternalPowerLoss(pos({ charge: false, power: 4.7 })), { source: 'charge:false' })
+  // A single low reading is not proof either: only a confirmed measured supply loss counts.
+  assert.equal(detectExternalPowerLoss(pos({ charge: false, power: 4.7 })), null)
 })
 
 test('TEST 2 — charge:true is an affirmative restore signal', () => {
@@ -87,11 +88,11 @@ test('TEST 8 — charge:false during engine cooldown stays suppressed', () => {
   assert.equal(ENGINE_COMMAND_POWER_SUPPRESSION_MS, 60 * 1000)
 })
 
-test('real DACIA packet: charge:false wins over lowBattery noise', () => {
+test('real DACIA packet: charge:false with lowBattery noise is NOT a loss', () => {
   const signal = detectExternalPowerLoss(pos({
     charge: false, ignition: false, blocked: true, alarm: 'lowBattery', batteryLevel: 16,
   }))
-  assert.deepEqual(signal, { source: 'charge:false' })
+  assert.equal(signal, null)
 })
 
 // ── Engine tests (existing state machine, no parallel implementation) ────────
@@ -160,18 +161,18 @@ function feed(h, attributes) {
 
 const typed = (db, type) => db.alerts.filter((a) => a.type === type)
 
-test('TEST 9 — repeated charge:false produces ONE disconnect transition', async () => {
+test('TEST 9 — repeated explicit powerCut produces ONE disconnect transition', async () => {
   const h = createHarness()
   // Establish vehicle-battery context first: a standalone tracker that never
   // reported a vehicle voltage must never disconnect from charge:false (FIX 1).
   await feed(h, { charge: true, batteryLevel: 100, adc1: 13.6 })
-  await feed(h, { charge: false, alarm: 'lowBattery', batteryLevel: 16 })
-  await feed(h, { charge: false, batteryLevel: 15 })
-  await feed(h, { charge: false, batteryLevel: 14 })
+  await feed(h, { powerCut: true, alarm: 'lowBattery', batteryLevel: 16 })
+  await feed(h, { powerCut: true, batteryLevel: 15 })
+  await feed(h, { powerCut: true, batteryLevel: 14 })
 
   assert.equal(typed(h.db, 'power_disconnected').length, 1)
   assert.equal(h.disconnectEvents.length, 1)
-  assert.equal(h.db.alerts[0].data.reason, 'charge:false')
+  assert.equal(h.db.alerts[0].data.reason, 'powerCut')
   assert.equal(h.db.alerts[0].data.trigger, 'telemetry')
   assert.equal(h.db.powerStates.get(String(TRACCAR_ID))?.disconnected, true)
   assert.equal(isVehicleDisconnected(TRACCAR_ID), true)
@@ -181,7 +182,7 @@ test('TEST 10 — repeated charge:true after restore produces ONE restore transi
   const h = createHarness()
   // Establish vehicle-battery context first (FIX 1).
   await feed(h, { charge: true, batteryLevel: 100, adc1: 13.6 })
-  await feed(h, { charge: false })
+  await feed(h, { powerCut: true })
   assert.equal(typed(h.db, 'power_disconnected').length, 1)
 
   await feed(h, { charge: true, batteryLevel: 100 })
