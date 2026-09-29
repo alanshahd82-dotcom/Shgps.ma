@@ -6,6 +6,10 @@ import { getAccessibleDevice } from '../middleware/deviceAccess.js'
 
 export const maintenanceRouter = Router()
 
+function withClientFields(row) {
+  return { ...row, notes: row.note ?? null, next_mileage: row.next_due_mileage ?? null }
+}
+
 // GET /api/maintenance?deviceId=X — list logs for a device
 maintenanceRouter.get('/', requireAuth, async (req, res) => {
   try {
@@ -20,14 +24,17 @@ maintenanceRouter.get('/', requireAuth, async (req, res) => {
       'SELECT * FROM maintenance_logs WHERE device_id=$1 ORDER BY date DESC',
       [deviceId]
     )
-    res.json(rows)
+    res.json(rows.map(withClientFields))
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
 // POST /api/maintenance — add log
 maintenanceRouter.post('/', requireAuth, requireRole('manager'), async (req, res) => {
   try {
-    const { deviceId, type, note, mileage, date, nextDueMileage } = req.body
+    // The client sends `notes` / `next_mileage`; older callers send `note` / `nextDueMileage`.
+    const { deviceId, type, mileage, date } = req.body
+    const note = req.body.note ?? req.body.notes
+    const nextDueMileage = req.body.nextDueMileage ?? req.body.next_mileage
     if (!deviceId || !type) return res.status(400).json({ error: 'deviceId and type are required' })
 
     const dev = await getAccessibleDevice(db, req.user, deviceId)
@@ -38,7 +45,7 @@ maintenanceRouter.post('/', requireAuth, requireRole('manager'), async (req, res
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [deviceId, type, note || null, mileage || null, date || new Date().toISOString(), nextDueMileage || null]
     )
-    res.status(201).json(rows[0])
+    res.status(201).json(withClientFields(rows[0]))
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
 })
 
