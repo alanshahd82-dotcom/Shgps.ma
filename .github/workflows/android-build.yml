@@ -73,6 +73,13 @@ jobs:
       - name: Add Capacitor Android platform
         run: ./node_modules/.bin/cap add android
 
+      # ── 7b. Location permission so the app can show the user's own position ──
+      - name: Add location permissions to the Android manifest
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q ACCESS_FINE_LOCATION "$MANIFEST" || sed -i 's#</manifest>#    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="false" />\n</manifest>#' "$MANIFEST"
+          grep -n "location" "$MANIFEST"
+
       # ── 8. Copy app icon to all mipmap densities ─────────────────────────────
       - name: Copy app icon
         run: |
