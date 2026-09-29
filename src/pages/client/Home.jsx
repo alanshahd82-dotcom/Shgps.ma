@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext'
 import VehicleCard from '../../components/VehicleCard'
 import { vehiclePoint } from '../../utils/location'
 import { getDeviceStatusKey } from '../../components/ui'
+import { fleetBucket } from '../../utils/fleetBucket'
 
 function useLang() {
   const { lang } = useApp()
@@ -103,9 +104,10 @@ function BottomNav({ active, lang, navigate }) {
 // Why a vehicle needs the fleet manager's attention (most serious first).
 // Only real signals: nothing is inferred from a missing value.
 const REASON_ORDER = ['rPower', 'rAlarm', 'rOffline', 'rNever', 'rNoGps']
-function attentionReason(vehicle) {
+const ALARM_WINDOW_MS = 24 * 60 * 60 * 1000
+function attentionReason(vehicle, alarmIds) {
   if (vehicle.powerDisconnected) return 'rPower'
-  if (vehicle.status === 'alarm' || vehicle.alertType) return 'rAlarm'
+  if (vehicle.status === 'alarm' || vehicle.alertType || alarmIds?.has(String(vehicle.id)) || alarmIds?.has(String(vehicle.traccarId ?? vehicle.traccar_id))) return 'rAlarm'
   const key = getDeviceStatusKey(vehicle)
   if (key === 'offline') return vehicle.lastUpdate ? 'rOffline' : 'rNever'
   if (key === 'awaiting_gps') return 'rNoGps'
@@ -147,20 +149,35 @@ export default function Home() {
     lng: vehiclePoint(d)?.[1] ?? null,
   })), [devices])
 
-  const fleet = useMemo(() => {
-    const counts = { connected: 0, stopped: 0, offline: 0, attention: 0 }
-    vehicles.forEach(v => {
-      // A vehicle without power is counted once, as "attention", never as moving.
-      const s = v.powerDisconnected ? { label: 'attention' } : statusInfo(v)
-      counts[s.label]++
+  // Devices with a recent unread alarm event (events arrive in the alert stream, not on the vehicle).
+  const alarmIds = useMemo(() => {
+    const ids = new Set()
+    const cutoff = Date.now() - ALARM_WINDOW_MS
+    ;(Array.isArray(alertsList) ? alertsList : []).forEach(a => {
+      if (a?.read || a?.deviceId == null) return
+      if (!/alarm|sos/i.test(String(a.type || ''))) return
+      const at = new Date(a.time || a.eventTime || 0).getTime()
+      if (Number.isFinite(at) && at >= cutoff) ids.add(String(a.deviceId))
     })
-    return counts
-  }, [vehicles])
+    return ids
+  }, [alertsList])
 
   const attention = useMemo(() => vehicles
-    .map(v => ({ v, reason: attentionReason(v) }))
+    .map(v => ({ v, reason: attentionReason(v, alarmIds) }))
     .filter(x => x.reason)
-    .sort((a, b) => REASON_ORDER.indexOf(a.reason) - REASON_ORDER.indexOf(b.reason)), [vehicles])
+    .sort((a, b) => REASON_ORDER.indexOf(a.reason) - REASON_ORDER.indexOf(b.reason)), [vehicles, alarmIds])
+
+  // The three status tiles use the same buckets as the vehicles list, so a tile's
+  // number always matches the list it opens. "Attention" is an overlay: it is the
+  // length of the list right below it.
+  const fleet = useMemo(() => {
+    const counts = { connected: 0, stopped: 0, offline: 0, attention: attention.length }
+    vehicles.forEach(v => {
+      const bucket = fleetBucket(v)
+      counts[bucket === 'moving' ? 'connected' : bucket]++
+    })
+    return counts
+  }, [vehicles, attention])
 
   const listed = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -180,7 +197,6 @@ export default function Home() {
     { key: 'connected', n: fleet.connected, bar: 'bg-emerald-400' },
     { key: 'stopped', n: fleet.stopped, bar: 'bg-slate-400' },
     { key: 'offline', n: fleet.offline, bar: 'bg-slate-600' },
-    { key: 'attention', n: fleet.attention, bar: 'bg-orange-400' },
   ]
   const tiles = [
     { key: 'connected', n: fleet.connected, tone: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500', go: () => navigate('/client/vehicles?filter=moving') },

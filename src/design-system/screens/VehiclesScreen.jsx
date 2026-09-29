@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { AlertCircle, CarFront, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
-import { getDeviceStatusKey } from '../../components/ui'
+import { fleetBucket } from '../../utils/fleetBucket'
 import SharedVehicleCard from '../../components/VehicleCard'
 import { t } from '../../i18n/translations'
 import { ClientLayout } from '../layout'
@@ -29,13 +29,12 @@ export function VehiclesScreen({ vehicles: providedVehicles, alertCount = 0, onT
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase()
     return vehicles.filter(vehicle => {
-      const status = getDeviceStatusKey(vehicle)
       const matchesQuery = !normalized || [vehicle.name, vehicle.plate].filter(Boolean).some(value => String(value).toLowerCase().includes(normalized))
-      const matchesFilter = filter === 'all' || (filter === 'moving' && status === 'moving') || (filter === 'stopped' && ['stopped', 'idle'].includes(status)) || (filter === 'offline' && ['offline', 'awaiting_gps'].includes(status))
+      const matchesFilter = filter === 'all' || fleetBucket(vehicle) === filter
       return matchesQuery && matchesFilter
     })
   }, [filter, query, vehicles])
-  const count = status => vehicles.filter(vehicle => getDeviceStatusKey(vehicle) === status).length
+  const count = bucket => vehicles.filter(vehicle => fleetBucket(vehicle) === bucket).length
 
   return (
     <ClientLayout activeTab="vehicles" onTabChange={onTabChange} alertCount={alertCount || realAlertCount} showTopBar title={t(lang, 'vehicles')}>
@@ -43,7 +42,7 @@ export function VehiclesScreen({ vehicles: providedVehicles, alertCount = 0, onT
          <div className="sticky top-0 z-10 border-b border-slate-200 p-4" style={{ background: 'var(--ath-bg)' }}>
            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"><Search size={16} style={{ color: 'var(--ath-mut)' }} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={t(lang, 'vehicleSearchPlaceholder')} className="min-w-0 flex-1 bg-transparent text-xs text-slate-900 outline-none placeholder:text-slate-400" /></div>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5">
-             {FILTERS.map(item => <button key={item} type="button" onClick={() => setFilter(item)} aria-pressed={filter === item} className="shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-extrabold transition-colors" style={filter === item ? { color: '#ffffff', background: '#4f46e5', borderColor: '#4f46e5' } : { color: 'var(--ath-mut)', background: '#ffffff', borderColor: 'var(--ath-line)' }}>{t(lang, `vehicleFilter_${item}`)}{item === 'all' ? ` ${vehicles.length}` : ` ${item === 'moving' ? count('moving') : item === 'stopped' ? (count('stopped') + count('idle')) : count('offline') + count('awaiting_gps')}`}</button>)}
+             {FILTERS.map(item => <button key={item} type="button" onClick={() => setFilter(item)} aria-pressed={filter === item} className="shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-extrabold transition-colors" style={filter === item ? { color: '#ffffff', background: '#4f46e5', borderColor: '#4f46e5' } : { color: 'var(--ath-mut)', background: '#ffffff', borderColor: 'var(--ath-line)' }}>{t(lang, `vehicleFilter_${item}`)}{item === 'all' ? ` ${vehicles.length}` : ` ${count(item)}`}</button>)}
           </div>
         </div>
         <div className="space-y-2 p-4">

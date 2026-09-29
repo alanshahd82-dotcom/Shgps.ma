@@ -243,6 +243,24 @@ export function useEngineControl(vehicle, lang = 'ar') {
     }
   }, [lang, refreshDevices, sending, vehicle?.id, fetchActiveCommand])
 
+  // Cancel a cut that is still waiting for the signal, with the dedicated cancel
+  // endpoint (no opposite command is created, so nothing can run later).
+  const cancelPending = useCallback(async () => {
+    if (!vehicle?.id || !activeCommand?.id || sending) return false
+    setSending(true); setError(''); setSuccess('')
+    try {
+      await api.devices.cancelCommand(vehicle.id, activeCommand.id)
+      try { await fetchActiveCommand() } catch {}
+      try { await refreshDevices?.() } catch {}
+      return true
+    } catch {
+      if (mounted.current) setError(t(lang, 'vehicleCommandFailed'))
+      return false
+    } finally {
+      if (mounted.current) setSending(false)
+    }
+  }, [activeCommand?.id, fetchActiveCommand, lang, refreshDevices, sending, vehicle?.id])
+
   const clearFeedback = useCallback(() => { setError(''); setSuccess('') }, [])
 
   const deviceReplyInfo = describeDeviceReply(deviceReply, lang)
@@ -250,7 +268,7 @@ export function useEngineControl(vehicle, lang = 'ar') {
   const cutPending = isCutPending(activeCommand)
   const resumePending = isResumePending(activeCommand)
 
-  return { engineRunning, canControl, reachable, cutPending, resumePending, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
+  return { engineRunning, canControl, reachable, cutPending, resumePending, cancelPending, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
 }
 
 export default useEngineControl

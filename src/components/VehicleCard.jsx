@@ -192,9 +192,10 @@ export function VehicleCard({
     }
     clearTimeout(engineTimerRef.current)
     setEngineConfirm(false)
-    // A cut that is still waiting for the signal is cancelled by sending the opposite command.
-    const turnOff = engine.cutPending ? false : engineRunning
-    Promise.resolve(engine.send(turnOff))
+    // A cut that is still waiting for the signal is cancelled with the cancel endpoint
+    // (never with an opposite command, which could itself run later).
+    const action = engine.cutPending ? engine.cancelPending() : engine.send(engineRunning)
+    Promise.resolve(action)
       .finally(() => { setTimeout(() => engine.clearFeedback(), 4000) })
   }
 

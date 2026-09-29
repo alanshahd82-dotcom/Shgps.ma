@@ -14,6 +14,7 @@ const STATUS_COLORS = {
   moving: ['#22c55e', 'rgba(34,197,94,.5)'],
   idle: ['#f59e0b', 'rgba(245,158,11,.5)'],
   stopped: ['#3b82f6', 'rgba(59,130,246,.5)'],
+  online: ['#818cf8', 'rgba(129,140,248,.45)'],
   offline: ['#94a3b8', 'rgba(148,163,184,.25)'],
   power: ['#ef4444', 'rgba(239,68,68,.5)'],
 }

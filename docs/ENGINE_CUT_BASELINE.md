@@ -156,3 +156,9 @@ Additive, read-only changes near it:
 | `backend/src/services/vehicleTelemetry.js` | measured supply ~0 V (needs a working sensor + 2 packets) counts as power loss; unknown is never 0 | power alerts are still suppressed for 60 s after an engine command (cooldown check runs first) |
 
 Tests: `activeCommandReply`, `deviceReply`, `deviceReplyText`, `supplyVoltage`. Full backend suite: same 12 pre-existing failures, nothing new.
+
+### 11b. Follow-up change to the worker (2026-09-29)
+
+`backend/src/services/engineCommands.js` changed in ONE place (worker stage 3, expiry): a pending command that was already queued inside Traccar (`traccar_command_id > 0`, i.e. the vehicle was offline when the cut was requested) is now marked `cancellation_state='pending'` when it expires and is cancelled in Traccar (same `attemptCancellation` path, retried by stage 1 until Traccar confirms). Before, it became `expired` in the database but stayed queued in Traccar and could still run when the tracker reconnected. Nothing else in the file changed (delivery, supersession, cancel, TTL value are the same). New sha256: `5a8928e3e41250b856bae6262c9e88015d30c210ecf2a3b3d452e6532555d2cd`. Test: `backend/test/engineExpiryCancel.test.js` (runs the real worker stage with faked db/Traccar; fails on the previous code).
+
+The client UI now cancels a waiting cut with `POST /devices/:id/command/:commandId/cancel` (never by sending the opposite command).
