@@ -2039,3 +2039,10 @@ write before subsequent packets arrive.
 - `android-build.yml`: fixed failing builds, version code/name, target SDK 35, signed AAB/APK with 4 secrets or a dry-run key; appId `com.athargps.app`.
 - New public page `/account-deletion`, legal links in client Settings, `store-assets/`, docs: `PLAY_STORE_RELEASE.md`, `APP_STORE_RELEASE.md`, `STORE_LISTING.md`, `READINESS_REPORT_2026-09-29.md`.
 - Engine code untouched; engine regression scripts (cut, queue, sent, password, admin, native) pass; backend 287/288 (1 old unrelated test file).
+
+## 2026-09-29 — Admin panel clean-up (owner review as a real admin)
+
+- Add-device forms (quick add, page form, setup wizard): vehicle type is required and never preselected (a car saved by quick-add became a motorbike through the server default and showed two bikes on the map).
+- Removed duplicates: the second "add device" button on the devices page (quick add in the menu + the setup assistant remain); the subscription column on the devices page (the Subscriptions page keeps it; the Renew button stays); the KPI tiles on Reports that repeated the dashboard.
+- Badge "Plan not set · 3 months" reworded to "Not started · 3 months".
+- Engine code untouched; admin engine dialog test passes.

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
-  BarChart2, Users, Cpu, Wifi, WifiOff, Bell, Gauge, Clock, Route as RouteIcon,
+  BarChart2, Gauge, Clock, Route as RouteIcon,
   AlertCircle, Loader2, Calendar
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -31,30 +31,6 @@ function formatDuration(min) {
   const h = Math.floor(m / 60)
   const rem = m % 60
   return rem === 0 ? h + 'h' : h + 'h ' + rem + 'min'
-}
-
-function KpiCard({ icon: Icon, label, value, color, delay }) {
-  const colors = {
-    blue: 'text-blue-600 bg-blue-50',
-    green: 'text-emerald-600 bg-emerald-50',
-    orange: 'text-orange-600 bg-orange-50',
-    purple: 'text-purple-600 bg-purple-50',
-    slate: 'text-slate-600 bg-slate-50',
-  }
-  return (
-    <motion.div
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: delay * 0.06, type: 'spring', damping: 20 }}
-    >
-      <div className={'w-10 h-10 rounded-xl flex items-center justify-center mb-3 ' + (colors[color] || colors.blue)}>
-        <Icon size={20} />
-      </div>
-      <p className="text-2xl font-black text-slate-800 tabular-nums">{value}</p>
-      <p className="text-slate-400 text-xs font-medium mt-1">{label}</p>
-    </motion.div>
-  )
 }
 
 function Spinner({ label }) {
@@ -88,9 +64,6 @@ export default function AdminReports() {
   const isAr = lang === 'ar'
   const safeCtxDevices = Array.isArray(ctxDevices) ? ctxDevices : []
 
-  const [liveStats, setLiveStats] = useState(null)
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [statsError, setStatsError] = useState(null)
 
   const [summaryDays, setSummaryDays] = useState(7)
   const [summaryData, setSummaryData] = useState(null)
@@ -108,14 +81,6 @@ export default function AdminReports() {
   const [reportData, setReportData] = useState(null)
   const [reportLoading, setReportLoading] = useState(false)
   const [reportError, setReportError] = useState(null)
-
-  useEffect(() => {
-    setStatsLoading(true)
-    api.admin.stats()
-      .then(s => { setLiveStats(s); setStatsError(null) })
-      .catch(e => setStatsError(e?.message || (isAr ? 'خطأ' : 'Erreur')))
-      .finally(() => setStatsLoading(false))
-  }, [])
 
   useEffect(() => {
     setSummaryLoading(true)
@@ -189,12 +154,6 @@ export default function AdminReports() {
   const avgSpeed = Number(reportData?.avgSpeed ?? reportData?.avg_speed ?? 0)
   const maxSpeed = Number(reportData?.maxSpeed ?? reportData?.max_speed ?? 0)
 
-  const totalClients = liveStats?.totalClients ?? 0
-  const totalDevices = liveStats?.totalDevices ?? 0
-  const onlineDevices = liveStats?.onlineDevices ?? 0
-  const offlineStale = (liveStats?.offlineDevices ?? 0) + (liveStats?.staleDevices ?? 0)
-  const todayAlerts = liveStats?.todayAlerts ?? 0
-
   const tr = (ar, fr) => isAr ? ar : fr
 
   return (
@@ -205,28 +164,6 @@ export default function AdminReports() {
           <p className="text-slate-400 text-sm mt-0.5">
             {new Date().toLocaleDateString(isAr ? 'ar-MA' : 'fr-MA', { timeZone: APP_TZ, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          {statsLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 animate-pulse">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 mb-3" />
-                <div className="h-7 w-16 bg-gray-100 rounded mb-2" />
-                <div className="h-3 w-20 bg-gray-100 rounded" />
-              </div>
-            ))
-          ) : statsError ? (
-            <div className="col-span-2 lg:col-span-5"><ErrorBlock message={statsError} /></div>
-          ) : (
-            <>
-              <KpiCard icon={Users} label={t(lang, 'totalClients')} value={totalClients} color="blue" delay={0} />
-              <KpiCard icon={Cpu} label={t(lang, 'totalDevices')} value={totalDevices} color="purple" delay={1} />
-              <KpiCard icon={Wifi} label={t(lang, 'onlineDevices')} value={onlineDevices} color="green" delay={2} />
-              <KpiCard icon={WifiOff} label={tr('غير متصل/صامت', 'Hors ligne/Silencieux')} value={offlineStale} color="slate" delay={3} />
-              <KpiCard icon={Bell} label={tr('تنبيهات اليوم', 'Alertes aujourd\'hui')} value={todayAlerts} color="orange" delay={4} />
-            </>
-          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
