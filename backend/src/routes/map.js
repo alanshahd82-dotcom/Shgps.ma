@@ -15,6 +15,7 @@ import {
 import { config } from '../config.js'
 import { speedKmh } from '../utils/speed.js'
 import { pickLocation } from '../utils/location.js'
+import { recoverLastLocations } from '../services/lastKnownLocation.js'
 
     export const mapRouter = Router()
 
@@ -137,6 +138,14 @@ mapRouter.get('/tiles/:z/:x/:y.png', async (req, res) => {
       for (const p of positions) pm[p.deviceId]=p
       const dm = {}
       for (const td of traccarDevices) dm[td.id] = td
+      await recoverLastLocations(rows, {
+        skip: d => !getSubscriptionSnapshot(d).trackingEnabled || pickLocation(pm[d.traccar_id], null) !== null,
+        getWindow: traccar.getHistoryChunk,
+        persist: (row, position) => db.query(
+          'UPDATE devices SET last_lat = $2, last_lng = $3, last_update = COALESCE($4, last_update) WHERE id = $1 AND last_lat IS NULL',
+          [row.id, Number(position.latitude), Number(position.longitude), position.fixTime ?? position.serverTime ?? null],
+        ),
+      }).catch(() => {})
       res.json(rows.map(d => {
         const subscription = getSubscriptionSnapshot(d)
         const position = subscription.trackingEnabled ? pm[d.traccar_id] : null

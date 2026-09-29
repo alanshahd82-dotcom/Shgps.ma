@@ -16,6 +16,7 @@ import {
 } from '../services/subscriptions.js'
 import { speedKmh } from '../utils/speed.js'
 import { pickLocation } from '../utils/location.js'
+import { recoverLastLocations } from '../services/lastKnownLocation.js'
 import { findDeviceReply } from '../services/deviceReply.js'
 import { confirmAccountPassword } from '../utils/passwordConfirm.js'
 import {
@@ -106,6 +107,13 @@ import {
       } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }) }
     })
 
+
+    // Devices that have no valid location anywhere get their last real fix from Traccar's history (once).
+    const persistRecoveredLocation = (row, position) => db.query(
+      'UPDATE devices SET last_lat = $2, last_lng = $3, last_update = COALESCE($4, last_update) WHERE id = $1 AND last_lat IS NULL',
+      [row.id, Number(position.latitude), Number(position.longitude), position.fixTime ?? position.serverTime ?? null],
+    )
+
     devicesRouter.get('/', requireAuth, async (req, res) => {
     try {
       const scope = deviceAccessScope(req.user, 'd')
@@ -153,6 +161,13 @@ import {
           .then(snapshot => { d.subscription_status = snapshot.subscriptionStatus })
           .catch(err => console.warn('[Subscription] state sync skipped:', err.message))
       ))
+
+      await recoverLastLocations(rows, {
+        skip: d => !getSubscriptionSnapshot(d).trackingEnabled
+          || pickLocation(pm[d.traccar_id] ?? positionByImei[d.imei] ?? null, null) !== null,
+        getWindow: traccar.getHistoryChunk,
+        persist: persistRecoveredLocation,
+      }).catch(() => {})
 
       // Load active geofences from local DB for all devices
       let geofenceMap = {}
@@ -558,6 +573,11 @@ import {
       } catch {}
       const freshPosition = positionIsFresh(livePosition, POWER_SILENCE_WINDOW_MS)
       const status = resolveDeviceStatus(traccarDevice, livePosition)
+      await recoverLastLocations([dev], {
+        skip: d => !subscription.trackingEnabled || pickLocation(livePosition, null) !== null,
+        getWindow: traccar.getHistoryChunk,
+        persist: persistRecoveredLocation,
+      }).catch(() => {})
       const location = pickLocation(livePosition, { latitude: dev.last_lat, longitude: dev.last_lng, last_update: dev.last_update })
       const electrical = subscription.trackingEnabled
         ? readElectricalTelemetry(

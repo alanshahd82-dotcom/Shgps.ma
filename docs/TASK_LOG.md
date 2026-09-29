@@ -2046,3 +2046,9 @@ write before subsequent packets arrive.
 - Removed duplicates: the second "add device" button on the devices page (quick add in the menu + the setup assistant remain); the subscription column on the devices page (the Subscriptions page keeps it; the Renew button stays); the KPI tiles on Reports that repeated the dashboard.
 - Badge "Plan not set · 3 months" reworded to "Not started · 3 months".
 - Engine code untouched; admin engine dialog test passes.
+
+## 2026-09-29 — A vehicle never loses its last position
+
+- New `backend/src/services/lastKnownLocation.js`: a device with no valid live fix and no stored location (its last packets had no GPS fix and it went silent before a position was stored) gets its newest valid fix from Traccar's history (windows 0–2, 2–10, 10–45 days), stored once in `devices.last_lat/last_lng/last_update`. Bounded: 4 devices per request, 2.5 s budget, 15 min pause for devices without history. Wired into `GET /devices`, `GET /devices/:id` and `/map/positions`; a failing Traccar/database never breaks the response.
+- Tests: `lastKnownLocation.test.js` (6) and `devicesLocationRecovery.test.js` (route). Backend 294/295 (the old `vehiclesPageLayout.test.js` only). Engine code untouched.
+- Rule kept: an expired subscription still hides the location (existing `trackingEnabled` rule).
