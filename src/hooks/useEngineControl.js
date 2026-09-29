@@ -187,7 +187,11 @@ export function useEngineControl(vehicle, lang = 'ar') {
   // Once hasFetchedRef is true (backend confirmed state, even if null) or
   // activeCommand is non-null, the control is actionable (subject to reach).
   const commandReady = hasFetchedRef.current || activeCommand !== null
-  const canControl = commandReady && isVehicleReachable(vehicle)
+  // The control stays available without a signal: the backend queues the command
+  // (Traccar holds it) and sends it when the tracker reconnects. `reachable` is
+  // exposed so the UI can say "will run when the signal returns".
+  const reachable = isVehicleReachable(vehicle)
+  const canControl = commandReady
 
   // Phase 1: derive the UI feedback message from the authoritative command.
   // FIX B: only derive the success message from activeCommand after the
@@ -243,7 +247,10 @@ export function useEngineControl(vehicle, lang = 'ar') {
 
   const deviceReplyInfo = describeDeviceReply(deviceReply, lang)
 
-  return { engineRunning, canControl, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
+  const cutPending = isCutPending(activeCommand)
+  const resumePending = isResumePending(activeCommand)
+
+  return { engineRunning, canControl, reachable, cutPending, resumePending, sending, error, success, send, clearFeedback, activeCommand, commandLoading, deviceReply, deviceReplyInfo }
 }
 
 export default useEngineControl

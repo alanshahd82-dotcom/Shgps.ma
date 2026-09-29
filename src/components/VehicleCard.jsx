@@ -9,14 +9,11 @@ import {
 import { useReverseGeocode } from '../utils/reverseGeocode'
 import { useEngineControl } from '../hooks/useEngineControl'
 import { agoLabel, locationState } from '../utils/location'
-import carArt from '../assets/vehicle-car.webp'
-import bikeArt from '../assets/vehicle-bike.webp'
-import truckArt from '../assets/vehicle-truck.webp'
+import VehicleGraphic from './VehicleGraphic'
 
 // Unified vehicle/device card used everywhere a vehicle is listed.
 // The artwork always matches the vehicle type: car / bike / truck,
 // and it is "alive": it floats, gently tilts, and reacts to motion.
-const CARD_ART = { car: carArt, bike: bikeArt, truck: truckArt }
 
 const TYPE_LABEL = {
   car: { ar: 'سيارة', fr: 'Voiture' },
@@ -30,6 +27,7 @@ const L = {
     speed: 'السرعة', status: 'الحالة', powerCut: 'الطاقة مفصولة', kmh: 'كم/س', lastUpdate: 'آخر تحديث', na: '—',
     overspeed: 'تجاوز السرعة', battery: 'البطارية', signal: 'الإشارة',
     cutEngine: 'قطع', restoreEngine: 'تشغيل', confirm: 'تأكيد؟',
+    cutQueued: 'قطع عند عودة الإشارة', restoreQueued: 'تشغيل عند عودة الإشارة', confirmQueued: 'تأكيد: يُنفَّذ عند عودة الإشارة', cutPending: 'قطع بانتظار الإشارة · اضغط للإلغاء', cancelConfirm: 'تأكيد إلغاء القطع؟', queuedHint: 'الأمر يُحفظ ويُنفَّذ تلقائياً عند عودة الإشارة',
     address: 'العنوان', km: 'كم', loading: '...', failed: 'فشل',
     lastKnown: 'آخر موقع معروف', noGps: 'لا توجد إشارة GPS', noLocation: 'الموقع غير متاح',
   },
@@ -38,6 +36,7 @@ const L = {
     speed: 'Vitesse', status: 'Statut', powerCut: 'Alimentation coupée', kmh: 'km/h', lastUpdate: 'Dernière maj', na: '—',
     overspeed: 'Excès de vitesse', battery: 'Batterie', signal: 'Signal',
     cutEngine: 'Couper', restoreEngine: 'Démarrer', confirm: 'Confirmer?',
+    cutQueued: 'Couper dès le retour du signal', restoreQueued: 'Démarrer dès le retour du signal', confirmQueued: 'Confirmer : exécuté au retour du signal', cutPending: 'Coupure en attente du signal · appuyer pour annuler', cancelConfirm: 'Confirmer l’annulation ?', queuedHint: 'La commande est gardée et exécutée automatiquement au retour du signal',
     address: 'Adresse', km: 'km', loading: '...', failed: 'Échec',
     lastKnown: 'Dernière position connue', noGps: 'Pas de signal GPS', noLocation: 'Position indisponible',
   },
@@ -118,39 +117,16 @@ function BatteryIcon({ voltage, powerDisconnected }) {
   )
 }
 
-// ── Cinematic "stage" behind the vehicle ─────────────────────────────────────
-// One look per situation so the fleet can be read at a glance.
-const STAGE = {
-  move:  { bg: 'linear-gradient(135deg,#1e1b4b 0%,#4338ca 55%,#7c3aed 115%)', glow: 'rgba(167,139,250,.55)', dial: '#c7d2fe' },
-  live:  { bg: 'linear-gradient(135deg,#0b1220 0%,#1e3a8a 62%,#2563eb 125%)', glow: 'rgba(96,165,250,.45)',  dial: '#bfdbfe' },
-  off:   { bg: 'linear-gradient(135deg,#1e293b 0%,#475569 120%)',              glow: 'rgba(148,163,184,.22)', dial: '#cbd5e1' },
-  power: { bg: 'linear-gradient(135deg,#450a0a 0%,#b91c1c 120%)',              glow: 'rgba(248,113,113,.5)',  dial: '#fecaca' },
-  alarm: { bg: 'linear-gradient(135deg,#431407 0%,#ea580c 120%)',              glow: 'rgba(251,146,60,.5)',   dial: '#fed7aa' },
+// ── Stage behind the vehicle ─────────────────────────────────────────────────
+// The vehicle's own body colour tells the situation; the scene stays calm.
+const TONE = {
+  move:  { body: '#22c55e', glow: 'rgba(34,197,94,.42)' },
+  live:  { body: '#818cf8', glow: 'rgba(129,140,248,.38)' },
+  off:   { body: '#94a3b8', glow: 'rgba(148,163,184,.16)' },
+  power: { body: '#ef4444', glow: 'rgba(239,68,68,.42)' },
+  alarm: { body: '#f97316', glow: 'rgba(249,115,22,.42)' },
 }
-
-// Speed ring: 270° gauge, the number sits in the middle.
-function SpeedDial({ value, active, color, unit, max = 140 }) {
-  const r = 26
-  const c = 2 * Math.PI * r
-  const arc = c * 0.75
-  const pct = active ? Math.min(1, Math.max(0, Number(value) || 0) / max) : 0
-  return (
-    <span className="relative flex h-[68px] w-[68px] shrink-0 items-center justify-center" aria-hidden="true">
-      <svg viewBox="0 0 64 64" className="absolute inset-0 h-full w-full rotate-[135deg]">
-        <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,.16)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${arc} ${c}`} />
-        <circle
-          cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
-          strokeDasharray={`${arc * pct} ${c}`}
-          style={{ transition: 'stroke-dasharray .7s cubic-bezier(.22,1,.36,1)', filter: 'drop-shadow(0 0 4px rgba(255,255,255,.35))' }}
-        />
-      </svg>
-      <span className="relative flex flex-col items-center leading-none text-white">
-        <span className="text-[19px] font-extrabold tabular-nums">{active ? value : '—'}</span>
-        <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-white/60">{unit}</span>
-      </span>
-    </span>
-  )
-}
+const SKYLINE = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='40'%3E%3Cpath fill='white' fill-opacity='.09' d='M0 40V22h14V12h12v10h10V6h16v16h12V16h14v24zm120 0V20h12V10h14v10h10V14h16v26zm100 0V24h20v16z'/%3E%3C/svg%3E\")"
 
 // ── Daily distance from total odometer ────────────────────────────────────────
 function getDailyDistance(deviceId, totalDistance) {
@@ -184,7 +160,6 @@ export function VehicleCard({
   const l = L[lang === 'fr' ? 'fr' : 'ar']
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
   const type = normalizeVehicleType(vehicle.type)
-  const art = CARD_ART[type] || carArt
   const online = vehicle.status === 'online'
   const rawSpeed = Number.isFinite(Number(vehicle.speed)) ? Number(vehicle.speed) : null
   const speed = useLiveNumber(rawSpeed)
@@ -215,7 +190,8 @@ export function VehicleCard({
     }
     clearTimeout(engineTimerRef.current)
     setEngineConfirm(false)
-    const turnOff = engineRunning
+    // A cut that is still waiting for the signal is cancelled by sending the opposite command.
+    const turnOff = engine.cutPending ? false : engineRunning
     Promise.resolve(engine.send(turnOff))
       .finally(() => { setTimeout(() => engine.clearFeedback(), 4000) })
   }
@@ -240,109 +216,76 @@ export function VehicleCard({
       className={`group relative w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 bg-white text-start shadow-sm transition hover:shadow-lg hover:shadow-indigo-100 active:scale-[.99] ${className}`}
       style={{ perspective: '600px' }}
     >
-      {/* Stage: gradient scene per situation, big vehicle, speed ring, moving road */}
+      {/* Stage: the vehicle drives on a road; its colour follows the situation */}
       {(() => {
         const powerCut = vehicle.powerDisconnected === true
         const tone = powerCut ? 'power' : overspeed ? 'alarm' : !online ? 'off' : moving ? 'move' : 'live'
-        const st = STAGE[tone]
-        const side = dir === 'rtl' ? 'left' : 'right'
-        const artH = compact ? 118 : 138
+        const tn = TONE[tone]
+        const rtl = dir === 'rtl'
+        const side = rtl ? 'left' : 'right'
+        const start = rtl ? 'right' : 'left'
+        const height = compact ? 128 : 140
+        const carW = compact ? 148 : 164
+        const spd = online && rawSpeed != null ? speed : null
         return (
-          <div className="relative overflow-hidden" style={{ background: st.bg, minHeight: compact ? 148 : 168 }}>
-            {/* soft light behind the vehicle */}
-            <span aria-hidden="true" className="pointer-events-none absolute h-40 w-40 rounded-full blur-2xl"
-              style={{ [side]: -10, top: 6, background: st.glow, animation: `vc-breathe ${floatDur} ease-in-out infinite` }} />
-            {/* grid + light rays for depth */}
-            <span aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[.12]"
-              style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.7) 1px, transparent 1px)', backgroundSize: '26px 26px', maskImage: 'linear-gradient(to bottom, transparent, black 70%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 70%)' }} />
-            {/* road: dashed line that runs while the vehicle moves */}
-            <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-7 bg-black/25" />
-            <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[11px] h-[3px] opacity-70"
-              style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.85) 0 18px, transparent 18px 44px)', backgroundSize: '88px 3px', animation: moving ? `vc-road ${fast ? 0.5 : 0.9}s linear infinite` : 'none' }} />
-            {/* speed streaks while moving */}
+          <div className="relative overflow-hidden" style={{ height, background: 'linear-gradient(135deg,#0a1020 0%,#111b33 60%,#16233f 130%)' }}>
+            <span aria-hidden="true" className="pointer-events-none absolute h-28 w-28 rounded-full blur-2xl"
+              style={{ [side]: 0, bottom: 4, background: tn.glow, animation: `vc-breathe ${floatDur} ease-in-out infinite` }} />
+            {/* skyline slides slowly behind the vehicle */}
+            <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[22px] h-10"
+              style={{ backgroundImage: SKYLINE, backgroundRepeat: 'repeat-x', backgroundSize: '240px 40px', animation: moving ? `vc-city ${fast ? 3 : 6}s linear infinite` : 'none' }} />
+            {/* road */}
+            <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[22px] bg-black/35" />
+            <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-[9px] h-[3px] opacity-70"
+              style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.85) 0 16px, transparent 16px 40px)', backgroundSize: '80px 3px', animation: moving ? `vc-road ${fast ? 0.45 : 0.8}s linear infinite` : 'none' }} />
             {moving && (
               <span aria-hidden="true" className="absolute inset-0 overflow-hidden">
-                {[0, 1, 2, 3].map(i => (
-                  <span key={i} className="absolute h-px w-14 rounded-full bg-gradient-to-r from-transparent via-white/70 to-transparent"
-                    style={{ top: `${22 + i * 16}%`, [dir === 'rtl' ? 'right' : 'left']: 0, animation: `vc-streak ${0.8 + i * 0.22}s linear infinite`, animationDelay: `${i * 0.18}s` }} />
+                {[0, 1, 2].map(i => (
+                  <span key={i} className="absolute h-px w-12 rounded-full bg-gradient-to-r from-transparent via-white/60 to-transparent"
+                    style={{ top: `${30 + i * 15}%`, [rtl ? 'right' : 'left']: 0, animation: `vc-streak ${0.7 + i * 0.2}s linear infinite`, animationDelay: `${i * 0.17}s` }} />
                 ))}
               </span>
             )}
 
-            {/* vehicle artwork */}
-            <img
-              src={art}
-              alt={typeLabel}
-              loading="lazy"
-              width={1024}
-              height={1024}
-              className={`pointer-events-none absolute bottom-3 object-contain transition-all duration-500 group-hover:scale-105 ${online ? '' : 'grayscale opacity-60'}`}
-              style={{
-                [side]: compact ? 6 : 10,
-                height: artH,
-                width: artH,
-                filter: online ? 'drop-shadow(0 14px 14px rgba(0,0,0,.45))' : undefined,
-                animation: `vc-float ${floatDur} ease-in-out infinite`,
-              }}
-            />
-            <span aria-hidden="true" className="absolute bottom-[7px] h-2.5 rounded-[50%] bg-black/45 blur-[3px]"
-              style={{ [side]: compact ? 22 : 28, width: artH * 0.7, animation: `vc-shadow ${floatDur} ease-in-out infinite` }} />
+            {/* the vehicle */}
+            <span className="pointer-events-none absolute" style={{ [side]: compact ? 8 : 12, bottom: 11, width: carW, animation: moving ? `vc-drive ${fast ? 1.2 : 2}s ease-in-out infinite` : 'none' }}>
+              <VehicleGraphic type={type} color={tn.body} moving={moving} speed={Number(rawSpeed) || 0} muted={!online}
+                className="block w-full" style={{ transform: rtl ? 'scaleX(-1)' : undefined, filter: online ? 'drop-shadow(0 6px 6px rgba(0,0,0,.5))' : undefined }} />
+            </span>
 
-            {/* content */}
-            <div className={`relative flex h-full flex-col justify-between ${compact ? 'p-3' : 'p-3.5'}`} style={{ minHeight: compact ? 148 : 168 }}>
-              <div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white ring-1 ring-white/25 backdrop-blur-sm">
-                    <span className="relative flex h-1.5 w-1.5">
-                      {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />}
-                      <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                    </span>
-                    {online ? (moving ? l.moving : l.online) : l.offline}
+            {/* battery + signal (top corner opposite the text) */}
+            <span className="absolute top-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold text-white ring-1 ring-white/15 backdrop-blur-sm" style={{ [side]: 8 }}>
+              <span className="inline-flex items-center gap-1"><BatteryIcon voltage={vehicle.voltage} powerDisconnected={vehicle.powerDisconnected} /><bdi className="tabular-nums">{power}</bdi></span>
+              <SignalBars signal={vehicle.signal} />
+            </span>
+
+            {/* text */}
+            <div className="absolute top-2 flex flex-col" style={{ [start]: 12, maxWidth: '54%' }}>
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-2 py-0.5 text-[10px] font-bold text-white ring-1 ring-white/20">
+                  <span className="relative flex h-1.5 w-1.5">
+                    {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />}
+                    <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-400'}`} />
                   </span>
-                  {powerCut && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-red-700">
-                      <PlugZap size={10} /> {l.powerCut}
-                    </span>
-                  )}
-                  {overspeed && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-red-600">
-                      <AlertTriangle size={10} /> {l.overspeed}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 max-w-[62%] truncate text-[16px] font-extrabold leading-tight text-white drop-shadow-sm">
-                  {vehicle.name || vehicle.uniqueId || l.na}
-                </p>
-                <p className="max-w-[62%] truncate text-[11px] font-semibold tracking-wide text-white/65">{vehicle.plate || vehicle.uniqueId || l.na}</p>
+                  {online ? (moving ? l.moving : l.online) : l.offline}
+                </span>
+                {powerCut && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold text-red-700"><PlugZap size={9} /> {l.powerCut}</span>
+                )}
+                {overspeed && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold text-orange-600"><AlertTriangle size={9} /> {l.overspeed}</span>
+                )}
               </div>
-              <div className="mt-2 flex items-end">
-                <SpeedDial value={speed} active={online && rawSpeed != null} color={overspeed ? '#fca5a5' : st.dial} unit={l.kmh} />
-              </div>
+              <p className="mt-1.5 truncate text-[15px] font-extrabold leading-tight text-white">{vehicle.name || vehicle.uniqueId || l.na}</p>
+              <p className="truncate text-[10.5px] font-semibold tracking-wide text-white/55">{vehicle.plate || vehicle.uniqueId || l.na}</p>
+            </div>
+            <div className="absolute flex items-baseline gap-1 text-white" style={{ [start]: 12, bottom: 28 }}>
+              <span className="text-[24px] font-extrabold leading-none tabular-nums" style={{ textShadow: '0 0 14px ' + tn.glow }}>{spd ?? '—'}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-white/55">{l.kmh}</span>
             </div>
           </div>
         )
       })()}
-
-      {/* battery | signal | distance */}
-      <div className="relative flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-slate-100 bg-white px-3.5 py-2.5">
-        <span className="flex items-center gap-1.5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-            <BatteryIcon voltage={vehicle.voltage} powerDisconnected={vehicle.powerDisconnected} />
-          </span>
-          <span className="leading-tight">
-            <span className="block whitespace-nowrap text-[12px] font-extrabold tabular-nums text-slate-900"><bdi>{power}</bdi></span>
-            <span className="block text-[9px] text-slate-400">{l.battery}</span>
-          </span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50">
-            <SignalBars signal={vehicle.signal} />
-          </span>
-          <span className="leading-tight">
-            <span className="block text-[9px] text-slate-400">{l.signal}</span>
-          </span>
-        </span>
-      </div>
 
       {/* bottom bar: address + heading/distance + last update + engine */}
       <div className="relative flex items-center gap-2 border-t border-slate-100 px-3 py-2">
@@ -384,36 +327,50 @@ export function VehicleCard({
 
       </div>
 
-      {/* Engine control — the primary action */}
-      {canControlEngine && (
-        <div className="border-t border-slate-100 p-2.5">
-          <button
-            type="button"
-            onClick={handleEngineClick}
-            disabled={engineLoading}
-            className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-extrabold transition-colors disabled:opacity-70 ${
-              engineConfirm
-                ? 'animate-pulse bg-red-700 text-white ring-4 ring-red-200'
-                : engineRunning
-                  ? 'bg-red-600 text-white shadow-md shadow-red-200/70 hover:bg-red-700 active:scale-[0.99]'
-                  : 'bg-emerald-600 text-white shadow-md shadow-emerald-200/70 hover:bg-emerald-700 active:scale-[0.99]'
-            }`}
-            aria-label={engineRunning ? l.cutEngine : l.restoreEngine}
-          >
-            {engineLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power size={16} />}
-            {engineLoading ? l.loading : engineErr ? l.failed : engineConfirm ? l.confirm : engineRunning ? l.cutEngine : l.restoreEngine}
-          </button>
-          {engine.deviceReplyInfo && (
-            <p
-              role="status"
-              data-tone={engine.deviceReplyInfo.tone}
-              className={`mt-1.5 px-1 text-center text-[11px] font-bold leading-4 ${engine.deviceReplyInfo.tone === 'warn' ? 'text-red-600' : engine.deviceReplyInfo.tone === 'wait' ? 'text-amber-600' : 'text-emerald-600'}`}
+      {/* Engine control — always available; without a signal the command is kept and runs when the tracker reconnects */}
+      {canControlEngine && (() => {
+        const offline = !engine.reachable
+        const pending = engine.cutPending
+        const label = engineLoading ? l.loading
+          : engineErr ? l.failed
+            : engineConfirm ? (pending ? l.cancelConfirm : (offline && engineRunning ? l.confirmQueued : l.confirm))
+              : pending ? l.cutPending
+                : engineRunning ? (offline ? l.cutQueued : l.cutEngine)
+                  : (offline ? l.restoreQueued : l.restoreEngine)
+        const tone = engineConfirm
+          ? 'animate-pulse bg-red-700 text-white ring-4 ring-red-200'
+          : pending
+            ? 'bg-amber-500 text-white shadow-md shadow-amber-200/70 hover:bg-amber-600 active:scale-[0.99]'
+            : engineRunning
+              ? 'bg-red-600 text-white shadow-md shadow-red-200/70 hover:bg-red-700 active:scale-[0.99]'
+              : 'bg-emerald-600 text-white shadow-md shadow-emerald-200/70 hover:bg-emerald-700 active:scale-[0.99]'
+        return (
+          <div className="border-t border-slate-100 p-2">
+            <button
+              type="button"
+              onClick={handleEngineClick}
+              disabled={engineLoading}
+              className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-extrabold transition-colors disabled:opacity-70 ${tone}`}
+              aria-label={label}
             >
-              {engine.deviceReplyInfo.text}
-            </p>
-          )}
-        </div>
-      )}
+              {engineLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : pending ? <Clock size={16} /> : <Power size={16} />}
+              {label}
+            </button>
+            {offline && !pending && (
+              <p className="mt-1 px-1 text-center text-[10px] font-semibold leading-4 text-slate-400">{l.queuedHint}</p>
+            )}
+            {engine.deviceReplyInfo && (
+              <p
+                role="status"
+                data-tone={engine.deviceReplyInfo.tone}
+                className={`mt-1.5 px-1 text-center text-[11px] font-bold leading-4 ${engine.deviceReplyInfo.tone === 'warn' ? 'text-red-600' : engine.deviceReplyInfo.tone === 'wait' ? 'text-amber-600' : 'text-emerald-600'}`}
+              >
+                {engine.deviceReplyInfo.text}
+              </p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* keyframes scoped via emotion-free inline <style> */}
       <style>{`
@@ -433,13 +390,23 @@ export function VehicleCard({
           from { background-position-x: 0; }
           to { background-position-x: ${dir === 'rtl' ? '' : '-'}88px; }
         }
+        @keyframes vc-city {
+          from { background-position-x: 0; }
+          to { background-position-x: ${dir === 'rtl' ? '' : '-'}240px; }
+        }
+        @keyframes vc-drive {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(${dir === 'rtl' ? '-' : ''}5px); }
+        }
+        @keyframes vg-spin { to { transform: rotate(360deg); } }
+        @keyframes vg-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2px); } }
         @keyframes vc-streak {
           0% { transform: translateX(0); opacity: 0; }
           15% { opacity: 1; }
           100% { transform: translateX(${dir === 'rtl' ? '' : '-'}140px); opacity: 0; }
         }
         @media (prefers-reduced-motion: reduce) {
-          [style*="vc-float"], [style*="vc-shadow"], [style*="vc-breathe"], [style*="vc-streak"], [style*="vc-road"] { animation: none !important; }
+          [style*="vc-float"], [style*="vc-shadow"], [style*="vc-breathe"], [style*="vc-streak"], [style*="vc-road"], [style*="vc-city"], [style*="vc-drive"], [style*="vg-spin"], [style*="vg-bob"] { animation: none !important; }
         }
       `}</style>
     </div>
