@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle, Bell, ChevronLeft, Car, Map as MapIcon,
   Zap, CheckCircle2, Activity, Gauge, PlugZap, WifiOff, Search, SatelliteDish, Route, Fence,
+  Home as HomeIcon, MoreHorizontal,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import VehicleCard from '../../components/VehicleCard'
 import { vehiclePoint } from '../../utils/location'
 import { getDeviceStatusKey } from '../../components/ui'
 import { fleetBucket } from '../../utils/fleetBucket'
+import TabBar from '../../components/TabBar'
 
 function useLang() {
   const { lang } = useApp()
@@ -76,28 +78,18 @@ function statusInfo(vehicle) {
 
 function BottomNav({ active, lang, navigate }) {
   const tabs = [
-    { id: 'home', icon: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>, route: '/client/home' },
-    { id: 'vehicles', icon: Car, route: '/client/vehicles' },
-    { id: 'alerts', icon: Bell, route: '/client/alerts' },
-    { id: 'trips', icon: Activity, route: '/client/trips' },
-    { id: 'more', icon: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>, route: '/client/more' },
+    { id: 'home', Icon: HomeIcon, route: '/client/home' },
+    { id: 'vehicles', Icon: Car, route: '/client/vehicles' },
+    { id: 'alerts', Icon: Bell, route: '/client/alerts' },
+    { id: 'trips', Icon: Route, route: '/client/trips' },
+    { id: 'more', Icon: MoreHorizontal, route: '/client/more' },
   ]
   return (
-    <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 pb-[env(safe-area-inset-bottom)]">
-      <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
-        {tabs.map(tb => {
-          const Icon = tb.icon; const isActive = active === tb.id
-          return (
-            <button key={tb.id} onClick={() => navigate(tb.route)}
-              className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-500'}`}>
-              <Icon className="h-5 w-5" />
-              <span>{t(tb.id, lang)}</span>
-              {isActive && <span className="absolute top-0 h-[3px] w-10 bg-indigo-600 rounded-b" />}
-            </button>
-          )
-        })}
-      </div>
-    </nav>
+    <TabBar
+      activeId={active}
+      onSelect={id => navigate(tabs.find(tb => tb.id === id).route)}
+      tabs={tabs.map(tb => ({ id: tb.id, label: t(tb.id, lang), Icon: tb.Icon }))}
+    />
   )
 }
 

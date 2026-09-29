@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { MapContainer, useMap } from 'react-leaflet'
 import LiveVehicleMarker from '../../components/LiveVehicleMarker'
 import MapTileLayer from '../../components/MapTileLayer'
-import { Activity, ArrowLeft, ChevronDown, ArrowRight, Car, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, User, X, Zap } from 'lucide-react'
+import { Activity, ArrowLeft, Bell, ChevronDown, ArrowRight, Car, Home, MoreHorizontal, CheckCheck, Copy, LocateFixed, Loader2, Maximize2, Minimize2, Pencil, Phone, Route, Save, Share2, Square, User, X, Zap } from 'lucide-react'
 import { api } from '../../api/index.js'
 import { useApp } from '../../context/AppContext'
 import { useRealVehicles } from '../../design-system/hooks/useRealVehicles'
@@ -16,6 +16,7 @@ import { normalizeVehicleType } from '../../utils/vehicleAssets'
 import { useEngineControl } from '../../hooks/useEngineControl'
 import { agoLabel, locationState } from '../../utils/location'
 import { canManageAccount } from '../../utils/permissions.js'
+import TabBar from '../../components/TabBar'
 
 const VEHICLE_TYPES = ['car', 'bike', 'truck']
 const FIELD_LABEL = 'mb-1.5 block text-[11px] font-bold text-slate-500'
@@ -101,22 +102,18 @@ function WIcon() {
 
 function BottomNav({ navigate, lang }) {
   const tabs = [
-    { id:'home', label:{ar:'الرئيسية',fr:'Accueil'}, route:'/client/home', icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg> },
-    { id:'vehicles', label:{ar:'المركبات',fr:'Véhicules'}, route:'/client/vehicles', icon:<Car className="h-5 w-5"/> },
-    { id:'alerts', label:{ar:'التنبيهات',fr:'Alertes'}, route:'/client/alerts', icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg> },
-    { id:'trips', label:{ar:'الرحلات',fr:'Trajets'}, route:'/client/trips', icon:<Route className="h-5 w-5"/> },
-    { id:'more', label:{ar:'المزيد',fr:'Plus'}, route:'/client/more', icon:<svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg> },
+    { id:'home', label:{ar:'الرئيسية',fr:'Accueil'}, route:'/client/home', Icon: Home },
+    { id:'vehicles', label:{ar:'المركبات',fr:'Véhicules'}, route:'/client/vehicles', Icon: Car },
+    { id:'alerts', label:{ar:'التنبيهات',fr:'Alertes'}, route:'/client/alerts', Icon: Bell },
+    { id:'trips', label:{ar:'الرحلات',fr:'Trajets'}, route:'/client/trips', Icon: Route },
+    { id:'more', label:{ar:'المزيد',fr:'Plus'}, route:'/client/more', Icon: MoreHorizontal },
   ]
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
-        {tabs.map(tb => (
-          <button key={tb.id} type="button" onClick={() => navigate(tb.route)} className="flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-slate-500">
-            {tb.icon}<span>{tb.label[lang] || tb.label.ar}</span>
-          </button>
-        ))}
-      </div>
-    </nav>
+    <TabBar
+      activeId="vehicles"
+      onSelect={id => navigate(tabs.find(tb => tb.id === id).route)}
+      tabs={tabs.map(tb => ({ id: tb.id, label: tb.label[lang] || tb.label.ar, Icon: tb.Icon }))}
+    />
   )
 }
 
