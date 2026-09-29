@@ -117,6 +117,32 @@ const REASON_STYLE = {
 
 const VISIBLE_VEHICLES = 6
 
+const TAGLINES = {
+  ar: ['تتبّع مركباتك لحظة بلحظة', 'تحكّم كامل في محرّك مركبتك', 'تنبيهات فورية عند أي خطر', 'رحلات وتقارير بدقّة عالية'],
+  fr: ['Suivez vos véhicules en temps réel', 'Contrôlez le moteur à distance', 'Alertes instantanées en cas de risque', 'Trajets et rapports précis'],
+}
+
+// A professional slogan that changes every few seconds (a still line when the phone asks for reduced motion).
+function RotatingTagline({ lang }) {
+  const lines = TAGLINES[lang] || TAGLINES.fr
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    let still = false
+    try { still = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches } catch { /* ignore */ }
+    if (still) return undefined
+    const id = setInterval(() => setI(n => (n + 1) % lines.length), 3600)
+    return () => clearInterval(id)
+  }, [lines.length])
+  return (
+    <div className="mt-3 h-6 overflow-hidden" aria-hidden="true">
+      <p key={i} className="athar-tagline flex items-center gap-2 text-[13px] font-bold tracking-wide text-white/90">
+        <span className="h-1 w-5 rounded-full bg-gradient-to-r from-cyan-300 to-indigo-300" />
+        {lines[i % lines.length]}
+      </p>
+    </div>
+  )
+}
+
 export default function Home() {
   // `devices` already carries the live merged position (AppContext merges the
   // websocket snapshot into it), and alerts live in `alertsList`.
@@ -240,11 +266,13 @@ export default function Home() {
                   <span className="text-sm font-semibold text-white/80">{t('total', lang)}</span>
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold ring-1 ring-white/20" role="status">
-                <span className={`h-1.5 w-1.5 rounded-full ${wsConnected ? 'bg-emerald-400' : 'bg-amber-300 animate-pulse'}`} />
-                {wsConnected ? t('live', lang) : t('reconnecting', lang)}
+              {/* connection state: a quiet dot while live, a short label only when the link drops */}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2 py-1 text-[11px] font-bold ring-1 ring-white/20" role="status" aria-label={wsConnected ? t('live', lang) : t('reconnecting', lang)}>
+                <span className={`h-2 w-2 rounded-full ${wsConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.9)]' : 'bg-amber-300 animate-pulse'}`} />
+                {!wsConnected && t('reconnecting', lang)}
               </span>
             </div>
+            <RotatingTagline lang={lang} />
             {/* proportions of the fleet */}
             <div className="mt-4 flex h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true">
               {total > 0 && segments.filter(x => x.n > 0).map(x => (
