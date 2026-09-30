@@ -76,11 +76,16 @@ services:
       GEOAPIFY_MAP_STYLE:     ${GEOAPIFY_MAP_STYLE:-osm-bright}
       FRONTEND_URL:           ${FRONTEND_URL}
       NODE_ENV:               production
+    # service_started (not service_healthy): the Docker health checks on this host are broken
+    # (`docker exec` fails with a libseccomp error), so postgres/traccar are reported "unhealthy"
+    # although they run fine, and a recreated backend would stay in "Created" forever (HTTP 502).
+    # restart: unless-stopped brings it back if the database is not ready on the first try.
+    # (Traccar is left as it was on purpose: it is not recreated by a deploy, so it is not restarted.)
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       traccar:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
     networks:
       - shgps
