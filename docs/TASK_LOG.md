@@ -2069,3 +2069,8 @@ write before subsequent packets arrive.
 ## 2026-09-30 — Real contact details in the store-facing pages
 
 - Privacy, Terms and Account deletion now show `athargpstraveler@gmail.com` and `+212 618 846 582`; "last updated" is September 2026. Support defaults (`+212600000000`) are only fallbacks when the database has no value (set them in Admin > Support data).
+
+## 2026-09-30 — Backend stuck in "Created" after a deploy (HTTP 502)
+
+- Cause: Docker health checks are broken on the host (`docker exec` libseccomp error), so postgres/traccar are always "unhealthy"; the backend, recreated by the deploy, waited for a healthy postgres and never started. First aid: `docker start shgps-backend-1`.
+- Fix: in `docker-compose.yml` the backend now depends on postgres/traccar with `service_started` (Traccar's own dependency is unchanged so a deploy does not restart it). Underlying host problems remain open for the owner: broken `docker exec`, ~1 GB RAM, `npm ci` timeouts.
