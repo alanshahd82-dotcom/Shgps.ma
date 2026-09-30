@@ -7,7 +7,7 @@ const content = {
   ar: {
     title: 'سياسة الخصوصية',
     subtitle: 'نحن ملتزمون بحماية بياناتك الشخصية وبيانات موقع مركباتك',
-    updated: 'آخر تحديث: يناير 2025',
+    updated: 'آخر تحديث: سبتمبر 2026',
     sections: [
       {
         h: '1. المعلومات التي نجمعها',
@@ -31,7 +31,7 @@ const content = {
       },
       {
         h: '6. حقوقك',
-        p: 'لديك الحق في: الاطلاع على بياناتك الشخصية، تصحيحها، حذفها، الاعتراض على معالجتها، وطلب نقلها. لممارسة هذه الحقوق، تواصل معنا عبر البريد الإلكتروني: privacy@athargps.ma',
+        p: 'لديك الحق في: الاطلاع على بياناتك الشخصية، تصحيحها، حذفها، الاعتراض على معالجتها، وطلب نقلها. لممارسة هذه الحقوق، تواصل معنا عبر البريد الإلكتروني: athargpstraveler@gmail.com',
       },
       {
         h: '7. ملفات تعريف الارتباط',
@@ -47,14 +47,14 @@ const content = {
       },
       {
         h: '10. التواصل',
-        p: 'لأي استفسارات حول الخصوصية: privacy@athargps.ma | هاتف: +212 600 000 000',
+        p: 'لأي استفسارات حول الخصوصية: athargpstraveler@gmail.com | هاتف: +212 618 846 582',
       },
     ],
   },
   en: {
     title: 'Privacy Policy',
     subtitle: 'We are committed to protecting your personal data and your vehicles\' location data',
-    updated: 'Last updated: January 2025',
+    updated: 'Last updated: September 2026',
     sections: [
       {
         h: '1. Information We Collect',
@@ -78,7 +78,7 @@ const content = {
       },
       {
         h: '6. Your Rights',
-        p: 'You have the right to access, correct, delete, object to the processing of, and request portability of your data. To exercise these rights, contact us at: privacy@athargps.ma',
+        p: 'You have the right to access, correct, delete, object to the processing of, and request portability of your data. To exercise these rights, contact us at: athargpstraveler@gmail.com',
       },
       {
         h: '7. Cookies',
@@ -94,7 +94,7 @@ const content = {
       },
       {
         h: '10. Contact',
-        p: 'For any privacy questions: privacy@athargps.ma | Tel: +212 600 000 000',
+        p: 'For any privacy questions: athargpstraveler@gmail.com | Tel: +212 618 846 582',
       },
     ],
   },

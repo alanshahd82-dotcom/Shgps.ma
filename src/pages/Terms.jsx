@@ -7,7 +7,7 @@ const content = {
   ar: {
     title: 'الشروط والأحكام',
     subtitle: 'يرجى قراءة هذه الشروط بعناية قبل استخدام خدمة ATHAR GPS',
-    updated: 'آخر تحديث: يناير 2025',
+    updated: 'آخر تحديث: سبتمبر 2026',
     sections: [
       {
         h: '1. قبول الشروط',
@@ -47,14 +47,14 @@ const content = {
       },
       {
         h: '10. التواصل',
-        p: 'لأي استفسارات حول هذه الشروط، يُرجى التواصل عبر: support@athargps.ma',
+        p: 'لأي استفسارات حول هذه الشروط، يُرجى التواصل عبر: athargpstraveler@gmail.com',
       },
     ],
   },
   en: {
     title: 'Terms & Conditions',
     subtitle: 'Please read these terms carefully before using ATHAR GPS',
-    updated: 'Last updated: January 2025',
+    updated: 'Last updated: September 2026',
     sections: [
       {
         h: '1. Acceptance of Terms',
@@ -94,7 +94,7 @@ const content = {
       },
       {
         h: '10. Contact',
-        p: 'For any questions about these terms: support@athargps.ma',
+        p: 'For any questions about these terms: athargpstraveler@gmail.com',
       },
     ],
   },

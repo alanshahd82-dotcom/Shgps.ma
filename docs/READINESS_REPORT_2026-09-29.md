@@ -20,7 +20,7 @@
 ## Owner-only items
 1. Google Play developer account (25 USD) + closed test (12 testers, 14 days) for a new personal account.
 2. Create the signing key and the 4 GitHub secrets (`docs/PLAY_STORE_RELEASE.md`).
-3. Real privacy e-mail / phone / date (currently placeholders in Privacy, Terms, Account deletion).
+3. ~~Real privacy e-mail / phone / date~~ done on 2026-09-30: `athargpstraveler@gmail.com`, `+212 618 846 582`, September 2026.
 4. A demo client account for the store reviewers.
 5. Confirm the appId `com.athargps.app`.
 6. Server hygiene (not a store blocker, but important for real customers): more RAM than 1 GB, off-server backups, e-mail service (Resend).

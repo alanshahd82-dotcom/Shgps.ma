@@ -2065,3 +2065,7 @@ write before subsequent packets arrive.
 - Found: (1) a slow/missing network at start-up sent a signed-in person to the login form (route guards redirected on `authBootstrapError`) and the session check was never retried; (2) in the phone app an already signed-in **administrator** was always sent to the client login (`/` -> `/client` only knew client sessions); (3) the phone app renews an expired token through the legacy grace, limited to 180 days.
 - Fixed: the saved session is kept while offline (the app opens; the session check retries with back-off and on `online` / return to foreground); `/client` sends a signed-in admin to `/admin/dashboard`; grace raised to 400 days (`backend/src/routes/auth.js`, tests updated). A real sign-out (revoked token / refresh refused with 401) still shows the login form.
 - Browser tests: admin in the phone app opens the panel directly; network down at start keeps the app open and recovers; expired token is renewed without a login form; refused refresh shows login.
+
+## 2026-09-30 — Real contact details in the store-facing pages
+
+- Privacy, Terms and Account deletion now show `athargpstraveler@gmail.com` and `+212 618 846 582`; "last updated" is September 2026. Support defaults (`+212600000000`) are only fallbacks when the database has no value (set them in Admin > Support data).
