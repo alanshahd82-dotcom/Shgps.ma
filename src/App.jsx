@@ -95,10 +95,11 @@ function IntroGate({ children }) {
 }
 
 function ClientRoute({ children }) {
-  const { clientAuth, authReady, authBootstrapError, mustChangePassword, clearMustChange, lang } = useApp()
+  const { clientAuth, authReady, mustChangePassword, clearMustChange, lang } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
-  if (authBootstrapError || !isClientAuthenticated(clientAuth)) {
+  // A saved session stays valid while the network is down (the session check is retried in the background).
+  if (!isClientAuthenticated(clientAuth)) {
     return <Navigate to="/client/login" state={{ from: location }} replace />
   }
   return (
@@ -112,22 +113,24 @@ function ClientRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { adminAuth, authReady, authBootstrapError, lang } = useApp()
+  const { adminAuth, authReady, lang } = useApp()
   const location = useLocation()
   if (!authReady) return <AuthLoading />
-  if (authBootstrapError || !isAdminAuthenticated(adminAuth)) {
+  if (!isAdminAuthenticated(adminAuth)) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
   return <PageBoundary lang={lang} resetKey={location.pathname}>{children}</PageBoundary>
 }
 
 function ClientEntry() {
-  const { clientAuth, authReady, authBootstrapError } = useApp()
+  const { clientAuth, adminAuth, authReady } = useApp()
   const hasSeenOnboarding = localStorage.getItem('athargps_onboarding_seen') === 'true'
   if (!authReady) return <AuthLoading />
+  // An administrator who is already signed in goes straight to the admin panel (also in the phone app).
+  if (isAdminAuthenticated(adminAuth)) return <Navigate to="/admin/dashboard" replace />
   return (
     <Navigate
-      to={!authBootstrapError && isClientAuthenticated(clientAuth)
+      to={isClientAuthenticated(clientAuth)
         ? '/client/home'
         : !sessionStorage.getItem('athargps_intro_seen') ? '/client/cinematic'
         : hasSeenOnboarding ? '/client/login' : '/client/start'}

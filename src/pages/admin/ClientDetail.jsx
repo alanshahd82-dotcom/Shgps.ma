@@ -497,6 +497,7 @@ function DeviceDetailDrawer({ device, lang, onClose, onDeviceUpdated }) {
 
       {/* Renewal modal */}
       <SubscriptionRenewalModal
+        allowCustom
         open={showRenew}
         device={live}
         lang={lang}

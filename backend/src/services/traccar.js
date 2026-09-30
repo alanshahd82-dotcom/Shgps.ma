@@ -120,7 +120,7 @@ export const linkDevice   = (userId, deviceId) => call('/api/permissions', { met
 export const unlinkDevice = (userId, deviceId) => call('/api/permissions', { method:'DELETE', body: JSON.stringify({ userId, deviceId }) })
 const HISTORY_CHUNK_MS = 24 * 60 * 60 * 1000
 
-async function getHistoryChunk(deviceId, from, to) {
+export async function getHistoryChunk(deviceId, from, to) {
   const p = new URLSearchParams({
     deviceId: String(deviceId),
     from,

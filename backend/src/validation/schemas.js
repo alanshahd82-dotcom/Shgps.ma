@@ -26,6 +26,8 @@ export const schemas = {
     clientId:           z.number().int().positive().nullable().optional(),
     maxDevices:         z.number().int().positive().nullable().optional(),
     subscriptionPlanId: z.string().nullable().optional(),
+    subscriptionStartDate: z.string().nullable().optional(),
+    subscriptionEndDate:   z.string().nullable().optional(),
   }),
 
   // PUT/PATCH /api/devices/:id (update device)

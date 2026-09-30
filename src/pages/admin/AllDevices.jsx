@@ -333,6 +333,7 @@ export default function AllDevices() {
       </div>
 
       <SubscriptionRenewalModal
+        allowCustom
         open={!!renewDevice}
         device={renewDevice}
         lang={lang}

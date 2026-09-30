@@ -4,14 +4,15 @@ import { ChevronLeft, Trash2 } from 'lucide-react'
 
 // Public page (no login): Google Play and the App Store require a web page that explains
 // how an account and its data can be deleted. It is also linked from the app settings.
-const CONTACT = 'privacy@athargps.ma'
+const CONTACT = 'athargpstraveler@gmail.com'
+const PHONE = '+212 618 846 582'
 
 const content = {
   ar: {
     title: 'حذف الحساب والبيانات',
     intro: 'يمكنك في أي وقت طلب حذف حسابك وبياناتك من ATHAR GPS. هذه هي الخطوات.',
     steps: [
-      'أرسل رسالة إلى ' + CONTACT + ' من البريد المسجَّل في حسابك، بعنوان: "طلب حذف حساب"، واذكر اسمك ورقم هاتفك.',
+      'أرسل رسالة إلى ' + CONTACT + ' من البريد المسجَّل في حسابك، بعنوان: "طلب حذف حساب"، واذكر اسمك ورقم هاتفك. أو راسلنا/اتصل على ' + PHONE + '.',
       'أو أخبر مدير الأسطول/الشركة التي أنشأت حسابك، فهو يستطيع حذف حسابك من لوحة الإدارة.',
       'نتحقق من هويتك (قد نتصل بك على الرقم المسجَّل) ثم ننفّذ الطلب.',
     ],
@@ -30,7 +31,7 @@ const content = {
     title: 'Suppression du compte et des données',
     intro: 'Vous pouvez demander à tout moment la suppression de votre compte et de vos données ATHAR GPS. Voici comment faire.',
     steps: [
-      'Écrivez à ' + CONTACT + ' depuis l’e-mail de votre compte, objet : « Demande de suppression de compte », avec votre nom et votre numéro de téléphone.',
+      'Écrivez à ' + CONTACT + ' depuis l’e-mail de votre compte, objet : « Demande de suppression de compte », avec votre nom et votre numéro de téléphone. Ou contactez-nous au ' + PHONE + '.',
       'Ou demandez au gestionnaire de flotte / à l’entreprise qui a créé votre compte : il peut le supprimer depuis le panneau d’administration.',
       'Nous vérifions votre identité (nous pouvons vous appeler sur le numéro enregistré) puis nous traitons la demande.',
     ],

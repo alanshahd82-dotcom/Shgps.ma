@@ -10,6 +10,7 @@ import { api } from '../../api/index.js'
 import AdminLayout from './AdminLayout'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 import { VehicleTypeControl } from '../../components/ui'
+import { customRangeError, planPayload } from '../../utils/subscriptions'
 import { APP_TZ } from '../../utils/datetime.js'
 
 // ── Device Type Cards ─────────────────────────────────────────────────────
@@ -102,6 +103,7 @@ export default function DeviceSetup() {
   const [testData, setTestData]       = useState(null)
   const [clientId, setClientId]       = useState('')
   const [subscriptionPlanId, setSubscriptionPlanId] = useState('3_months')
+  const [planRange, setPlanRange] = useState({ start: '', end: '' })
   const [saving, setSaving]           = useState(false)
   const [savedDevice, setSavedDevice] = useState(null)
   const [error, setError]             = useState('')
@@ -176,7 +178,7 @@ export default function DeviceSetup() {
         type: vehicleType,
         plate,
         clientId: clientId || undefined,
-        subscriptionPlanId,
+        ...planPayload(subscriptionPlanId, planRange),
       })
       setSavedDevice(device)
       setTestStatus(null)
@@ -191,7 +193,7 @@ export default function DeviceSetup() {
     if (step === 0) return !!deviceType
     if (step === 1) return imeiValid && name.trim() && vehicleType
     if (step === 2) return true
-    if (step === 3) return true
+    if (step === 3) return !(subscriptionPlanId === 'custom' && customRangeError(planRange))
     if (step === 4) return true
     return false
   }
@@ -377,7 +379,7 @@ export default function DeviceSetup() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 block mb-2">{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}</label>
-                  <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} includeTrial />
+                  <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} includeTrial allowCustom range={planRange} onRangeChange={setPlanRange} />
                 </div>
 
                 {error && (
@@ -516,7 +518,7 @@ export default function DeviceSetup() {
                     <MapPin size={16} />
                     {isAr ? 'رؤية الخريطة' : 'Voir la carte'}
                   </button>
-                   <button onClick={() => { setStep(0); setDeviceType(null); setImei(''); setImeiValid(null); setName(''); setPlate(''); setClientId(''); setSubscriptionPlanId('3_months'); setTestStatus(null); setTestData(null); setSavedDevice(null); setError('') }}
+                   <button onClick={() => { setStep(0); setDeviceType(null); setImei(''); setImeiValid(null); setName(''); setPlate(''); setClientId(''); setSubscriptionPlanId('3_months'); setPlanRange({ start: '', end: '' }); setTestStatus(null); setTestData(null); setSavedDevice(null); setError('') }}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border-2 border-gray-200 text-slate-600 font-bold text-sm hover:bg-gray-50">
                     <Cpu size={16} />
                     {isAr ? 'إضافة جهاز آخر' : 'Ajouter un autre'}

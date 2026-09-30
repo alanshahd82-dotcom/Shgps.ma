@@ -45,6 +45,7 @@ export default function Subscriptions() {
   return (
     <AdminLayout>
       <SubscriptionRenewalModal
+        allowCustom
         open={!!renewDevice}
         device={renewDevice}
         lang={lang}

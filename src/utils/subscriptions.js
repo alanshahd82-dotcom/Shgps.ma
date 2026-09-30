@@ -13,10 +13,35 @@ export const FREE_TRIAL_PLAN = Object.freeze({
   trial: true,
 })
 
+// The administrator can also type the exact period ("from" a date "to" a date).
+export const CUSTOM_PLAN = Object.freeze({
+  id: 'custom',
+  label: 'فترة مخصصة',
+  labelFr: 'Période personnalisée',
+  price: null,
+  custom: true,
+})
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export function getSubscriptionPlan(planId) {
-  return [...SUBSCRIPTION_PLANS, FREE_TRIAL_PLAN].find(plan => plan.id === planId) || null
+  return [...SUBSCRIPTION_PLANS, FREE_TRIAL_PLAN, CUSTOM_PLAN].find(plan => plan.id === planId) || null
+}
+
+// What to send with a plan id: the dates only exist for the custom plan.
+export function planPayload(planId, range) {
+  return planId === 'custom'
+    ? { subscriptionPlanId: planId, subscriptionStartDate: range?.start || null, subscriptionEndDate: range?.end || null }
+    : { subscriptionPlanId: planId }
+}
+
+// Same rules as the server: both dates, real order, at most ~10 years.
+export function customRangeError(range, isAr = true) {
+  if (!range?.start || !range?.end) return isAr ? 'اختر تاريخ البداية والنهاية' : 'Choisissez la date de début et de fin'
+  if (range.end < range.start) return isAr ? 'تاريخ النهاية قبل تاريخ البداية' : 'La date de fin précède la date de début'
+  const days = (Date.parse(range.end) - Date.parse(range.start)) / DAY_MS
+  if (days > 3660) return isAr ? 'الفترة أطول من 10 سنوات' : 'Période supérieure à 10 ans'
+  return ''
 }
 
 export function dateOnly(value) {

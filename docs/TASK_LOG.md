@@ -2046,3 +2046,26 @@ write before subsequent packets arrive.
 - Removed duplicates: the second "add device" button on the devices page (quick add in the menu + the setup assistant remain); the subscription column on the devices page (the Subscriptions page keeps it; the Renew button stays); the KPI tiles on Reports that repeated the dashboard.
 - Badge "Plan not set · 3 months" reworded to "Not started · 3 months".
 - Engine code untouched; admin engine dialog test passes.
+
+## 2026-09-29 — A vehicle never loses its last position
+
+- New `backend/src/services/lastKnownLocation.js`: a device with no valid live fix and no stored location (its last packets had no GPS fix and it went silent before a position was stored) gets its newest valid fix from Traccar's history (windows 0–2, 2–10, 10–45 days), stored once in `devices.last_lat/last_lng/last_update`. Bounded: 4 devices per request, 2.5 s budget, 15 min pause for devices without history. Wired into `GET /devices`, `GET /devices/:id` and `/map/positions`; a failing Traccar/database never breaks the response.
+- Tests: `lastKnownLocation.test.js` (6) and `devicesLocationRecovery.test.js` (route). Backend 294/295 (the old `vehiclesPageLayout.test.js` only). Engine code untouched.
+- Rule kept: an expired subscription still hides the location (existing `trackingEnabled` rule).
+
+## 2026-09-29 — Subscriptions: exact period "from - to"
+
+- New plan `custom` (admin only): the administrator types the start and end dates instead of choosing 3 / 6 / 12 months. Server: `resolveSubscriptionPeriod()` in `backend/src/services/subscriptions.js` (real dates, end not before start, at most ~10 years); used by device creation (`POST /devices`, `/devices/quick-add`, `POST /clients/:id/devices`) and by `PATCH /devices/:id/subscription` (a custom period replaces the current one exactly; fixed plans still extend from the current end). A non-admin gets 403 for `custom`.
+- Status after saving follows the dates (a past end date gives "expired", tracking off, as for any expired plan); create responses no longer hard-code "active".
+- UI: `SubscriptionPlans` has a "Période personnalisée / فترة مخصصة" card with two date fields and inline validation; available in the renewal modal (admin pages only), quick add (menu + modal), page form and the setup wizard. The client renewal screen is unchanged.
+- Tests: `subscriptionCustomPeriod.test.js` (7); browser: renewal modal and quick add send the typed dates, wrong order is refused. Backend 301/302 (old layout test only). Engine code untouched.
+
+## 2026-09-29 — Stay signed in until logout (client, worker, admin; web and phone app)
+
+- Found: (1) a slow/missing network at start-up sent a signed-in person to the login form (route guards redirected on `authBootstrapError`) and the session check was never retried; (2) in the phone app an already signed-in **administrator** was always sent to the client login (`/` -> `/client` only knew client sessions); (3) the phone app renews an expired token through the legacy grace, limited to 180 days.
+- Fixed: the saved session is kept while offline (the app opens; the session check retries with back-off and on `online` / return to foreground); `/client` sends a signed-in admin to `/admin/dashboard`; grace raised to 400 days (`backend/src/routes/auth.js`, tests updated). A real sign-out (revoked token / refresh refused with 401) still shows the login form.
+- Browser tests: admin in the phone app opens the panel directly; network down at start keeps the app open and recovers; expired token is renewed without a login form; refused refresh shows login.
+
+## 2026-09-30 — Real contact details in the store-facing pages
+
+- Privacy, Terms and Account deletion now show `athargpstraveler@gmail.com` and `+212 618 846 582`; "last updated" is September 2026. Support defaults (`+212600000000`) are only fallbacks when the database has no value (set them in Admin > Support data).

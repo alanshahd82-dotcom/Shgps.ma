@@ -14,6 +14,7 @@ import ForcePasswordModal from '../../components/ForcePasswordModal'
 import SubscriptionPlans from '../../components/SubscriptionPlans'
 import PageBoundary from '../../components/PageBoundary'
 import { VehicleTypeControl } from '../../components/ui'
+import { customRangeError, planPayload } from '../../utils/subscriptions'
 
 // Remembers the menu scroll position while moving between admin pages.
 let sidebarScrollTop = 0
@@ -33,6 +34,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
   const [maxDev,    setMaxDev]    = useState('')   // empty = keep the client's current limit
   const [expires,   setExpires]   = useState('')
   const [subscriptionPlanId, setSubscriptionPlanId] = useState('3_months')
+  const [planRange, setPlanRange] = useState({ start: '', end: '' })
   const [search,    setSearch]    = useState('')
 
   // ── ui state
@@ -49,7 +51,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
 
   const reset = () => {
     setImei(''); setPhone(''); setVType(''); setClientId(''); setMaxDev('')
-    setExpires(''); setSubscriptionPlanId('3_months'); setSearch(''); setError(''); setDone(null); setExpanded(false)
+    setExpires(''); setSubscriptionPlanId('3_months'); setPlanRange({ start: '', end: '' }); setSearch(''); setError(''); setDone(null); setExpanded(false)
   }
   const handleClose = () => { reset(); onClose() }
 
@@ -65,7 +67,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
         // Only sent when the admin typed a new limit; otherwise the client's saved limit is kept.
         maxDevices: clientId && maxDev !== '' ? Number(maxDev) : null,
         expiresAt:  clientId ? (expires || null) : null,
-        subscriptionPlanId,
+        ...planPayload(subscriptionPlanId, planRange),
       })
       setDone(result)
       onSuccess(result)
@@ -311,7 +313,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                         <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
                           <CalendarDays size={10} />{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}
                         </label>
-                        <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} compact includeTrial />
+                        <SubscriptionPlans value={subscriptionPlanId} onChange={setSubscriptionPlanId} lang={lang} compact includeTrial allowCustom range={planRange} onRangeChange={setPlanRange} />
                       </div>
                     </motion.div>
                   )}
@@ -320,7 +322,7 @@ function QuickAddModal({ open, onClose, lang, clientList, clientsError, onRefres
                 {/* Submit */}
                 <button
                   type="submit"
-                  disabled={loading || imei.length !== 15 || !phone.trim() || !vType}
+                  disabled={loading || imei.length !== 15 || !phone.trim() || !vType || (subscriptionPlanId === 'custom' && !!customRangeError(planRange))}
                   className="w-full py-3.5 rounded-xl bg-primary-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-primary-600 active:scale-[0.98] transition-all"
                 >
                   {loading

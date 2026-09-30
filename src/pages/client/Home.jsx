@@ -11,6 +11,7 @@ import { vehiclePoint } from '../../utils/location'
 import { getDeviceStatusKey } from '../../components/ui'
 import { fleetBucket } from '../../utils/fleetBucket'
 import TabBar from '../../components/TabBar'
+import FleetScene from '../../components/FleetScene'
 
 function useLang() {
   const { lang } = useApp()
@@ -115,6 +116,32 @@ const REASON_STYLE = {
 }
 
 const VISIBLE_VEHICLES = 6
+
+const TAGLINES = {
+  ar: ['تتبّع مركباتك لحظة بلحظة', 'تحكّم كامل في محرّك مركبتك', 'تنبيهات فورية عند أي خطر', 'رحلات وتقارير بدقّة عالية'],
+  fr: ['Suivez vos véhicules en temps réel', 'Contrôlez le moteur à distance', 'Alertes instantanées en cas de risque', 'Trajets et rapports précis'],
+}
+
+// A professional slogan that changes every few seconds (a still line when the phone asks for reduced motion).
+function RotatingTagline({ lang }) {
+  const lines = TAGLINES[lang] || TAGLINES.fr
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    let still = false
+    try { still = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches } catch { /* ignore */ }
+    if (still) return undefined
+    const id = setInterval(() => setI(n => (n + 1) % lines.length), 3600)
+    return () => clearInterval(id)
+  }, [lines.length])
+  return (
+    <div className="mt-3 h-6 overflow-hidden" aria-hidden="true">
+      <p key={i} className="athar-tagline flex items-center gap-2 text-[13px] font-bold tracking-wide text-white/90">
+        <span className="h-1 w-5 rounded-full bg-gradient-to-r from-cyan-300 to-indigo-300" />
+        {lines[i % lines.length]}
+      </p>
+    </div>
+  )
+}
 
 export default function Home() {
   // `devices` already carries the live merged position (AppContext merges the
@@ -225,10 +252,12 @@ export default function Home() {
 
       <main className="px-5 py-5 space-y-5 max-w-3xl mx-auto">
         {/* Fleet summary */}
-        <section className="relative rounded-3xl overflow-hidden shadow-lg shadow-indigo-200/50">
+        <section className="relative rounded-3xl overflow-hidden shadow-lg shadow-indigo-200/50 min-h-[168px]">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-indigo-800 to-slate-900" />
-          <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 80% 20%, white 0.5px, transparent 1px), radial-gradient(circle at 30% 70%, white 0.5px, transparent 1px)', backgroundSize: '40px 40px'}} />
-          <div className="relative p-5 text-white">
+          <FleetScene live={fleet.connected} rtl={dir === 'rtl'} />
+          {/* keeps the numbers readable on top of the animated scene */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/30" />
+          <div className="relative p-5 text-white [text-shadow:0_1px_8px_rgba(2,6,23,.55)]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[12px] font-semibold text-white/70">{t('fleet', lang)}</p>
@@ -237,11 +266,13 @@ export default function Home() {
                   <span className="text-sm font-semibold text-white/80">{t('total', lang)}</span>
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold ring-1 ring-white/20" role="status">
-                <span className={`h-1.5 w-1.5 rounded-full ${wsConnected ? 'bg-emerald-400' : 'bg-amber-300 animate-pulse'}`} />
-                {wsConnected ? t('live', lang) : t('reconnecting', lang)}
+              {/* connection state: a quiet dot while live, a short label only when the link drops */}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2 py-1 text-[11px] font-bold ring-1 ring-white/20" role="status" aria-label={wsConnected ? t('live', lang) : t('reconnecting', lang)}>
+                <span className={`h-2 w-2 rounded-full ${wsConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.9)]' : 'bg-amber-300 animate-pulse'}`} />
+                {!wsConnected && t('reconnecting', lang)}
               </span>
             </div>
+            <RotatingTagline lang={lang} />
             {/* proportions of the fleet */}
             <div className="mt-4 flex h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true">
               {total > 0 && segments.filter(x => x.n > 0).map(x => (

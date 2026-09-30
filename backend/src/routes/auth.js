@@ -48,7 +48,9 @@ function clearAttempts(ip) { loginAttempts.delete(ip) }
 const ATHARG_REFRESH_COOKIE = 'athargps_refresh'
 const REFRESH_SESSION_DAYS = 365
 const REFRESH_SESSION_MS = REFRESH_SESSION_DAYS * 24 * 60 * 60 * 1000
-const LEGACY_REFRESH_GRACE_SEC = 180 * 24 * 60 * 60
+// The phone app cannot use the refresh cookie (cross-site), so its expired access token is renewed instead.
+// Signed-in people stay signed in until they log out, even if the app is not opened for months.
+const LEGACY_REFRESH_GRACE_SEC = 400 * 24 * 60 * 60
 
 function hashRefreshToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex')

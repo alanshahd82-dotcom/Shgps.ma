@@ -25,6 +25,7 @@ Category: Auto & Vehicles (Play) / Navigation or Business (App Store). Free. Con
 ## Reviewer notes
 Login-only app. Provide a demo client account (email + password) with 2–3 demo vehicles. Engine cut/resume asks for the account password; explain it in the notes.
 
-## To replace before submitting (owner facts, not invented here)
-- `privacy@athargps.ma` and the phone `+212 600 000 000` in `src/pages/Privacy.jsx`, `Terms.jsx`, `AccountDeletion.jsx` are placeholders — use a real mailbox that answers.
-- "Last updated: January 2025" in Privacy/Terms should be the real date.
+## Contact details used in the store pages
+- E-mail: `athargpstraveler@gmail.com` and phone `+212 618 846 582` (Privacy, Terms, Account deletion). Privacy/Terms "last updated": September 2026.
+- Use the same e-mail as the developer contact in Google Play Console / App Store Connect.
+- Still placeholders (only used if the database has no value): support defaults `+212600000000` in `src/config/support.js` and `backend/src/services/supportSettings.js`; set the real values in Admin > Support data.

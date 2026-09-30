@@ -9,6 +9,7 @@ import { api } from '../../api/index.js'
 import Button from '../ui/Button'
 import SubscriptionPlans from '../SubscriptionPlans'
 import { VehicleTypeControl } from '../ui'
+import { customRangeError, planPayload } from '../../utils/subscriptions'
 
 export default function AddDeviceModal({
   open,
@@ -28,8 +29,8 @@ export default function AddDeviceModal({
 
   // ── Global / client-scoped state (UNCHANGED) ──
   const initialForm = isGlobal
-    ? { name: '', imei: '', type: '', plate: '', clientId: '', subscriptionPlanId: '3_months' }
-    : { name: '', imei: '', type: '', plate: '', clientId, subscriptionPlanId: '3_months' }
+    ? { name: '', imei: '', type: '', plate: '', clientId: '', subscriptionPlanId: '3_months', range: { start: '', end: '' } }
+    : { name: '', imei: '', type: '', plate: '', clientId, subscriptionPlanId: '3_months', range: { start: '', end: '' } }
 
   const [form, setForm] = useState(initialForm)
   const [loading, setLoading] = useState(false)
@@ -38,8 +39,8 @@ export default function AddDeviceModal({
   const imeiValid = /^\d{15}$/.test(form.imei)
 
   const resetForm = () => isGlobal
-    ? { name: '', imei: '', type: '', plate: '', clientId: '', subscriptionPlanId: '3_months' }
-    : { name: '', imei: '', type: '', plate: '', clientId, subscriptionPlanId: '3_months' }
+    ? { name: '', imei: '', type: '', plate: '', clientId: '', subscriptionPlanId: '3_months', range: { start: '', end: '' } }
+    : { name: '', imei: '', type: '', plate: '', clientId, subscriptionPlanId: '3_months', range: { start: '', end: '' } }
 
   // ── Quick-add state (NEW — self-contained) ──
   const [qaImei, setQaImei] = useState('')
@@ -50,6 +51,7 @@ export default function AddDeviceModal({
   const [qaMaxDev, setQaMaxDev] = useState('')   // empty = keep the client's current limit
   const [qaExpires, setQaExpires] = useState('')
   const [qaSubscriptionPlanId, setQaSubscriptionPlanId] = useState('3_months')
+  const [qaRange, setQaRange] = useState({ start: '', end: '' })
   const [qaSearch, setQaSearch] = useState('')
   const [qaDone, setQaDone] = useState(null)
 
@@ -62,7 +64,7 @@ export default function AddDeviceModal({
 
   const qaReset = () => {
     setQaImei(''); setQaPhone(''); setQaType(''); setQaClientId(''); setQaMaxDev('')
-    setQaExpires(''); setQaSubscriptionPlanId('3_months'); setQaSearch(''); setError(''); setQaDone(null); setQaExpanded(false)
+    setQaExpires(''); setQaSubscriptionPlanId('3_months'); setQaRange({ start: '', end: '' }); setQaSearch(''); setError(''); setQaDone(null); setQaExpanded(false)
   }
 
   const qaHandleClose = () => { qaReset(); onClose() }
@@ -79,7 +81,7 @@ export default function AddDeviceModal({
         // Only sent when the admin typed a new limit; otherwise the client's saved limit is kept.
         maxDevices: qaClientId && qaMaxDev !== '' ? Number(qaMaxDev) : null,
         expiresAt:  qaClientId ? (qaExpires || null) : null,
-        subscriptionPlanId: qaSubscriptionPlanId,
+        ...planPayload(qaSubscriptionPlanId, qaRange),
       })
       setQaDone(result)
       if (onSuccess) onSuccess(result)
@@ -96,7 +98,8 @@ export default function AddDeviceModal({
       if (!imeiValid) { setError(isAr ? 'إ م ت ج ب أن تكون 15 رقماً' : 'IMEI doit contenir 15 chiffres'); return }
       setLoading(true); setError('')
       try {
-        await onAdd({ ...form, clientId: form.clientId || null })
+        const { range, ...rest } = form
+        await onAdd({ ...rest, ...planPayload(form.subscriptionPlanId, range), clientId: form.clientId || null })
         setForm(resetForm())
         onClose()
       } catch (err) {
@@ -105,7 +108,8 @@ export default function AddDeviceModal({
     } else {
       setLoading(true); setError('')
       try {
-        await onAdd(form)
+        const { range, ...rest } = form
+        await onAdd({ ...rest, ...planPayload(form.subscriptionPlanId, range) })
         setForm(resetForm())
         onClose()
       } catch (err) {
@@ -364,7 +368,7 @@ export default function AddDeviceModal({
                           <label className="flex items-center gap-1 text-xs font-bold text-slate-500 mb-1.5">
                             <CalendarDays size={10} />{isAr ? 'خطة اشتراك الجهاز — دفع نقدي' : 'Forfait appareil — paiement comptant'}
                           </label>
-                          <SubscriptionPlans value={qaSubscriptionPlanId} onChange={setQaSubscriptionPlanId} lang={lang} compact includeTrial />
+                          <SubscriptionPlans value={qaSubscriptionPlanId} onChange={setQaSubscriptionPlanId} lang={lang} compact includeTrial allowCustom range={qaRange} onRangeChange={setQaRange} />
                         </div>
                       </motion.div>
                     )}
@@ -373,7 +377,7 @@ export default function AddDeviceModal({
                   {/* Submit */}
                   <button
                     type="submit"
-                    disabled={loading || qaImei.length !== 15 || !qaPhone.trim() || !qaType}
+                    disabled={loading || qaImei.length !== 15 || !qaPhone.trim() || !qaType || (qaSubscriptionPlanId === 'custom' && !!customRangeError(qaRange))}
                     className="w-full py-3.5 rounded-xl bg-primary-500 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 hover:bg-primary-600 active:scale-[0.98] transition-all"
                   >
                     {loading
@@ -502,7 +506,8 @@ export default function AddDeviceModal({
                   onChange={isGlobal
                     ? (subscriptionPlanId => setForm(p => ({ ...p, subscriptionPlanId })))
                     : (v => setForm(p => ({ ...p, subscriptionPlanId: v })))}
-                  lang={lang} compact includeTrial />
+                  lang={lang} compact includeTrial allowCustom
+                  range={form.range} onRangeChange={range => setForm(p => ({ ...p, range }))} />
               </div>
             </form>
 
@@ -510,7 +515,7 @@ export default function AddDeviceModal({
             <div className={"flex-shrink-0 px-6 pb-6 pt-3 flex gap-3 border-t border-gray-100 " + (isGlobal ? "bg-white rounded-b-3xl" : "")}>
               <button type="button" onClick={handleClose} className="flex-1 btn-secondary py-3">{t(lang, 'cancel')}</button>
               <Button type="submit" form={formId}
-                disabled={isGlobal ? (loading || !form.name || !imeiValid || !form.type) : (loading || !form.type)}
+                disabled={(isGlobal ? (loading || !form.name || !imeiValid || !form.type) : (loading || !form.type)) || (form.subscriptionPlanId === 'custom' && !!customRangeError(form.range))}
                 variant="primary" className="flex-1 py-3">
                 {loading ? '...' : t(lang, 'add')}
               </Button>
